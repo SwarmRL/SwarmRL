@@ -11,7 +11,7 @@ Force rules calculate the force on the particle based on
 
 
 # example force rules **put ML here**
-class HarmonicTrap():
+class HarmonicTrap:
     def __init__(self, center, stiffness):
         self.center = np.asarray(center)
         self.stiffness = stiffness
@@ -23,25 +23,37 @@ class HarmonicTrap():
         return -self.stiffness * dist
 
 
-class RandomAroundDirector():
-    def __init__(self, force_norm):
-        self.force_norm = force_norm
+class ActiveParticle:
+    def __init__(self, swim_force):
+        self.swim_force = swim_force
 
     def calc_force(self, colloid):
         direc = colloid.director
-        rnd_force = direc + 0.1 * np.random.random((3,))
-        return self.force_norm * rnd_force / np.linalg.norm(rnd_force)
+        return self.swim_force * direc / np.linalg.norm(direc)
+
+
+class ToCenterMass:
+    def __init__(self, force):
+        self.force = force
+
+    def calc_force(self, colloid, other_particles):
+        center_of_mass = np.sum(np.array([p.pos * p.mass for p in other_particles]), axis = 0) / np.sum(
+            [p.mass for p in other_particles])
+        dist = colloid.pos - center_of_mass
+
+        return - self.force * dist / np.linalg.norm(dist)
 
 
 # system parameters
+n_colloids = 10
 colloid_mass = 0.01
 kT = 0.01
-friction = 1 # 6 pi mu r
+friction = 1  # 6 pi mu r
 time_step = 0.0001
 # time slice: the amount of time the integrator runs before we look at the configuration and change forces
 time_slice = 0.1
 box_l = np.array(3 * [100])
-sim_duration = 1e12
+sim_duration = 1e5
 
 # system setup. Skin is a verlet list parameter that has to be set, but only affects performance
 system = System(box_l=box_l)
@@ -52,13 +64,15 @@ system.cell_system.skin = 0.4
 # rotational degrees of freedom are integrated+thermalised as well
 system.thermostat.set_langevin(kT=kT, gamma=friction, gamma_rotation=friction, seed=42)
 
-center = 0.5 * box_l
-start_pos = center + np.array([0.3 * box_l[0], 0, 0])
-start_velocity = [0, 10, 0]
-
 # here we set up the particle. The handle will later be used to calculate/set forces
-colloid = system.part.add(pos=start_pos, v=start_velocity, mass=colloid_mass, rotation=3 * [True])
-my_force_rule = RandomAroundDirector(0.2)
+colloids = list()
+for _ in range(n_colloids):
+    start_pos = box_l * np.random.random((3,))
+    start_velocity = 0.1 * np.random.random((3,))
+    colloid = system.part.add(pos=start_pos, v=start_velocity, mass=colloid_mass, rotation=3 * [True])
+    colloids.append(colloid)
+
+com_force_rule = ToCenterMass(0.2)
 
 # visualization is optional
 visualizer = visualization.openGLLive(system)
@@ -71,7 +85,9 @@ n_slices = int(np.ceil(sim_duration / time_slice))
 def integrate():
     for _ in tqdm.tqdm(range(n_slices)):
         system.integrator.run(steps_per_slice)
-        colloid.ext_force = my_force_rule.calc_force(colloid)
+        for coll in colloids:
+            force_on_colloid = com_force_rule.calc_force(coll, [c for c in colloids if c is not coll])
+            coll.ext_force = force_on_colloid
 
         if visualizer is not None:
             visualizer.update()
