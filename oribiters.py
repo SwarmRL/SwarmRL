@@ -37,7 +37,7 @@ class ToCenterMass:
         self.force = force
 
     def calc_force(self, colloid, other_particles):
-        center_of_mass = np.sum(np.array([p.pos * p.mass for p in other_particles]), axis = 0) / np.sum(
+        center_of_mass = np.sum(np.array([p.pos * p.mass for p in other_particles]), axis=0) / np.sum(
             [p.mass for p in other_particles])
         dist = colloid.pos - center_of_mass
 
@@ -46,10 +46,12 @@ class ToCenterMass:
 
 # system parameters
 n_colloids = 10
+colloid_radius = 1
+fluid_dyn_viscosity = 0.01
+WCA_epsilon = 1
 colloid_mass = 0.01
 kT = 0.01
-friction = 1  # 6 pi mu r
-time_step = 0.0001
+time_step = 0.01
 # time slice: the amount of time the integrator runs before we look at the configuration and change forces
 time_slice = 0.1
 box_l = np.array(3 * [100])
@@ -59,10 +61,15 @@ sim_duration = 1e5
 system = System(box_l=box_l)
 system.time_step = time_step
 system.cell_system.skin = 0.4
+particle_type = 0
 
 # Langevin thermostat is one option, brownian dynamics can also be used.
 # rotational degrees of freedom are integrated+thermalised as well
+friction = 6*np.pi* fluid_dyn_viscosity*colloid_radius
 system.thermostat.set_langevin(kT=kT, gamma=friction, gamma_rotation=friction, seed=42)
+
+system.non_bonded_inter[particle_type, particle_type].wca.set_params(sigma=(2 * colloid_radius) ** (-1 / 6),
+                                                                     epsilon=WCA_epsilon)
 
 # here we set up the particle. The handle will later be used to calculate/set forces
 colloids = list()
