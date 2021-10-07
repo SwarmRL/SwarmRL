@@ -33,12 +33,27 @@ class ActiveParticle:
 
 
 class ToCenterMass:
-    def __init__(self, force):
+    def __init__(self, force, only_in_front=False):
         self.force = force
+        self.only_in_front = only_in_front
 
     def calc_force(self, colloid, other_particles):
-        center_of_mass = np.sum(np.array([p.pos * p.mass for p in other_particles]), axis=0) / np.sum(
-            [p.mass for p in other_particles])
+        if self.only_in_front:
+            particles_in_vision = list()
+            my_pos = np.array(colloid.pos)
+            my_director = colloid.director
+            for other_p in other_particles:
+                dist = other_p.pos - my_pos
+                if np.dot(dist, my_director) > 0:
+                    particles_in_vision.append(other_p)
+        else:
+            particles_in_vision = other_particles
+
+        if len(particles_in_vision) == 0:
+            return 3*[0]
+
+        center_of_mass = np.sum(np.array([p.pos * p.mass for p in particles_in_vision]), axis=0) / np.sum(
+            [p.mass for p in particles_in_vision])
         dist = colloid.pos - center_of_mass
 
         return - self.force * dist / np.linalg.norm(dist)
@@ -63,11 +78,6 @@ system.time_step = time_step
 system.cell_system.skin = 0.4
 particle_type = 0
 
-# Langevin thermostat is one option, brownian dynamics can also be used.
-# rotational degrees of freedom are integrated+thermalised as well
-friction = 6*np.pi* fluid_dyn_viscosity*colloid_radius
-system.thermostat.set_langevin(kT=kT, gamma=friction, gamma_rotation=friction, seed=42)
-
 system.non_bonded_inter[particle_type, particle_type].wca.set_params(sigma=(2 * colloid_radius) ** (-1 / 6),
                                                                      epsilon=WCA_epsilon)
 
@@ -79,7 +89,18 @@ for _ in range(n_colloids):
     colloid = system.part.add(pos=start_pos, v=start_velocity, mass=colloid_mass, rotation=3 * [True])
     colloids.append(colloid)
 
-com_force_rule = ToCenterMass(0.2)
+# equilibrate to remove overlap
+system.integrator.set_steepest_descent(
+    f_max=0.1, gamma=0.1, max_displacement=0.1)
+system.integrator.run(200)
+system.integrator.set_vv()
+
+# Langevin thermostat is one option, brownian dynamics can also be used.
+# rotational degrees of freedom are integrated+thermalised as well
+friction = 6 * np.pi * fluid_dyn_viscosity * colloid_radius
+system.thermostat.set_langevin(kT=kT, gamma=friction, gamma_rotation=friction, seed=42)
+
+com_force_rule = ToCenterMass(0.2, only_in_front=True)
 
 # visualization is optional
 visualizer = visualization.openGLLive(system)
