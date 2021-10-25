@@ -18,7 +18,7 @@ class InteractionModel(torch.nn.Module):
 
         Parameters
         ----------
-        colloids : tf.Tensor
+        colloids : torch.Tensor
                 Tensor of colloids on which to operate. shape=(n_colloids, n_properties)
                 where properties can very between test_models.
 
@@ -29,7 +29,7 @@ class InteractionModel(torch.nn.Module):
         """
         raise NotImplementedError("Implemented in child classes.")
 
-    def forward(self, colloids: torch.Tensor):
+    def forward(self, colloids: torch.Tensor, state: torch.Tensor = None):
         """
         Perform the forward pass over the model.
 
@@ -38,9 +38,12 @@ class InteractionModel(torch.nn.Module):
 
         Parameters
         ----------
-        colloids : tf.Tensor
+        colloids : torch.Tensor
                 Tensor of colloids on which to operate. shape=(n_colloids, n_properties)
                 where properties can very between test_models.
+        state : torch.Tensor
+                State of the system on which a reward may be computed. Defaults to None
+                to allow for non-NN models.
 
         Returns
         -------

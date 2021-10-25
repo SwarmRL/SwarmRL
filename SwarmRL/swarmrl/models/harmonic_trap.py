@@ -45,7 +45,7 @@ class HarmonicTrap(InteractionModel, ABC):
         """
         return (-self.stiffness * (colloids - self.center)).numpy()
 
-    def forward(self, colloids: torch.Tensor):
+    def forward(self, colloids: torch.Tensor, state: torch.Tensor = None) -> np.ndarray:
         """
         Perform the forward pass over the model.
 
@@ -56,6 +56,9 @@ class HarmonicTrap(InteractionModel, ABC):
         colloids : tf.Tensor
                 Tensor of colloids on which to operate. shape=(n_colloids, n_properties)
                 where properties can very between test_models.
+        state : torch.Tensor
+                State of the system on which a reward may be computed. Defaults to None
+                to allow for non-NN models.
 
         Returns
         -------
