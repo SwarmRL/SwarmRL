@@ -2,7 +2,7 @@
 Example force computation.
 """
 from abc import ABC
-from swarmrl.interaction_model import InteractionModel
+from swarmrl.models.interaction_model import InteractionModel
 import torch
 import numpy as np
 
