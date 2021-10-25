@@ -73,7 +73,7 @@ params = {'n_colloids': 10,
           'ureg': ureg
           }
 
-output_folder = '/work/clohrmann/bechinger_swimmers/test_sim'
+output_folder = './'  #'/work/clohrmann/bechinger_swimmers/test_sim'
 
 simulation_runner.integrate_system(params, com_force_rule, out_folder=output_folder)
 

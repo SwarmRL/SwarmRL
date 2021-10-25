@@ -38,6 +38,7 @@ class TestHarmonicTrap(unittest.TestCase):
         -------
         Will assert whether or not the forces are correct.
         """
+        self.model.center = np.array([0.0, 0.0, 0.0])
         actual = np.array([
             [-0.0, -0.0, -0.0],
             [-10, -30, -79],
