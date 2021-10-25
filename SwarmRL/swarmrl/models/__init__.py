@@ -1,3 +1,3 @@
 """
-__init__ file for the models.
+__init__ file for the test_models.
 """

@@ -1,36 +1,20 @@
 """
-Example force computation.
+Model to compute external forces in an espresso simulation.
 """
-from abc import ABC
-from swarmrl.interaction_model import InteractionModel
 import torch
 import numpy as np
 
 
-class HarmonicTrap(InteractionModel, ABC):
+class InteractionModel(torch.nn.Module):
     """
-    Class for the harmonic trap potential.
+    Parent class to compute external forces on colloids in an espresso simulation.
+
+    Inherits from the module class of Torch. When the class is called, the forward
+    method is run.
     """
-    def __init__(
-            self, stiffness: float, center: np.ndarray = np.array([0.0, 0.0, 0.0])
-    ):
-        """
-        Constructor for the Harmonic trap interaction rule.
-
-        Parameters
-        ----------
-        stiffness : float
-                Stiffness of the interaction potential.
-        center : np.ndarray
-                Center of the potential. The force is computed based on this distance.
-        """
-        super(HarmonicTrap, self).__init__()
-        self.stiffness = stiffness
-        self.center = center
-
     def compute_force(self, colloids: torch.Tensor) -> np.ndarray:
         """
-        Compute the forces on the colloids.
+        Compute the forces on a set of colloids.
 
         Parameters
         ----------
@@ -43,13 +27,14 @@ class HarmonicTrap(InteractionModel, ABC):
         forces : np.ndarray
                 Numpy array of forces to apply to the colloids. shape=(n_colloids, 3)
         """
-        return (-self.stiffness * (colloids - self.center)).numpy()
+        raise NotImplementedError("Implemented in child classes.")
 
     def forward(self, colloids: torch.Tensor):
         """
         Perform the forward pass over the model.
 
-        Simply call compute forces and return the values.
+        In this method, all other stages of the model should be called. In the case of
+        a simple algebraic model, this should just be a call to compute_force.
 
         Parameters
         ----------
@@ -62,4 +47,4 @@ class HarmonicTrap(InteractionModel, ABC):
         forces : np.ndarray
                 Numpy array of forces to apply to the colloids. shape=(n_colloids, 3)
         """
-        return self.compute_force(colloids)
+        raise NotImplementedError("Implemented in the child classes.")
