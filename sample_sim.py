@@ -2,6 +2,7 @@ from espressomd import System, visualization
 import threading
 import numpy as np
 import tqdm
+import pint
 
 """
 Force rules calculate the force on the particle based on
@@ -50,7 +51,7 @@ class ToCenterMass:
             particles_in_vision = other_particles
 
         if len(particles_in_vision) == 0:
-            return 3*[0]
+            return 3 * [0]
 
         center_of_mass = np.sum(np.array([p.pos * p.mass for p in particles_in_vision]), axis=0) / np.sum(
             [p.mass for p in particles_in_vision])
@@ -59,18 +60,38 @@ class ToCenterMass:
         return - self.force * dist / np.linalg.norm(dist)
 
 
-# system parameters
-n_colloids = 10
-colloid_radius = 1
-fluid_dyn_viscosity = 0.01
-WCA_epsilon = 1
-colloid_mass = 0.01
-kT = 0.01
-time_step = 0.01
+com_force_rule = ToCenterMass(1000, only_in_front=True)
+
+ureg = pint.UnitRegistry()
+
+params = {'n_colloids': 10,
+          'colloid_radius': ureg.Quantity(1, 'micrometer'),
+          'fluid_dyn_viscosity': ureg.Quantity(8.9, 'pascal * second'),
+          'WCA_epsilon': ureg.Quantity(1e-20, 'joule'),  # fixme
+          'colloid_density': ureg.Quantity(2.65, 'gram / centimeter**3'),
+          'temperature': ureg.Quantity(300, 'kelvin'),
+          'sim_duration': ureg.Quantity(1, 'hour'),
+          'box_length': ureg.Quantity(100, 'micrometer'),
+          'time_step': ureg.Quantity(0.05, 'second'),
+          'time_slice': ureg.Quantity(0.1, 'second'),
+          'visualize': True,
+          'seed': 42
+          }
+
+# define simulation units
+ureg.define('sim_length = 1e-6 meter')
+ureg.define('sim_time = 1 second')
+ureg.define(f"sim_energy = {params['temperature']} * boltzmann_constant")
+
+ureg.define('sim_mass = sim_energy * sim_time**2 / sim_length**2')
+ureg.define('sim_dyn_viscosity = sim_mass / (sim_length * sim_time)')
+
+# parameter unit conversion
+time_step = params['time_step'].m_as('sim_time')
 # time slice: the amount of time the integrator runs before we look at the configuration and change forces
-time_slice = 0.1
-box_l = np.array(3 * [100])
-sim_duration = 1e5
+time_slice = params['time_slice'].m_as('sim_time')
+box_l = np.array(3 * [params['box_length'].m_as('sim_length')])
+sim_duration = params['sim_duration'].m_as('sim_time')
 
 # system setup. Skin is a verlet list parameter that has to be set, but only affects performance
 system = System(box_l=box_l)
@@ -78,35 +99,46 @@ system.time_step = time_step
 system.cell_system.skin = 0.4
 particle_type = 0
 
+colloid_radius = params['colloid_radius'].m_as('sim_length')
 system.non_bonded_inter[particle_type, particle_type].wca.set_params(sigma=(2 * colloid_radius) ** (-1 / 6),
-                                                                     epsilon=WCA_epsilon)
+                                                                     epsilon=params['WCA_epsilon'].m_as('sim_energy'))
 
-# here we set up the particle. The handle will later be used to calculate/set forces
+# set up the particles. The handles will later be used to calculate/set forces
 colloids = list()
-for _ in range(n_colloids):
+colloid_mass = (4. / 3. * np.pi * params['colloid_radius'] ** 3 * params['colloid_density']).m_as('sim_mass')
+for _ in range(params['n_colloids']):
     start_pos = box_l * np.random.random((3,))
-    start_velocity = 0.1 * np.random.random((3,))
-    colloid = system.part.add(pos=start_pos, v=start_velocity, mass=colloid_mass, rotation=3 * [True])
+    colloid = system.part.add(pos=start_pos,
+                              mass=colloid_mass,
+                              rinertia=3*[2. / 5. * colloid_mass * colloid_radius ** 2],
+                              rotation=3 * [True])
     colloids.append(colloid)
 
-# equilibrate to remove overlap
+colloid_friction_translation = 6 * np.pi * params['fluid_dyn_viscosity'].m_as('sim_dyn_viscosity') * colloid_radius
+colloid_friction_rotation = 8 * np.pi * params['fluid_dyn_viscosity'].m_as('sim_dyn_viscosity') * colloid_radius ** 3
+
+# remove overlap
 system.integrator.set_steepest_descent(
-    f_max=0.1, gamma=0.1, max_displacement=0.1)
-system.integrator.run(200)
+    f_max=0., gamma=colloid_friction_translation, max_displacement=0.1)
+system.integrator.run(1000)
 system.integrator.set_vv()
 
-# Langevin thermostat is one option, brownian dynamics can also be used.
-# rotational degrees of freedom are integrated+thermalised as well
-friction = 6 * np.pi * fluid_dyn_viscosity * colloid_radius
-system.thermostat.set_langevin(kT=kT, gamma=friction, gamma_rotation=friction, seed=42)
-
-com_force_rule = ToCenterMass(0.2, only_in_front=True)
+# set the brownian thermostat
+kT = (params['temperature'] * ureg.boltzmann_constant).m_as('sim_energy')
+system.thermostat.set_brownian(kT=kT,
+                               gamma=colloid_friction_translation,
+                               gamma_rotation=colloid_friction_rotation,
+                               seed=42)
+system.integrator.set_brownian_dynamics()
 
 # visualization is optional
-visualizer = visualization.openGLLive(system)
+visualizer = None
+if params['visualize']:
+    visualizer = visualization.openGLLive(system)
 
-# we let espresso integrate for a few steps before we step in and change the forces
 steps_per_slice = int(round(time_slice / time_step))
+if abs(steps_per_slice - time_slice / time_step) > 1e-10:
+    raise ValueError('inconsistent parameters: time_slice must be integer multiple of time_step')
 n_slices = int(np.ceil(sim_duration / time_slice))
 
 
@@ -121,7 +153,10 @@ def integrate():
             visualizer.update()
 
 
-t = threading.Thread(target=integrate)
-t.daemon = True
-t.start()
-visualizer.start()
+if params['visualize']:
+    t = threading.Thread(target=integrate)
+    t.daemon = True
+    t.start()
+    visualizer.start()
+else:
+    integrate()
