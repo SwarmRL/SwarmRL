@@ -4,7 +4,12 @@ import numpy as np
 
 
 # example force rules **put ML here**
-class HarmonicTrap:
+class MLModel:
+    def train(self, data):
+        print('working really hard, I promise')
+
+
+class HarmonicTrap(MLModel):
     def __init__(self, center, stiffness):
         self.center = np.asarray(center)
         self.stiffness = stiffness
@@ -16,7 +21,7 @@ class HarmonicTrap:
         return -self.stiffness * dist
 
 
-class ActiveParticle:
+class ActiveParticle(MLModel):
     def __init__(self, swim_force):
         self.swim_force = swim_force
 
@@ -25,7 +30,7 @@ class ActiveParticle:
         return self.swim_force * direc / np.linalg.norm(direc)
 
 
-class ToCenterMass:
+class ToCenterMass(MLModel):
     def __init__(self, force, only_in_front=False):
         self.force = force
         self.only_in_front = only_in_front
@@ -62,7 +67,6 @@ params = {'n_colloids': 10,
           'WCA_epsilon': ureg.Quantity(1e-20, 'joule'),
           'colloid_density': ureg.Quantity(2.65, 'gram / centimeter**3'),
           'temperature': ureg.Quantity(300, 'kelvin'),
-          'sim_duration': ureg.Quantity(1, 'hour'),
           'box_length': ureg.Quantity(100, 'micrometer'),
           'time_step': ureg.Quantity(0.05, 'second'),
           'time_slice': ureg.Quantity(0.1, 'second'),
@@ -72,12 +76,13 @@ params = {'n_colloids': 10,
           'ureg': ureg
           }
 
-output_folder = './test_sim/'  #'/work/clohrmann/bechinger_swimmers/test_sim'
+output_folder = './test_sim/'
 
 system_runner = espresso_md.EspressoMD(params, out_folder=output_folder)
 system_runner.setup_simulation()
 
-system_runner.integrate_system(100000, com_force_rule)
-
-data_for_ML_trainer = system_runner.get_particle_data()
+for i in range(10):
+    system_runner.integrate_system(500, com_force_rule)
+    data_for_ML_trainer = system_runner.get_particle_data()
+    com_force_rule.train(data_for_ML_trainer)
 

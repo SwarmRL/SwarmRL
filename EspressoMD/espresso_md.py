@@ -99,7 +99,6 @@ class EspressoMD:
         self.h5_time_steps_written = 0
 
     def _write_chunk_to_file(self):
-        print('writing to file', self.h5_time_steps_written)
         values = np.stack(self.traj_holder['Velocities'])
         n_new_timesteps = len(values)
 
