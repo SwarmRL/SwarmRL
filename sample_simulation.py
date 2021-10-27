@@ -1,4 +1,4 @@
-import simulation_runner
+from EspressoMD import espresso_md
 import pint
 import numpy as np
 
@@ -66,14 +66,18 @@ params = {'n_colloids': 10,
           'box_length': ureg.Quantity(100, 'micrometer'),
           'time_step': ureg.Quantity(0.05, 'second'),
           'time_slice': ureg.Quantity(0.1, 'second'),
-          'write_interval': ureg.Quantity(0.1, 'second'),
+          'write_interval': ureg.Quantity(0.5, 'second'),
           'write_chunk_size': 1000,
-          'visualize': True,
           'seed': 42,
           'ureg': ureg
           }
 
-output_folder = './'  #'/work/clohrmann/bechinger_swimmers/test_sim'
+output_folder = './test_sim/'  #'/work/clohrmann/bechinger_swimmers/test_sim'
 
-simulation_runner.integrate_system(params, com_force_rule, out_folder=output_folder)
+system_runner = espresso_md.EspressoMD(params, out_folder=output_folder)
+system_runner.setup_simulation()
+
+system_runner.integrate_system(100000, com_force_rule)
+
+data_for_ML_trainer = system_runner.get_particle_data()
 
