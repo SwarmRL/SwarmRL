@@ -15,7 +15,7 @@ class InteractionModel(torch.nn.Module):
         Calculate the forces that will be applied to ``colloid``
         Parameters
         ----------
-        colloid: object with a ``pos``, ``v`` and ``director`` attribute
+        colloid: object with a ``pos``, ``v``, ``mass`` and ``director`` attribute
         other_colloids: list of colloids
 
         Returns

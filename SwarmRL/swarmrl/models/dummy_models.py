@@ -24,17 +24,14 @@ class ToCenterMass(interaction_model.InteractionModel):
         self.vision_angle = vision_angle
 
     def calc_force(self, colloid, other_particles):
-        if self.only_in_front:
-            particles_in_vision = list()
-            my_pos = np.array(colloid.pos)
-            my_director = colloid.director
-            for other_p in other_particles:
-                dist = other_p.pos - my_pos
-                dist /= np.linalg.norm(dist)
-                if np.arccos(np.dot(dist, my_director)) < self.vision_angle / 2.:
-                    particles_in_vision.append(other_p)
-        else:
-            particles_in_vision = other_particles
+        particles_in_vision = list()
+        my_pos = np.array(colloid.pos)
+        my_director = colloid.director
+        for other_p in other_particles:
+            dist = other_p.pos - my_pos
+            dist /= np.linalg.norm(dist)
+            if np.arccos(np.dot(dist, my_director)) < self.vision_angle / 2.:
+                particles_in_vision.append(other_p)
 
         if len(particles_in_vision) == 0:
             return 3 * [0]
