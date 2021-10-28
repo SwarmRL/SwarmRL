@@ -25,10 +25,11 @@ class MDParams:
 
 
 class EspressoMD(Engine):
-    def __init__(self, md_params, seed=42, out_folder='.', loglevel=logging.DEBUG, write_chunk_size=1):
+    def __init__(self, md_params, n_dims=3, seed=42, out_folder='.', loglevel=logging.DEBUG, write_chunk_size=100):
         self.params = md_params
         self.out_folder = out_folder
         self.seed = seed
+        self.n_dims = n_dims
 
         self._init_unit_system()
         self._init_h5_output(write_chunk_size)
@@ -37,77 +38,18 @@ class EspressoMD(Engine):
         self.system = System(box_l=3 * [1])
         self.colloids = list()
 
-    def setup_simulation(self):
-        # parameter unit conversion
-        time_step = self.params.time_step.m_as('sim_time')
-        # time slice: the amount of time the integrator runs before we look at the configuration and change forces
-        time_slice = self.params.time_slice.m_as('sim_time')
-        box_l = np.array(3 * [self.params.box_length.m_as('sim_length')])
-
-        # system setup. Skin is a verlet list parameter that has to be set, but only affects performance
-        self.system.box_l = box_l
-        self.system.time_step = time_step
-        self.system.cell_system.skin = 0.4
-        particle_type = 0
-
-        colloid_radius = self.params.colloid_radius.m_as('sim_length')
-        self.system.non_bonded_inter[particle_type, particle_type].wca.set_params(
-            sigma=(2 * colloid_radius) ** (-1 / 6),
-            epsilon=self.params.WCA_epsilon.m_as(
-                'sim_energy'))
-
-        # set up the particles. The handles will later be used to calculate/set forces
-        rng = np.random.default_rng(self.seed)
-        colloid_mass = (4. / 3. * np.pi * self.params.colloid_radius ** 3 * self.params.colloid_density).m_as(
-            'sim_mass')
-        colloid_rinertia = 2. / 5. * colloid_mass * colloid_radius ** 2
-        for _ in range(self.params.n_colloids):
-            start_pos = box_l * rng.random((3,))
-            # http://mathworld.wolfram.com/SpherePointPicking.html
-            theta, phi = [np.arccos(2. * rng.random() - 1), 2. * np.pi * rng.random()]
-            start_direction = [np.sin(theta) * np.cos(phi),
-                               np.sin(theta) * np.sin(phi),
-                               np.cos(theta)]
-            colloid = self.system.part.add(pos=start_pos,
-                                           director=start_direction,
-                                           mass=colloid_mass,
-                                           rinertia=3 * [colloid_rinertia],
-                                           rotation=3 * [True])
-            self.colloids.append(colloid)
-
-        colloid_friction_translation = 6 * np.pi * self.params.fluid_dyn_viscosity.m_as(
-            'sim_dyn_viscosity') * colloid_radius
-        colloid_friction_rotation = 8 * np.pi * self.params.fluid_dyn_viscosity.m_as(
-            'sim_dyn_viscosity') * colloid_radius ** 3
-
-        # remove overlap
-        self.system.integrator.set_steepest_descent(
-            f_max=0., gamma=colloid_friction_translation, max_displacement=0.1)
-        self.system.integrator.run(1000)
-
-        # set the brownian thermostat
-        kT = (self.params.temperature * self.ureg.boltzmann_constant).m_as('sim_energy')
-        self.system.thermostat.set_brownian(kT=kT,
-                                            gamma=colloid_friction_translation,
-                                            gamma_rotation=colloid_friction_rotation,
-                                            seed=self.seed)
-        self.system.integrator.set_brownian_dynamics()
-
-        # set integrator params
-        steps_per_slice = int(round(time_slice / time_step))
-        self.params.steps_per_slice = steps_per_slice
-        if abs(steps_per_slice - time_slice / time_step) > 1e-10:
-            raise ValueError('inconsistent parameters: time_slice must be integer multiple of time_step')
-
     def _init_unit_system(self):
         self.ureg = self.params.ureg
 
+        # three basis units chosen arbitrarily
         self.ureg.define('sim_length = 1e-6 meter')
         self.ureg.define('sim_time = 1 second')
         self.ureg.define(f"sim_energy = 293 kelvin * boltzmann_constant")
 
+        # derived units
         self.ureg.define('sim_mass = sim_energy * sim_time**2 / sim_length**2')
         self.ureg.define('sim_dyn_viscosity = sim_mass / (sim_length * sim_time)')
+        self.ureg.define('sim_force = sim_mass * sim_length / sim_time**2')
 
     def _init_h5_output(self, write_chunk_size):
         self.write_chunk_size = write_chunk_size
@@ -121,10 +63,10 @@ class EspressoMD(Engine):
         with h5py.File(self.h5_filename, 'a') as h5_outfile:
             part_group = h5_outfile.require_group('colloids')
             dataset_kwargs = dict(compression="gzip")
-            traj_len = int(1e8)
+            traj_len = 1000
 
             part_group.require_dataset('Times',
-                                       shape=(1, traj_len, 1),
+                                       shape=(traj_len,),
                                        dtype=float,
                                        **dataset_kwargs)
             part_group.require_dataset('Unwrapped_Positions',
@@ -156,7 +98,7 @@ class EspressoMD(Engine):
         self.logger.addHandler(file_handler)
         self.logger.addHandler(stream_handler)
 
-    def _write_chunk_to_file(self):
+    def _write_traj_chunk_to_file(self):
         n_new_timesteps = len(self.traj_holder['Times'])
 
         with h5py.File(self.h5_filename, 'a') as h5_outfile:
@@ -167,13 +109,93 @@ class EspressoMD(Engine):
                 if key != 'Times':
                     # mdsuite format is (particle_id, time_step, dimension) -> swapaxes
                     values = np.swapaxes(values, 0, 1)
+                    dataset.resize(self.h5_time_steps_written + n_new_timesteps, axis=1)
+                    dataset[:, self.h5_time_steps_written:self.h5_time_steps_written + n_new_timesteps, :] = values
                 else:
-                    values = values[None, :, None]
-
-                dataset[:, self.h5_time_steps_written:self.h5_time_steps_written + n_new_timesteps, :] = values
+                    dataset.resize(self.h5_time_steps_written + n_new_timesteps, axis=0)
+                    dataset[self.h5_time_steps_written:self.h5_time_steps_written + n_new_timesteps] = values
 
         self.logger.debug(f'wrote {n_new_timesteps} time steps to hdf5 file')
         self.h5_time_steps_written += n_new_timesteps
+
+    def setup_simulation(self):
+        # parameter unit conversion
+        time_step = self.params.time_step.m_as('sim_time')
+        # time slice: the amount of time the integrator runs before we look at the configuration and change forces
+        time_slice = self.params.time_slice.m_as('sim_time')
+        colloid_radius = self.params.colloid_radius.m_as('sim_length')
+
+        if self.n_dims == 3:
+            box_l = np.array(3 * [self.params.box_length.m_as('sim_length')])
+        elif self.n_dims == 2:
+            box_l = np.array(2 * [self.params.box_length.m_as('sim_length')] + [3 * colloid_radius])
+        else:
+            raise ValueError('we only support 2d or 3d systems')
+
+        # system setup. Skin is a verlet list parameter that has to be set, but only affects performance
+        self.system.box_l = box_l
+        self.system.time_step = time_step
+        self.system.cell_system.skin = 0.4
+        particle_type = 0
+
+        self.system.non_bonded_inter[particle_type, particle_type].wca.set_params(
+            sigma=(2 * colloid_radius) ** (-1 / 6),
+            epsilon=self.params.WCA_epsilon.m_as(
+                'sim_energy'))
+
+        # set up the particles. The handles will later be used to calculate/set forces
+        rng = np.random.default_rng(self.seed)
+        colloid_mass = \
+            (4. / 3. * np.pi * self.params.colloid_radius ** 3 * self.params.colloid_density).m_as('sim_mass')
+        colloid_rinertia = 2. / 5. * colloid_mass * colloid_radius ** 2
+
+        for _ in range(self.params.n_colloids):
+            start_pos = box_l * rng.random((3,))
+            # http://mathworld.wolfram.com/SpherePointPicking.html
+            theta, phi = [np.arccos(2. * rng.random() - 1), 2. * np.pi * rng.random()]
+            rotation_flags = 3 * [True]
+            fix_flags = 3 * [False]
+            if self.n_dims == 2:
+                start_pos[2] = 0
+                theta = np.pi / 2.
+                rotation_flags[0] = False
+                rotation_flags[1] = False
+                fix_flags[2] = True
+
+            start_direction = [np.sin(theta) * np.cos(phi),
+                               np.sin(theta) * np.sin(phi),
+                               np.cos(theta)]
+            colloid = self.system.part.add(pos=start_pos,
+                                           director=start_direction,
+                                           mass=colloid_mass,
+                                           rinertia=3 * [colloid_rinertia],
+                                           rotation=rotation_flags,
+                                           fix=fix_flags)
+            self.colloids.append(colloid)
+
+        colloid_friction_translation = 6 * np.pi * self.params.fluid_dyn_viscosity.m_as(
+            'sim_dyn_viscosity') * colloid_radius
+        colloid_friction_rotation = 8 * np.pi * self.params.fluid_dyn_viscosity.m_as(
+            'sim_dyn_viscosity') * colloid_radius ** 3
+
+        # remove overlap
+        self.system.integrator.set_steepest_descent(
+            f_max=0., gamma=colloid_friction_translation, max_displacement=0.1)
+        self.system.integrator.run(1000)
+
+        # set the brownian thermostat
+        kT = (self.params.temperature * self.ureg.boltzmann_constant).m_as('sim_energy')
+        self.system.thermostat.set_brownian(kT=kT,
+                                            gamma=colloid_friction_translation,
+                                            gamma_rotation=colloid_friction_rotation,
+                                            seed=self.seed)
+        self.system.integrator.set_brownian_dynamics()
+
+        # set integrator params
+        steps_per_slice = int(round(time_slice / time_step))
+        self.params.steps_per_slice = steps_per_slice
+        if abs(steps_per_slice - time_slice / time_step) > 1e-10:
+            raise ValueError('inconsistent parameters: time_slice must be integer multiple of time_step')
 
     def integrate(self, n_slices, force_model):
         for _ in range(n_slices):
@@ -184,15 +206,21 @@ class EspressoMD(Engine):
                 self.traj_holder['Directors'].append(np.stack([c.director for c in self.colloids]))
 
                 if len(self.traj_holder['Times']) >= self.write_chunk_size:
-                    self._write_chunk_to_file()
+                    self._write_traj_chunk_to_file()
                     for val in self.traj_holder.values():
                         val.clear()
                     self.write_idx += 1
 
             self.system.integrator.run(self.params.steps_per_slice)
             for coll in self.colloids:
-                force_on_colloid = force_model.calc_force(coll, [c for c in self.colloids if c is not coll])
-                coll.ext_force = force_on_colloid
+                coll.ext_force = force_model.calc_force(coll, [c for c in self.colloids if c is not coll])
+                coll.ext_torque = force_model.calc_torque(coll, [c for c in self.colloids if c is not coll])
+
+    def finalize(self):
+        """
+        Method to clean up after finishing the simulation (e.g. writing the last chunks of trajectory)
+        """
+        self._write_traj_chunk_to_file()
 
     def get_particle_data(self):
         return {'Unwrapped_Positions': np.stack([c.pos for c in self.colloids]),

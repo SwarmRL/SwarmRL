@@ -34,3 +34,9 @@ class Engine:
         """
         Get position, velocity and director of the particles as a dict of np.array
         """
+
+    def finalize(self):
+        """
+        Optional: to clean up after finishing the simulation (e.g. writing the last chunks of trajectory)
+        """
+        pass

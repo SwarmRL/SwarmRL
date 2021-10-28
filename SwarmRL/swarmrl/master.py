@@ -28,3 +28,4 @@ if __name__ == '__main__':
         system_runner.integrate(500, com_force_rule)
         data_for_ML_trainer = system_runner.get_particle_data()
         com_force_rule.forward(None, None)
+    system_runner.finalize()
