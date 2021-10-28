@@ -25,10 +25,11 @@ class MDParams:
 
 
 class EspressoMD(Engine):
-    def __init__(self, md_params, seed=42, out_folder='.', loglevel=logging.DEBUG, write_chunk_size=1):
+    def __init__(self, md_params, n_dims=3, seed=42, out_folder='.', loglevel=logging.DEBUG, write_chunk_size=100):
         self.params = md_params
         self.out_folder = out_folder
         self.seed = seed
+        self.n_dims = n_dims
 
         self._init_unit_system()
         self._init_h5_output(write_chunk_size)
@@ -97,7 +98,7 @@ class EspressoMD(Engine):
         self.logger.addHandler(file_handler)
         self.logger.addHandler(stream_handler)
 
-    def _write_chunk_to_file(self):
+    def _write_traj_chunk_to_file(self):
         n_new_timesteps = len(self.traj_holder['Times'])
 
         with h5py.File(self.h5_filename, 'a') as h5_outfile:
@@ -108,7 +109,7 @@ class EspressoMD(Engine):
                 if key != 'Times':
                     # mdsuite format is (particle_id, time_step, dimension) -> swapaxes
                     values = np.swapaxes(values, 0, 1)
-                    dataset.resize(self.h5_time_steps_written + n_new_timesteps, axis = 1)
+                    dataset.resize(self.h5_time_steps_written + n_new_timesteps, axis=1)
                     dataset[:, self.h5_time_steps_written:self.h5_time_steps_written + n_new_timesteps, :] = values
                 else:
                     dataset.resize(self.h5_time_steps_written + n_new_timesteps, axis=0)
@@ -122,7 +123,14 @@ class EspressoMD(Engine):
         time_step = self.params.time_step.m_as('sim_time')
         # time slice: the amount of time the integrator runs before we look at the configuration and change forces
         time_slice = self.params.time_slice.m_as('sim_time')
-        box_l = np.array(3 * [self.params.box_length.m_as('sim_length')])
+        colloid_radius = self.params.colloid_radius.m_as('sim_length')
+
+        if self.n_dims == 3:
+            box_l = np.array(3 * [self.params.box_length.m_as('sim_length')])
+        elif self.n_dims == 2:
+            box_l = np.array(2 * [self.params.box_length.m_as('sim_length')] + [3 * colloid_radius])
+        else:
+            raise ValueError('we only support 2d or 3d systems')
 
         # system setup. Skin is a verlet list parameter that has to be set, but only affects performance
         self.system.box_l = box_l
@@ -130,7 +138,6 @@ class EspressoMD(Engine):
         self.system.cell_system.skin = 0.4
         particle_type = 0
 
-        colloid_radius = self.params.colloid_radius.m_as('sim_length')
         self.system.non_bonded_inter[particle_type, particle_type].wca.set_params(
             sigma=(2 * colloid_radius) ** (-1 / 6),
             epsilon=self.params.WCA_epsilon.m_as(
@@ -138,13 +145,23 @@ class EspressoMD(Engine):
 
         # set up the particles. The handles will later be used to calculate/set forces
         rng = np.random.default_rng(self.seed)
-        colloid_mass = (4. / 3. * np.pi * self.params.colloid_radius ** 3 * self.params.colloid_density).m_as(
-            'sim_mass')
+        colloid_mass = \
+            (4. / 3. * np.pi * self.params.colloid_radius ** 3 * self.params.colloid_density).m_as('sim_mass')
         colloid_rinertia = 2. / 5. * colloid_mass * colloid_radius ** 2
+
         for _ in range(self.params.n_colloids):
             start_pos = box_l * rng.random((3,))
             # http://mathworld.wolfram.com/SpherePointPicking.html
             theta, phi = [np.arccos(2. * rng.random() - 1), 2. * np.pi * rng.random()]
+            rotation_flags = 3 * [True]
+            fix_flags = 3 * [False]
+            if self.n_dims == 2:
+                start_pos[2] = 0
+                theta = np.pi / 2.
+                rotation_flags[0] = False
+                rotation_flags[1] = False
+                fix_flags[2] = True
+
             start_direction = [np.sin(theta) * np.cos(phi),
                                np.sin(theta) * np.sin(phi),
                                np.cos(theta)]
@@ -152,7 +169,8 @@ class EspressoMD(Engine):
                                            director=start_direction,
                                            mass=colloid_mass,
                                            rinertia=3 * [colloid_rinertia],
-                                           rotation=3 * [True])
+                                           rotation=rotation_flags,
+                                           fix=fix_flags)
             self.colloids.append(colloid)
 
         colloid_friction_translation = 6 * np.pi * self.params.fluid_dyn_viscosity.m_as(
@@ -188,15 +206,21 @@ class EspressoMD(Engine):
                 self.traj_holder['Directors'].append(np.stack([c.director for c in self.colloids]))
 
                 if len(self.traj_holder['Times']) >= self.write_chunk_size:
-                    self._write_chunk_to_file()
+                    self._write_traj_chunk_to_file()
                     for val in self.traj_holder.values():
                         val.clear()
                     self.write_idx += 1
 
             self.system.integrator.run(self.params.steps_per_slice)
             for coll in self.colloids:
-                force_on_colloid = force_model.calc_force(coll, [c for c in self.colloids if c is not coll])
-                coll.ext_force = force_on_colloid
+                coll.ext_force = force_model.calc_force(coll, [c for c in self.colloids if c is not coll])
+                coll.ext_torque = force_model.calc_torque(coll, [c for c in self.colloids if c is not coll])
+
+    def finalize(self):
+        """
+        Method to clean up after finishing the simulation (e.g. writing the last chunks of trajectory
+        """
+        self._write_traj_chunk_to_file()
 
     def get_particle_data(self):
         return {'Unwrapped_Positions': np.stack([c.pos for c in self.colloids]),
