@@ -6,9 +6,10 @@ import logging
 
 
 class EspressoMD:
-    def __init__(self, md_params, out_folder='.', loglevel = logging.DEBUG):
+    def __init__(self, md_params, seed=42, out_folder='.', loglevel=logging.DEBUG):
         self.params = md_params
         self.out_folder = out_folder
+        self.seed = seed
 
         self._init_h5_output()
         self._init_logger(loglevel)
@@ -45,14 +46,21 @@ class EspressoMD:
                 'sim_energy'))
 
         # set up the particles. The handles will later be used to calculate/set forces
-
+        rng = np.random.default_rng(self.seed)
         colloid_mass = (4. / 3. * np.pi * self.params['colloid_radius'] ** 3 * self.params['colloid_density']).m_as(
             'sim_mass')
+        colloid_rinertia = 2. / 5. * colloid_mass * colloid_radius ** 2
         for _ in range(self.params['n_colloids']):
-            start_pos = box_l * np.random.random((3,))
+            start_pos = box_l * rng.random((3,))
+            # http://mathworld.wolfram.com/SpherePointPicking.html
+            theta, phi = [np.arccos(2. * rng.random() - 1), 2. * np.pi * rng.random()]
+            start_direction = [np.sin(theta) * np.cos(phi),
+                               np.sin(theta) * np.sin(phi),
+                               np.cos(theta)]
             colloid = self.system.part.add(pos=start_pos,
+                                           director=start_direction,
                                            mass=colloid_mass,
-                                           rinertia=3 * [2. / 5. * colloid_mass * colloid_radius ** 2],
+                                           rinertia=3 * [colloid_rinertia],
                                            rotation=3 * [True])
             self.colloids.append(colloid)
 
@@ -71,7 +79,7 @@ class EspressoMD:
         self.system.thermostat.set_brownian(kT=kT,
                                             gamma=colloid_friction_translation,
                                             gamma_rotation=colloid_friction_rotation,
-                                            seed=42)
+                                            seed=self.seed)
         self.system.integrator.set_brownian_dynamics()
 
         # set integrator params
@@ -140,7 +148,7 @@ class EspressoMD:
                 else:
                     values = values[None, :, None]
 
-                dataset[:, self.h5_time_steps_written:self.h5_time_steps_written+n_new_timesteps, :] = values
+                dataset[:, self.h5_time_steps_written:self.h5_time_steps_written + n_new_timesteps, :] = values
 
         self.logger.debug(f'wrote {n_new_timesteps} time steps to hdf5 file')
         self.h5_time_steps_written += n_new_timesteps

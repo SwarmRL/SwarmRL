@@ -72,13 +72,12 @@ params = {'n_colloids': 10,
           'time_slice': ureg.Quantity(0.1, 'second'),
           'write_interval': ureg.Quantity(0.5, 'second'),
           'write_chunk_size': 1000,
-          'seed': 42,
           'ureg': ureg
           }
 
 output_folder = './test_sim/'
 
-system_runner = espresso_md.EspressoMD(params, out_folder=output_folder)
+system_runner = espresso_md.EspressoMD(params, seed = 42, out_folder=output_folder)
 system_runner.setup_simulation()
 
 for i in range(10):
