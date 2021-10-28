@@ -6,6 +6,8 @@ import logging
 import dataclasses
 import pint
 
+from .engine import Engine
+
 
 @dataclasses.dataclass()
 class MDParams:
@@ -22,7 +24,7 @@ class MDParams:
     write_interval: pint.Quantity
 
 
-class EspressoMD:
+class EspressoMD(Engine):
     def __init__(self, md_params, seed=42, out_folder='.', loglevel=logging.DEBUG, write_chunk_size=1):
         self.params = md_params
         self.out_folder = out_folder
@@ -173,7 +175,7 @@ class EspressoMD:
         self.logger.debug(f'wrote {n_new_timesteps} time steps to hdf5 file')
         self.h5_time_steps_written += n_new_timesteps
 
-    def integrate_system(self, n_slices, force_rule):
+    def integrate(self, n_slices, force_model):
         for _ in range(n_slices):
             if self.system.time >= self.params.write_interval.m_as('sim_time') * self.write_idx:
                 self.traj_holder['Times'].append(self.system.time)
@@ -189,7 +191,7 @@ class EspressoMD:
 
             self.system.integrator.run(self.params.steps_per_slice)
             for coll in self.colloids:
-                force_on_colloid = force_rule.calc_force(coll, [c for c in self.colloids if c is not coll])
+                force_on_colloid = force_model.calc_force(coll, [c for c in self.colloids if c is not coll])
                 coll.ext_force = force_on_colloid
 
     def get_particle_data(self):

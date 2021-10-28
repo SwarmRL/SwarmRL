@@ -1,0 +1,3 @@
+[submodule "espresso"]
+	path = espresso
+	url = git@github.com:espressomd/espresso.git

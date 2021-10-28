@@ -11,18 +11,26 @@ class Engine:
     have only an espresso model but this should be kept generic to allow for an
     experimental interface.
     """
-    def __init__(self):
+
+    def setup_simulation(self) -> None:
         """
-        Constructor for the engine.
+        optional: prepare the simulation before integration
         """
         pass
 
-    def run(self):
+    def integrate(self, n_slices: int, force_model) -> None:
         """
-        Begin generating data.
 
-        Returns
-        -------
-
+        Parameters
+        ----------
+        n_slices: int
+            Number of time slices to integrate
+        force_model
+            A an object that has to have a ``calc_force`` method
         """
         raise NotImplementedError("Implemented in child class.")
+
+    def get_particle_data(self) -> dict:
+        """
+        Get position, velocity and director of the particles as a dict of np.array
+        """

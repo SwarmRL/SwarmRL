@@ -7,25 +7,26 @@ import numpy as np
 
 class InteractionModel(torch.nn.Module):
     """
-    Parent class to compute external forces on colloids in an espresso simulation.
-
-    Inherits from the module class of Torch. When the class is called, the forward
-    method is run.
+    Parent class to compute external forces on colloids in a simulation.
+    Inherits from the module class of Torch.
     """
-    def compute_force(self, colloids: torch.Tensor) -> np.ndarray:
+    def calc_force(self, colloid, other_colloids) -> np.ndarray:
         """
-        Compute the forces on a set of colloids.
-
+        Calculate the forces that will be applied to ``colloid``
         Parameters
         ----------
-        colloids : torch.Tensor
-                Tensor of colloids on which to operate. shape=(n_colloids, n_properties)
-                where properties can very between test_models.
+        colloid: object with a ``pos``, ``v`` and ``director`` attribute
+        other_colloids: list of colloids
 
         Returns
         -------
-        forces : np.ndarray
-                Numpy array of forces to apply to the colloids. shape=(n_colloids, 3)
+        np.array of three floats: the force
+        """
+        raise NotImplementedError("Implemented in child classes.")
+
+    def calc_torque(self, colloid, other_colloids) -> np.ndarray:
+        """
+        See ``calc_force``
         """
         raise NotImplementedError("Implemented in child classes.")
 
