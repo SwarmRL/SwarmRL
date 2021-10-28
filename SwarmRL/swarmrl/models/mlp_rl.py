@@ -13,6 +13,23 @@ class MLPRL(InteractionModel):
 
     The multi-layer perceptron learner is a simple global network model wherein all
     particles are passed into the network and forces computed for each individually.
+
+    Attributes
+    ----------
+    actor : torch.nn.Sequential
+                A sequential torch model to use as an actor.
+    critic : torch.nn.Sequential
+                A sequential torch model to use as a critic.
+    reward_function : callable
+                Callable function from which a reward can be computed.
+    actor_loss : torch.nn.Module
+                Callable to compute the loss on the actor.
+    critic_loss : torch.nn.Module
+                Callable to compute the loss on the critic.
+    actor_optimizer : torch.nn.Module
+                Optimizer for the actor model.
+    critic_optimizer : torch.nn.Module
+                Optimizer for the critic model.
     """
     def __init__(
             self,
@@ -57,6 +74,10 @@ class MLPRL(InteractionModel):
         """
         Compute the force on all of the particles with the newest model.
 
+        The model may simply be called. Upon calling it will generate several options
+        for the next step. One of these options will be selected based upon a defined
+        probability distribution.
+
         Parameters
         ----------
         colloids : tf.Tensor
@@ -68,7 +89,7 @@ class MLPRL(InteractionModel):
         forces : np.ndarray
                 Numpy array of forces to apply to the colloids. shape=(n_colloids, 3)
         """
-        pass
+        return self.actor(colloids)
 
     def compute_reward(self, state: torch.Tensor) -> torch.Tensor:
         """
