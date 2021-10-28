@@ -218,7 +218,7 @@ class EspressoMD(Engine):
 
     def finalize(self):
         """
-        Method to clean up after finishing the simulation (e.g. writing the last chunks of trajectory
+        Method to clean up after finishing the simulation (e.g. writing the last chunks of trajectory)
         """
         self._write_traj_chunk_to_file()
 
