@@ -1,14 +1,18 @@
 from espressomd import System, visualization
 import numpy as np
-import tqdm
 import h5py
 import os
+import logging
 
 
 class EspressoMD:
-    def __init__(self, md_params, out_folder='.'):
+    def __init__(self, md_params, out_folder='.', loglevel = logging.DEBUG):
         self.params = md_params
         self.out_folder = out_folder
+
+        self._init_h5_output()
+        self._init_logger(loglevel)
+
         self.system = System(box_l=3 * [1])
         self.colloids = list()
 
@@ -17,7 +21,7 @@ class EspressoMD:
         # define simulation units
         ureg.define('sim_length = 1e-6 meter')
         ureg.define('sim_time = 1 second')
-        ureg.define(f"sim_energy = {self.params['temperature']} * boltzmann_constant")
+        ureg.define(f"sim_energy = 293 kelvin * boltzmann_constant")
 
         ureg.define('sim_mass = sim_energy * sim_time**2 / sim_length**2')
         ureg.define('sim_dyn_viscosity = sim_mass / (sim_length * sim_time)')
@@ -76,8 +80,6 @@ class EspressoMD:
         if abs(steps_per_slice - time_slice / time_step) > 1e-10:
             raise ValueError('inconsistent parameters: time_slice must be integer multiple of time_step')
 
-        self._init_h5_output()
-
     def _init_h5_output(self):
         self.h5_filename = self.out_folder + '/trajectory.hdf5'
         os.makedirs(self.out_folder, exist_ok=True)
@@ -98,6 +100,20 @@ class EspressoMD:
                                        **dataset_kwargs)
         self.h5_time_steps_written = 0
 
+    def _init_logger(self, loglevel):
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(loglevel)
+        formatter = logging.Formatter(fmt="[%(levelname)-10s] %(asctime)s %(message)s",
+                                      datefmt='%Y-%m-%d %H:%M:%S')
+        file_handler = logging.FileHandler(f'{self.out_folder}/simulation_log.log')
+        file_handler.setFormatter(formatter)
+        file_handler.setLevel(loglevel)
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+        stream_handler.setLevel(loglevel)
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(stream_handler)
+
     def _write_chunk_to_file(self):
         values = np.stack(self.traj_holder['Velocities'])
         n_new_timesteps = len(values)
@@ -108,14 +124,11 @@ class EspressoMD:
 
             # mdsuite format is (particle_id, time_step, dimension) -> swapaxes
             dataset[:, self.h5_time_steps_written:self.h5_time_steps_written+n_new_timesteps, :] = np.swapaxes(values, 0, 1)
-
+        self.logger.debug(f'wrote {n_new_timesteps} time steps to hdf5 file')
         self.h5_time_steps_written += n_new_timesteps
 
-        for val in self.traj_holder.values():
-            val.clear()
-
     def integrate_system(self, n_slices, force_rule):
-        for _ in tqdm.tqdm(range(n_slices)):
+        for _ in range(n_slices):
             if self.system.time >= self.params['write_interval'].m_as('sim_time') * self.write_idx:
                 self.traj_holder['Times'].append(self.system.time)
                 self.traj_holder['Unwrapped_Positions'].append(np.stack([c.pos for c in self.colloids]))
@@ -124,6 +137,8 @@ class EspressoMD:
 
                 if len(self.traj_holder['Times']) >= self.params['write_chunk_size']:
                     self._write_chunk_to_file()
+                    for val in self.traj_holder.values():
+                        val.clear()
                     self.write_idx += 1
 
             self.system.integrator.run(self.params['steps_per_slice'])
