@@ -2,6 +2,7 @@
 Module to implement a simple multi-layer perceptron for the colloids.
 """
 from swarmrl.models.interaction_model import InteractionModel
+from swarmrl.networks.network import Network
 import torch
 import numpy as np
 from typing import Callable
@@ -16,30 +17,18 @@ class MLPRL(InteractionModel):
 
     Attributes
     ----------
-    actor : torch.nn.Sequential
+    actor : Network
                 A sequential torch model to use as an actor.
-    critic : torch.nn.Sequential
+    critic : Network
                 A sequential torch model to use as a critic.
     reward_function : callable
                 Callable function from which a reward can be computed.
-    actor_loss : torch.nn.Module
-                Callable to compute the loss on the actor.
-    critic_loss : torch.nn.Module
-                Callable to compute the loss on the critic.
-    actor_optimizer : torch.nn.Module
-                Optimizer for the actor model.
-    critic_optimizer : torch.nn.Module
-                Optimizer for the critic model.
     """
     def __init__(
             self,
-            actor: torch.nn.Sequential,
-            critic: torch.nn.Sequential,
+            actor: Network,
+            critic: Network,
             reward_function: Callable,
-            actor_loss: torch.nn.Module,
-            critic_loss: torch.nn.Module,
-            actor_optimizer: torch.nn.Module,
-            critic_optimizer: torch.nn.Module
     ):
         """
         Constructor for the MLP RL.
@@ -52,23 +41,11 @@ class MLPRL(InteractionModel):
                 A sequential torch model to use as a critic.
         reward_function : callable
                 Callable function from which a reward can be computed.
-        actor_loss : torch.nn.Module
-                Callable to compute the loss on the actor.
-        critic_loss : torch.nn.Module
-                Callable to compute the loss on the critic.
-        actor_optimizer : torch.nn.Module
-                Optimizer for the actor model.
-        critic_optimizer : torch.nn.Module
-                Optimizer for the critic model.
         """
         super().__init__()
         self.actor = actor
         self.critic = critic
         self.reward_function = reward_function
-        self.actor_loss = actor_loss
-        self.critic_loss = critic_loss
-        self.actor_optimizer = actor_optimizer
-        self.critic_optimizer = critic_optimizer
 
     def compute_force(self, colloids: torch.Tensor) -> np.ndarray:
         """
