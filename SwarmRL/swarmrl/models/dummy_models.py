@@ -3,6 +3,15 @@ import numpy as np
 import torch
 
 
+class ConstForce(interaction_model.InteractionModel):
+    def __init__(self, force):
+        self.force = force
+    def calc_force(self, colloid, other_colloids) -> np.ndarray:
+        return self.force
+    def calc_torque(self, colloid, other_colloids) -> np.ndarray:
+        return np.zeros(3)
+
+
 class ActiveParticle(interaction_model.InteractionModel):
     def __init__(self, swim_force):
         self.swim_force = swim_force
