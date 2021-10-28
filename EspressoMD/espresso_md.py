@@ -83,8 +83,6 @@ class EspressoMD:
     def _init_h5_output(self):
         self.h5_filename = self.out_folder + '/trajectory.hdf5'
         os.makedirs(self.out_folder, exist_ok=True)
-        self.write_idx = 0.
-
         self.traj_holder = {'Times': list(),
                             'Unwrapped_Positions': list(),
                             'Velocities': list(),
@@ -93,11 +91,25 @@ class EspressoMD:
         with h5py.File(self.h5_filename, 'a') as h5_outfile:
             part_group = h5_outfile.require_group('colloids')
             dataset_kwargs = dict(compression="gzip")
+            traj_len = int(1e8)
 
-            part_group.require_dataset('Velocities',
-                                       shape=(self.params['n_colloids'], int(1e8), 3),
+            part_group.require_dataset('Times',
+                                       shape=(1, traj_len, 1),
                                        dtype=float,
                                        **dataset_kwargs)
+            part_group.require_dataset('Unwrapped_Positions',
+                                       shape=(self.params['n_colloids'], traj_len, 3),
+                                       dtype=float,
+                                       **dataset_kwargs)
+            part_group.require_dataset('Velocities',
+                                       shape=(self.params['n_colloids'], traj_len, 3),
+                                       dtype=float,
+                                       **dataset_kwargs)
+            part_group.require_dataset('Directors',
+                                       shape=(self.params['n_colloids'], traj_len, 3),
+                                       dtype=float,
+                                       **dataset_kwargs)
+        self.write_idx = 0.
         self.h5_time_steps_written = 0
 
     def _init_logger(self, loglevel):
@@ -115,15 +127,21 @@ class EspressoMD:
         self.logger.addHandler(stream_handler)
 
     def _write_chunk_to_file(self):
-        values = np.stack(self.traj_holder['Velocities'])
-        n_new_timesteps = len(values)
+        n_new_timesteps = len(self.traj_holder['Times'])
 
         with h5py.File(self.h5_filename, 'a') as h5_outfile:
             part_group = h5_outfile['colloids']
-            dataset = part_group['Velocities']
+            for key in self.traj_holder.keys():
+                dataset = part_group[key]
+                values = np.stack(self.traj_holder[key])
+                if key != 'Times':
+                    # mdsuite format is (particle_id, time_step, dimension) -> swapaxes
+                    values = np.swapaxes(values, 0, 1)
+                else:
+                    values = values[None, :, None]
 
-            # mdsuite format is (particle_id, time_step, dimension) -> swapaxes
-            dataset[:, self.h5_time_steps_written:self.h5_time_steps_written+n_new_timesteps, :] = np.swapaxes(values, 0, 1)
+                dataset[:, self.h5_time_steps_written:self.h5_time_steps_written+n_new_timesteps, :] = values
+
         self.logger.debug(f'wrote {n_new_timesteps} time steps to hdf5 file')
         self.h5_time_steps_written += n_new_timesteps
 
