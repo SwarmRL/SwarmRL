@@ -7,6 +7,7 @@ import dataclasses
 import pint
 
 from .engine import Engine
+import swarmrl.models.interaction_model
 
 
 @dataclasses.dataclass()
@@ -173,21 +174,21 @@ class EspressoMD(Engine):
                                            fix=fix_flags)
             self.colloids.append(colloid)
 
-        colloid_friction_translation = 6 * np.pi * self.params.fluid_dyn_viscosity.m_as(
+        self.colloid_friction_translation = 6 * np.pi * self.params.fluid_dyn_viscosity.m_as(
             'sim_dyn_viscosity') * colloid_radius
-        colloid_friction_rotation = 8 * np.pi * self.params.fluid_dyn_viscosity.m_as(
+        self.colloid_friction_rotation = 8 * np.pi * self.params.fluid_dyn_viscosity.m_as(
             'sim_dyn_viscosity') * colloid_radius ** 3
 
         # remove overlap
         self.system.integrator.set_steepest_descent(
-            f_max=0., gamma=colloid_friction_translation, max_displacement=0.1)
+            f_max=0., gamma=self.colloid_friction_translation, max_displacement=0.1)
         self.system.integrator.run(1000)
 
         # set the brownian thermostat
         kT = (self.params.temperature * self.ureg.boltzmann_constant).m_as('sim_energy')
         self.system.thermostat.set_brownian(kT=kT,
-                                            gamma=colloid_friction_translation,
-                                            gamma_rotation=colloid_friction_rotation,
+                                            gamma=self.colloid_friction_translation,
+                                            gamma_rotation=self.colloid_friction_rotation,
                                             seed=self.seed)
         self.system.integrator.set_brownian_dynamics()
 
@@ -197,7 +198,7 @@ class EspressoMD(Engine):
         if abs(steps_per_slice - time_slice / time_step) > 1e-10:
             raise ValueError('inconsistent parameters: time_slice must be integer multiple of time_step')
 
-    def integrate(self, n_slices, force_model):
+    def integrate(self, n_slices, force_model: swarmrl.models.interaction_model.InteractionModel):
         for _ in range(n_slices):
             if self.system.time >= self.params.write_interval.m_as('sim_time') * self.write_idx:
                 self.traj_holder['Times'].append(self.system.time)
@@ -215,6 +216,9 @@ class EspressoMD(Engine):
             for coll in self.colloids:
                 coll.ext_force = force_model.calc_force(coll, [c for c in self.colloids if c is not coll])
                 coll.ext_torque = force_model.calc_torque(coll, [c for c in self.colloids if c is not coll])
+                new_direction = force_model.calc_new_direction(coll, [c for c in self.colloids if c is not coll])
+                if new_direction is not None:
+                    coll.director = new_direction
 
     def finalize(self):
         """
