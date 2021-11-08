@@ -30,6 +30,13 @@ class InteractionModel(torch.nn.Module):
         """
         raise NotImplementedError("Implemented in child classes.")
 
+    def calc_new_direction(self, colloid, other_colloids) -> np.ndarray:
+        """
+        optional: new direction to set for the particle.
+        None indicates to leave the direction as is
+        """
+        return None
+
     def forward(self, colloids: torch.Tensor, state: torch.Tensor = None):
         """
         Perform the forward pass over the model.
