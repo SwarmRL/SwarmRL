@@ -41,13 +41,13 @@ class MDParams:
     initiation_radius: pint.Quantity = None
 
 
-def _get_random_start_pos(init_radius:float, box_l: np.ndarray, rng: np.random.Generator, n_tries = 100000):
+def _get_random_start_pos(init_radius: float, box_l: np.ndarray, rng: np.random.Generator, n_tries=100000):
     if init_radius is None:
         return box_l * rng.random((3,))
     else:
         for _ in range(n_tries):
             start_pos = box_l * rng.random((3,))
-            if np.linalg.norm(start_pos-box_l/2.) <= init_radius:
+            if np.linalg.norm(start_pos - box_l / 2.) <= init_radius:
                 return start_pos
     raise RuntimeError(f'Could not find suitable start position with {n_tries} tries')
 
@@ -93,25 +93,20 @@ class EspressoMD(Engine):
         with h5py.File(self.h5_filename, 'a') as h5_outfile:
             part_group = h5_outfile.require_group('colloids')
             dataset_kwargs = dict(compression="gzip")
-            traj_len = 1000
+            traj_len = write_chunk_size
 
             part_group.require_dataset('Times',
-                                       shape=(traj_len,),
+                                       shape=(traj_len, 1, 1),
+                                       maxshape=(None, 1, 1),
                                        dtype=float,
                                        **dataset_kwargs)
-            part_group.require_dataset('Unwrapped_Positions',
-                                       shape=(self.params.n_colloids, traj_len, 3),
-                                       dtype=float,
-                                       **dataset_kwargs)
-            part_group.require_dataset('Velocities',
-                                       shape=(self.params.n_colloids, traj_len, 3),
-                                       dtype=float,
-                                       **dataset_kwargs)
-            part_group.require_dataset('Directors',
-                                       shape=(self.params.n_colloids, traj_len, 3),
-                                       dtype=float,
-                                       **dataset_kwargs)
-        self.write_idx = 0.
+            for name in ['Unwrapped_Positions', 'Velocities', 'Directors']:
+                part_group.require_dataset(name,
+                                           shape=(traj_len, self.params.n_colloids, 3),
+                                           maxshape=(None, self.params.n_colloids, 3),
+                                           dtype=float,
+                                           **dataset_kwargs)
+        self.write_idx = 0
         self.h5_time_steps_written = 0
 
     def _init_logger(self, loglevel):
@@ -139,15 +134,10 @@ class EspressoMD(Engine):
             part_group = h5_outfile['colloids']
             for key in self.traj_holder.keys():
                 dataset = part_group[key]
-                values = np.stack(self.traj_holder[key])
-                if key != 'Times':
-                    # mdsuite format is (particle_id, time_step, dimension) -> swapaxes
-                    values = np.swapaxes(values, 0, 1)
-                    dataset.resize(self.h5_time_steps_written + n_new_timesteps, axis=1)
-                    dataset[:, self.h5_time_steps_written:self.h5_time_steps_written + n_new_timesteps, :] = values
-                else:
-                    dataset.resize(self.h5_time_steps_written + n_new_timesteps, axis=0)
-                    dataset[self.h5_time_steps_written:self.h5_time_steps_written + n_new_timesteps] = values
+                values = np.stack(self.traj_holder[key], axis=0)
+                # save in format (time_step, n_particles, dimension)
+                dataset.resize(self.h5_time_steps_written + n_new_timesteps, axis=0)
+                dataset[self.h5_time_steps_written:self.h5_time_steps_written + n_new_timesteps, ...] = values
 
         self.logger.debug(f'wrote {n_new_timesteps} time steps to hdf5 file')
         self.h5_time_steps_written += n_new_timesteps
@@ -188,7 +178,7 @@ class EspressoMD(Engine):
         colloid_rinertia = 2. / 5. * colloid_mass * colloid_radius ** 2
 
         for _ in range(self.params.n_colloids):
-            start_pos = _get_random_start_pos(init_radius,box_l,rng)
+            start_pos = _get_random_start_pos(init_radius, box_l, rng)
             # http://mathworld.wolfram.com/SpherePointPicking.html
             theta, phi = [np.arccos(2. * rng.random() - 1), 2. * np.pi * rng.random()]
             rotation_flags = 3 * [True]
@@ -238,10 +228,10 @@ class EspressoMD(Engine):
     def integrate(self, n_slices, force_model: swarmrl.models.interaction_model.InteractionModel):
         for _ in range(n_slices):
             if self.system.time >= self.params.write_interval.m_as('sim_time') * self.write_idx:
-                self.traj_holder['Times'].append(self.system.time)
-                self.traj_holder['Unwrapped_Positions'].append(np.stack([c.pos for c in self.colloids]))
-                self.traj_holder['Velocities'].append(np.stack([c.v for c in self.colloids]))
-                self.traj_holder['Directors'].append(np.stack([c.director for c in self.colloids]))
+                self.traj_holder['Times'].append(np.array([self.system.time])[np.newaxis, :])
+                self.traj_holder['Unwrapped_Positions'].append(np.stack([c.pos for c in self.colloids], axis=0))
+                self.traj_holder['Velocities'].append(np.stack([c.v for c in self.colloids], axis=0))
+                self.traj_holder['Directors'].append(np.stack([c.director for c in self.colloids],axis=0))
 
                 if len(self.traj_holder['Times']) >= self.write_chunk_size:
                     self._write_traj_chunk_to_file()

@@ -70,9 +70,9 @@ class EspressoTest(ut.TestCase):
             runner.integrate(1, force_model)
             with h5py.File(f'{temp_dir}/trajectory.hdf5', 'r') as h5_file:
                 part_group = h5_file['colloids']
-                np.testing.assert_array_almost_equal(part_group['Unwrapped_Positions'][:, -1, :], new_pos)
-                np.testing.assert_array_almost_equal(part_group['Velocities'][:, -1, :], new_vel)
-                self.assertAlmostEqual(part_group['Times'][-1], time_new)
+                np.testing.assert_array_almost_equal(part_group['Unwrapped_Positions'][-1, :, :], new_pos)
+                np.testing.assert_array_almost_equal(part_group['Velocities'][-1, :, :], new_vel)
+                self.assertAlmostEqual(part_group['Times'][-1, 0, 0], time_new)
                 self.assertSetEqual(set(part_group.keys()),
                                     {'Unwrapped_Positions', 'Velocities', 'Times', 'Directors'})
 
