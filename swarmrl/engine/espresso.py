@@ -12,6 +12,21 @@ import swarmrl.models.interaction_model
 
 @dataclasses.dataclass()
 class MDParams:
+    """
+    class to hold all information needed to setup and run the MD simulation.
+    Provide in whichever unit you want, all quantities will be converted to simulation units during setup
+
+    non-obvious attributes
+    ----------------------
+    time_slice:
+        MD runs with internal time step of time_step.
+        The external force/torque from the force_model will not be updated at every single time step, instead every time_slice.
+        Therefore, time_slice must be an integer multiple of time_step.
+    initiation_radius: pint length or None
+        If None (default), initialize particles randomly in the whole box
+        If pint length, initialize in the center of the box withing the specified radius.
+        Make sure that initiation_radius <= box_l/2.
+    """
     n_colloids: int
     ureg: pint.UnitRegistry
     box_length: pint.Quantity
@@ -23,6 +38,18 @@ class MDParams:
     time_step: pint.Quantity
     time_slice: pint.Quantity
     write_interval: pint.Quantity
+    initiation_radius: pint.Quantity = None
+
+
+def _get_random_start_pos(init_radius:float, box_l: np.ndarray, rng: np.random.Generator, n_tries = 100000):
+    if init_radius is None:
+        return box_l * rng.random((3,))
+    else:
+        for _ in range(n_tries):
+            start_pos = box_l * rng.random((3,))
+            if np.linalg.norm(start_pos-box_l/2.) <= init_radius:
+                return start_pos
+    raise RuntimeError(f'Could not find suitable start position with {n_tries} tries')
 
 
 class EspressoMD(Engine):
@@ -35,6 +62,7 @@ class EspressoMD(Engine):
         self._init_unit_system()
         self._init_h5_output(write_chunk_size)
         self._init_logger(loglevel)
+        self._init_calculated_quantities()
 
         self.system = System(box_l=3 * [1])
         self.colloids = list()
@@ -48,7 +76,8 @@ class EspressoMD(Engine):
         self.ureg.define(f"sim_energy = 293 kelvin * boltzmann_constant")
 
         # derived units
-        self.ureg.define('sim_mass = sim_energy * sim_time**2 / sim_length**2')
+        self.ureg.define('sim_velocity = sim_length / sim_time')
+        self.ureg.define('sim_mass = sim_energy / sim_velocity**2')
         self.ureg.define('sim_dyn_viscosity = sim_mass / (sim_length * sim_time)')
         self.ureg.define('sim_force = sim_mass * sim_length / sim_time**2')
 
@@ -99,6 +128,10 @@ class EspressoMD(Engine):
         self.logger.addHandler(file_handler)
         self.logger.addHandler(stream_handler)
 
+    def _init_calculated_quantities(self):
+        self.colloid_friction_translation = None
+        self.colloid_friction_rotation = None
+
     def _write_traj_chunk_to_file(self):
         n_new_timesteps = len(self.traj_holder['Times'])
 
@@ -139,6 +172,10 @@ class EspressoMD(Engine):
         self.system.cell_system.skin = 0.4
         particle_type = 0
 
+        init_radius = self.params.initiation_radius
+        if init_radius is not None:
+            init_radius = init_radius.m_as('sim_length')
+
         self.system.non_bonded_inter[particle_type, particle_type].wca.set_params(
             sigma=(2 * colloid_radius) ** (-1 / 6),
             epsilon=self.params.WCA_epsilon.m_as(
@@ -151,7 +188,7 @@ class EspressoMD(Engine):
         colloid_rinertia = 2. / 5. * colloid_mass * colloid_radius ** 2
 
         for _ in range(self.params.n_colloids):
-            start_pos = box_l * rng.random((3,))
+            start_pos = _get_random_start_pos(init_radius,box_l,rng)
             # http://mathworld.wolfram.com/SpherePointPicking.html
             theta, phi = [np.arccos(2. * rng.random() - 1), 2. * np.pi * rng.random()]
             rotation_flags = 3 * [True]

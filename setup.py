@@ -10,7 +10,7 @@ with open('requirements.txt') as f:
     required = f.read().splitlines()
 
 setuptools.setup(
-    name="SwarmRL",
+    name="swarmrl",
     version="0.0.1",
     author="Samuel Tovey and Christoph Lohrmann",
     author_email="tovey.samuel@gmail.com",
