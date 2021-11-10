@@ -1,3 +1,4 @@
+import espressomd
 from espressomd import System, visualization
 import numpy as np
 import h5py
@@ -67,6 +68,8 @@ class EspressoMD(Engine):
         self.system = System(box_l=3 * [1])
         self.colloids = list()
 
+        espressomd.assert_features(['ROTATION', 'EXTERNAL_FORCES'])
+
     def _init_unit_system(self):
         self.ureg = self.params.ureg
 
@@ -129,6 +132,8 @@ class EspressoMD(Engine):
 
     def _write_traj_chunk_to_file(self):
         n_new_timesteps = len(self.traj_holder['Times'])
+        if n_new_timesteps == 0:
+            return
 
         with h5py.File(self.h5_filename, 'a') as h5_outfile:
             part_group = h5_outfile['colloids']
@@ -167,7 +172,7 @@ class EspressoMD(Engine):
             init_radius = init_radius.m_as('sim_length')
 
         self.system.non_bonded_inter[particle_type, particle_type].wca.set_params(
-            sigma=(2 * colloid_radius) ** (-1 / 6),
+            sigma=(2 * colloid_radius) * 2 ** (-1 / 6),
             epsilon=self.params.WCA_epsilon.m_as(
                 'sim_energy'))
 
@@ -179,26 +184,39 @@ class EspressoMD(Engine):
 
         for _ in range(self.params.n_colloids):
             start_pos = _get_random_start_pos(init_radius, box_l, rng)
-            # http://mathworld.wolfram.com/SpherePointPicking.html
-            theta, phi = [np.arccos(2. * rng.random() - 1), 2. * np.pi * rng.random()]
-            rotation_flags = 3 * [True]
-            fix_flags = 3 * [False]
-            if self.n_dims == 2:
-                start_pos[2] = 0
-                theta = np.pi / 2.
-                rotation_flags[0] = False
-                rotation_flags[1] = False
-                fix_flags[2] = True
 
-            start_direction = [np.sin(theta) * np.cos(phi),
-                               np.sin(theta) * np.sin(phi),
-                               np.cos(theta)]
-            colloid = self.system.part.add(pos=start_pos,
-                                           director=start_direction,
-                                           mass=colloid_mass,
-                                           rinertia=3 * [colloid_rinertia],
-                                           rotation=rotation_flags,
-                                           fix=fix_flags)
+            if self.n_dims == 3:
+                # http://mathworld.wolfram.com/SpherePointPicking.html
+                theta, phi = [np.arccos(2. * rng.random() - 1), 2. * np.pi * rng.random()]
+                start_direction = [np.sin(theta) * np.cos(phi),
+                                   np.sin(theta) * np.sin(phi),
+                                   np.cos(theta)]
+                colloid = self.system.part.add(pos=start_pos,
+                                               director=start_direction,
+                                               mass=colloid_mass,
+                                               rinertia=3 * [colloid_rinertia],
+                                               rotation=3 * [True],
+                                               fix=3 * [False])
+            elif self.n_dims == 2:
+                # initialize with body-frame = lab-frame to set correct rotation flags
+                # allow all rotations to bring the particle to correct state
+                colloid = self.system.part.add(pos=start_pos,
+                                               mass=colloid_mass,
+                                               rinertia=3 * [colloid_rinertia],
+                                               fix=[False, False, True],
+                                               rotation=3*[True],
+                                               quat=[1, 0, 0, 0])
+
+                colloid.rotate(axis=[0, 1, 0], angle=np.pi / 2.)
+                # now the particle points along the x-axis. The lab-z axis is the body-frame (-x) -axis
+                # we only allow rotation around the labframe-z-axis from now on
+                colloid.rotation = [True, False, False]
+                # now rotate in-plane to a random direction
+                phi = 2 * np.pi * rng.random()
+                colloid.rotate(axis=[0, 0, 1], angle=phi)
+            else:
+                raise ValueError('n_dims must be 2 or 3')
+
             self.colloids.append(colloid)
 
         self.colloid_friction_translation = 6 * np.pi * self.params.fluid_dyn_viscosity.m_as(
@@ -231,13 +249,13 @@ class EspressoMD(Engine):
                 self.traj_holder['Times'].append(np.array([self.system.time])[np.newaxis, :])
                 self.traj_holder['Unwrapped_Positions'].append(np.stack([c.pos for c in self.colloids], axis=0))
                 self.traj_holder['Velocities'].append(np.stack([c.v for c in self.colloids], axis=0))
-                self.traj_holder['Directors'].append(np.stack([c.director for c in self.colloids],axis=0))
+                self.traj_holder['Directors'].append(np.stack([c.director for c in self.colloids], axis=0))
+                self.write_idx += 1
 
                 if len(self.traj_holder['Times']) >= self.write_chunk_size:
                     self._write_traj_chunk_to_file()
                     for val in self.traj_holder.values():
                         val.clear()
-                    self.write_idx += 1
 
             self.system.integrator.run(self.params.steps_per_slice)
             for coll in self.colloids:
