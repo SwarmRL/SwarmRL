@@ -23,8 +23,7 @@ class Lavergne2019(InteractionModel):
 
         # set activity on/off
         if perception >= self.perception_threshold:
-            my_director = np.copy(colloid.director)
-            return self.act_force * my_director / np.linalg.norm(my_director)
+            return self.act_force * colloid.director
         else:
             return np.zeros((3,))
 
@@ -111,8 +110,10 @@ def get_colloids_in_vision(coll, other_coll, vision_half_angle=np.pi, vision_ran
         dist = other_p.pos - my_pos
         dist_norm = np.linalg.norm(dist)
         in_range = dist_norm < vision_range
-        in_front = np.arccos(np.dot(dist / dist_norm, my_director)) < vision_half_angle
-        if in_front and in_range:
+        if not in_range:
+            continue
+        in_cone = np.arccos(np.dot(dist / dist_norm, my_director)) < vision_half_angle
+        if in_cone and in_range:
             colls_in_vision.append(other_p)
     return colls_in_vision
 
