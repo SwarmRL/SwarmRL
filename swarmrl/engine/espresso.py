@@ -204,7 +204,7 @@ class EspressoMD(Engine):
                                                mass=colloid_mass,
                                                rinertia=3 * [colloid_rinertia],
                                                fix=[False, False, True],
-                                               rotation=3*[True],
+                                               rotation=3 * [True],
                                                quat=[1, 0, 0, 0])
 
                 colloid.rotate(axis=[0, 1, 0], angle=np.pi / 2.)
@@ -257,13 +257,26 @@ class EspressoMD(Engine):
                     for val in self.traj_holder.values():
                         val.clear()
 
-            self.system.integrator.run(self.params.steps_per_slice)
             for coll in self.colloids:
-                coll.ext_force = force_model.calc_force(coll, [c for c in self.colloids if c is not coll])
-                coll.ext_torque = force_model.calc_torque(coll, [c for c in self.colloids if c is not coll])
-                new_direction = force_model.calc_new_direction(coll, [c for c in self.colloids if c is not coll])
+                other_colloids = [c for c in self.colloids if c is not coll]
+                coll.ext_force = force_model.calc_force(coll, other_colloids)
+                coll.ext_torque = force_model.calc_torque(coll, other_colloids)
+                new_direction = force_model.calc_new_direction(coll, other_colloids)
                 if new_direction is not None:
-                    coll.director = new_direction
+                    if self.n_dims == 3:
+                        coll.director = new_direction
+                    else:
+                        old_direction = coll.director
+                        rotation_angle = np.arccos(np.dot(new_direction, old_direction))
+                        if rotation_angle > 1e-6:
+                            rotation_axis = np.cross(old_direction, new_direction)
+                            # only values of [0,0,1], [0,0,-1] can come out here, plusminus numerical errors
+                            rotation_axis[0] = 0
+                            rotation_axis[1] = 0
+                            rotation_axis[2] = round(rotation_axis[2])
+                            coll.rotate(axis=rotation_axis, angle=rotation_angle)
+
+            self.system.integrator.run(self.params.steps_per_slice)
 
     def finalize(self):
         """

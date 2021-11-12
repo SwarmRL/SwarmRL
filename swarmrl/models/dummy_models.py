@@ -6,10 +6,26 @@ import torch
 class ConstForce(interaction_model.InteractionModel):
     def __init__(self, force):
         self.force = force
+
     def calc_force(self, colloid, other_colloids) -> np.ndarray:
         return self.force
+
     def calc_torque(self, colloid, other_colloids) -> np.ndarray:
         return np.zeros(3)
+
+
+class ToConstOrientation(interaction_model.InteractionModel):
+    def __init__(self, orientation):
+        self.orientation = orientation
+
+    def calc_force(self, colloid, other_colloids) -> np.ndarray:
+        return np.zeros((3,))
+
+    def calc_torque(self, colloid, other_colloids) -> np.ndarray:
+        return np.zeros((3,))
+
+    def calc_new_direction(self, colloid, other_colloids) -> np.ndarray:
+        return self.orientation
 
 
 class ActiveParticle(interaction_model.InteractionModel):
