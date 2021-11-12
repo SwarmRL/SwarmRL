@@ -270,10 +270,9 @@ class EspressoMD(Engine):
                         rotation_angle = np.arccos(np.dot(new_direction, old_direction))
                         if rotation_angle > 1e-6:
                             rotation_axis = np.cross(old_direction, new_direction)
+                            rotation_axis /= np.linalg.norm(rotation_axis)
                             # only values of [0,0,1], [0,0,-1] can come out here, plusminus numerical errors
-                            rotation_axis[0] = 0
-                            rotation_axis[1] = 0
-                            rotation_axis[2] = round(rotation_axis[2])
+                            rotation_axis = [0, 0, round(rotation_axis[2])]
                             coll.rotate(axis=rotation_axis, angle=rotation_angle)
 
             self.system.integrator.run(self.params.steps_per_slice)

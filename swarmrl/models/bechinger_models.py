@@ -96,7 +96,10 @@ class Baeuerle2020(InteractionModel):
 
     def calc_new_direction(self, colloid, other_colloids) -> np.ndarray:
         force = self._calc_force(colloid, other_colloids)
-        return force/np.linalg.norm(force)
+        if np.all(force == 0.):
+            return None
+        else:
+            return force/np.linalg.norm(force)
 
     def calc_torque(self, colloid, other_colloids) -> np.ndarray:
         return np.zeros((3,))
