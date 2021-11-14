@@ -52,6 +52,16 @@ class EspressoTest2D(ut.TestCase):
 
             self.assertNotArrayAlmostEqual(directors, directors_new)
 
+            # test rotation from force model
+            orientation = np.array([1/np.sqrt(2), 1/np.sqrt(2), 0])
+            rotator = dummy_models.ToConstOrientation(orientation)
+            runner.params.steps_per_slice = 0 # bad hack: do not integrate, just update the new direction
+            runner.integrate(1, rotator)
+            part_data_rot = runner.get_particle_data()
+            directors_rot = part_data_rot['Directors']
+            for dir_ in directors_rot:
+                np.testing.assert_array_almost_equal(dir_, orientation)
+
 
 if __name__ == '__main__':
     ut.main()
