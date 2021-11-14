@@ -2,6 +2,7 @@
 Implement an MLP model.
 """
 import torch
+import numpy as np
 from swarmrl.networks.network import Network
 
 
@@ -23,7 +24,7 @@ class MLP(Network):
             self,
             layer_stack: torch.nn.Module,
             loss_function: torch.nn.Module,
-            optimizer: torch.nn.Module
+            optimizer: torch.optim.Optimizer,
     ):
         """
         Construct the model.
@@ -41,12 +42,27 @@ class MLP(Network):
         optimizer : torch.nn.Module
                 Optimizer for this model.
         """
-        super(MLP, self).__init__()
+        super(MLP, self).__init__(optimizer)
         self.model = layer_stack
         self.loss = loss_function
-        self.optimizer = optimizer
 
-    def forward(self, state: torch.Tensor):
+    def update_model(self, loss_vector: torch.Tensor[torch.Tensor]):
+        """
+        Update the model.
+
+        Parameters
+        ----------
+        loss_vector : torch.Tensor
+                Current state of the environment on which predictions should be made.
+                The elements of the loss vector MUST be torch tensors in order for the
+                backward() method to work.
+        """
+        for loss in loss_vector:
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+    def forward(self, state: torch.Tensor) -> torch.Tensor:
         """
         Run the forward pass on the model.
 
@@ -58,10 +74,10 @@ class MLP(Network):
         Returns
         -------
         state : torch.Tensor
-                State to be returned to the simulation.
+                All possibilities computed.
         """
         possibilities = self.model(state)
-        return self.select_state(possibilities)
+        return possibilities
 
 
 

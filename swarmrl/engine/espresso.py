@@ -259,6 +259,7 @@ class EspressoMD(Engine):
 
             self.system.integrator.run(self.params.steps_per_slice)
             for coll in self.colloids:
+                force_model.compute_state()  # update the state of an active learner.
                 coll.ext_force = force_model.calc_force(coll, [c for c in self.colloids if c is not coll])
                 coll.ext_torque = force_model.calc_torque(coll, [c for c in self.colloids if c is not coll])
                 new_direction = force_model.calc_new_direction(coll, [c for c in self.colloids if c is not coll])
