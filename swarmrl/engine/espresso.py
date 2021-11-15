@@ -258,6 +258,7 @@ class EspressoMD(Engine):
                         val.clear()
 
             for coll in self.colloids:
+                force_model.compute_state()  # update the state of an active learner.
                 other_colloids = [c for c in self.colloids if c is not coll]
                 coll.ext_force = force_model.calc_force(coll, other_colloids)
                 coll.ext_torque = force_model.calc_torque(coll, other_colloids)

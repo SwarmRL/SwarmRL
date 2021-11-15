@@ -3,9 +3,11 @@ Module to implement a simple multi-layer perceptron for the colloids.
 """
 from swarmrl.models.interaction_model import InteractionModel
 from swarmrl.networks.network import Network
+from swarmrl.tasks.task import Task
+from swarmrl.loss_models.loss import Loss
 import torch
 import numpy as np
-from typing import Callable
+from typing import Union
 
 
 class MLPRL(InteractionModel):
@@ -21,14 +23,16 @@ class MLPRL(InteractionModel):
                 A sequential torch model to use as an actor.
     critic : Network
                 A sequential torch model to use as a critic.
-    reward_function : callable
+    task : callable
                 Callable function from which a reward can be computed.
     """
     def __init__(
             self,
             actor: Network,
             critic: Network,
-            reward_function: Callable,
+            task: Task,
+            loss: Loss,
+            actions: dict
     ):
         """
         Constructor for the MLP RL.
@@ -39,15 +43,113 @@ class MLPRL(InteractionModel):
                 A sequential torch model to use as an actor.
         critic : torch.nn.Sequential
                 A sequential torch model to use as a critic.
-        reward_function : callable
-                Callable function from which a reward can be computed.
+        task : Task
+                Callable from which a reward can be computed.
+        loss : Loss
+                A loss model to use in the A-C loss computation.
+        actions : dict
+                A dictionary of possible actions. Key names should describe the action
+                and the value should be a data class. See the actions module for
+                more information.
         """
         super().__init__()
         self.actor = actor
         self.critic = critic
-        self.reward_function = reward_function
+        self.task = task
+        self.loss = loss
+        self.actions = actions
 
-    def compute_force(self, colloids: torch.Tensor) -> np.ndarray:
+        # Properties stored during the episode.
+        self.true_rewards = []
+        self.predicted_rewards = []
+        self.action_probabilities = []
+
+        # Actions on particles.
+        self.force = np.zeros(3)
+        self.torque = np.zeros(3)
+        self.new_direction = None
+
+    def compute_feature_vector(self):
+        """
+        Compute the feature vector.
+
+        Returns
+        -------
+
+        """
+        return torch.ones(10)
+
+    def compute_state(self, colloid, other_colloids) -> None:
+        """
+        Compute the state of the active learning algorithm.
+
+        If the model is not an active learner this method is ignored.
+
+        Notes
+        -----
+        1.) Compute current state
+        2.) Store necessary properties
+        3.) Compute and set new forces / torques.
+        """
+        scaling = torch.nn.Softmax()
+        state = self.compute_feature_vector()
+        action_logits = self.actor(state)
+        selector = torch.distributions.Categorical(action_logits)
+        action = selector.sample()
+        action_probabilities = scaling(action_logits)
+        predicted_reward = self.critic(state)
+        reward = self.task.compute_reward()
+
+        self.action_probabilities.append(action_probabilities)
+        self.true_rewards.append(reward)
+        self.predicted_rewards.append(predicted_reward)
+
+        return None
+
+    def handle_action(self, action: torch.Tensor, colloid):
+        """
+        Handle the action chosen.
+
+        Parameters
+        ----------
+        action : torch.Tensor
+                The action chosen for the next step.
+
+        Returns
+        -------
+
+        """
+        self.force = np.zeros(3)
+        self.torque = np.zeros(3)
+        self.new_direction = None
+
+        chosen_key = list(self.actions)[action.numpy()]
+
+        update = self.actions[chosen_key]
+
+        if update.property == 'force':
+            self.force = update.action(colloid)
+        elif update.property == 'torque':
+            self.torque = update.action(colloid)
+        elif update.property == 'new_direction':
+            self.new_direction = update.action(colloid)
+
+    def calc_new_direction(self, colloid, other_colloids) -> Union[None, np.ndarray]:
+        """
+        Compute the new direction of the colloid.
+
+        Parameters
+        ----------
+        colloid
+        other_colloids
+
+        Returns
+        -------
+
+        """
+        return self.new_direction
+
+    def calc_force(self, colloid, other_colloids) -> np.ndarray:
         """
         Compute the force on all of the particles with the newest model.
 
@@ -55,122 +157,60 @@ class MLPRL(InteractionModel):
         for the next step. One of these options will be selected based upon a defined
         probability distribution.
 
-        Parameters
-        ----------
-        colloids : tf.Tensor
-                Tensor of colloids on which to operate. shape=(n_colloids, n_properties)
-                where properties can very between test_models.
-
         Returns
         -------
         forces : np.ndarray
                 Numpy array of forces to apply to the colloids. shape=(n_colloids, 3)
         """
-        return self.actor(colloids)
+        return self.force
 
-    def compute_reward(self, state: torch.Tensor) -> torch.Tensor:
+    def calc_torque(self, colloid, other_colloids) -> np.ndarray:
         """
-        Compute the reward based on the state of the system.
-
-        Parameters
-        ----------
-        state : torch.Tensor
-                State of the system on which the reward should be computed.
-
+        Compute the torque acting on the particle an return it.
         Returns
         -------
-        reward : torch.Tensor
-                torch tensor containing the reward
-        """
-        return self.reward_function(state)
 
-    def update_critic(self, reward: torch.Tensor):
+        """
+        return self.torque
+
+    def update_critic(self, loss: torch.Tensor):
         """
         Perform an update on the critic network.
-
-        Parameters
-        ----------
-        reward : torch.Tensor
-                Reward on which to update the critic network.
 
         Returns
         -------
         Runs back-propagation on the critic model.
         """
-        loss = self.critic_loss(reward)
-        self.critic_optimizer.zero_grad()
-        loss.backward()
-        self.critic_optimizer.step()
+        self.critic.update_model(loss)
 
-    def update_actor(self, reward: torch.Tensor, predicted_reward: torch.Tensor):
+    def update_actor(self, loss: torch.Tensor):
         """
         Perform an update on the actor network.
 
-        Parameters
-        ----------
-        reward : torch.Tensor
-                Real reward computed by the system.
-        predicted_reward : torch.Tensor
-                Reward predicted by the critic.
+        This method undertakes two tasks. First the actor reward must be predicted by
+        mixing the true and predicted tasks stored during the run. Second, the final
+        reward is passed to the actor for weight updates.
 
         Returns
         -------
         Runs back-propagation on the actor model.
         """
-        loss = self.actor_loss(reward, predicted_reward)
-        self.actor_optimizer.zero_grad()
-        loss.backward()
-        self.actor_optimizer.step()
+        self.actor.update_model(loss)
 
-    def predict_reward(self, state: torch.Tensor) -> torch.Tensor:
+    def update_rl(self):
         """
-        Use the current critic network to compute a predicted award.
+        Update the RL algorithm.
 
-        Parameters
-        ----------
-        state : torch.Tensor
-                Current state of the system on which to predict the reward.
-
-        Returns
-        -------
-        reward : torch.Tensor
-                predicted reward from the critic network.
+        1.) Compute expected return
+        2.) Compute actor loss
+        3.) Compute critic loss
+        4.) Update networks
+        5.) Flush the reward.
         """
-        pass
-
-    def forward(
-            self, colloids: torch.Tensor, state: torch.Tensor = None
-    ) -> np.ndarray:
-        """
-        Perform the forward pass over the model.
-
-        Perform the following steps:
-
-        0.) Compute the reward
-        1.) Compute new action
-        2.) Update weights of critic
-        3.) Compute predicted reward
-        4.) Update weights of actor with old reward + predicted reward.
-
-        Parameters
-        ----------
-        colloids : torch.Tensor
-                Tensor of colloids on which to operate. shape=(n_colloids, n_properties)
-                where properties can very between test_models.
-        state : torch.Tensor
-                State of the system on which to compute the reward.
-
-        Returns
-        -------
-        forces : np.ndarray
-                Numpy array of forces to apply to the colloids. shape=(n_colloids, 3)
-        """
-        if state is None:
-            raise ValueError("State cannot be None")
-        reward = self.compute_reward(state)
-        updated_forces = self.compute_force(colloids)
-        self.update_critic(reward)
-        predicted_reward = self.predict_reward(state)
-        self.update_actor(reward, predicted_reward)
-
-        return updated_forces
+        actor_loss, critic_loss = self.loss.compute_loss(
+            torch.tensor(self.action_probabilities),
+            torch.tensor(self.predicted_rewards),
+            torch.tensor(self.true_rewards)
+             )
+        self.update_actor(actor_loss)
+        self.update_critic(critic_loss)

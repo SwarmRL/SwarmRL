@@ -3,6 +3,7 @@ Model to compute external forces in an espresso simulation.
 """
 import torch
 import numpy as np
+from typing import Union
 
 
 class InteractionModel(torch.nn.Module):
@@ -30,14 +31,22 @@ class InteractionModel(torch.nn.Module):
         """
         raise NotImplementedError("Implemented in child classes.")
 
-    def calc_new_direction(self, colloid, other_colloids) -> np.ndarray:
+    def calc_new_direction(self, colloid, other_colloids) -> Union[None, np.ndarray]:
         """
         optional: new direction to set for the particle.
         None indicates to leave the direction as is
         """
         return None
 
-    def forward(self, colloids: torch.Tensor, state: torch.Tensor = None):
+    def compute_state(self, colloid, other_colloids) -> Union[None, np.ndarray]:
+        """
+        Compute the state of the active learning algorithm.
+
+        If the model is not an active learner this method is ignored.
+        """
+
+
+    def forward(self, colloids: torch.Tensor):
         """
         Perform the forward pass over the model.
 
@@ -49,9 +58,6 @@ class InteractionModel(torch.nn.Module):
         colloids : torch.Tensor
                 Tensor of colloids on which to operate. shape=(n_colloids, n_properties)
                 where properties can very between test_models.
-        state : torch.Tensor
-                State of the system on which a reward may be computed. Defaults to None
-                to allow for non-NN models.
 
         Returns
         -------
