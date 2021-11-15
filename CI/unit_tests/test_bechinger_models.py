@@ -51,35 +51,35 @@ class TestLavergne(ut.TestCase):
 class TestBaeuerle(ut.TestCase):
     def setUp(self) -> None:
         self.act_force = 1.234
+        self.act_torque = 2.345
         self.vision_half_angle = np.pi / 4.
         self.detection_radius_position = 1.1
         self.detection_radius_orientation = 0.5
         self.angular_deviation = np.pi / 8.
 
         self.force_model = swarmrl.models.bechinger_models.Baeuerle2020(act_force=self.act_force,
+                                                                        act_torque=self.act_torque,
                                                                         detection_radius_orientation=self.detection_radius_orientation,
                                                                         detection_radius_position=self.detection_radius_position,
                                                                         vision_half_angle=self.vision_half_angle,
                                                                         angular_deviation=self.angular_deviation)
 
-    def test_force(self):
+    def test_torque(self):
         test_coll = MockColloid(pos=np.array([0, 0, 0]), director=np.array([1, 0, 0]))
         front_coll = MockColloid(pos=np.array([1, 0.1, 0]), director=[0, 1, 0])
         front_close_coll = MockColloid(pos=[0.2, 0.1, 0], director=[0, -1, 0])
         front_far_coll = MockColloid(pos=[10, 0, 0], director=[0, 1, 0])
         side_coll = MockColloid(pos=[0, 0.1, 0])
 
-        force = self.force_model.calc_force(test_coll, [front_coll, front_close_coll, front_far_coll, side_coll])
-        force_norm = np.linalg.norm(force)
-        self.assertAlmostEqual(force_norm, self.act_force)
+        torque = self.force_model.calc_torque(test_coll, [front_coll, front_close_coll, front_far_coll, side_coll])
+        torque_norm = np.linalg.norm(torque)
+        self.assertAlmostEqual(torque_norm, self.act_torque)
         # com determied by front_coll and front_close_coll
         # orientation determined by front_close_coll
         com = (front_coll.pos + front_close_coll.pos)/2.
-        com_direction = com / np.linalg.norm(com)
 
         # force must be to the right of the com (coll_front_close point to -y)
-        self.assertAlmostEqual(np.arccos(np.dot(com_direction, force / force_norm)), self.angular_deviation)
-        self.assertGreater(com[1], force[1])
+        self.assertGreater(0, torque[2])
 
 
 class TestUtils(ut.TestCase):

@@ -38,21 +38,20 @@ class Baeuerle2020(InteractionModel):
 
     def __init__(self,
                  act_force=1.,
+                 act_torque=1,
                  detection_radius_position=1.,
                  detection_radius_orientation=1.,
                  vision_half_angle=np.pi / 2.,
                  angular_deviation=1,
                  ):
         self.act_force = act_force
+        self.act_torque = act_torque
         self.detection_radius_position = detection_radius_position
         self.detection_radius_orientation = detection_radius_orientation
         self.vision_half_angle = vision_half_angle
         self.angular_deviation = angular_deviation
 
-    def _calc_force(self, colloid, other_colloids) -> np.ndarray:
-        """
-        Needs to be used by the new direction aswell
-        """
+    def calc_torque(self, colloid, other_colloids) -> np.ndarray:
         # get vector to center of mass
         colls_in_vision_pos = get_colloids_in_vision(colloid,
                                                      other_colloids,
@@ -62,7 +61,7 @@ class Baeuerle2020(InteractionModel):
             # not detailed in the paper. take from previous model
             return np.zeros((3,))
 
-        com = np.mean(np.stack([col.pos for col in colls_in_vision_pos] ,axis=1), axis=1)
+        com = np.mean(np.stack([col.pos for col in colls_in_vision_pos], axis=0), axis=0)
         to_com = com - colloid.pos
         to_com_angle = angle_from_vector(to_com)
 
@@ -76,33 +75,34 @@ class Baeuerle2020(InteractionModel):
             # not detailed in paper
             return np.zeros((3,))
 
+        colls_in_vision_orientation.append(colloid)
+
         mean_orientation_in_vision = np.mean(np.stack([col.director for col in colls_in_vision_orientation],
-                                                      axis=1),
-                                             axis=1)
+                                                      axis=0),
+                                             axis=0)
         mean_orientation_in_vision /= np.linalg.norm(mean_orientation_in_vision)
 
-        # choose new orientation based on self.angular_deviation
-        new_angle_choices = [to_com_angle + self.angular_deviation, to_com_angle - self.angular_deviation]
-        new_orientation_choices = [vector_from_angle(ang) for ang in new_angle_choices]
+        # choose target orientation based on self.angular_deviation
+        target_angle_choices = [to_com_angle + self.angular_deviation, to_com_angle - self.angular_deviation]
+        target_orientation_choices = [vector_from_angle(ang) for ang in target_angle_choices]
 
-        angle_deviations = [np.arccos(np.dot(new_orient, mean_orientation_in_vision)) for new_orient in
-                            new_orientation_choices]
-        new_orientation = new_orientation_choices[np.argmin(angle_deviations)]
+        angle_deviations = [np.arccos(np.dot(orient, mean_orientation_in_vision)) for orient in
+                            target_orientation_choices]
+        target_angle = target_angle_choices[np.argmin(angle_deviations)]
+        current_angle = angle_from_vector(colloid.director)
+        angle_diff = target_angle - current_angle
 
-        return self.act_force * new_orientation
+        # take care of angle wraparound and bring difference to [-pi, pi]
+        if angle_diff >= np.pi:
+            angle_diff -= 2 * np.pi
+        if angle_diff <= -np.pi:
+            angle_diff += 2 * np.pi
+        torque_z = np.sin(angle_diff) * self.act_torque
+
+        return np.array([0, 0, torque_z])
 
     def calc_force(self, colloid, other_colloids) -> np.ndarray:
-        return self._calc_force(colloid, other_colloids)
-
-    def calc_new_direction(self, colloid, other_colloids) -> np.ndarray:
-        force = self._calc_force(colloid, other_colloids)
-        if np.all(force == 0.):
-            return None
-        else:
-            return force/np.linalg.norm(force)
-
-    def calc_torque(self, colloid, other_colloids) -> np.ndarray:
-        return np.zeros((3,))
+        return self.act_force * colloid.director
 
 
 def get_colloids_in_vision(coll, other_coll, vision_half_angle=np.pi, vision_range=np.inf) -> list:
