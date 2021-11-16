@@ -40,7 +40,7 @@ class MLP(Network):
         super(MLP, self).__init__()
         self.model = layer_stack
 
-    def update_model(self, loss_vector: torch.Tensor[torch.Tensor]):
+    def update_model(self, loss_vector: torch.Tensor):
         """
         Update the model.
 

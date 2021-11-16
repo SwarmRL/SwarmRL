@@ -38,7 +38,7 @@ class Network(torch.nn.Module):
         """
         return states[0]
 
-    def update_model(self, loss_vector: torch.Tensor[torch.Tensor]):
+    def update_model(self, loss_vector: torch.Tensor):
         """
         Update the model.
 
