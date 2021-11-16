@@ -9,6 +9,7 @@ class Loss(torch.nn.Module):
     """
     Parent class for the reinforcement learning tasks.
     """
+
     def __init__(self):
         """
         Constructor for the reward class.
@@ -17,7 +18,7 @@ class Loss(torch.nn.Module):
 
     @staticmethod
     def compute_expected_returns(
-            rewards: torch.tensor, gamma: float = 0.99, standardize: bool = True
+        rewards: torch.tensor, gamma: float = 0.99, standardize: bool = True
     ):
         """
         Compute the expected returns vector from the tasks.
@@ -41,15 +42,15 @@ class Loss(torch.nn.Module):
         for i in torch.range(0, len(rewards)):
             reward_subset = rewards[i:]
             time_subset = t[i:] - torch.ones(len(reward_subset))
-            expected_returns[i] = torch.sum(gamma**time_subset * reward_subset)
+            expected_returns[i] = torch.sum(gamma ** time_subset * reward_subset)
 
         return expected_returns
 
     def actor_loss(
-            self,
-            policy_probabilities: torch.Tensor,
-            predicted_rewards: torch.Tensor,
-            rewards: torch.Tensor
+        self,
+        policy_probabilities: torch.Tensor,
+        predicted_rewards: torch.Tensor,
+        rewards: torch.Tensor,
     ):
         """
         Compute the actor loss.
@@ -85,10 +86,10 @@ class Loss(torch.nn.Module):
         return huber(predicted_rewards, expected_returns)
 
     def compute_loss(
-            self,
-            policy_probabilities: torch.Tensor,
-            predicted_rewards: torch.Tensor,
-            rewards: torch.Tensor
+        self,
+        policy_probabilities: torch.Tensor,
+        predicted_rewards: torch.Tensor,
+        rewards: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute the loss functions for the actor and critic based on the reward.

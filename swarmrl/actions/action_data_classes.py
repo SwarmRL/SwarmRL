@@ -4,7 +4,7 @@ Data classes for the currently available actions.
 from dataclasses import dataclass
 from typing import Callable
 from swarmrl.actions.actions import TranslateColloid, RotateColloid
-import numpu as np
+import numpy as np
 
 
 @dataclass
@@ -19,6 +19,7 @@ class Action:
     action : Callable
             A callable that updates this property
     """
+
     property: str
     action: Callable
 
@@ -28,6 +29,7 @@ class Translate(Action):
     """
     Translate a particle
     """
+
     property = "force"
     action = TranslateColloid(act_force=1.0)
 
@@ -37,13 +39,15 @@ class RotateClockwise(Action):
     """
     Rotate a particle clockwise
     """
+
     property = "new_direction"
-    action = RotateColloid(angle=np.pi/3)
+    action = RotateColloid(angle=np.pi / 3)
 
 
 class RotateCounterClockwise(Action):
     """
     Rotate a particle counter-clockwise.
     """
+
     property = "new_direction"
-    action = RotateColloid(angle=np.pi/3, clockwise=False)
+    action = RotateColloid(angle=np.pi / 3, clockwise=False)

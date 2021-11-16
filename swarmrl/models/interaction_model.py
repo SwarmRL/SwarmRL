@@ -11,6 +11,7 @@ class InteractionModel(torch.nn.Module):
     Parent class to compute external forces on colloids in a simulation.
     Inherits from the module class of Torch.
     """
+
     def calc_force(self, colloid, other_colloids) -> np.ndarray:
         """
         Calculate the forces that will be applied to ``colloid``
@@ -44,7 +45,6 @@ class InteractionModel(torch.nn.Module):
 
         If the model is not an active learner this method is ignored.
         """
-
 
     def forward(self, colloids: torch.Tensor):
         """

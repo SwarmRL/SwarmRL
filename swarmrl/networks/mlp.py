@@ -20,11 +20,10 @@ class MLP(Network):
     optimizer : torch.nn.Module
                 Optimizer for this model.
     """
+
     def __init__(
-            self,
-            layer_stack: torch.nn.Module,
-            loss_function: torch.nn.Module,
-            optimizer: torch.optim.Optimizer,
+        self,
+        layer_stack: torch.nn.Module,
     ):
         """
         Construct the model.
@@ -37,14 +36,9 @@ class MLP(Network):
                 The input and output dimension of these models should be correct. The
                 output dimension should be > 1, one of these outputs will be selected
                 based on some distribution.
-        loss_function : torch.nn.module
-                Loss function for this model.
-        optimizer : torch.nn.Module
-                Optimizer for this model.
         """
-        super(MLP, self).__init__(optimizer)
+        super(MLP, self).__init__()
         self.model = layer_stack
-        self.loss = loss_function
 
     def update_model(self, loss_vector: torch.Tensor[torch.Tensor]):
         """
@@ -78,6 +72,3 @@ class MLP(Network):
         """
         possibilities = self.model(state)
         return possibilities
-
-
-

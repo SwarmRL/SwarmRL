@@ -11,8 +11,9 @@ class HarmonicTrap(InteractionModel, ABC):
     """
     Class for the harmonic trap potential.
     """
+
     def __init__(
-            self, stiffness: float, center: np.ndarray = np.array([0.0, 0.0, 0.0])
+        self, stiffness: float, center: np.ndarray = np.array([0.0, 0.0, 0.0])
     ):
         """
         Constructor for the Harmonic trap interaction rule.

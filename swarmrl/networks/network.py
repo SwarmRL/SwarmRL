@@ -8,7 +8,8 @@ class Network(torch.nn.Module):
     """
     A parent class for the networks that will be used.
     """
-    def __init__(self, optimizer: torch.optim.Optimizer):
+
+    def __init__(self, optimizer: torch.optim.Optimizer = None):
         """
         Constructor for the Network parent class.
 
@@ -64,4 +65,3 @@ class Network(torch.nn.Module):
 
         """
         raise NotImplementedError("Implemented in child class.")
-

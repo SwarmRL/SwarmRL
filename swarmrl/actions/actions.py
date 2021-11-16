@@ -12,6 +12,7 @@ class TranslateColloid:
     """
     Callable class to translate a colloid.
     """
+
     def __init__(self, act_force: float = 1.0):
         """
         Constructor for the translation class

@@ -55,17 +55,18 @@ class ToCenterMass(interaction_model.InteractionModel):
         for other_p in other_particles:
             dist = other_p.pos - my_pos
             dist /= np.linalg.norm(dist)
-            if np.arccos(np.dot(dist, my_director)) < self.vision_angle / 2.:
+            if np.arccos(np.dot(dist, my_director)) < self.vision_angle / 2.0:
                 particles_in_vision.append(other_p)
 
         if len(particles_in_vision) == 0:
             return 3 * [0]
 
-        center_of_mass = np.sum(np.array([p.pos * p.mass for p in particles_in_vision]), axis=0) / np.sum(
-            [p.mass for p in particles_in_vision])
+        center_of_mass = np.sum(
+            np.array([p.pos * p.mass for p in particles_in_vision]), axis=0
+        ) / np.sum([p.mass for p in particles_in_vision])
         dist = colloid.pos - center_of_mass
 
-        return - self.force * dist / np.linalg.norm(dist)
+        return -self.force * dist / np.linalg.norm(dist)
 
     def calc_torque(self, colloid, other_colloids) -> np.ndarray:
         return np.zeros(3)

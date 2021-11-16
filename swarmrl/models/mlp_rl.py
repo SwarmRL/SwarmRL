@@ -3,6 +3,7 @@ Module to implement a simple multi-layer perceptron for the colloids.
 """
 from swarmrl.models.interaction_model import InteractionModel
 from swarmrl.networks.network import Network
+from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
 from swarmrl.loss_models.loss import Loss
 import torch
@@ -26,13 +27,15 @@ class MLPRL(InteractionModel):
     task : callable
                 Callable function from which a reward can be computed.
     """
+
     def __init__(
             self,
             actor: Network,
             critic: Network,
             task: Task,
             loss: Loss,
-            actions: dict
+            actions: dict,
+            observable: Observable
     ):
         """
         Constructor for the MLP RL.
@@ -51,6 +54,8 @@ class MLPRL(InteractionModel):
                 A dictionary of possible actions. Key names should describe the action
                 and the value should be a data class. See the actions module for
                 more information.
+        observable : Observable
+                Observable class with which to compute the input vector.
         """
         super().__init__()
         self.actor = actor
@@ -58,6 +63,7 @@ class MLPRL(InteractionModel):
         self.task = task
         self.loss = loss
         self.actions = actions
+        self.observable = observable
 
         # Properties stored during the episode.
         self.true_rewards = []
@@ -69,15 +75,22 @@ class MLPRL(InteractionModel):
         self.torque = np.zeros(3)
         self.new_direction = None
 
-    def compute_feature_vector(self):
+    def compute_feature_vector(self, colloid: object, other_colloids: list):
         """
         Compute the feature vector.
+
+        Parameters
+        ----------
+        colloid : object
+                Colloid of interest
+        other_colloids : list
+                List of all other colloids.
 
         Returns
         -------
 
         """
-        return torch.ones(10)
+        return self.observable.compute_observable(colloid, other_colloids)
 
     def compute_state(self, colloid, other_colloids) -> None:
         """
@@ -91,15 +104,20 @@ class MLPRL(InteractionModel):
         2.) Store necessary properties
         3.) Compute and set new forces / torques.
         """
+        # Collect current state information.
         scaling = torch.nn.Softmax()
-        state = self.compute_feature_vector()
+        state = self.compute_feature_vector(colloid, other_colloids)
         action_logits = self.actor(state)
         selector = torch.distributions.Categorical(action_logits)
         action = selector.sample()
         action_probabilities = scaling(action_logits)
         predicted_reward = self.critic(state)
-        reward = self.task.compute_reward()
+        reward = self.task.compute_reward(colloid)
 
+        # Handle the action.
+        self.handle_action(action, colloid)
+
+        # Update the stored data.
         self.action_probabilities.append(action_probabilities)
         self.true_rewards.append(reward)
         self.predicted_rewards.append(predicted_reward)
@@ -112,6 +130,8 @@ class MLPRL(InteractionModel):
 
         Parameters
         ----------
+        colloid : object
+                A colloid object on which an action is taken.
         action : torch.Tensor
                 The action chosen for the next step.
 
@@ -127,11 +147,11 @@ class MLPRL(InteractionModel):
 
         update = self.actions[chosen_key]
 
-        if update.property == 'force':
+        if update.property == "force":
             self.force = update.action(colloid)
-        elif update.property == 'torque':
+        elif update.property == "torque":
             self.torque = update.action(colloid)
-        elif update.property == 'new_direction':
+        elif update.property == "new_direction":
             self.new_direction = update.action(colloid)
 
     def calc_new_direction(self, colloid, other_colloids) -> Union[None, np.ndarray]:
@@ -200,17 +220,11 @@ class MLPRL(InteractionModel):
     def update_rl(self):
         """
         Update the RL algorithm.
-
-        1.) Compute expected return
-        2.) Compute actor loss
-        3.) Compute critic loss
-        4.) Update networks
-        5.) Flush the reward.
         """
         actor_loss, critic_loss = self.loss.compute_loss(
             torch.tensor(self.action_probabilities),
             torch.tensor(self.predicted_rewards),
-            torch.tensor(self.true_rewards)
-             )
+            torch.tensor(self.true_rewards),
+        )
         self.update_actor(actor_loss)
         self.update_critic(critic_loss)

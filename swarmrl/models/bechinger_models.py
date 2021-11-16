@@ -7,14 +7,18 @@ class Lavergne2019(InteractionModel):
     See doi/10.1126/science.aau5347
     """
 
-    def __init__(self, vision_half_angle=np.pi / 2., act_force=1, perception_threshold=1):
+    def __init__(
+        self, vision_half_angle=np.pi / 2.0, act_force=1, perception_threshold=1
+    ):
         self.vision_half_angle = vision_half_angle
         self.act_force = act_force
         self.perception_threshold = perception_threshold
 
     def calc_force(self, colloid, other_colloids) -> np.ndarray:
         # determine perception value
-        colls_in_vision = get_colloids_in_vision(colloid, other_colloids, vision_half_angle=self.vision_half_angle)
+        colls_in_vision = get_colloids_in_vision(
+            colloid, other_colloids, vision_half_angle=self.vision_half_angle
+        )
         perception = 0
         my_pos = np.copy(colloid.pos)
         for coll in colls_in_vision:
@@ -36,14 +40,15 @@ class Baeuerle2020(InteractionModel):
     See https://doi.org/10.1038/s41467-020-16161-4
     """
 
-    def __init__(self,
-                 act_force=1.,
-                 act_torque=1,
-                 detection_radius_position=1.,
-                 detection_radius_orientation=1.,
-                 vision_half_angle=np.pi / 2.,
-                 angular_deviation=1,
-                 ):
+    def __init__(
+        self,
+        act_force=1.0,
+        act_torque=1,
+        detection_radius_position=1.0,
+        detection_radius_orientation=1.0,
+        vision_half_angle=np.pi / 2.0,
+        angular_deviation=1,
+    ):
         self.act_force = act_force
         self.act_torque = act_torque
         self.detection_radius_position = detection_radius_position
@@ -53,23 +58,29 @@ class Baeuerle2020(InteractionModel):
 
     def calc_torque(self, colloid, other_colloids) -> np.ndarray:
         # get vector to center of mass
-        colls_in_vision_pos = get_colloids_in_vision(colloid,
-                                                     other_colloids,
-                                                     vision_half_angle=self.vision_half_angle,
-                                                     vision_range=self.detection_radius_position)
+        colls_in_vision_pos = get_colloids_in_vision(
+            colloid,
+            other_colloids,
+            vision_half_angle=self.vision_half_angle,
+            vision_range=self.detection_radius_position,
+        )
         if len(colls_in_vision_pos) == 0:
             # not detailed in the paper. take from previous model
             return np.zeros((3,))
 
-        com = np.mean(np.stack([col.pos for col in colls_in_vision_pos], axis=0), axis=0)
+        com = np.mean(
+            np.stack([col.pos for col in colls_in_vision_pos], axis=0), axis=0
+        )
         to_com = com - colloid.pos
         to_com_angle = angle_from_vector(to_com)
 
         # get average orientation of neighbours
-        colls_in_vision_orientation = get_colloids_in_vision(colloid,
-                                                             other_colloids,
-                                                             vision_half_angle=self.vision_half_angle,
-                                                             vision_range=self.detection_radius_orientation)
+        colls_in_vision_orientation = get_colloids_in_vision(
+            colloid,
+            other_colloids,
+            vision_half_angle=self.vision_half_angle,
+            vision_range=self.detection_radius_orientation,
+        )
 
         if len(colls_in_vision_orientation) == 0:
             # not detailed in paper
@@ -77,17 +88,25 @@ class Baeuerle2020(InteractionModel):
 
         colls_in_vision_orientation.append(colloid)
 
-        mean_orientation_in_vision = np.mean(np.stack([col.director for col in colls_in_vision_orientation],
-                                                      axis=0),
-                                             axis=0)
+        mean_orientation_in_vision = np.mean(
+            np.stack([col.director for col in colls_in_vision_orientation], axis=0),
+            axis=0,
+        )
         mean_orientation_in_vision /= np.linalg.norm(mean_orientation_in_vision)
 
         # choose target orientation based on self.angular_deviation
-        target_angle_choices = [to_com_angle + self.angular_deviation, to_com_angle - self.angular_deviation]
-        target_orientation_choices = [vector_from_angle(ang) for ang in target_angle_choices]
+        target_angle_choices = [
+            to_com_angle + self.angular_deviation,
+            to_com_angle - self.angular_deviation,
+        ]
+        target_orientation_choices = [
+            vector_from_angle(ang) for ang in target_angle_choices
+        ]
 
-        angle_deviations = [np.arccos(np.dot(orient, mean_orientation_in_vision)) for orient in
-                            target_orientation_choices]
+        angle_deviations = [
+            np.arccos(np.dot(orient, mean_orientation_in_vision))
+            for orient in target_orientation_choices
+        ]
         target_angle = target_angle_choices[np.argmin(angle_deviations)]
         current_angle = angle_from_vector(colloid.director)
         angle_diff = target_angle - current_angle
@@ -105,7 +124,9 @@ class Baeuerle2020(InteractionModel):
         return self.act_force * colloid.director
 
 
-def get_colloids_in_vision(coll, other_coll, vision_half_angle=np.pi, vision_range=np.inf) -> list:
+def get_colloids_in_vision(
+    coll, other_coll, vision_half_angle=np.pi, vision_range=np.inf
+) -> list:
     my_pos = np.array(coll.pos)
     my_director = coll.director
     colls_in_vision = []
