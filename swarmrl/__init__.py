@@ -9,6 +9,7 @@ from swarmrl.networks.mlp import MLP
 from swarmrl import actions
 from swarmrl.loss_models import loss
 from swarmrl.tasks.find_origin import FindOrigin
+from swarmrl.observables.position import PositionObservable
 
 __all__ = [
     "InteractionModel",
@@ -18,5 +19,6 @@ __all__ = [
     "MLP",
     "actions",
     "loss",
-    "FindOrigin"
+    "FindOrigin",
+    "PositionObservable"
 ]

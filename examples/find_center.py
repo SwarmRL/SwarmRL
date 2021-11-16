@@ -12,7 +12,7 @@ import torch
 
 # Take user inputs
 parser = argparse.ArgumentParser()
-parser.add_argument('-outfolder_base', default='./lavergne')
+parser.add_argument('-outfolder_base', default='./find_center')
 parser.add_argument('-name', default='test')
 parser.add_argument('-seed', type=int, default=42)
 parser.add_argument('--test', action='store_true')
@@ -82,7 +82,8 @@ critic_stack = torch.nn.Sequential(
     torch.nn.ReLU(),
     torch.nn.Linear(16, 16),
     torch.nn.ReLU(),
-    torch.nn.Linear(16, 1)
+    torch.nn.Linear(16, 1),
+    torch.nn.ReLU()
 )
 actor_stack = torch.nn.Sequential(
     torch.nn.Linear(3, 32),
@@ -91,11 +92,14 @@ actor_stack = torch.nn.Sequential(
     torch.nn.ReLU(),
     torch.nn.Linear(16, 16),
     torch.nn.ReLU(),
-    torch.nn.Linear(16, 4)
+    torch.nn.Linear(16, 4),
+    torch.nn.ReLU()
 )
 
 actor = srl.MLP(actor_stack)
 critic = srl.MLP(critic_stack)
+actor = actor.double()
+critic = critic.double()
 
 # Set the optimizer.
 critic.optimizer = torch.optim.SGD(critic.parameters(), lr=0.001)
@@ -106,19 +110,23 @@ task = srl.FindOrigin(engine=system_runner, alpha=1.0, beta=0.0, gamma=0.0)
 actions = {
     "Translate": srl.actions.Translate,
     "RotateClockwise": srl.actions.RotateClockwise,
-    "RotateCounterClockwise": srl.actions.RotateCounterClockwise
+    "RotateCounterClockwise": srl.actions.RotateCounterClockwise,
+    "Nothing": srl.actions.DoNothing
 }
 
 # Define the loss model
 loss = srl.loss.Loss()
 
+observable = srl.PositionObservable()
+
 # Define the force model.
-force_model = srl.mlp_rl.MLPRL(actor, critic, task, loss, actions)
+force_model = srl.mlp_rl.MLPRL(actor, critic, task, loss, actions, observable)
 
 # Run the simulation.
 n_slices = int(run_params['sim_duration'] / md_params.time_slice)
 
 for _ in tqdm.tqdm(range(1000)):
     system_runner.integrate(int(np.ceil(n_slices / 1000)), force_model)
+    force_model.update_rl()
 
 system_runner.finalize()

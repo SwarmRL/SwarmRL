@@ -118,9 +118,9 @@ class MLPRL(InteractionModel):
         self.handle_action(action, colloid)
 
         # Update the stored data.
-        self.action_probabilities.append(action_probabilities)
+        self.action_probabilities.append(list(action_probabilities.detach().numpy()))
         self.true_rewards.append(reward)
-        self.predicted_rewards.append(predicted_reward)
+        self.predicted_rewards.append(float(predicted_reward.detach().numpy()))
 
         return None
 
@@ -228,3 +228,7 @@ class MLPRL(InteractionModel):
         )
         self.update_actor(actor_loss)
         self.update_critic(critic_loss)
+
+        self.true_rewards = []
+        self.predicted_rewards = []
+        self.action_probabilities = []

@@ -8,6 +8,25 @@ TODO: Add noise to the operations to simulate real environment.
 import numpy as np
 
 
+class Nothing:
+    """
+    Callable class to do nothing.
+    """
+    def __call__(self, colloid):
+        """
+
+        Parameters
+        ----------
+        colloid
+                Colloid on which to do nothing.
+
+        Returns
+        -------
+
+        """
+        pass
+
+
 class TranslateColloid:
     """
     Callable class to translate a colloid.
@@ -74,4 +93,4 @@ class RotateColloid:
         -------
         Force acting on the colloid.
         """
-        return colloid.director * np.linalg.norm(colloid.director) * np.cos(self.angle)
+        return (1/colloid.director) * np.linalg.norm(colloid.director) * np.cos(self.angle)

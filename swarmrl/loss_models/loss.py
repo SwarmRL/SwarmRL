@@ -8,6 +8,12 @@ from typing import Tuple
 class Loss(torch.nn.Module):
     """
     Parent class for the reinforcement learning tasks.
+
+    Notes
+    -----
+    TODO: Fix losses. Curently all particles see all other particles losses. This is due
+          to the expected return computed from the historical rewards. This should be
+          adjusted to a slice over the same particle in time.
     """
 
     def __init__(self):
@@ -39,7 +45,7 @@ class Loss(torch.nn.Module):
         expected_returns = torch.empty(size=(len(rewards),), dtype=torch.float64)
         t = torch.linspace(0, len(rewards), len(rewards), dtype=torch.int)
 
-        for i in torch.range(0, len(rewards)):
+        for i in torch.range(0, len(rewards) - 1, dtype=int):
             reward_subset = rewards[i:]
             time_subset = t[i:] - torch.ones(len(reward_subset))
             expected_returns[i] = torch.sum(gamma ** time_subset * reward_subset)
@@ -65,7 +71,7 @@ class Loss(torch.nn.Module):
         advantage = expected_returns - predicted_rewards
         log_probabilities = torch.log(policy_probabilities)
 
-        return -torch.sum(log_probabilities * advantage)
+        return -torch.sum(torch.sum(log_probabilities, dim=1) * advantage)
 
     def critic_loss(self, predicted_rewards: torch.Tensor, rewards: torch.Tensor):
         """
@@ -101,4 +107,5 @@ class Loss(torch.nn.Module):
         actor_loss = self.actor_loss(policy_probabilities, predicted_rewards, rewards)
         critic_loss = self.critic_loss(predicted_rewards, rewards)
 
-        return actor_loss, critic_loss
+        return (torch.tensor(actor_loss, requires_grad=True),
+                torch.tensor(critic_loss, requires_grad=True))

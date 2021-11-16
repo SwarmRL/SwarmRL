@@ -3,7 +3,7 @@ Data classes for the currently available actions.
 """
 from dataclasses import dataclass
 from typing import Callable
-from swarmrl.actions.actions import TranslateColloid, RotateColloid
+from swarmrl.actions.actions import TranslateColloid, RotateColloid, Nothing
 import numpy as np
 
 
@@ -51,3 +51,11 @@ class RotateCounterClockwise(Action):
 
     property = "new_direction"
     action = RotateColloid(angle=np.pi / 3, clockwise=False)
+
+
+class DoNothing(Action):
+    """
+    Do nothing.
+    """
+    property = "Nothing"
+    action = Nothing()

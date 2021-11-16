@@ -25,6 +25,7 @@ class Task(torch.nn.Module):
                 simulation or an experiment.
         """
         super(Task, self).__init__()
+        self.engine = engine
 
     @classmethod
     def compute_reward(self, colloid: object):

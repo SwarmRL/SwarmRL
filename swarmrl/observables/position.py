@@ -3,6 +3,7 @@ Position observable computer.
 """
 from abc import ABC
 import numpy as np
+import torch
 
 from .observable import Observable
 
@@ -28,4 +29,4 @@ class PositionObservable(Observable, ABC):
         """
         data = np.copy(colloid.pos)
 
-        return data
+        return torch.tensor(data).double()
