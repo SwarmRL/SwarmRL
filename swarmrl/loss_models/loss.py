@@ -11,20 +11,25 @@ class Loss(torch.nn.Module):
 
     Notes
     -----
-    TODO: Fix losses. Curently all particles see all other particles losses. This is due
+    TODO: Fix losses. Currently all particles see all other particles losses. This is due
           to the expected return computed from the historical rewards. This should be
           adjusted to a slice over the same particle in time.
     """
 
-    def __init__(self):
+    def __init__(self, n_colloids: int):
         """
         Constructor for the reward class.
+
+        Parameters
+        ----------
+        n_colloids : int
+                Number of colloids in the system.
         """
         super(Loss, self).__init__()
+        self.particles = n_colloids
 
-    @staticmethod
     def compute_expected_returns(
-        rewards: torch.tensor, gamma: float = 0.99, standardize: bool = True
+        self, rewards: torch.tensor, gamma: float = 0.99, standardize: bool = True
     ):
         """
         Compute the expected returns vector from the tasks.
@@ -41,12 +46,18 @@ class Loss(torch.nn.Module):
         Returns
         -------
 
-        """
-        expected_returns = torch.empty(size=(len(rewards),), dtype=torch.float64)
-        t = torch.linspace(0, len(rewards), len(rewards), dtype=torch.int)
+        Notes
+        -----
+        TODO: This loss computes expected returns on all particles. Should only compute
+        one at a time.
 
-        for i in torch.range(0, len(rewards) - 1, dtype=int):
-            reward_subset = rewards[i:]
+        """
+        n_episodes = int(len(rewards) / self.particles)  # number of episodes.
+        expected_returns = torch.empty(size=(n_episodes,), dtype=torch.float64)
+        t = torch.linspace(0, n_episodes, n_episodes, dtype=torch.int)
+
+        for i in torch.range(0, n_episodes - 1, dtype=torch.int):
+            reward_subset = rewards[i:-1:self.particles]
             time_subset = t[i:] - torch.ones(len(reward_subset))
             expected_returns[i] = torch.sum(gamma ** time_subset * reward_subset)
 

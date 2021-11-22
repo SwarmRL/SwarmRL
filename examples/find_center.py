@@ -10,6 +10,8 @@ import numpy as np
 import tqdm
 import torch
 
+
+n_colloids = 50
 # Take user inputs
 parser = argparse.ArgumentParser()
 parser.add_argument('-outfolder_base', default='./find_center')
@@ -24,7 +26,7 @@ outfolder, _ = utils.setup_sim_folders(
 
 # Define the MD simulation parameters
 ureg = pint.UnitRegistry()
-md_params = srl.espresso.MDParams(n_colloids=75,
+md_params = srl.espresso.MDParams(n_colloids=n_colloids,
                                   ureg=ureg,
                                   colloid_radius=ureg.Quantity(2.14, 'micrometer'),
                                   fluid_dyn_viscosity=ureg.Quantity(8.9e-4,
