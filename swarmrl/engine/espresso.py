@@ -4,8 +4,8 @@ Module for the espressoMD simulations.
 try:
     import espressomd
     from espressomd import System, visualization
-except ImportError:
-    raise ImportWarning("Could not find espressomd. Features will not be available")
+except ModuleNotFoundError:
+    print("WARNING: Could not find espressomd. Features will not be available")
 import numpy as np
 import h5py
 import os
