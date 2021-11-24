@@ -48,7 +48,7 @@ class EspressoTest2D(ut.TestCase):
                 directors_z, np.zeros_like(directors_z)
             )
 
-            no_force = dummy_models.ConstForce(force=[0, 0, 0])
+            no_force = dummy_models.ConstForce(force=0)
             # brownian motion in xy-plane and rotation around z
             runner.integrate(10, no_force)
             part_data_new = runner.get_particle_data()
@@ -62,7 +62,7 @@ class EspressoTest2D(ut.TestCase):
 
             # test rotation from force model
             orientation = np.array([1 / np.sqrt(2), 1 / np.sqrt(2), 0])
-            rotator = dummy_models.ToConstOrientation(orientation)
+            rotator = dummy_models.ToConstDirection(orientation)
             runner.params.steps_per_slice = (
                 0  # bad hack: do not integrate, just update the new direction
             )

@@ -6,7 +6,6 @@ from swarmrl.engine import espresso
 from swarmrl.models import bechinger_models
 from swarmrl.models import mlp_rl
 from swarmrl.networks.mlp import MLP
-from swarmrl import actions
 from swarmrl.loss_models import loss
 from swarmrl.tasks.find_origin import FindOrigin
 from swarmrl.observables.position import PositionObservable
@@ -17,7 +16,6 @@ __all__ = [
     "bechinger_models",
     "mlp_rl",
     "MLP",
-    "actions",
     "loss",
     "FindOrigin",
     "PositionObservable"

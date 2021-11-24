@@ -42,18 +42,20 @@ class TestLavergne(ut.TestCase):
         coll_back = MockColloid(pos=[-0.01, 0, 0])
         coll_side = MockColloid(pos=[0, 0.01, 0])
 
-        force = self.force_model.calc_force(
+        action = self.force_model.calc_action(
             test_coll, [coll_front, coll_back, coll_side]
         )
+        force_is = action.force
         # front colloid too far, back not visible
-        np.testing.assert_array_almost_equal(force, np.zeros((3,)))
+        self.assertAlmostEqual(force_is, 0)
 
         coll_front.pos = [0.1, 0, 0]
-        force = self.force_model.calc_force(
+        action = self.force_model.calc_action(
             test_coll, [coll_front, coll_back, coll_side]
         )
+        force_is = action.force
         # front close -> activity along orientation
-        np.testing.assert_array_almost_equal(force, self.act_force * orientation)
+        self.assertAlmostEqual(force_is, self.act_force)
 
 
 class TestBaeuerle(ut.TestCase):
@@ -81,11 +83,14 @@ class TestBaeuerle(ut.TestCase):
         front_far_coll = MockColloid(pos=[10, 0, 0], director=[0, 1, 0])
         side_coll = MockColloid(pos=[0, 0.1, 0])
 
-        torque = self.force_model.calc_torque(
+        action = self.force_model.calc_action(
             test_coll, [front_coll, front_close_coll, front_far_coll, side_coll]
         )
+        torque = action.torque
         torque_norm = np.linalg.norm(torque)
-        self.assertAlmostEqual(torque_norm, self.act_torque)
+
+        # torque has maximum value of axt_torque
+        self.assertGreater(self.act_torque, torque_norm)
         # com determied by front_coll and front_close_coll
         # orientation determined by front_close_coll
         com = (front_coll.pos + front_close_coll.pos) / 2.0

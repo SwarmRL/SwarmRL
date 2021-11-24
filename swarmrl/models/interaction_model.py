@@ -4,6 +4,18 @@ Model to compute external forces in an espresso simulation.
 import torch
 import numpy as np
 from typing import Union
+import dataclasses
+
+
+@dataclasses.dataclass
+class Action:
+    """
+    Holds the 3 quantities that are applied to the colloid plus and identifier
+    """
+    id = 0
+    force: float = 0.
+    torque: np.ndarray = np.zeros((3,))
+    new_direction: np.ndarray = None
 
 
 class InteractionModel(torch.nn.Module):
@@ -12,32 +24,19 @@ class InteractionModel(torch.nn.Module):
     Inherits from the module class of Torch.
     """
 
-    def calc_force(self, colloid, other_colloids) -> np.ndarray:
+    def calc_action(self, colloid, other_colloids) -> Action:
         """
-        Calculate the forces that will be applied to ``colloid``
+        Compute the next action on colloid
         Parameters
         ----------
-        colloid: object with a ``pos``, ``v``, ``mass`` and ``director`` attribute
-        other_colloids: list of colloids
+        colloid
+        other_colloids
 
         Returns
         -------
-        np.array of three floats: the force
+        The action
         """
-        raise NotImplementedError("Implemented in child classes.")
-
-    def calc_torque(self, colloid, other_colloids) -> np.ndarray:
-        """
-        See ``calc_force``
-        """
-        raise NotImplementedError("Implemented in child classes.")
-
-    def calc_new_direction(self, colloid, other_colloids) -> Union[None, np.ndarray]:
-        """
-        optional: new direction to set for the particle.
-        None indicates to leave the direction as is
-        """
-        return None
+        raise NotImplementedError('Interaction models must define a calc_action method')
 
     def compute_state(self, colloid, other_colloids) -> Union[None, np.ndarray]:
         """

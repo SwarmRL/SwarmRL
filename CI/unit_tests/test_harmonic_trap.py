@@ -1,13 +1,13 @@
 """
 Test the harmonic trap potential.
 """
-import unittest
-from swarmrl import HarmonicTrap
+import unittest as ut
+from swarmrl.models.harmonic_trap import HarmonicTrap
 import numpy as np
 import torch
 
 
-class TestHarmonicTrap(unittest.TestCase):
+class TestHarmonicTrap(ut.TestCase):
     """
     Test the harmonic trap potential.
     """
@@ -76,3 +76,7 @@ class TestHarmonicTrap(unittest.TestCase):
             torch.tensor(self.colloids, dtype=torch.float64)
         )
         np.testing.assert_array_equal(prediction, actual)
+
+
+if __name__ == "__main__":
+    ut.main()

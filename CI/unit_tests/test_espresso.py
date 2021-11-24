@@ -24,7 +24,7 @@ class EspressoTest(ut.TestCase):
             n_colloids=2,
             ureg=ureg,
             colloid_radius=ureg.Quantity(1, "micrometer"),
-            fluid_dyn_viscosity=ureg.Quantity(8.9, "pascal * second"),
+            fluid_dyn_viscosity=ureg.Quantity(8.9e-3, "pascal * second"),
             WCA_epsilon=ureg.Quantity(1e-20, "joule"),
             colloid_density=ureg.Quantity(2.65, "gram / centimeter**3"),
             temperature=ureg.Quantity(0, "kelvin"),
@@ -44,8 +44,17 @@ class EspressoTest(ut.TestCase):
 
             part_data_old = runner.get_particle_data()
 
-            n_slices = 13
-            force = np.array([12.1, 24.3, 46.5])
+            # rotate all particles along one axis
+            direc = np.array([1 / np.sqrt(3), 1 / np.sqrt(3), 1 / np.sqrt(3)])
+            rotator = dummy_models.ToConstDirection(direc)
+            runner.integrate(1, rotator)
+            runner.system.time = 0.0
+            directors = runner.get_particle_data()["Directors"]
+            for dir_ in directors:
+                np.testing.assert_array_almost_equal(dir_, direc)
+
+            n_slices = 15
+            force = 1.234
             force_model = dummy_models.ConstForce(force)
             runner.integrate(n_slices, force_model)
 
@@ -57,9 +66,11 @@ class EspressoTest(ut.TestCase):
 
             # plausibility-tests for velocity and position because too lazy to do the actual calculation
             # friction must be the same for all particles and all directions
+            gamma = runner.colloid_friction_translation
             new_vel = part_data_new["Velocities"]
-            fric = new_vel / force
-            np.testing.assert_array_almost_equal(fric, fric[0, 0])
+            new_vel_shouldbe = force * direc / gamma
+            for vel in new_vel:
+                np.testing.assert_array_almost_equal(vel, new_vel_shouldbe)
 
             old_pos = part_data_old["Unwrapped_Positions"]
             new_pos = part_data_new["Unwrapped_Positions"]
