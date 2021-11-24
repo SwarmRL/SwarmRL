@@ -9,6 +9,7 @@ class Observable:
 
     Observables act as inputs to the neural networks.
     """
+
     def compute_observable(self, colloid: object, other_colloids: list):
         """
         Compute the current state observable.

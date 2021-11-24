@@ -12,8 +12,9 @@ class Action:
     """
     Holds the 3 quantities that are applied to the colloid plus and identifier
     """
+
     id = 0
-    force: float = 0.
+    force: float = 0.0
     torque: np.ndarray = np.zeros((3,))
     new_direction: np.ndarray = None
 
@@ -36,7 +37,7 @@ class InteractionModel(torch.nn.Module):
         -------
         The action
         """
-        raise NotImplementedError('Interaction models must define a calc_action method')
+        raise NotImplementedError("Interaction models must define a calc_action method")
 
     def compute_state(self, colloid, other_colloids) -> Union[None, np.ndarray]:
         """

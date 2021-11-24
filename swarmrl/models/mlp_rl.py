@@ -29,13 +29,13 @@ class MLPRL(InteractionModel):
     """
 
     def __init__(
-            self,
-            actor: Network,
-            critic: Network,
-            task: Task,
-            loss: Loss,
-            actions: dict,
-            observable: Observable
+        self,
+        actor: Network,
+        critic: Network,
+        task: Task,
+        loss: Loss,
+        actions: dict,
+        observable: Observable,
     ):
         """
         Constructor for the MLP RL.

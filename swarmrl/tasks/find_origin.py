@@ -16,17 +16,19 @@ class FindOrigin(Task, ABC):
     """
     Find the origin of a box.
     """
+
     com: list
     r_g: list
 
     def __init__(
-            self, engine: Engine,
-            origin: np.ndarray = np.array([0.0, 0.0, 0.0]),
-            alpha: float = 1.0,
-            beta: float = 1.0,
-            gamma: float = 1.0,
-            r_g_goal: float = 1.0,
-            memory: bool = False
+        self,
+        engine: Engine,
+        origin: np.ndarray = np.array([0.0, 0.0, 0.0]),
+        alpha: float = 1.0,
+        beta: float = 1.0,
+        gamma: float = 1.0,
+        r_g_goal: float = 1.0,
+        memory: bool = False,
     ):
         """
         Constructor for the find origin task.
@@ -93,7 +95,7 @@ class FindOrigin(Task, ABC):
 
         """
         averaging_factor = np.shape(positions)[0]
-        shifted_positions = np.sum(np.linalg.norm(positions - com, axis=1)**2, axis=0)
+        shifted_positions = np.sum(np.linalg.norm(positions - com, axis=1) ** 2, axis=0)
 
         r_g = shifted_positions / averaging_factor
 
@@ -118,7 +120,7 @@ class FindOrigin(Task, ABC):
         """
         distance = np.linalg.norm(colloid.pos - self.origin)
 
-        return self.alpha * 1/distance
+        return self.alpha * 1 / distance
 
     def compute_reward(self, colloid: object):
         """
@@ -137,7 +139,9 @@ class FindOrigin(Task, ABC):
         # {"Unwrapped_Positions": (n, 3), "Velocities": (n, 3), "Directors": (n, 3)}
         colloid_data = self.engine.get_particle_data()
 
-        com, com_reward = self.compute_center_of_mass_reward(colloid_data["Unwrapped_Positions"])
+        com, com_reward = self.compute_center_of_mass_reward(
+            colloid_data["Unwrapped_Positions"]
+        )
         r_g, r_g_reward = self.compute_radius_of_gyration_reward(
             colloid_data["Unwrapped_Positions"], com
         )
@@ -149,5 +153,3 @@ class FindOrigin(Task, ABC):
         reward = single_reward + com_reward + r_g_reward
 
         return reward
-
-

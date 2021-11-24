@@ -18,5 +18,5 @@ __all__ = [
     "MLP",
     "loss",
     "FindOrigin",
-    "PositionObservable"
+    "PositionObservable",
 ]

@@ -19,7 +19,11 @@ class Engine:
         """
         pass
 
-    def integrate(self, n_slices: int, force_model: swarmrl.models.interaction_model.InteractionModel) -> None:
+    def integrate(
+        self,
+        n_slices: int,
+        force_model: swarmrl.models.interaction_model.InteractionModel,
+    ) -> None:
         """
 
         Parameters

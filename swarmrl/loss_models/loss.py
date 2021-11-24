@@ -57,7 +57,7 @@ class Loss(torch.nn.Module):
         t = torch.linspace(0, n_episodes, n_episodes, dtype=torch.int)
 
         for i in torch.range(0, n_episodes - 1, dtype=torch.int):
-            reward_subset = rewards[i:-1:self.particles]
+            reward_subset = rewards[i : -1 : self.particles]
             time_subset = t[i:] - torch.ones(len(reward_subset))
             expected_returns[i] = torch.sum(gamma ** time_subset * reward_subset)
 
@@ -118,5 +118,7 @@ class Loss(torch.nn.Module):
         actor_loss = self.actor_loss(policy_probabilities, predicted_rewards, rewards)
         critic_loss = self.critic_loss(predicted_rewards, rewards)
 
-        return (torch.tensor(actor_loss, requires_grad=True),
-                torch.tensor(critic_loss, requires_grad=True))
+        return (
+            torch.tensor(actor_loss, requires_grad=True),
+            torch.tensor(critic_loss, requires_grad=True),
+        )

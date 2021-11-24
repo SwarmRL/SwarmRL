@@ -5,7 +5,7 @@ try:
     import espressomd
     from espressomd import System, visualization
 except ImportError:
-    raise ImportWarning('Could not find espressomd. Features will not be available')
+    raise ImportWarning("Could not find espressomd. Features will not be available")
 import numpy as np
 import h5py
 import os
@@ -51,7 +51,7 @@ class MDParams:
 
 
 def _get_random_start_pos(
-        init_radius: float, box_l: np.ndarray, rng: np.random.Generator, n_tries=100000
+    init_radius: float, box_l: np.ndarray, rng: np.random.Generator, n_tries=100000
 ):
     if init_radius is None:
         return box_l * rng.random((3,))
@@ -69,13 +69,13 @@ class EspressoMD(Engine):
     """
 
     def __init__(
-            self,
-            md_params,
-            n_dims=3,
-            seed=42,
-            out_folder=".",
-            loglevel=logging.DEBUG,
-            write_chunk_size=100,
+        self,
+        md_params,
+        n_dims=3,
+        seed=42,
+        out_folder=".",
+        loglevel=logging.DEBUG,
+        write_chunk_size=100,
     ):
         """
         Constructor for the espressoMD engine.
@@ -240,9 +240,9 @@ class EspressoMD(Engine):
                 # save in format (time_step, n_particles, dimension)
                 dataset.resize(self.h5_time_steps_written + n_new_timesteps, axis=0)
                 dataset[
-                self.h5_time_steps_written: self.h5_time_steps_written
-                                            + n_new_timesteps,
-                ...,
+                    self.h5_time_steps_written : self.h5_time_steps_written
+                    + n_new_timesteps,
+                    ...,
                 ] = values
 
         self.logger.debug(f"wrote {n_new_timesteps} time steps to hdf5 file")
@@ -291,11 +291,11 @@ class EspressoMD(Engine):
         # set up the particles. The handles will later be used to calculate/set forces
         rng = np.random.default_rng(self.seed)
         colloid_mass = (
-                4.0
-                / 3.0
-                * np.pi
-                * self.params.colloid_radius ** 3
-                * self.params.colloid_density
+            4.0
+            / 3.0
+            * np.pi
+            * self.params.colloid_radius ** 3
+            * self.params.colloid_density
         ).m_as("sim_mass")
         colloid_rinertia = 2.0 / 5.0 * colloid_mass * colloid_radius ** 2
 
@@ -347,16 +347,16 @@ class EspressoMD(Engine):
             self.colloids.append(colloid)
 
         self.colloid_friction_translation = (
-                6
-                * np.pi
-                * self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity")
-                * colloid_radius
+            6
+            * np.pi
+            * self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity")
+            * colloid_radius
         )
         self.colloid_friction_rotation = (
-                8
-                * np.pi
-                * self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity")
-                * colloid_radius ** 3
+            8
+            * np.pi
+            * self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity")
+            * colloid_radius ** 3
         )
 
         # remove overlap
@@ -383,9 +383,7 @@ class EspressoMD(Engine):
                 "inconsistent parameters: time_slice must be integer multiple of time_step"
             )
 
-    def integrate(
-            self, n_slices, force_model: swarmrl.InteractionModel
-    ):
+    def integrate(self, n_slices, force_model: swarmrl.InteractionModel):
         """
         Integrate the system for n_slices steps.
 
@@ -402,8 +400,8 @@ class EspressoMD(Engine):
         """
         for _ in range(n_slices):
             if (
-                    self.system.time
-                    >= self.params.write_interval.m_as("sim_time") * self.write_idx
+                self.system.time
+                >= self.params.write_interval.m_as("sim_time") * self.write_idx
             ):
                 self.traj_holder["Times"].append(
                     np.array([self.system.time])[np.newaxis, :]
@@ -429,7 +427,7 @@ class EspressoMD(Engine):
                 # update the state of an active learner, ignored by non ML models.
                 force_model.compute_state(coll, other_colloids)
                 action = force_model.calc_action(coll, other_colloids)
-                coll.swimming = {'f_swim': action.force}
+                coll.swimming = {"f_swim": action.force}
                 coll.ext_torque = action.torque
                 new_direction = action.new_direction
                 if new_direction is not None:

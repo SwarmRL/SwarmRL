@@ -14,6 +14,7 @@ class Task(torch.nn.Module):
     """
     Parent class for the reinforcement learning tasks.
     """
+
     def __init__(self, engine: Engine):
         """
         Constructor for the reward class.

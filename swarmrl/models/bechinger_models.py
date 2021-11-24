@@ -115,8 +115,7 @@ class Baeuerle2020(InteractionModel):
             angle_diff += 2 * np.pi
         torque_z = np.sin(angle_diff) * self.act_torque
 
-        return Action(force=self.act_force,
-                      torque= np.array([0, 0, torque_z]))
+        return Action(force=self.act_force, torque=np.array([0, 0, torque_z]))
 
 
 def get_colloids_in_vision(
