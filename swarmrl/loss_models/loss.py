@@ -70,48 +70,44 @@ class Loss(torch.nn.Module):
             policy_probabilities: torch.Tensor,
             predicted_rewards: torch.Tensor,
             rewards: torch.Tensor,
-    ):
+    ) -> torch.Tensor:
         """
         Compute the actor loss.
 
         Parameters
         ----------
-        policy_probabilities
+        policy_probabilities : torch.Tensor
+                Probabilities returned by the actor.
         predicted_rewards
+                Rewards predicted by the critic.
         rewards
+                Real rewards.
         """
         n_episodes = int(len(predicted_rewards) / self.particles)  # number of episodes.
         predicted_rewards = torch.reshape(
             predicted_rewards, (self.particles, n_episodes)
         )
-        print(f"Predicted rewards: {predicted_rewards}")
         policy_probabilities = torch.reshape(
             policy_probabilities, (self.particles, n_episodes)
         )
-        print(f"Policy probabilities: {policy_probabilities}")
         expected_returns = self.compute_discounted_returns(rewards)
         advantage = expected_returns - predicted_rewards
         log_probabilities = torch.log(policy_probabilities)
 
-        distances = 1/rewards
+        return -1 * torch.sum(log_probabilities * advantage, dim=1)
 
-        distances = (
-                (distances - torch.mean(distances)) /
-                (torch.std(distances))
-        )
-
-        #return torch.sum(log_probabilities * advantage, dim=1)
-
-        return [torch.sum(torch.clip(distances, min=0))]
-
-    def critic_loss(self, predicted_rewards: torch.Tensor, rewards: torch.Tensor):
+    def critic_loss(
+            self, predicted_rewards: torch.Tensor, rewards: torch.Tensor
+    ) -> list:
         """
         Compute the critic loss.
 
         Parameters
         ----------
-        predicted_rewards
-        rewards
+        predicted_rewards : torch.tensor
+                Rewards predicted by the critic.
+        rewards : torch.tensor
+                Real rewards computed by the rewards rule.
 
         Notes
         -----
@@ -128,14 +124,7 @@ class Loss(torch.nn.Module):
         for i in range(self.particles):
             loss_vector[i] = huber(predicted_rewards[i], expected_returns[i])
 
-        loss = torch.norm(predicted_rewards - rewards, dim=1)
-
-        # loss = (
-        #         (loss - torch.mean(loss)) /
-        #         (torch.std(loss))
-        # )
-
-        return loss # loss_vector
+        return loss_vector
 
     def compute_loss(
             self,
@@ -148,7 +137,8 @@ class Loss(torch.nn.Module):
 
         Returns
         -------
-
+        loss_tuple : tuple
+                (actor_loss, critic_loss)
         """
         actor_loss = self.actor_loss(policy_probabilities, predicted_rewards, rewards)
         critic_loss = self.critic_loss(predicted_rewards, rewards)

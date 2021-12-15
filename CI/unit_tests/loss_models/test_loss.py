@@ -38,12 +38,14 @@ class TestLoss(unittest.TestCase):
 
     def test_expected_returns(self):
         """
-        Test the true values of the standard returns.
+        Test the true values of the actual returns.
 
-        Returns
+        Notes
         -------
-
+        Checks the actual values return in the discounted returns without
+        standardization and with the simple case of gamma=1
         """
+        self.loss.particles = 10
         true_values = torch.tensor([[5., 4., 3., 2., 1.],
                                     [10., 8., 6., 4., 2.],
                                     [15., 12., 9., 6., 3.],
@@ -78,3 +80,46 @@ class TestLoss(unittest.TestCase):
         self.assertAlmostEqual(torch.std(discounted_returns[2]).numpy(), 1.0)
         self.assertAlmostEqual(torch.std(discounted_returns[3]).numpy(), 1.0)
         self.assertAlmostEqual(torch.std(discounted_returns[4]).numpy(), 1.0)
+
+    def test_actor_loss(self):
+        """
+        Test the actor loss for 2 particles.
+
+        Returns
+        -------
+
+        """
+        self.loss.particles = 2
+        rewards = torch.tensor([1, 2, 3, 4, 5, 1, 2, 3, 4, 5])
+        action_probs = torch.nn.Softmax()(torch.tensor(
+            [1., 2., 3., 4., 5., 1., 2., 3., 4., 5.])
+        )
+        predicted_rewards = torch.tensor([1, 2, 3, 4, 5, 1, 2, 3, 4, 5])
+        actor_loss = self.loss.actor_loss(
+            policy_probabilities=action_probs,
+            rewards=rewards,
+            predicted_rewards=predicted_rewards
+        )
+        self.assertEqual(-31.04546961127455, float(actor_loss[0].numpy()))
+        self.assertEqual(len(actor_loss), 2)
+        self.assertEqual(actor_loss[0], actor_loss[1])
+
+    def test_critic_loss(self):
+        """
+        Test the critic loss for 2 particles.
+
+        Returns
+        -------
+
+        """
+        self.loss.particles = 2
+        rewards = torch.tensor([1., 2., 3., 4., 5., 1., 2., 3., 4., 5.])
+        predicted_rewards = torch.tensor([2., 3., 4., 5., 6., 2., 3., 4., 5., 6.])
+        critic_loss = self.loss.critic_loss(
+            rewards=rewards,
+            predicted_rewards=predicted_rewards
+        )
+        self.assertEqual(len(critic_loss), 2)
+        self.assertEqual(critic_loss[0], critic_loss[1])
+        self.assertEqual(critic_loss[0], 3.5)
+
