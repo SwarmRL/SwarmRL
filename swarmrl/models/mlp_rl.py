@@ -6,6 +6,7 @@ from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
 from swarmrl.loss_models.loss import Loss
+from swarmrl.models.interaction_model import Action
 import torch
 import numpy as np
 from typing import Union
@@ -34,7 +35,6 @@ class MLPRL(InteractionModel):
         critic: Network,
         task: Task,
         loss: Loss,
-        actions: dict,
         observable: Observable,
     ):
         """
@@ -62,7 +62,6 @@ class MLPRL(InteractionModel):
         self.critic = critic
         self.task = task
         self.loss = loss
-        self.actions = actions
         self.observable = observable
 
         # Properties stored during the episode.
@@ -74,6 +73,36 @@ class MLPRL(InteractionModel):
         self.force = np.zeros(3)
         self.torque = np.zeros(3)
         self.new_direction = None
+
+        translate = Action(force=10.0)
+        rotate_clockwise = Action(torque=np.array([0.0, 0.0, 1.0]))
+        rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -1.0]))
+        do_nothing = Action()
+
+        self.actions = {
+            "RotateClockwise": rotate_clockwise,
+            "Translate": translate,
+            "RotateCounterClockwise": rotate_counter_clockwise,
+            "DoNothing": do_nothing
+        }
+
+    def calc_action(self, colloid, other_colloids) -> Action:
+        """
+        Return the selected action on the particles.
+
+        Parameters
+        ----------
+        colloid
+        other_colloids
+
+        Returns
+        -------
+
+        """
+        action = self.compute_state(colloid, other_colloids)
+        print(f"Action: {action}")
+
+        return self.actions[list(self.actions)[action]]
 
     def compute_feature_vector(self, colloid: object, other_colloids: list):
         """
@@ -92,7 +121,7 @@ class MLPRL(InteractionModel):
         """
         return self.observable.compute_observable(colloid, other_colloids)
 
-    def compute_state(self, colloid, other_colloids) -> None:
+    def compute_state(self, colloid, other_colloids) -> int:
         """
         Compute the state of the active learning algorithm.
 
@@ -114,84 +143,14 @@ class MLPRL(InteractionModel):
         predicted_reward = self.critic(state)
         reward = self.task.compute_reward(colloid)
 
-        # Handle the action.
-        self.handle_action(action, colloid)
-
         # Update the stored data.
-        self.action_probabilities.append(list(action_probabilities.detach().numpy()))
+        self.action_probabilities.append(
+            list(action_probabilities.detach().numpy())[action]
+        )
         self.true_rewards.append(reward)
         self.predicted_rewards.append(float(predicted_reward.detach().numpy()))
 
-        return None
-
-    def handle_action(self, action: torch.Tensor, colloid):
-        """
-        Handle the action chosen.
-
-        Parameters
-        ----------
-        colloid : object
-                A colloid object on which an action is taken.
-        action : torch.Tensor
-                The action chosen for the next step.
-
-        Returns
-        -------
-
-        """
-        self.force = np.zeros(3)
-        self.torque = np.zeros(3)
-        self.new_direction = None
-
-        chosen_key = list(self.actions)[action.numpy()]
-
-        update = self.actions[chosen_key]
-
-        if update.property == "force":
-            self.force = update.action(colloid)
-        elif update.property == "torque":
-            self.torque = update.action(colloid)
-        elif update.property == "new_direction":
-            self.new_direction = update.action(colloid)
-
-    def calc_new_direction(self, colloid, other_colloids) -> Union[None, np.ndarray]:
-        """
-        Compute the new direction of the colloid.
-
-        Parameters
-        ----------
-        colloid
-        other_colloids
-
-        Returns
-        -------
-
-        """
-        return self.new_direction
-
-    def calc_force(self, colloid, other_colloids) -> np.ndarray:
-        """
-        Compute the force on all of the particles with the newest model.
-
-        The model may simply be called. Upon calling it will generate several options
-        for the next step. One of these options will be selected based upon a defined
-        probability distribution.
-
-        Returns
-        -------
-        forces : np.ndarray
-                Numpy array of forces to apply to the colloids. shape=(n_colloids, 3)
-        """
-        return self.force
-
-    def calc_torque(self, colloid, other_colloids) -> np.ndarray:
-        """
-        Compute the torque acting on the particle an return it.
-        Returns
-        -------
-
-        """
-        return self.torque
+        return action
 
     def update_critic(self, loss: torch.Tensor):
         """

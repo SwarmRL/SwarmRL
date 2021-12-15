@@ -3,6 +3,7 @@ Module for the parent class of the loss models.
 """
 import torch
 from typing import Tuple
+import numpy as np
 
 
 class Loss(torch.nn.Module):
@@ -11,9 +12,6 @@ class Loss(torch.nn.Module):
 
     Notes
     -----
-    TODO: Fix losses. Currently all particles see all other particles losses. This is due
-          to the expected return computed from the historical rewards. This should be
-          adjusted to a slice over the same particle in time.
     """
 
     def __init__(self, n_colloids: int):
@@ -28,8 +26,8 @@ class Loss(torch.nn.Module):
         super(Loss, self).__init__()
         self.particles = n_colloids
 
-    def compute_expected_returns(
-        self, rewards: torch.tensor, gamma: float = 0.99, standardize: bool = True
+    def compute_discounted_returns(
+            self, rewards: torch.tensor, gamma: float = 0.99, standardize: bool = True
     ):
         """
         Compute the expected returns vector from the tasks.
@@ -45,29 +43,33 @@ class Loss(torch.nn.Module):
 
         Returns
         -------
-
-        Notes
-        -----
-        TODO: This loss computes expected returns on all particles. Should only compute
-        one at a time.
-
+        expected_returns : torch.Tensor (n_particles, n_episodes)
+                expected returns for each particle
         """
         n_episodes = int(len(rewards) / self.particles)  # number of episodes.
-        expected_returns = torch.empty(size=(n_episodes,), dtype=torch.float64)
+        expected_returns = torch.empty(
+            size=(self.particles, n_episodes), dtype=torch.float64
+        )
         t = torch.linspace(0, n_episodes, n_episodes, dtype=torch.int)
-
+        rewards = torch.reshape(rewards, (self.particles, n_episodes))
         for i in torch.range(0, n_episodes - 1, dtype=torch.int):
-            reward_subset = rewards[i : -1 : self.particles]
-            time_subset = t[i:] - torch.ones(len(reward_subset))
-            expected_returns[i] = torch.sum(gamma ** time_subset * reward_subset)
+            reward_subset = rewards[:, i:]
+            time_subset = t[i:] - torch.ones(n_episodes - i) * i
+            expected_returns[:, i] = torch.sum(
+                (gamma ** time_subset) * reward_subset, dim=1
+            )
+        mean = torch.reshape(torch.mean(expected_returns, dim=1), (self.particles, 1))
+        std = torch.reshape(torch.std(expected_returns, dim=1), (self.particles, 1))
+        if standardize:
+            expected_returns = ((expected_returns - mean) /std)
 
         return expected_returns
 
     def actor_loss(
-        self,
-        policy_probabilities: torch.Tensor,
-        predicted_rewards: torch.Tensor,
-        rewards: torch.Tensor,
+            self,
+            policy_probabilities: torch.Tensor,
+            predicted_rewards: torch.Tensor,
+            rewards: torch.Tensor,
     ):
         """
         Compute the actor loss.
@@ -78,11 +80,29 @@ class Loss(torch.nn.Module):
         predicted_rewards
         rewards
         """
-        expected_returns = self.compute_expected_returns(rewards)
+        n_episodes = int(len(predicted_rewards) / self.particles)  # number of episodes.
+        predicted_rewards = torch.reshape(
+            predicted_rewards, (self.particles, n_episodes)
+        )
+        print(f"Predicted rewards: {predicted_rewards}")
+        policy_probabilities = torch.reshape(
+            policy_probabilities, (self.particles, n_episodes)
+        )
+        print(f"Policy probabilities: {policy_probabilities}")
+        expected_returns = self.compute_discounted_returns(rewards)
         advantage = expected_returns - predicted_rewards
         log_probabilities = torch.log(policy_probabilities)
 
-        return -torch.sum(torch.sum(log_probabilities, dim=1) * advantage)
+        distances = 1/rewards
+
+        distances = (
+                (distances - torch.mean(distances)) /
+                (torch.std(distances))
+        )
+
+        #return torch.sum(log_probabilities * advantage, dim=1)
+
+        return [torch.sum(torch.clip(distances, min=0))]
 
     def critic_loss(self, predicted_rewards: torch.Tensor, rewards: torch.Tensor):
         """
@@ -97,16 +117,31 @@ class Loss(torch.nn.Module):
         -----
         Currently uses the Huber loss.
         """
-        huber = torch.nn.HuberLoss()
-        expected_returns = self.compute_expected_returns(rewards)
+        n_episodes = int(len(predicted_rewards) / self.particles)  # number of episodes.
+        predicted_rewards = torch.reshape(
+            predicted_rewards, (self.particles, n_episodes)
+        )
 
-        return huber(predicted_rewards, expected_returns)
+        huber = torch.nn.HuberLoss()
+        expected_returns = self.compute_discounted_returns(rewards)
+        loss_vector = np.zeros((self.particles,))
+        for i in range(self.particles):
+            loss_vector[i] = huber(predicted_rewards[i], expected_returns[i])
+
+        loss = torch.norm(predicted_rewards - rewards, dim=1)
+
+        # loss = (
+        #         (loss - torch.mean(loss)) /
+        #         (torch.std(loss))
+        # )
+
+        return loss # loss_vector
 
     def compute_loss(
-        self,
-        policy_probabilities: torch.Tensor,
-        predicted_rewards: torch.Tensor,
-        rewards: torch.Tensor,
+            self,
+            policy_probabilities: torch.Tensor,
+            predicted_rewards: torch.Tensor,
+            rewards: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute the loss functions for the actor and critic based on the reward.
@@ -117,6 +152,9 @@ class Loss(torch.nn.Module):
         """
         actor_loss = self.actor_loss(policy_probabilities, predicted_rewards, rewards)
         critic_loss = self.critic_loss(predicted_rewards, rewards)
+
+        print(f"Actor loss: {actor_loss}")
+        print(f"Critic loss: {critic_loss}")
 
         return (
             torch.tensor(actor_loss, requires_grad=True),

@@ -425,7 +425,6 @@ class EspressoMD(Engine):
             for coll in self.colloids:
                 other_colloids = [c for c in self.colloids if c is not coll]
                 # update the state of an active learner, ignored by non ML models.
-                force_model.compute_state(coll, other_colloids)
                 action = force_model.calc_action(coll, other_colloids)
                 coll.swimming = {"f_swim": action.force}
                 coll.ext_torque = action.torque

@@ -119,6 +119,7 @@ class FindOrigin(Task, ABC):
                 value.
         """
         distance = np.linalg.norm(colloid.pos - self.origin)
+        print(f"Distance: {distance}")
 
         return self.alpha * 1 / distance
 
@@ -139,17 +140,17 @@ class FindOrigin(Task, ABC):
         # {"Unwrapped_Positions": (n, 3), "Velocities": (n, 3), "Directors": (n, 3)}
         colloid_data = self.engine.get_particle_data()
 
-        com, com_reward = self.compute_center_of_mass_reward(
-            colloid_data["Unwrapped_Positions"]
-        )
-        r_g, r_g_reward = self.compute_radius_of_gyration_reward(
-            colloid_data["Unwrapped_Positions"], com
-        )
+        # com, com_reward = self.compute_center_of_mass_reward(
+        #     colloid_data["Unwrapped_Positions"]
+        # )
+        # r_g, r_g_reward = self.compute_radius_of_gyration_reward(
+        #     colloid_data["Unwrapped_Positions"], com
+        # )
         single_reward = self.compute_particle_reward(colloid)
 
-        self.com.append(com)
-        self.r_g.append(r_g)
+        # self.com.append(com)
+        # self.r_g.append(r_g)
 
-        reward = single_reward + com_reward + r_g_reward
+        reward = single_reward  # + com_reward + r_g_reward
 
         return reward
