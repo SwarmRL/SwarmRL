@@ -119,7 +119,6 @@ class FindOrigin(Task, ABC):
                 value.
         """
         distance = np.linalg.norm(colloid.pos - self.origin)
-        print(f"Distance: {distance}")
 
         return self.alpha * 1 / distance
 

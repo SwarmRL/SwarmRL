@@ -38,7 +38,7 @@ def run_simulation():
     -------
 
     """
-    n_colloids = 1
+    n_colloids = 10
     # Take user inputs
     parser = argparse.ArgumentParser()
     parser.add_argument('-outfolder_base', default='./find_center')
@@ -106,24 +106,22 @@ def run_simulation():
 
     # Define networks
     critic_stack = torch.nn.Sequential(
-        torch.nn.Linear(3, 32),
+        torch.nn.Linear(3, 128),
         torch.nn.ReLU(),
-        torch.nn.Linear(32, 16),
+        torch.nn.Linear(128, 128),
         torch.nn.ReLU(),
-        torch.nn.Linear(16, 16),
+        torch.nn.Linear(128, 128),
         torch.nn.ReLU(),
-        torch.nn.Linear(16, 1),
-        torch.nn.ReLU()
+        torch.nn.Linear(128, 1),
     )
     actor_stack = torch.nn.Sequential(
-        torch.nn.Linear(3, 32),
+        torch.nn.Linear(3, 128),
         torch.nn.ReLU(),
-        torch.nn.Linear(32, 16),
+        torch.nn.Linear(128, 128),
         torch.nn.ReLU(),
-        torch.nn.Linear(16, 16),
+        torch.nn.Linear(128, 128),
         torch.nn.ReLU(),
-        torch.nn.Linear(16, 4),
-        torch.nn.ReLU()
+        torch.nn.Linear(128, 4),
     )
 
     actor = srl.MLP(actor_stack)
@@ -149,7 +147,7 @@ def run_simulation():
     # Run the simulation.
     n_slices = int(run_params['sim_duration'] / md_params.time_slice)
 
-    for _ in tqdm.tqdm(range(10000)):
+    for _ in tqdm.tqdm(range(100000)):
         system_runner.integrate(int(np.ceil(n_slices / 1000)), force_model)
         force_model.update_rl()
 

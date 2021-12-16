@@ -143,9 +143,6 @@ class Loss(torch.nn.Module):
         actor_loss = self.actor_loss(policy_probabilities, predicted_rewards, rewards)
         critic_loss = self.critic_loss(predicted_rewards, rewards)
 
-        print(f"Actor loss: {actor_loss}")
-        print(f"Critic loss: {critic_loss}")
-
         return (
             torch.tensor(actor_loss, requires_grad=True),
             torch.tensor(critic_loss, requires_grad=True),

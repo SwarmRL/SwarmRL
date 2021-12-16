@@ -9,7 +9,6 @@ from swarmrl.loss_models.loss import Loss
 from swarmrl.models.interaction_model import Action
 import torch
 import numpy as np
-from typing import Union
 
 
 class MLPRL(InteractionModel):
@@ -100,7 +99,6 @@ class MLPRL(InteractionModel):
 
         """
         action = self.compute_state(colloid, other_colloids)
-        print(f"Action: {action}")
 
         return self.actions[list(self.actions)[action]]
 
@@ -137,7 +135,7 @@ class MLPRL(InteractionModel):
         scaling = torch.nn.Softmax()
         state = self.compute_feature_vector(colloid, other_colloids)
         action_logits = self.actor(state)
-        selector = torch.distributions.Categorical(action_logits)
+        selector = torch.distributions.Categorical(abs(action_logits))
         action = selector.sample()
         action_probabilities = scaling(action_logits)
         predicted_reward = self.critic(state)
