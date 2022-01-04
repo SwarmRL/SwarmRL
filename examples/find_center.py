@@ -11,6 +11,7 @@ import tqdm
 import torch
 import h5py as hf
 import matplotlib.pyplot as plt
+import znvis as vis
 
 
 def run_analysis():
@@ -28,6 +29,25 @@ def run_analysis():
         plt.plot(time, np.linalg.norm(data[:, i], axis=1))
 
     plt.show()
+
+
+def visualize_particles():
+    """
+    Run a visualization of the particles in the database.
+
+    Returns
+    -------
+
+    """
+    with hf.File('find_center/test/trajectory.hdf5') as db:
+        data = np.array(db['colloids']['Unwrapped_Positions'])
+
+    trajectory = torch.transpose(torch.tensor(data), 0, 1)  # correct the shape
+    mesh = vis.Sphere(radius=1.0, colour=np.array(30, 144, 255)/255, resolution=5)
+    colloids = vis.Particle(name="Colloid", mesh=mesh, position=trajectory.numpy())
+
+    visualizer = vis.Visualizer(particles=[colloids], frame_rate=14)
+    visualizer.run_visualization()
 
 
 def run_simulation():
