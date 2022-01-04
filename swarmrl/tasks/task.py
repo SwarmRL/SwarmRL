@@ -29,17 +29,17 @@ class Task(torch.nn.Module):
         self.engine = engine
 
     @classmethod
-    def compute_reward(self, colloid: object):
+    def compute_reward(self, observables: torch.Tensor):
         """
-        Compute the reward for the current state.
+        Compute the reward on the whole group of particles.
 
         Parameters
         ----------
-        colloid : object
-                Colloid for which the reward is being computed.
+        observables : torch.Tensor
+                Observables collected during the episode.
+
 
         Returns
         -------
 
         """
-        raise NotImplementedError("Implemented in child class.")

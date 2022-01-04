@@ -64,9 +64,8 @@ class MLPRL(InteractionModel):
         self.observable = observable
 
         # Properties stored during the episode.
-        self.true_rewards = []
-        self.predicted_rewards = []
         self.action_probabilities = []
+        self.observables = []
 
         # Actions on particles.
         self.force = np.zeros(3)
@@ -138,21 +137,23 @@ class MLPRL(InteractionModel):
         selector = torch.distributions.Categorical(abs(action_logits))
         action = selector.sample()
         action_probabilities = scaling(action_logits)
-        predicted_reward = self.critic(state)
-        reward = self.task.compute_reward(colloid)
 
         # Update the stored data.
         self.action_probabilities.append(
             list(action_probabilities.detach().numpy())[action]
         )
-        self.true_rewards.append(reward)
-        self.predicted_rewards.append(float(predicted_reward.detach().numpy()))
+        self.observables.append(state.numpy())
 
         return action
 
     def update_critic(self, loss: torch.Tensor):
         """
         Perform an update on the critic network.
+
+        Parameters
+        ----------
+        loss : torch.Tensor
+                A loss vector to pass to the model.
 
         Returns
         -------
@@ -164,10 +165,10 @@ class MLPRL(InteractionModel):
         """
         Perform an update on the actor network.
 
-        This method undertakes two tasks. First the actor reward must be predicted by
-        mixing the true and predicted tasks stored during the run. Second, the final
-        reward is passed to the actor for weight updates.
-
+        Parameters
+        ----------
+        loss : torch.Tensor
+                A loss vector to pass to the model.
         Returns
         -------
         Runs back-propagation on the actor model.
@@ -178,14 +179,31 @@ class MLPRL(InteractionModel):
         """
         Update the RL algorithm.
         """
-        actor_loss, critic_loss = self.loss.compute_loss(
-            torch.tensor(self.action_probabilities),
-            torch.tensor(self.predicted_rewards),
-            torch.tensor(self.true_rewards),
+        # Compute real rewards.
+        rewards = self.task.compute_reward(torch.tensor(self.observables))
+        n_particles = rewards.shape[0]
+        time_steps = rewards.shape[1]
+
+        # Compute predicted rewards.
+        predicted_rewards = self.critic(torch.tensor(self.observables))
+        predicted_rewards = torch.reshape(
+            predicted_rewards, (n_particles, time_steps + 1)
         )
+
+        action_probabilities = torch.reshape(
+            torch.tensor(self.action_probabilities), (n_particles, time_steps +1)
+
+        )
+        # Compute loss.
+        actor_loss, critic_loss = self.loss.compute_loss(
+            action_probabilities[:, 1:],
+            predicted_rewards[:, 1:],
+            rewards,
+        )
+        # Perform back-propagation.
         self.update_actor(actor_loss)
         self.update_critic(critic_loss)
 
-        self.true_rewards = []
-        self.predicted_rewards = []
+        # Clear out the parameters in the class.
+        self.observables = []
         self.action_probabilities = []

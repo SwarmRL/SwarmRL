@@ -147,7 +147,7 @@ def run_simulation():
     # Run the simulation.
     n_slices = int(run_params['sim_duration'] / md_params.time_slice)
 
-    for _ in tqdm.tqdm(range(100000)):
+    for _ in tqdm.tqdm(range(10000)):
         system_runner.integrate(int(np.ceil(n_slices / 1000)), force_model)
         force_model.update_rl()
 

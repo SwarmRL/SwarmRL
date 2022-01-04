@@ -27,7 +27,7 @@ class Loss(torch.nn.Module):
         self.particles = n_colloids
 
     def compute_discounted_returns(
-            self, rewards: torch.tensor, gamma: float = 0.99, standardize: bool = True
+            self, rewards: torch.tensor, gamma: float = 0.99, standardize: bool = False
     ):
         """
         Compute the expected returns vector from the tasks.
@@ -46,12 +46,11 @@ class Loss(torch.nn.Module):
         expected_returns : torch.Tensor (n_particles, n_episodes)
                 expected returns for each particle
         """
-        n_episodes = int(len(rewards) / self.particles)  # number of episodes.
+        n_episodes = rewards.shape[1]  # number of episodes.
         expected_returns = torch.empty(
-            size=(self.particles, n_episodes), dtype=torch.float64
+            size=rewards.shape, dtype=torch.float64
         )
         t = torch.linspace(0, n_episodes, n_episodes, dtype=torch.int)
-        rewards = torch.reshape(rewards, (self.particles, n_episodes))
         for i in torch.range(0, n_episodes - 1, dtype=torch.int):
             reward_subset = rewards[:, i:]
             time_subset = t[i:] - torch.ones(n_episodes - i) * i
@@ -83,13 +82,6 @@ class Loss(torch.nn.Module):
         rewards
                 Real rewards.
         """
-        n_episodes = int(len(predicted_rewards) / self.particles)  # number of episodes.
-        predicted_rewards = torch.reshape(
-            predicted_rewards, (self.particles, n_episodes)
-        )
-        policy_probabilities = torch.reshape(
-            policy_probabilities, (self.particles, n_episodes)
-        )
         expected_returns = self.compute_discounted_returns(rewards)
         advantage = expected_returns - predicted_rewards
         log_probabilities = torch.log(policy_probabilities)
@@ -98,7 +90,7 @@ class Loss(torch.nn.Module):
 
     def critic_loss(
             self, predicted_rewards: torch.Tensor, rewards: torch.Tensor
-    ) -> list:
+    ) -> np.ndarray:
         """
         Compute the critic loss.
 
@@ -113,11 +105,6 @@ class Loss(torch.nn.Module):
         -----
         Currently uses the Huber loss.
         """
-        n_episodes = int(len(predicted_rewards) / self.particles)  # number of episodes.
-        predicted_rewards = torch.reshape(
-            predicted_rewards, (self.particles, n_episodes)
-        )
-
         huber = torch.nn.HuberLoss()
         expected_returns = self.compute_discounted_returns(rewards)
         loss_vector = np.zeros((self.particles,))
@@ -142,6 +129,8 @@ class Loss(torch.nn.Module):
         """
         actor_loss = self.actor_loss(policy_probabilities, predicted_rewards, rewards)
         critic_loss = self.critic_loss(predicted_rewards, rewards)
+        print(actor_loss)
+        print(critic_loss)
 
         return (
             torch.tensor(actor_loss, requires_grad=True),

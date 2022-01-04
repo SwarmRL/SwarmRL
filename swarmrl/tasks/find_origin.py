@@ -7,6 +7,8 @@ with their radius of gyration. The idea being that they should form a ring aroun
 gyration reward may be adjusted such that the colloids form a tighter or wider ring.
 """
 from abc import ABC
+import torch
+
 from swarmrl.tasks.task import Task
 import numpy as np
 from swarmrl.engine.engine import Engine
@@ -103,14 +105,16 @@ class FindOrigin(Task, ABC):
 
         return r_g, self.gamma * reward
 
-    def compute_particle_reward(self, colloid: object):
+    def compute_particle_reward(self, observables: torch.Tensor, n_particles: int):
         """
         Compute the reward for the individual particle.
 
         Parameters
         ----------
-        colloid : object
-                Colloid for which the reward is being computed.
+        observables : torch.Tensor
+                Observables collected during the episode.
+        n_particles : int
+                Number of particles represented in the observable tensor.
 
         Returns
         -------
@@ -118,18 +122,26 @@ class FindOrigin(Task, ABC):
                 reciprocal distance from (0, 0, 0) acting as a reward for reducing this
                 value.
         """
-        distance = np.linalg.norm(colloid.pos - self.origin)
+        n_episodes = int(len(observables) / n_particles)  # number of episodes.
+        # Reshape for easier computation
+        observables = torch.reshape(
+            observables, (n_particles, n_episodes, 3)
+        )
+        distances = torch.linalg.norm(observables - self.origin, dim=-1)
+        differences = -1 * torch.diff(distances, dim=1)
+        differences[differences < 0] = 0
+        differences[differences > 0] = 1
 
-        return self.alpha * 1 / distance
+        return self.alpha * differences
 
-    def compute_reward(self, colloid: object):
+    def compute_reward(self, observables: torch.Tensor):
         """
         Compute the reward on the whole group of particles.
 
         Parameters
         ----------
-        colloid : object
-                Colloid for which the reward is being computed.
+        observables : torch.Tensor
+                Observables collected during the episode.
 
 
         Returns
@@ -138,6 +150,7 @@ class FindOrigin(Task, ABC):
         """
         # {"Unwrapped_Positions": (n, 3), "Velocities": (n, 3), "Directors": (n, 3)}
         colloid_data = self.engine.get_particle_data()
+        n_particles = colloid_data['Unwrapped_Positions'].shape[0]
 
         # com, com_reward = self.compute_center_of_mass_reward(
         #     colloid_data["Unwrapped_Positions"]
@@ -145,7 +158,7 @@ class FindOrigin(Task, ABC):
         # r_g, r_g_reward = self.compute_radius_of_gyration_reward(
         #     colloid_data["Unwrapped_Positions"], com
         # )
-        single_reward = self.compute_particle_reward(colloid)
+        single_reward = self.compute_particle_reward(observables, n_particles)
 
         # self.com.append(com)
         # self.r_g.append(r_g)
