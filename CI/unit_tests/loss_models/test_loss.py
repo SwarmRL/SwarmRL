@@ -114,7 +114,7 @@ class TestLoss(unittest.TestCase):
                 [1, 2, 3, 4, 5]
             ]
         )
-        actor_loss = self.loss.actor_loss(
+        actor_loss = self.loss.compute_actor_loss(
             policy_probabilities=action_probs,
             rewards=rewards,
             predicted_rewards=predicted_rewards
@@ -145,7 +145,7 @@ class TestLoss(unittest.TestCase):
                 [2., 3., 4., 5., 6.]
             ]
         )
-        critic_loss = self.loss.critic_loss(
+        critic_loss = self.loss.compute_critic_loss(
             rewards=rewards,
             predicted_rewards=predicted_rewards
         )

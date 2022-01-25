@@ -123,16 +123,16 @@ class FindOrigin(Task, ABC):
                 value.
         """
         n_episodes = int(len(observables) / n_particles)  # number of episodes.
-        # Reshape for easier computation
+        # Reshape for easier computation (n_particles, n_time_steps, 3)
         observables = torch.reshape(
             observables, (n_particles, n_episodes, 3)
         )
         distances = torch.linalg.norm(observables - self.origin, dim=-1)
-        differences = -1 * torch.diff(distances, dim=1)
-        differences[differences < 0] = 0
-        differences[differences > 0] = 1
+        # differences = -1 * torch.diff(distances, dim=1)
+        # differences[differences < 0] = 0
+        # differences[differences > 0] = 1
 
-        return self.alpha * differences
+        return self.alpha * (1 / distances)
 
     def compute_reward(self, observables: torch.Tensor):
         """

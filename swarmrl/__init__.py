@@ -19,4 +19,5 @@ __all__ = [
     "loss",
     "FindOrigin",
     "PositionObservable",
+    "find_center"
 ]
