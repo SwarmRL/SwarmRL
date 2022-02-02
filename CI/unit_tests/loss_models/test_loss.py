@@ -152,3 +152,43 @@ class TestLoss(unittest.TestCase):
         self.assertEqual(len(critic_loss), 2)
         self.assertEqual(critic_loss[0], critic_loss[1])
         self.assertEqual(critic_loss[0], 6.702364444732666)
+
+    def test_reward_trajectory(self):
+        """
+        Test that high rewards result in lower losses.
+
+        Returns
+        -------
+
+        """
+        self.loss.particles = 2
+        rewards = torch.tensor(
+            [
+                [0, 0, 0, 0, 0],
+                [1, 1, 1, 1, 1]
+            ]
+        )
+
+        action_probs = torch.nn.Softmax()(
+            torch.tensor(
+                [
+                    [0.1, .2, .3, .1, 0.],
+                    [.1, .2, .3, .1, 0.]
+                ]
+            )
+        )
+
+        predicted_rewards = torch.tensor(
+            [
+                [1, 1, 1, 1, 1],
+                [1, 1, 1, 1, 1]
+            ]
+        )
+
+        actor_loss = self.loss.actor_loss(
+            policy_probabilities=action_probs,
+            rewards=rewards,
+            predicted_rewards=predicted_rewards
+        )
+
+        print(actor_loss)
