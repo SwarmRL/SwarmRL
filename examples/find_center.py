@@ -42,11 +42,10 @@ def visualize_particles():
     with hf.File('find_center/test/trajectory.hdf5') as db:
         data = np.array(db['colloids']['Unwrapped_Positions'])
 
-    trajectory = torch.transpose(torch.tensor(data), 0, 1)  # correct the shape
-    mesh = vis.Sphere(radius=1.0, colour=np.array(30, 144, 255)/255, resolution=5)
-    colloids = vis.Particle(name="Colloid", mesh=mesh, position=trajectory.numpy())
+    mesh = vis.Sphere(radius=10.0, colour=np.array([30, 144, 255])/255, resolution=5)
+    colloids = vis.Particle(name="Colloid", mesh=mesh, position=data)
 
-    visualizer = vis.Visualizer(particles=[colloids], frame_rate=14)
+    visualizer = vis.Visualizer(particles=[colloids], frame_rate=40)
     visualizer.run_visualization()
 
 
@@ -166,9 +165,10 @@ def run_simulation():
 
     # Run the simulation.
     n_slices = int(run_params['sim_duration'] / md_params.time_slice)
+    print(n_slices)
 
-    for _ in tqdm.tqdm(range(10000)):
-        system_runner.integrate(int(np.ceil(n_slices / 1000)), force_model)
+    for _ in tqdm.tqdm(range(100000)):
+        system_runner.integrate(int(np.ceil(n_slices / 2000)), force_model)
         force_model.update_rl()
 
     system_runner.finalize()
@@ -180,4 +180,5 @@ if __name__ == '__main__':
     """
     run_simulation()
     run_analysis()
+    visualize_particles()
 

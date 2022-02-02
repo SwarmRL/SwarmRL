@@ -3,6 +3,7 @@ Module for the parent class of the loss models.
 """
 import torch
 from typing import Tuple
+import torch.nn.functional
 import numpy as np
 
 
@@ -64,7 +65,7 @@ class Loss(torch.nn.Module):
 
         return expected_returns
 
-    def actor_loss(
+    def compute_actor_loss(
             self,
             policy_probabilities: torch.Tensor,
             predicted_rewards: torch.Tensor,
@@ -81,14 +82,20 @@ class Loss(torch.nn.Module):
                 Rewards predicted by the critic.
         rewards
                 Real rewards.
+
+        Returns
+        -------
+
         """
         expected_returns = self.compute_discounted_returns(rewards)
         advantage = expected_returns - predicted_rewards
         log_probabilities = torch.log(policy_probabilities)
 
-        return -1 * torch.sum(log_probabilities * advantage, dim=1)
+        losses = -1 * torch.sum(log_probabilities * advantage, dim=1)
 
-    def critic_loss(
+        return losses
+
+    def compute_critic_loss(
             self, predicted_rewards: torch.Tensor, rewards: torch.Tensor
     ) -> np.ndarray:
         """
@@ -109,7 +116,10 @@ class Loss(torch.nn.Module):
         expected_returns = self.compute_discounted_returns(rewards)
         loss_vector = np.zeros((self.particles,))
         for i in range(self.particles):
-            loss_vector[i] = huber(predicted_rewards[i], expected_returns[i])
+            #loss_vector[i] = huber(predicted_rewards[i], expected_returns[i])
+            loss_vector[i] = torch.nn.functional.smooth_l1_loss(
+                predicted_rewards[i], expected_returns[i]
+            )
 
         return loss_vector
 
@@ -127,10 +137,8 @@ class Loss(torch.nn.Module):
         loss_tuple : tuple
                 (actor_loss, critic_loss)
         """
-        actor_loss = self.actor_loss(policy_probabilities, predicted_rewards, rewards)
-        critic_loss = self.critic_loss(predicted_rewards, rewards)
-        print(actor_loss)
-        print(critic_loss)
+        actor_loss = self.compute_actor_loss(policy_probabilities, predicted_rewards, rewards)
+        critic_loss = self.compute_critic_loss(predicted_rewards, rewards)
 
         return (
             torch.tensor(actor_loss, requires_grad=True),

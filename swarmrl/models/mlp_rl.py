@@ -187,17 +187,17 @@ class MLPRL(InteractionModel):
         # Compute predicted rewards.
         predicted_rewards = self.critic(torch.tensor(self.observables))
         predicted_rewards = torch.reshape(
-            predicted_rewards, (n_particles, time_steps + 1)
+            predicted_rewards, (n_particles, time_steps)
         )
 
         action_probabilities = torch.reshape(
-            torch.tensor(self.action_probabilities), (n_particles, time_steps +1)
+            torch.tensor(self.action_probabilities), (n_particles, time_steps)
 
         )
         # Compute loss.
         actor_loss, critic_loss = self.loss.compute_loss(
-            action_probabilities[:, 1:],
-            predicted_rewards[:, 1:],
+            action_probabilities,
+            predicted_rewards,
             rewards,
         )
         # Perform back-propagation.
