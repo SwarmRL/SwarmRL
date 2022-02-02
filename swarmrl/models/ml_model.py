@@ -41,6 +41,7 @@ class MLModel(InteractionModel):
             "RotateCounterClockwise": rotate_counter_clockwise,
             "DoNothing": do_nothing
         }
+        # TODO: Save actor/critic values here.
 
     def calc_action(self, colloid, other_colloids) -> Action:
         """
@@ -59,7 +60,3 @@ class MLModel(InteractionModel):
         action_idx = action_distribution.sample()
 
         return self.actions[list(self.actions)[action_idx]]
-
-
-
-
