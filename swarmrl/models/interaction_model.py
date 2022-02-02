@@ -27,11 +27,14 @@ class InteractionModel(torch.nn.Module):
 
     def calc_action(self, colloid, other_colloids) -> Action:
         """
-        Compute the next action on colloid
+        Compute the next action on colloid.
+
         Parameters
         ----------
-        colloid
+        colloid : object
+                Colloid for which an action is being computed
         other_colloids
+                Other colloids in the system.
 
         Returns
         -------

@@ -115,14 +115,8 @@ def run_simulation():
                                             out_folder=outfolder,
                                             write_chunk_size=1000)
     system_runner.setup_simulation()
-    gamma = system_runner.colloid_friction_translation
-    target_vel = model_params['target_vel_SI'].m_as('sim_velocity')
-    act_force = target_vel * gamma
-
-    perception_threshold = model_params['perception_threshold'].m_as('1/ sim_length')
 
     # Define the force model.
-
     # Define networks
     critic_stack = torch.nn.Sequential(
         torch.nn.Linear(3, 128),
@@ -143,8 +137,8 @@ def run_simulation():
         torch.nn.Linear(128, 4),
     )
 
-    actor = srl.MLP(actor_stack)
-    critic = srl.MLP(critic_stack)
+    actor = srl.networks.MLP(actor_stack)
+    critic = srl.networks.MLP(critic_stack)
     actor = actor.double()
     critic = critic.double()
 
@@ -153,19 +147,18 @@ def run_simulation():
     actor.optimizer = torch.optim.SGD(actor.parameters(), lr=0.001)
 
     # Define the task
-    task = srl.FindOrigin(engine=system_runner, alpha=1.0, beta=0.0, gamma=0.0)
+    task = srl.tasks.FindOrigin(engine=system_runner, alpha=1.0, beta=0.0, gamma=0.0)
 
     # Define the loss model
-    loss = srl.loss.Loss(n_colloids)
+    loss = srl.losses.PolicyGradientLoss(n_colloids)
 
-    observable = srl.PositionObservable()
+    observable = srl.observables.PositionObservable()
 
     # Define the force model.
-    force_model = srl.mlp_rl.MLPRL(actor, critic, task, loss, observable)
+    force_model = srl.models.MLPRL(actor, critic, task, loss, observable)
 
     # Run the simulation.
     n_slices = int(run_params['sim_duration'] / md_params.time_slice)
-    print(n_slices)
 
     for _ in tqdm.tqdm(range(100000)):
         system_runner.integrate(int(np.ceil(n_slices / 2000)), force_model)

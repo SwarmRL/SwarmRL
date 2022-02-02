@@ -5,7 +5,7 @@ from swarmrl.models.interaction_model import InteractionModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-from swarmrl.loss_models.loss import Loss
+from swarmrl.losses.policy_gradient_loss import Loss
 from swarmrl.models.interaction_model import Action
 import torch
 import numpy as np

@@ -11,7 +11,7 @@ import torch
 
 from swarmrl.tasks.task import Task
 import numpy as np
-from swarmrl.engine.engine import Engine
+# from swarmrl.engine.engine import Engine
 
 
 class FindOrigin(Task, ABC):
@@ -24,7 +24,7 @@ class FindOrigin(Task, ABC):
 
     def __init__(
         self,
-        engine: Engine,
+        engine,
         origin: np.ndarray = np.array([0.0, 0.0, 0.0]),
         alpha: float = 1.0,
         beta: float = 1.0,

@@ -2,7 +2,7 @@
 Run a unit test on the loss module.
 """
 import unittest
-from swarmrl.loss_models.loss import Loss
+from swarmrl.losses.policy_gradient_loss import PolicyGradientLoss
 import torch
 
 
@@ -20,7 +20,7 @@ class TestLoss(unittest.TestCase):
         -------
 
         """
-        cls.loss = Loss(n_colloids=10)
+        cls.loss = PolicyGradientLoss(n_colloids=10)
         cls.rewards = torch.tensor(
             [
                 [1, 1, 1, 1, 1],

@@ -383,7 +383,7 @@ class EspressoMD(Engine):
                 "inconsistent parameters: time_slice must be integer multiple of time_step"
             )
 
-    def integrate(self, n_slices, force_model: swarmrl.InteractionModel):
+    def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel):
         """
         Integrate the system for n_slices steps.
 

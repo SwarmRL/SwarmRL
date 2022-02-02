@@ -7,7 +7,7 @@ The reward classes handle the computation of the reward from an environment and
 compute the loss for the models to train on.
 """
 import torch
-from swarmrl.engine.engine import Engine
+# from swarmrl.engine.engine import Engine
 
 
 class Task(torch.nn.Module):
@@ -15,7 +15,7 @@ class Task(torch.nn.Module):
     Parent class for the reinforcement learning tasks.
     """
 
-    def __init__(self, engine: Engine):
+    def __init__(self, engine):
         """
         Constructor for the reward class.
 
@@ -26,7 +26,7 @@ class Task(torch.nn.Module):
                 simulation or an experiment.
         """
         super(Task, self).__init__()
-        self.engine = engine
+        # self.engine = engine
 
     @classmethod
     def compute_reward(self, observables: torch.Tensor):

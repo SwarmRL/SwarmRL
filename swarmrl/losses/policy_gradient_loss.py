@@ -1,13 +1,18 @@
 """
 Module for the parent class of the loss models.
+
+Notes
+-----
+https://spinningup.openai.com/en/latest/algorithms/vpg.html
 """
 import torch
 from typing import Tuple
 import torch.nn.functional
 import numpy as np
+from swarmrl.losses.loss import Loss
 
 
-class Loss(torch.nn.Module):
+class PolicyGradientLoss(Loss):
     """
     Parent class for the reinforcement learning tasks.
 
