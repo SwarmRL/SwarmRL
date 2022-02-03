@@ -12,7 +12,8 @@ class Loss:
             self,
             log_probabilities: torch.Tensor,
             values: torch.Tensor,
-            rewards: torch.Tensor
+            rewards: torch.Tensor,
+            entropy: torch.Tensor
     ):
         """
 
@@ -24,6 +25,8 @@ class Loss:
                 Values predicted by the critic.
         rewards : torch.Tensor (n_particles, n_steps)
                 Rewards for each state.
+        entropy : torch.Tensor (n_particles, n_steps)
+                Entropy computed from the distribution.
 
         Returns
         -------

@@ -111,23 +111,28 @@ class MLPRL:
                 All values collected during the episode.
         rewards : torch.Tensor (n_particles, n_time_steps)
                 All rewards collected during the episode.
+        entropy : torch.Tensor (n_particles, n_time_steps)
+                Distirbution entropy computed during the run.
         """
         time_steps = int(episode_data.shape[0] / self.n_particles)
 
         concat_log_probs = torch.tensor(episode_data[:, 0])
         concat_values = torch.tensor(episode_data[:, 1])
         concat_rewards = torch.tensor(episode_data[:, 2])
+        concat_entropy = torch.tensor(episode_data[:, 3])
 
         log_probs = np.zeros((self.n_particles, time_steps))
         values = np.zeros((self.n_particles, time_steps))
         rewards = np.zeros((self.n_particles, time_steps))
+        entropy = np.zeros((self.n_particles, time_steps))
 
         for i in range(self.n_particles):
             log_probs[i] = concat_log_probs[i::self.n_particles]
             values[i] = concat_values[i::self.n_particles]
             rewards[i] = concat_rewards[i::self.n_particles]
+            entropy[i] = concat_entropy[i::self.n_particles]
 
-        return log_probs, values, rewards
+        return log_probs, values, rewards, entropy
 
     def initialize_training(self) -> MLModel:
         """
@@ -162,13 +167,14 @@ class MLPRL:
         """
         episode_data = torch.tensor(interaction_model.recorded_values).detach().numpy()
 
-        log_prob, values, rewards = self._format_episode_data(episode_data)
+        log_prob, values, rewards, entropy = self._format_episode_data(episode_data)
 
         # Compute loss for actor and critic.
         actor_loss, critic_loss = self.loss.compute_loss(
             log_probabilities=log_prob,
             values=values,
             rewards=rewards,
+            entropy=entropy
         )
 
         # Perform back-propagation.

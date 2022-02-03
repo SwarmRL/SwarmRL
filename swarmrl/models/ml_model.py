@@ -61,7 +61,12 @@ class MLModel(InteractionModel):
             "DoNothing": do_nothing
         }
 
-    def _record_parameters(self, action_log_prob: float, feature_vector: torch.Tensor):
+    def _record_parameters(
+            self,
+            action_log_prob: float,
+            action_dist_entropy: float,
+            feature_vector: torch.Tensor
+    ):
         """
         Record the outputs of the model.
 
@@ -70,6 +75,8 @@ class MLModel(InteractionModel):
         action_log_prob : float
                 The log prob of the action. Returned separately here as this can always
                 be recorded.
+        action_dist_entropy : float
+                Distribution entropy of the RL.
         feature_vector : np.array
                 Feature vector used by the models to make predictions.
 
@@ -86,7 +93,7 @@ class MLModel(InteractionModel):
         except AttributeError:
             reward = None
 
-        self.recorded_values.append([action_log_prob, value, reward])
+        self.recorded_values.append([action_log_prob, value, reward, action_dist_entropy])
 
     def calc_action(self, colloid, other_colloids) -> Action:
         """
@@ -111,6 +118,7 @@ class MLModel(InteractionModel):
 
         if self.record:
             action_log_prob = action_distribution.log_prob(action_idx)
-            self._record_parameters(action_log_prob, feature_vector)
+            distribution_entropy = action_distribution.entropy()
+            self._record_parameters(action_log_prob, distribution_entropy, feature_vector)
 
         return self.actions[list(self.actions)[action_idx]]

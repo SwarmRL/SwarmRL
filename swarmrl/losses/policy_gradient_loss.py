@@ -131,18 +131,10 @@ class PolicyGradientLoss(Loss):
             log_probabilities: torch.Tensor,
             values: torch.Tensor,
             rewards: torch.Tensor,
+            entropy: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute the loss functions for the actor and critic based on the reward.
-
-        Parameters
-        ----------
-        log_probabilities : torch.Tensor (n_particles, n_steps)
-                Log of the actions predicted by the actor.
-        values : torch.Tensor (n_particles, n_steps)
-                Values predicted by the critic.
-        rewards : torch.Tensor (n_particles, n_steps)
-                Rewards for each state.
 
         Returns
         -------
