@@ -147,7 +147,7 @@ def run_simulation():
     actor.optimizer = torch.optim.SGD(actor.parameters(), lr=0.001)
 
     # Define the task
-    task = srl.tasks.searching.FindLocation()
+    task = srl.tasks.searching.FindLocation(side_length=np.array([1000.0, 1000.0, 1000.0]))
 
     # Define the loss model
     loss = srl.losses.PolicyGradientLoss()
