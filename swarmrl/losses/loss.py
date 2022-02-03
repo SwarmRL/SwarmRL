@@ -8,7 +8,6 @@ class Loss:
     """
     Parent class for a SwarmRL loss model.
     """
-    @classmethod
     def compute_loss(
             self,
             log_probabilities: torch.Tensor,

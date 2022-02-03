@@ -1,18 +1,23 @@
 """
 Run a unit test on the loss module.
 """
-import unittest
-from swarmrl.losses.policy_gradient_loss import PolicyGradientLoss
+import pytest
+from swarmrl.losses.policy_gradient_loss import (
+    PolicyGradientLoss,
+    compute_actor_loss,
+    compute_critic_loss,
+    compute_true_value_function
+)
 import torch
 
 
-class TestLoss(unittest.TestCase):
+class TestLoss:
     """
     Test the loss functions for RL models.
     """
 
     @classmethod
-    def setUpClass(cls) -> None:
+    def setup_class(cls) -> None:
         """
         Set up the test class.
 
@@ -20,7 +25,7 @@ class TestLoss(unittest.TestCase):
         -------
 
         """
-        cls.loss = PolicyGradientLoss(n_colloids=10)
+        cls.loss = PolicyGradientLoss()
         cls.rewards = torch.tensor(
             [
                 [1, 1, 1, 1, 1],
@@ -45,21 +50,24 @@ class TestLoss(unittest.TestCase):
         Checks the actual values return in the discounted returns without
         standardization and with the simple case of gamma=1
         """
-        self.loss.particles = 10
-        true_values = torch.tensor([[5., 4., 3., 2., 1.],
-                                    [10., 8., 6., 4., 2.],
-                                    [15., 12., 9., 6., 3.],
-                                    [20., 16., 12., 8., 4.],
-                                    [25., 20., 15., 10., 5.],
-                                    [30., 24., 18., 12., 6.],
-                                    [35., 28., 21., 14., 7.],
-                                    [40., 32., 24., 16., 8.],
-                                    [45., 36., 27., 18., 9.],
-                                    [50., 40., 30., 20., 10.]])
-        discounted_returns = self.loss.compute_discounted_returns(
-            rewards=self.rewards, standardize=False, gamma=1
+        target_values = torch.tensor(
+            [
+                [5., 4., 3., 2., 1.],
+                [10., 8., 6., 4., 2.],
+                [15., 12., 9., 6., 3.],
+                [20., 16., 12., 8., 4.],
+                [25., 20., 15., 10., 5.],
+                [30., 24., 18., 12., 6.],
+                [35., 28., 21., 14., 7.],
+                [40., 32., 24., 16., 8.],
+                [45., 36., 27., 18., 9.],
+                [50., 40., 30., 20., 10.]
+            ]
         )
-        torch.testing.assert_allclose(true_values, discounted_returns)
+        value_function = compute_true_value_function(
+            rewards=self.rewards, gamma=1, standardize=False
+        )
+        torch.testing.assert_allclose(target_values, value_function)
 
     def test_expected_returns_standardized(self):
         """
@@ -69,19 +77,19 @@ class TestLoss(unittest.TestCase):
         -----
         Test that the expected returns are correct.
         """
-        discounted_returns = self.loss.compute_discounted_returns(
-            rewards=self.rewards, standardize=True
+        discounted_returns = compute_true_value_function(
+            rewards=self.rewards
         )
-        self.assertAlmostEqual(torch.mean(discounted_returns[0]).numpy(), 0.0)
-        self.assertAlmostEqual(torch.mean(discounted_returns[1]).numpy(), 0.0)
-        self.assertAlmostEqual(torch.mean(discounted_returns[2]).numpy(), 0.0)
-        self.assertAlmostEqual(torch.mean(discounted_returns[3]).numpy(), 0.0)
-        self.assertAlmostEqual(torch.mean(discounted_returns[4]).numpy(), 0.0)
-        self.assertAlmostEqual(torch.std(discounted_returns[0]).numpy(), 1.0)
-        self.assertAlmostEqual(torch.std(discounted_returns[1]).numpy(), 1.0)
-        self.assertAlmostEqual(torch.std(discounted_returns[2]).numpy(), 1.0)
-        self.assertAlmostEqual(torch.std(discounted_returns[3]).numpy(), 1.0)
-        self.assertAlmostEqual(torch.std(discounted_returns[4]).numpy(), 1.0)
+        torch.testing.assert_allclose(torch.mean(discounted_returns[0]).numpy(), 0.0)
+        torch.testing.assert_allclose(torch.mean(discounted_returns[1]).numpy(), 0.0)
+        torch.testing.assert_allclose(torch.mean(discounted_returns[2]).numpy(), 0.0)
+        torch.testing.assert_allclose(torch.mean(discounted_returns[3]).numpy(), 0.0)
+        torch.testing.assert_allclose(torch.mean(discounted_returns[4]).numpy(), 0.0)
+        torch.testing.assert_allclose(torch.std(discounted_returns[0]).numpy(), 1.0)
+        torch.testing.assert_allclose(torch.std(discounted_returns[1]).numpy(), 1.0)
+        torch.testing.assert_allclose(torch.std(discounted_returns[2]).numpy(), 1.0)
+        torch.testing.assert_allclose(torch.std(discounted_returns[3]).numpy(), 1.0)
+        torch.testing.assert_allclose(torch.std(discounted_returns[4]).numpy(), 1.0)
 
     def test_actor_loss(self):
         """
@@ -91,7 +99,6 @@ class TestLoss(unittest.TestCase):
         -------
 
         """
-        self.loss.particles = 2
         rewards = torch.tensor(
             [
                 [1, 2, 3, 4, 5],
@@ -114,15 +121,15 @@ class TestLoss(unittest.TestCase):
                 [1, 2, 3, 4, 5]
             ]
         )
-        actor_loss = self.loss.compute_actor_loss(
-            policy_probabilities=action_probs,
+        actor_loss = compute_actor_loss(
+            log_probs=action_probs,
             rewards=rewards,
-            predicted_rewards=predicted_rewards
+            predicted_values=predicted_rewards
         )
 
-        self.assertEqual(129.41423116696092, float(actor_loss[0].numpy()))
-        self.assertEqual(len(actor_loss), 2)
-        self.assertEqual(actor_loss[0], actor_loss[1])
+        assert float(actor_loss[0].numpy()) == pytest.approx(5.455, 0.001)
+        assert len(actor_loss) == 2
+        assert actor_loss[0] == actor_loss[1]
 
     def test_critic_loss(self):
         """
@@ -132,7 +139,6 @@ class TestLoss(unittest.TestCase):
         -------
 
         """
-        self.loss.particles = 2
         rewards = torch.tensor(
             [
                 [1., 2., 3., 4., 5.],
@@ -145,50 +151,10 @@ class TestLoss(unittest.TestCase):
                 [2., 3., 4., 5., 6.]
             ]
         )
-        critic_loss = self.loss.compute_critic_loss(
+        critic_loss = compute_critic_loss(
             rewards=rewards,
             predicted_rewards=predicted_rewards
         )
-        self.assertEqual(len(critic_loss), 2)
-        self.assertEqual(critic_loss[0], critic_loss[1])
-        self.assertEqual(critic_loss[0], 6.702364444732666)
-
-    def test_reward_trajectory(self):
-        """
-        Test that high rewards result in lower losses.
-
-        Returns
-        -------
-
-        """
-        self.loss.particles = 2
-        rewards = torch.tensor(
-            [
-                [0, 0, 0, 0, 0],
-                [1, 1, 1, 1, 1]
-            ]
-        )
-
-        action_probs = torch.nn.Softmax()(
-            torch.tensor(
-                [
-                    [0.1, .2, .3, .1, 0.],
-                    [.1, .2, .3, .1, 0.]
-                ]
-            )
-        )
-
-        predicted_rewards = torch.tensor(
-            [
-                [1, 1, 1, 1, 1],
-                [1, 1, 1, 1, 1]
-            ]
-        )
-
-        actor_loss = self.loss.actor_loss(
-            policy_probabilities=action_probs,
-            rewards=rewards,
-            predicted_rewards=predicted_rewards
-        )
-
-        print(actor_loss)
+        assert len(critic_loss) == 2
+        assert critic_loss[0] == critic_loss[1]
+        assert critic_loss[0] == pytest.approx(3.5, 0.001)
