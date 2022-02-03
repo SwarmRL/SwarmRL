@@ -17,6 +17,7 @@ class Network(torch.nn.Module):
         """
         super(Network, self).__init__()
         self.optimizer = optimizer
+        self.model = torch.nn.Module
 
     def select_state(self, states: torch.Tensor):
         """

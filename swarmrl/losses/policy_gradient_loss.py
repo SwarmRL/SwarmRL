@@ -20,17 +20,11 @@ class PolicyGradientLoss(Loss):
     -----
     """
 
-    def __init__(self, n_colloids: int):
+    def __init__(self):
         """
         Constructor for the reward class.
-
-        Parameters
-        ----------
-        n_colloids : int
-                Number of colloids in the system.
         """
         super(Loss, self).__init__()
-        self.particles = n_colloids
 
     def compute_discounted_returns(
             self, rewards: torch.tensor, gamma: float = 0.99, standardize: bool = False
@@ -130,20 +124,33 @@ class PolicyGradientLoss(Loss):
 
     def compute_loss(
             self,
-            policy_probabilities: torch.Tensor,
-            predicted_rewards: torch.Tensor,
+            log_probabilities: torch.Tensor,
+            values: torch.Tensor,
             rewards: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute the loss functions for the actor and critic based on the reward.
+
+        Parameters
+        ----------
+        log_probabilities : torch.Tensor (n_particles, n_steps)
+                Log of the actions predicted by the actor.
+        values : torch.Tensor (n_particles, n_steps)
+                Values predicted by the critic.
+        rewards : torch.Tensor (n_particles, n_steps)
+                Rewards for each state.
 
         Returns
         -------
         loss_tuple : tuple
                 (actor_loss, critic_loss)
         """
-        actor_loss = self.compute_actor_loss(policy_probabilities, predicted_rewards, rewards)
-        critic_loss = self.compute_critic_loss(predicted_rewards, rewards)
+        self.particles = log_probabilities.shape[0]
+
+        actor_loss = self.compute_actor_loss(
+            log_probabilities, values, rewards
+        )
+        critic_loss = self.compute_critic_loss(values, rewards)
 
         return (
             torch.tensor(actor_loss, requires_grad=True),

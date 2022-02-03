@@ -1,6 +1,6 @@
 """
 __init__ for the tasks module.
 """
-from swarmrl.tasks.find_origin import FindOrigin
+from swarmrl.tasks import searching
 
-__all__ = [FindOrigin.__name__]
+__all__ = ["searching"]

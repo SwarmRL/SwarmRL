@@ -96,6 +96,3 @@ class TestMLModel:
 
         outputs = np.array(self.interaction.recorded_values)[:, 0]
         np.testing.assert_array_almost_equal(targets, outputs, decimal=4)
-
-
-

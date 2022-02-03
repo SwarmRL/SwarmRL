@@ -1,17 +1,19 @@
 """
 Module to implement a simple multi-layer perceptron for the colloids.
 """
+from typing import Tuple
+
 from swarmrl.models.interaction_model import InteractionModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-from swarmrl.losses.policy_gradient_loss import Loss
-from swarmrl.models.interaction_model import Action
-import torch
+from swarmrl.losses.loss import Loss
+from swarmrl.models.ml_model import MLModel
 import numpy as np
+import torch
 
 
-class MLPRL(InteractionModel):
+class MLPRL:
     """
     Class for the simple MLP RL implementation.
 
@@ -35,6 +37,7 @@ class MLPRL(InteractionModel):
         task: Task,
         loss: Loss,
         observable: Observable,
+        n_particles: int
     ):
         """
         Constructor for the MLP RL.
@@ -49,12 +52,10 @@ class MLPRL(InteractionModel):
                 Callable from which a reward can be computed.
         loss : Loss
                 A loss model to use in the A-C loss computation.
-        actions : dict
-                A dictionary of possible actions. Key names should describe the action
-                and the value should be a data class. See the actions module for
-                more information.
         observable : Observable
                 Observable class with which to compute the input vector.
+        n_particles : int
+                Number of particles in the environment.
         """
         super().__init__()
         self.actor = actor
@@ -62,89 +63,7 @@ class MLPRL(InteractionModel):
         self.task = task
         self.loss = loss
         self.observable = observable
-
-        # Properties stored during the episode.
-        self.action_probabilities = []
-        self.observables = []
-
-        # Actions on particles.
-        self.force = np.zeros(3)
-        self.torque = np.zeros(3)
-        self.new_direction = None
-
-        translate = Action(force=10.0)
-        rotate_clockwise = Action(torque=np.array([0.0, 0.0, 1.0]))
-        rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -1.0]))
-        do_nothing = Action()
-
-        self.actions = {
-            "RotateClockwise": rotate_clockwise,
-            "Translate": translate,
-            "RotateCounterClockwise": rotate_counter_clockwise,
-            "DoNothing": do_nothing
-        }
-
-    def calc_action(self, colloid, other_colloids) -> Action:
-        """
-        Return the selected action on the particles.
-
-        Parameters
-        ----------
-        colloid
-        other_colloids
-
-        Returns
-        -------
-
-        """
-        action = self.compute_state(colloid, other_colloids)
-
-        return self.actions[list(self.actions)[action]]
-
-    def compute_feature_vector(self, colloid: object, other_colloids: list):
-        """
-        Compute the feature vector.
-
-        Parameters
-        ----------
-        colloid : object
-                Colloid of interest
-        other_colloids : list
-                List of all other colloids.
-
-        Returns
-        -------
-
-        """
-        return self.observable.compute_observable(colloid, other_colloids)
-
-    def compute_state(self, colloid, other_colloids) -> int:
-        """
-        Compute the state of the active learning algorithm.
-
-        If the model is not an active learner this method is ignored.
-
-        Notes
-        -----
-        1.) Compute current state
-        2.) Store necessary properties
-        3.) Compute and set new forces / torques.
-        """
-        # Collect current state information.
-        scaling = torch.nn.Softmax()
-        state = self.compute_feature_vector(colloid, other_colloids)
-        action_logits = self.actor(state)
-        selector = torch.distributions.Categorical(abs(action_logits))
-        action = selector.sample()
-        action_probabilities = scaling(action_logits)
-
-        # Update the stored data.
-        self.action_probabilities.append(
-            list(action_probabilities.detach().numpy())[action]
-        )
-        self.observables.append(state.numpy())
-
-        return action
+        self.n_particles = n_particles
 
     def update_critic(self, loss: torch.Tensor):
         """
@@ -175,35 +94,94 @@ class MLPRL(InteractionModel):
         """
         self.actor.update_model(loss)
 
-    def update_rl(self):
+    def _format_episode_data(self, episode_data: np.ndarray) -> Tuple:
+        """
+        Format the episode data to use in the training.
+
+        Parameters
+        ----------
+        episode_data : np.ndarray (n_particles * n_time_steps, 3)
+                Data collected during the episode.
+
+        Returns
+        -------
+        log_prob : torch.Tensor (n_particles, n_time_steps)
+                All log probabilities collected during an episode.
+        values : torch.Tensor (n_particles, n_time_steps)
+                All values collected during the episode.
+        rewards : torch.Tensor (n_particles, n_time_steps)
+                All rewards collected during the episode.
+        """
+        time_steps = int(episode_data.shape[0] / self.n_particles)
+
+        concat_log_probs = torch.tensor(episode_data[:, 0])
+        concat_values = torch.tensor(episode_data[:, 1])
+        concat_rewards = torch.tensor(episode_data[:, 2])
+
+        log_probs = np.zeros((self.n_particles, time_steps))
+        values = np.zeros((self.n_particles, time_steps))
+        rewards = np.zeros((self.n_particles, time_steps))
+
+        for i in range(self.n_particles):
+            log_probs[i] = concat_log_probs[i::self.n_particles]
+            values[i] = concat_values[i::self.n_particles]
+            rewards[i] = concat_rewards[i::self.n_particles]
+
+        return log_probs, values, rewards
+
+    def initialize_training(self) -> MLModel:
+        """
+        Return an initialized interaction model.
+
+        Returns
+        -------
+        interaction_model : MLModel
+                Interaction model to start the simulation with.
+        """
+        return MLModel(
+            actor=self.actor.model,
+            critic=self.critic.model,
+            observable=self.observable,
+            reward_cls=self.task,
+            record=True
+        )
+
+    def update_rl(self, interaction_model: MLModel) -> MLModel:
         """
         Update the RL algorithm.
+
+        Parameters
+        ----------
+        interaction_model : MLModel
+                Interaction model to read the actor/critic and reward values.
+
+        Returns
+        -------
+        interaction_model : MLModel
+                Interaction model to use in the next episode.
         """
-        # Compute real rewards.
-        rewards = self.task.compute_reward(torch.tensor(self.observables))
-        n_particles = rewards.shape[0]
-        time_steps = rewards.shape[1]
+        episode_data = np.array(interaction_model.recorded_values)
 
-        # Compute predicted rewards.
-        predicted_rewards = self.critic(torch.tensor(self.observables))
-        predicted_rewards = torch.reshape(
-            predicted_rewards, (n_particles, time_steps)
-        )
+        log_prob, values, rewards = self._format_episode_data(episode_data)
 
-        action_probabilities = torch.reshape(
-            torch.tensor(self.action_probabilities), (n_particles, time_steps)
-
-        )
-        # Compute loss.
+        # Compute loss for actor and critic.
         actor_loss, critic_loss = self.loss.compute_loss(
-            action_probabilities,
-            predicted_rewards,
-            rewards,
+            log_probabilities=log_prob,
+            values=values,
+            rewards=rewards,
         )
+
         # Perform back-propagation.
         self.update_actor(actor_loss)
         self.update_critic(critic_loss)
 
-        # Clear out the parameters in the class.
-        self.observables = []
-        self.action_probabilities = []
+        # Create a new interaction model.
+        interaction_model = MLModel(
+            actor=self.actor.model,
+            critic=self.critic.model,
+            observable=self.observable,
+            reward_cls=self.task,
+            record=True
+        )
+
+        return interaction_model

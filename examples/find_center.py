@@ -117,6 +117,7 @@ def run_simulation():
     system_runner.setup_simulation()
 
     # Define the force model.
+
     # Define networks
     critic_stack = torch.nn.Sequential(
         torch.nn.Linear(3, 128),
@@ -142,27 +143,28 @@ def run_simulation():
     actor = actor.double()
     critic = critic.double()
 
-    # Set the optimizer.
     critic.optimizer = torch.optim.SGD(critic.parameters(), lr=0.001)
     actor.optimizer = torch.optim.SGD(actor.parameters(), lr=0.001)
 
     # Define the task
-    task = srl.tasks.FindOrigin(engine=system_runner, alpha=1.0, beta=0.0, gamma=0.0)
+    task = srl.tasks.searching.FindLocation()
 
     # Define the loss model
-    loss = srl.losses.PolicyGradientLoss(n_colloids)
+    loss = srl.losses.PolicyGradientLoss()
 
+    # Define the observable.
     observable = srl.observables.PositionObservable()
 
     # Define the force model.
-    force_model = srl.models.MLPRL(actor, critic, task, loss, observable)
+    rl_trainer = srl.models.MLPRL(actor, critic, task, loss, observable, n_colloids)
 
     # Run the simulation.
     n_slices = int(run_params['sim_duration'] / md_params.time_slice)
 
-    for _ in tqdm.tqdm(range(100000)):
-        system_runner.integrate(int(np.ceil(n_slices / 2000)), force_model)
-        force_model.update_rl()
+    force_fn = rl_trainer.initialize_training()
+    for _ in tqdm.tqdm(range(1000)):
+        system_runner.integrate(int(np.ceil(n_slices / 500)), force_fn)
+        force_fn = rl_trainer.update_rl(force_fn)
 
     system_runner.finalize()
 
@@ -174,4 +176,3 @@ if __name__ == '__main__':
     run_simulation()
     run_analysis()
     visualize_particles()
-
