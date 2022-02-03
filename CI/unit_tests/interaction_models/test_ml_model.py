@@ -39,7 +39,7 @@ class TestMLModel:
 
         observable = srl.observables.PositionObservable()
 
-        cls.interaction = MLModel(model=model, observable=observable)
+        cls.interaction = MLModel(actor=model, observable=observable)
 
     def test_force_selection(self):
         """
@@ -81,3 +81,21 @@ class TestMLModel:
         assert action.force == 0.0
         np.testing.assert_array_equal(action.torque, [0., 0., 0.])
         assert action.new_direction is None
+
+    def test_action_only_record(self):
+        """
+        Test that the model can record only actions correctly.
+        """
+        targets = np.array([-1.4799, -1.4799, -1.2056, -1.4799, -1.4840])
+        torch.manual_seed(1)
+        self.interaction.record = True
+        colloid = DummyColloid()
+        for i in range(5):
+            colloid.pos *= i  # change the colloid position.
+            _ = self.interaction.calc_action(colloid, [])
+
+        outputs = np.array(self.interaction.recorded_values)[:, 0]
+        np.testing.assert_array_almost_equal(targets, outputs, decimal=4)
+
+
+

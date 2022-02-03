@@ -43,3 +43,4 @@ class Task(torch.nn.Module):
         -------
 
         """
+        raise NotImplemented
