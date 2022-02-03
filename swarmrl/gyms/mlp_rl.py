@@ -160,7 +160,7 @@ class MLPRL:
         interaction_model : MLModel
                 Interaction model to use in the next episode.
         """
-        episode_data = np.array(interaction_model.recorded_values)
+        episode_data = torch.tensor(interaction_model.recorded_values).detach().numpy()
 
         log_prob, values, rewards = self._format_episode_data(episode_data)
 
