@@ -121,19 +121,10 @@ def run_simulation():
     # Define networks
     critic_stack = torch.nn.Sequential(
         torch.nn.Linear(3, 128),
-        torch.nn.ReLU(),
-        torch.nn.Linear(128, 128),
-        torch.nn.ReLU(),
-        torch.nn.Linear(128, 128),
-        torch.nn.ReLU(),
         torch.nn.Linear(128, 1),
     )
     actor_stack = torch.nn.Sequential(
         torch.nn.Linear(3, 128),
-        torch.nn.ReLU(),
-        torch.nn.Linear(128, 128),
-        torch.nn.ReLU(),
-        torch.nn.Linear(128, 128),
         torch.nn.ReLU(),
         torch.nn.Linear(128, 4),
     )
@@ -143,8 +134,8 @@ def run_simulation():
     actor = actor.double()
     critic = critic.double()
 
-    critic.optimizer = torch.optim.SGD(critic.parameters(), lr=0.001)
-    actor.optimizer = torch.optim.SGD(actor.parameters(), lr=0.001)
+    critic.optimizer = torch.optim.Adam(critic.parameters(), lr=0.03)
+    actor.optimizer = torch.optim.Adam(actor.parameters(), lr=0.03)
 
     # Define the task
     task = srl.tasks.searching.FindLocation(side_length=np.array([1000.0, 1000.0, 1000.0]))
@@ -162,7 +153,7 @@ def run_simulation():
     n_slices = int(run_params['sim_duration'] / md_params.time_slice)
 
     force_fn = rl_trainer.initialize_training()
-    for _ in tqdm.tqdm(range(1000)):
+    for _ in tqdm.tqdm(range(2000)):
         system_runner.integrate(int(np.ceil(n_slices / 500)), force_fn)
         force_fn = rl_trainer.update_rl(force_fn)
 
@@ -175,4 +166,4 @@ if __name__ == '__main__':
     """
     run_simulation()
     run_analysis()
-    visualize_particles()
+    # visualize_particles()

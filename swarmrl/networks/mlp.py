@@ -51,24 +51,8 @@ class MLP(Network):
                 The elements of the loss vector MUST be torch tensors in order for the
                 backward() method to work.
         """
-        for loss in loss_vector:
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-
-    def forward(self, state: torch.Tensor) -> torch.Tensor:
-        """
-        Run the forward pass on the model.
-
-        Parameters
-        ----------
-        state : torch.Tensor
-                Current state of the environment on which predictions should be made.
-
-        Returns
-        -------
-        state : torch.Tensor
-                All possibilities computed.
-        """
-        possibilities = self.model(state)
-        return possibilities
+        for _ in range(10):
+            for loss in loss_vector:
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()

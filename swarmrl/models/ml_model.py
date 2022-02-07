@@ -49,9 +49,9 @@ class MLModel(InteractionModel):
         self.record = record
         self.recorded_values = []
 
-        translate = Action(force=1.0)
-        rotate_clockwise = Action(torque=np.array([0.0, 0.0, 10]))
-        rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -10]))
+        translate = Action(force=100.0)
+        rotate_clockwise = Action(torque=np.array([0.0, 0.0, 100]))
+        rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -100]))
         do_nothing = Action()
 
         self.actions = {

@@ -76,7 +76,7 @@ def compute_critic_loss(
     loss_vector = np.zeros((n_particles,))
 
     for i in range(n_particles):
-        loss_vector[i] = torch.nn.functional.smooth_l1_loss(
+        loss_vector[i] = torch.nn.MSELoss(reduction='mean')(
             torch.tensor(predicted_rewards[i]), expected_returns[i]
         )
 
