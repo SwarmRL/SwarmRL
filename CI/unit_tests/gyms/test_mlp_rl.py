@@ -42,7 +42,7 @@ class TestMLPRL:
                 [7, 7, 7],
             ]
         )
-        probs, values, rewards = self.rl_trainer._format_episode_data(input_data)
+        probs, values, rewards, _ = self.rl_trainer._format_episode_data(input_data)
 
         np.testing.assert_array_equal(target_probs, probs)
         np.testing.assert_array_equal(target_values, values)
