@@ -33,7 +33,7 @@ def _handle_one_step(
 
 
 def vector_from_angle(angle):
-    return np.array([np.sin(angle), np.cos(angle), 0])
+    return np.array([np.cos(angle), np.sin(angle), 0])
 
 
 class RealExperiment:
@@ -52,10 +52,11 @@ class RealExperiment:
 
         # cast bytestream to double array and reshape to [x y theta id]
         data = np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 4))
-        print(f"Received data \n {data}")
+        print(f"Received data with shape {np.shape(data)} \n")
         colloids = []
         for row in data:
-            colloids.append(Colloid(pos=[row[0],row[1],0], director=vector_from_angle(row[2]), id=row[3]))
+            coll = Colloid(pos=[row[0],row[1],0], director=vector_from_angle(row[2]), id=row[3])
+            colloids.append(coll)
 
         return colloids
 
@@ -68,16 +69,16 @@ class RealExperiment:
             force_model.compute_state(coll, other_colloids)
             action = force_model.calc_action(coll, other_colloids)
 
+            if not action.force == 0.0:
+                action_id=experiment_actions["be_active"]
+            else:
+                action_id=experiment_actions["do_nothing"]
+
             if not np.all(action.torque == 0):
                 if action.torque[2] > 0:
                     action_id=experiment_actions["rotate_anticlockwise"]
                 else:
                     action_id=experiment_actions["rotate_clockwise"]
-
-            if not action.force == 0.0:
-                action_id=experiment_actions["be_active"]
-            else:
-                action_id=experiment_actions["do_nothing"]
 
             ret[idx,0] = coll.id
             ret[idx,1] = action_id
@@ -86,7 +87,7 @@ class RealExperiment:
     def send_sctions(self, actions):
         # Flatten data in 'Fortran' style
         data = actions.flatten('F')
-        print(f"Data to send \n{data}")
+        print(f"Sending data with shape {np.shape(data)} \n")
         # transform to bytes
         data_bytes = struct.pack(str(len(data))+"d", *data)
 
@@ -101,13 +102,15 @@ class RealExperiment:
         for _ in range(n_slices):
             print("Waiting for receiving data_size")
             data_size = self.connection.recv(8)
-            print(f"Received data_size = {data_size}")
-            if data_size: #received number of particles
+            if not data_size == b'': #received number of particles
+                print(f"Received data_size = {struct.unpack('I', data_size)[0]}")
                 colloids = self.receive_colloids(data_size)
                 actions = self.get_actions(colloids, force_model)
                 self.send_sctions(actions)
             else:
-                force_model.finalize()
+                #force_model.finalize()
+                print("Empty data, closing connection")
+                self.connection.close()
                 break
 
 
