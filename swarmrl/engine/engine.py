@@ -1,7 +1,17 @@
 """
 Parent class for the engine.
 """
+import dataclasses
+
+import numpy as np
+
 import swarmrl.models.interaction_model
+
+
+@dataclasses.dataclass
+class Colloid:
+    pos: np.ndarray
+    director: np.ndarray
 
 
 class Engine:

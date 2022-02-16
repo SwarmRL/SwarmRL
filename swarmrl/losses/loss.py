@@ -8,12 +8,13 @@ class Loss:
     """
     Parent class for a SwarmRL loss model.
     """
+
     def compute_loss(
-            self,
-            log_probabilities: torch.Tensor,
-            values: torch.Tensor,
-            rewards: torch.Tensor,
-            entropy: torch.Tensor
+        self,
+        log_probabilities: torch.Tensor,
+        values: torch.Tensor,
+        rewards: torch.Tensor,
+        entropy: torch.Tensor,
     ):
         """
 

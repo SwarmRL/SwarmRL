@@ -1,16 +1,11 @@
 """
 Parent class for the engine.
 """
-import swarmrl.models.interaction_model
-import numpy as np
 import dataclasses
 
+import numpy as np
 
-@dataclasses.dataclass
-class Colloid:
-    pos: np.ndarray
-    director: np.ndarray
-
+import swarmrl.models.interaction_model
 
 experiment_actions = {
     "do_nothing": 0,

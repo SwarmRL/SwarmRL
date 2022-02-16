@@ -1,7 +1,9 @@
 import dataclasses
 import unittest as ut
-import numpy as np
+
 import context
+import numpy as np
+
 import swarmrl.models.bechinger_models
 
 

@@ -1,16 +1,18 @@
 """
 Test the ML based interaction model.
 """
+import numpy as np
+import torch
+
 import swarmrl as srl
 from swarmrl.models.ml_model import MLModel
-import torch
-import numpy as np
 
 
 class DummyColloid:
     """
     Dummy colloid class for the test.
     """
+
     pos = np.array([1, 1, 1])
 
 
@@ -18,6 +20,7 @@ class TestMLModel:
     """
     Test the ML interaction model to ensure it is functioning correctly.
     """
+
     @classmethod
     def setup_class(cls):
         """
@@ -58,7 +61,7 @@ class TestMLModel:
         colloid = DummyColloid()
         action = self.interaction.calc_action(colloid, [])
 
-        np.testing.assert_array_equal(action.torque, [0., 0., -0.1])
+        np.testing.assert_array_equal(action.torque, [0.0, 0.0, -0.1])
 
     def test_positive_torque(self):
         """
@@ -68,7 +71,7 @@ class TestMLModel:
         colloid = DummyColloid()
         action = self.interaction.calc_action(colloid, [])
 
-        np.testing.assert_array_equal(action.torque, [0., 0., 0.1])
+        np.testing.assert_array_equal(action.torque, [0.0, 0.0, 0.1])
 
     def test_no_action(self):
         """
@@ -79,7 +82,7 @@ class TestMLModel:
         action = self.interaction.calc_action(colloid, [])
 
         assert action.force == 0.0
-        np.testing.assert_array_equal(action.torque, [0., 0., 0.])
+        np.testing.assert_array_equal(action.torque, [0.0, 0.0, 0.0])
         assert action.new_direction is None
 
     def test_action_only_record(self):

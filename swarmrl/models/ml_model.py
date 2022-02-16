@@ -2,27 +2,27 @@
 Espresso interaction model capable of handling a neural network as a function.
 """
 
-from swarmrl.models.interaction_model import InteractionModel
-from swarmrl.observables.observable import Observable
-from swarmrl.models.interaction_model import Action
-from swarmrl.tasks.task import Task
-
 import numpy as np
 import torch
 from torch.distributions import Categorical
+
+from swarmrl.models.interaction_model import Action, InteractionModel
+from swarmrl.observables.observable import Observable
+from swarmrl.tasks.task import Task
 
 
 class MLModel(InteractionModel):
     """
     Class for a NN based espresso interaction model.
     """
+
     def __init__(
-            self,
-            actor: torch.nn.Sequential,
-            observable: Observable,
-            critic: torch.nn.Sequential = None,
-            reward_cls: Task = None,
-            record: bool = False
+        self,
+        actor: torch.nn.Sequential,
+        observable: Observable,
+        critic: torch.nn.Sequential = None,
+        reward_cls: Task = None,
+        record: bool = False,
     ):
         """
         Constructor for the NNModel.
@@ -58,14 +58,14 @@ class MLModel(InteractionModel):
             "RotateClockwise": rotate_clockwise,
             "Translate": translate,
             "RotateCounterClockwise": rotate_counter_clockwise,
-            "DoNothing": do_nothing
+            "DoNothing": do_nothing,
         }
 
     def _record_parameters(
-            self,
-            action_log_prob: float,
-            action_dist_entropy: float,
-            feature_vector: torch.Tensor
+        self,
+        action_log_prob: float,
+        action_dist_entropy: float,
+        feature_vector: torch.Tensor,
     ):
         """
         Record the outputs of the model.
@@ -93,7 +93,9 @@ class MLModel(InteractionModel):
         except AttributeError:
             reward = None
 
-        self.recorded_values.append([action_log_prob, value, reward, action_dist_entropy])
+        self.recorded_values.append(
+            [action_log_prob, value, reward, action_dist_entropy]
+        )
 
     def calc_action(self, colloid, other_colloids) -> Action:
         """
@@ -119,6 +121,8 @@ class MLModel(InteractionModel):
         if self.record:
             action_log_prob = action_distribution.log_prob(action_idx)
             distribution_entropy = action_distribution.entropy()
-            self._record_parameters(action_log_prob, distribution_entropy, feature_vector)
+            self._record_parameters(
+                action_log_prob, distribution_entropy, feature_vector
+            )
 
         return self.actions[list(self.actions)[action_idx]]

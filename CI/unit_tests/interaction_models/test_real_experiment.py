@@ -1,6 +1,7 @@
+import unittest as ut
+
 import swarmrl.engine.real_experiment
 import swarmrl.models.dummy_models
-import unittest as ut
 
 
 class TestRealExperiment(ut.TestCase):

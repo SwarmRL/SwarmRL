@@ -5,15 +5,17 @@ Notes
 -----
 https://spinningup.openai.com/en/latest/algorithms/vpg.html
 """
-import torch
 from typing import Tuple
-import torch.nn.functional
+
 import numpy as np
+import torch
+import torch.nn.functional
+
 from swarmrl.losses.loss import Loss
 
 
 def compute_true_value_function(
-        rewards: torch.tensor, gamma: float = 0.99, standardize: bool = True
+    rewards: torch.tensor, gamma: float = 0.99, standardize: bool = True
 ):
     """
     Compute the true value function from the rewards.
@@ -34,9 +36,7 @@ def compute_true_value_function(
     """
     n_episodes = rewards.shape[1]  # number of episodes.
     n_particles = rewards.shape[0]
-    true_value_function = np.zeros(
-        shape=(n_particles, n_episodes), dtype=np.float64
-    )
+    true_value_function = np.zeros(shape=(n_particles, n_episodes), dtype=np.float64)
     current_value_state = np.zeros(n_particles)
 
     for i in range(n_episodes)[::-1]:
@@ -49,13 +49,13 @@ def compute_true_value_function(
     if standardize:
         mean = torch.reshape(torch.mean(true_value_function, dim=1), (n_particles, 1))
         std = torch.reshape(torch.std(true_value_function, dim=1), (n_particles, 1))
-        true_value_function = ((true_value_function - mean) / std)
+        true_value_function = (true_value_function - mean) / std
 
     return true_value_function
 
 
 def compute_critic_loss(
-        predicted_rewards: torch.Tensor, rewards: torch.Tensor
+    predicted_rewards: torch.Tensor, rewards: torch.Tensor
 ) -> np.ndarray:
     """
     Compute the critic loss.
@@ -76,7 +76,7 @@ def compute_critic_loss(
     loss_vector = np.zeros((n_particles,))
 
     for i in range(n_particles):
-        loss_vector[i] = torch.nn.MSELoss(reduction='mean')(
+        loss_vector[i] = torch.nn.MSELoss(reduction="mean")(
             torch.tensor(predicted_rewards[i]), expected_returns[i]
         )
 
@@ -84,9 +84,9 @@ def compute_critic_loss(
 
 
 def compute_actor_loss(
-        log_probs: torch.Tensor,
-        predicted_values: torch.Tensor,
-        rewards: torch.Tensor,
+    log_probs: torch.Tensor,
+    predicted_values: torch.Tensor,
+    rewards: torch.Tensor,
 ) -> torch.Tensor:
     """
     Compute the actor loss.
@@ -127,11 +127,11 @@ class PolicyGradientLoss(Loss):
         super(Loss, self).__init__()
 
     def compute_loss(
-            self,
-            log_probabilities: torch.Tensor,
-            values: torch.Tensor,
-            rewards: torch.Tensor,
-            entropy: torch.Tensor
+        self,
+        log_probabilities: torch.Tensor,
+        values: torch.Tensor,
+        rewards: torch.Tensor,
+        entropy: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute the loss functions for the actor and critic based on the reward.
@@ -141,9 +141,7 @@ class PolicyGradientLoss(Loss):
         loss_tuple : tuple
                 (actor_loss, critic_loss)
         """
-        actor_loss = compute_actor_loss(
-            log_probabilities, values, rewards
-        )
+        actor_loss = compute_actor_loss(log_probabilities, values, rewards)
         critic_loss = compute_critic_loss(values, rewards)
 
         return (

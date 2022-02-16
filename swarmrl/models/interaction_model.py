@@ -1,10 +1,11 @@
 """
 Model to compute external forces in an espresso simulation.
 """
-import torch
-import numpy as np
-from typing import Union
 import dataclasses
+from typing import Union
+
+import numpy as np
+import torch
 
 
 @dataclasses.dataclass

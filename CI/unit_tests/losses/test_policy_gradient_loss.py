@@ -2,13 +2,12 @@
 Run a unit test on the loss module.
 """
 import pytest
-from swarmrl.losses.policy_gradient_loss import (
-    PolicyGradientLoss,
-    compute_actor_loss,
-    compute_critic_loss,
-    compute_true_value_function
-)
 import torch
+
+from swarmrl.losses.policy_gradient_loss import (PolicyGradientLoss,
+                                                 compute_actor_loss,
+                                                 compute_critic_loss,
+                                                 compute_true_value_function)
 
 
 class TestLoss:
@@ -37,7 +36,7 @@ class TestLoss:
                 [7, 7, 7, 7, 7],
                 [8, 8, 8, 8, 8],
                 [9, 9, 9, 9, 9],
-                [10, 10, 10, 10, 10]
+                [10, 10, 10, 10, 10],
             ]
         )
 
@@ -52,16 +51,16 @@ class TestLoss:
         """
         target_values = torch.tensor(
             [
-                [5., 4., 3., 2., 1.],
-                [10., 8., 6., 4., 2.],
-                [15., 12., 9., 6., 3.],
-                [20., 16., 12., 8., 4.],
-                [25., 20., 15., 10., 5.],
-                [30., 24., 18., 12., 6.],
-                [35., 28., 21., 14., 7.],
-                [40., 32., 24., 16., 8.],
-                [45., 36., 27., 18., 9.],
-                [50., 40., 30., 20., 10.]
+                [5.0, 4.0, 3.0, 2.0, 1.0],
+                [10.0, 8.0, 6.0, 4.0, 2.0],
+                [15.0, 12.0, 9.0, 6.0, 3.0],
+                [20.0, 16.0, 12.0, 8.0, 4.0],
+                [25.0, 20.0, 15.0, 10.0, 5.0],
+                [30.0, 24.0, 18.0, 12.0, 6.0],
+                [35.0, 28.0, 21.0, 14.0, 7.0],
+                [40.0, 32.0, 24.0, 16.0, 8.0],
+                [45.0, 36.0, 27.0, 18.0, 9.0],
+                [50.0, 40.0, 30.0, 20.0, 10.0],
             ]
         )
         value_function = compute_true_value_function(
@@ -77,9 +76,7 @@ class TestLoss:
         -----
         Test that the expected returns are correct.
         """
-        discounted_returns = compute_true_value_function(
-            rewards=self.rewards
-        )
+        discounted_returns = compute_true_value_function(rewards=self.rewards)
         torch.testing.assert_allclose(torch.mean(discounted_returns[0]).numpy(), 0.0)
         torch.testing.assert_allclose(torch.mean(discounted_returns[1]).numpy(), 0.0)
         torch.testing.assert_allclose(torch.mean(discounted_returns[2]).numpy(), 0.0)
@@ -99,32 +96,15 @@ class TestLoss:
         -------
 
         """
-        rewards = torch.tensor(
-            [
-                [1, 2, 3, 4, 5],
-                [1, 2, 3, 4, 5]
-            ]
-        )
+        rewards = torch.tensor([[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]])
 
         action_probs = torch.nn.Softmax()(
-            torch.tensor(
-                [
-                    [1., 2., 3., 4., 5.],
-                    [1., 2., 3., 4., 5.]
-                ]
-            )
+            torch.tensor([[1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 2.0, 3.0, 4.0, 5.0]])
         )
 
-        predicted_rewards = torch.tensor(
-            [
-                [1, 2, 3, 4, 5],
-                [1, 2, 3, 4, 5]
-            ]
-        )
+        predicted_rewards = torch.tensor([[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]])
         actor_loss = compute_actor_loss(
-            log_probs=action_probs,
-            rewards=rewards,
-            predicted_values=predicted_rewards
+            log_probs=action_probs, rewards=rewards, predicted_values=predicted_rewards
         )
 
         assert float(actor_loss[0].numpy()) == pytest.approx(5.455, 0.001)
@@ -139,21 +119,12 @@ class TestLoss:
         -------
 
         """
-        rewards = torch.tensor(
-            [
-                [1., 2., 3., 4., 5.],
-                [1., 2., 3., 4., 5.]
-            ]
-        )
+        rewards = torch.tensor([[1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 2.0, 3.0, 4.0, 5.0]])
         predicted_rewards = torch.tensor(
-            [
-                [2., 3., 4., 5., 6.],
-                [2., 3., 4., 5., 6.]
-            ]
+            [[2.0, 3.0, 4.0, 5.0, 6.0], [2.0, 3.0, 4.0, 5.0, 6.0]]
         )
         critic_loss = compute_critic_loss(
-            rewards=rewards,
-            predicted_rewards=predicted_rewards
+            rewards=rewards, predicted_rewards=predicted_rewards
         )
         assert len(critic_loss) == 2
         assert critic_loss[0] == critic_loss[1]

@@ -7,22 +7,24 @@ with their radius of gyration. The idea being that they should form a ring aroun
 gyration reward may be adjusted such that the colloids form a tighter or wider ring.
 """
 from abc import ABC
+
+import numpy as np
 import torch
 
 from swarmrl.tasks.task import Task
-import numpy as np
 
 
 class FindLocation(Task, ABC):
     """
     Find a location in a box using distances.
     """
+
     max_distance: float
 
     def __init__(
-            self,
-            location: np.ndarray = np.array([0.0, 0.0, 0.0]),
-            side_length: np.ndarray = np.array([1.0, 1.0, 1.0])
+        self,
+        location: np.ndarray = np.array([0.0, 0.0, 0.0]),
+        side_length: np.ndarray = np.array([1.0, 1.0, 1.0]),
     ):
         """
         Constructor for the find origin task.
