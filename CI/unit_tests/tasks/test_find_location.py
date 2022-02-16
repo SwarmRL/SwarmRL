@@ -51,7 +51,6 @@ class TestFindLocation:
         self.task.location = np.array([0., 0., 0.])
         self.task.side_length = np.array([1000.0, 1000.0, 1000.0])
         self.task._compute_max_distance()  # recompute this attribute
-        print(self.task.max_distance)
         bad_reward = self.task.compute_reward(np.array([1000.0, 1000.0, 0.0]))
         good_reward = self.task.compute_reward(np.array([0, 0, 0.0]))
         mixed_reward = self.task.compute_reward(np.array([1000.0, 0.0, 0.0]))
