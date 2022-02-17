@@ -94,7 +94,7 @@ class MLPRL:
         """
         self.actor.update_model(loss)
 
-    def _format_episode_data(self, episode_data: np.ndarray) -> Tuple:
+    def _format_episode_data(self, episode_data: torch.Tensor) -> Tuple:
         """
         Format the episode data to use in the training.
 
@@ -165,7 +165,7 @@ class MLPRL:
         interaction_model : MLModel
                 Interaction model to use in the next episode.
         """
-        episode_data = torch.tensor(interaction_model.recorded_values).detach().numpy()
+        episode_data = torch.tensor(interaction_model.recorded_values)
 
         log_prob, values, rewards, entropy = self._format_episode_data(episode_data)
 

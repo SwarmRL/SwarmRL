@@ -121,6 +121,7 @@ def run_simulation():
     # Define networks
     critic_stack = torch.nn.Sequential(
         torch.nn.Linear(3, 128),
+        torch.nn.ReLU(),
         torch.nn.Linear(128, 1),
     )
     actor_stack = torch.nn.Sequential(
@@ -166,4 +167,4 @@ if __name__ == '__main__':
     """
     run_simulation()
     run_analysis()
-    # visualize_particles()
+    visualize_particles()

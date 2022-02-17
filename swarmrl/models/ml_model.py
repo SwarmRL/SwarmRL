@@ -49,9 +49,9 @@ class MLModel(InteractionModel):
         self.record = record
         self.recorded_values = []
 
-        translate = Action(force=100.0)
-        rotate_clockwise = Action(torque=np.array([0.0, 0.0, 100]))
-        rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -100]))
+        translate = Action(force=10.0)
+        rotate_clockwise = Action(torque=np.array([0.0, 0.0, 1]))
+        rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -1]))
         do_nothing = Action()
 
         self.actions = {
@@ -119,6 +119,8 @@ class MLModel(InteractionModel):
         if self.record:
             action_log_prob = action_distribution.log_prob(action_idx)
             distribution_entropy = action_distribution.entropy()
-            self._record_parameters(action_log_prob, distribution_entropy, feature_vector)
+            self._record_parameters(
+                action_log_prob, distribution_entropy, feature_vector
+            )
 
         return self.actions[list(self.actions)[action_idx]]

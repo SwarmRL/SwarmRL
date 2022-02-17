@@ -35,23 +35,29 @@ class FindLocation(Task, ABC):
                 Box length from which normalization is performed in each dimension.
         """
         super(FindLocation, self).__init__()
-        self.location = location
-        self.side_length = side_length
+        self.location = torch.tensor(location)
+        self.side_length = torch.tensor(side_length)
         self._compute_max_distance()
 
     def _compute_max_distance(self):
         """
-
-        Returns
-        -------
-
+        Compute the max distance between the desired point and any other point in the
+        box.
         """
         reduced_position = self.location / self.side_length
         corner_distances = [
-            np.linalg.norm(reduced_position - [1, 1, 0]),
-            np.linalg.norm(reduced_position - [1, -1, 0]),
-            np.linalg.norm(reduced_position - [-1, 1, 0]),
-            np.linalg.norm(reduced_position - [-1, -1, 0]),
+            np.linalg.norm(
+                reduced_position - torch.tensor([1, 1, 0])
+            ),
+            np.linalg.norm(
+                reduced_position - torch.tensor([1, -1, 0])
+            ),
+            np.linalg.norm(
+                reduced_position - torch.tensor([-1, 1, 0])
+            ),
+            np.linalg.norm(
+                reduced_position - torch.tensor([-1, -1, 0])
+            ),
         ]
         self.max_distance = max(corner_distances)
 
@@ -71,7 +77,7 @@ class FindLocation(Task, ABC):
         """
         distance_vector = (observable - self.location) / self.side_length
 
-        absolute_distance = self.max_distance - np.linalg.norm(distance_vector)
+        absolute_distance = self.max_distance - torch.linalg.norm(distance_vector)
 
         return absolute_distance
 

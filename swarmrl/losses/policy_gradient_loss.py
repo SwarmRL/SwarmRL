@@ -34,17 +34,17 @@ def compute_true_value_function(
     """
     n_episodes = rewards.shape[1]  # number of episodes.
     n_particles = rewards.shape[0]
-    true_value_function = np.zeros(
-        shape=(n_particles, n_episodes), dtype=np.float64
+    true_value_function = torch.zeros(
+        n_particles, n_episodes
     )
-    current_value_state = np.zeros(n_particles)
+    current_value_state = torch.zeros(n_particles)
 
     for i in range(n_episodes)[::-1]:
-        current_value_state = rewards[:, i] + current_value_state * gamma
+        current_value_state = torch.tensor(rewards)[:, i] + current_value_state * gamma
 
         true_value_function[:, i] = current_value_state
 
-    true_value_function = torch.tensor(true_value_function)
+    true_value_function = torch.tensor(true_value_function, requires_grad=True)
     # Standardize the value function.
     if standardize:
         mean = torch.reshape(torch.mean(true_value_function, dim=1), (n_particles, 1))
@@ -56,7 +56,7 @@ def compute_true_value_function(
 
 def compute_critic_loss(
         predicted_rewards: torch.Tensor, rewards: torch.Tensor
-) -> np.ndarray:
+) -> torch.Tensor:
     """
     Compute the critic loss.
 
@@ -73,7 +73,7 @@ def compute_critic_loss(
     """
     n_particles = predicted_rewards.shape[0]
     expected_returns = compute_true_value_function(rewards)
-    loss_vector = np.zeros((n_particles,))
+    loss_vector = torch.zeros(n_particles)
 
     for i in range(n_particles):
         loss_vector[i] = torch.nn.MSELoss(reduction='mean')(
@@ -105,7 +105,7 @@ def compute_actor_loss(
 
     """
     value_function = compute_true_value_function(rewards)
-    advantage = value_function - predicted_values
+    advantage = value_function - torch.tensor(predicted_values)
 
     losses = -1 * torch.sum(torch.tensor(log_probs) * advantage, dim=1)
 
@@ -146,7 +146,4 @@ class PolicyGradientLoss(Loss):
         )
         critic_loss = compute_critic_loss(values, rewards)
 
-        return (
-            torch.tensor(actor_loss, requires_grad=True),
-            torch.tensor(critic_loss, requires_grad=True),
-        )
+        return actor_loss, critic_loss
