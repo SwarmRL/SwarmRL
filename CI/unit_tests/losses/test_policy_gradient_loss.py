@@ -4,10 +4,12 @@ Run a unit test on the loss module.
 import pytest
 import torch
 
-from swarmrl.losses.policy_gradient_loss import (PolicyGradientLoss,
-                                                 compute_actor_loss,
-                                                 compute_critic_loss,
-                                                 compute_true_value_function)
+from swarmrl.losses.policy_gradient_loss import (
+    PolicyGradientLoss,
+    compute_actor_loss,
+    compute_critic_loss,
+    compute_true_value_function,
+)
 
 
 class TestLoss:

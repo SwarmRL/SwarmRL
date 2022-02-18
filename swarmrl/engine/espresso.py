@@ -424,10 +424,16 @@ class EspressoMD(Engine):
                     for val in self.traj_holder.values():
                         val.clear()
 
-            for coll in self.colloids:
-                other_colloids = [c for c in self.colloids if c is not coll]
+            swarmrl_colloids = []
+            for col in self.colloids:
+                swarmrl_colloids.append(
+                    swarmrl.models.interaction_model.Colloid(
+                        pos=col.pos, director=col.director, id=col.id
+                    )
+                )
+            actions = force_model.calc_action(swarmrl_colloids)
+            for action, coll in zip(actions, self.colloids):
                 # update the state of an active learner, ignored by non ML models.
-                action = force_model.calc_action(coll, other_colloids)
                 coll.swimming = {"f_swim": action.force}
                 coll.ext_torque = action.torque
                 new_direction = action.new_direction

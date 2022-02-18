@@ -1,7 +1,6 @@
 import tempfile
 import unittest as ut
 
-import context
 import numpy as np
 import pint
 

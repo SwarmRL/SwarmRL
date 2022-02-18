@@ -2,7 +2,6 @@ import pathlib as pl
 import tempfile
 import unittest as ut
 
-import context
 import h5py
 import numpy as np
 import pint
