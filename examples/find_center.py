@@ -154,8 +154,8 @@ def run_simulation():
     n_slices = int(run_params['sim_duration'] / md_params.time_slice)
 
     force_fn = rl_trainer.initialize_training()
-    for _ in tqdm.tqdm(range(2000)):
-        system_runner.integrate(int(np.ceil(n_slices / 500)), force_fn)
+    for _ in tqdm.tqdm(range(1000)):
+        system_runner.integrate(int(np.ceil(n_slices / 100)), force_fn)
         force_fn = rl_trainer.update_rl(force_fn)
 
     system_runner.finalize()
