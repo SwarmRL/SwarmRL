@@ -85,6 +85,7 @@ class MLModel(InteractionModel):
         Updates the class state.
         """
         try:
+            # Start critic leaf
             value = self.critic(feature_vector)
         except TypeError:
             value = None
@@ -93,7 +94,10 @@ class MLModel(InteractionModel):
         except AttributeError:
             reward = None
 
-        self.recorded_values.append([action_log_prob, value, reward, action_dist_entropy])
+        # Gradients exist here.
+        self.recorded_values.append(
+            [action_log_prob, value, reward, action_dist_entropy]
+        )
 
     def calc_action(self, colloid, other_colloids) -> Action:
         """
@@ -112,12 +116,13 @@ class MLModel(InteractionModel):
         """
         scaling = torch.nn.Softmax()
         feature_vector = self.observable.compute_observable(colloid, other_colloids)
+        # Start leaf for actor gradient.
         action_probabilities = scaling(self.actor(feature_vector))
         action_distribution = Categorical(action_probabilities)
         action_idx = action_distribution.sample()
 
         if self.record:
-            action_log_prob = action_distribution.log_prob(action_idx)
+            action_log_prob = action_distribution.log_prob(action_idx) # grad here
             distribution_entropy = action_distribution.entropy()
             self._record_parameters(
                 action_log_prob, distribution_entropy, feature_vector
