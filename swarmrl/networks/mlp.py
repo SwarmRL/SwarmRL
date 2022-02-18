@@ -40,7 +40,7 @@ class MLP(Network):
         super(MLP, self).__init__()
         self.model = layer_stack
 
-    def update_model(self, loss_vector: torch.Tensor):
+    def update_model(self, loss_vector: torch.Tensor, retain: bool = False):
         """
         Update the model.
 
@@ -51,8 +51,13 @@ class MLP(Network):
                 The elements of the loss vector MUST be torch tensors in order for the
                 backward() method to work.
         """
-        for _ in range(10):
-            for loss in loss_vector:
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
+        # for _ in range(10):
+        for i, loss in enumerate(loss_vector):
+            if i == 0:
+                total_loss = loss
+            else:
+                total_loss = total_loss + loss
+
+        self.optimizer.zero_grad()
+        total_loss.backward(retain_graph=retain)
+        self.optimizer.step()

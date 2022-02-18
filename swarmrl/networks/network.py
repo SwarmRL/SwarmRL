@@ -19,7 +19,7 @@ class Network(torch.nn.Module):
         self.optimizer = optimizer
         self.model = torch.nn.Module
 
-    def update_model(self, loss_vector: torch.Tensor):
+    def update_model(self, loss_vector: torch.Tensor, retain: bool = False):
         """
         Update the model.
 

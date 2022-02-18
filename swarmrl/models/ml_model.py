@@ -9,6 +9,7 @@ from swarmrl.tasks.task import Task
 
 import numpy as np
 import torch
+import torch.nn.functional
 from torch.distributions import Categorical
 
 
@@ -18,9 +19,8 @@ class MLModel(InteractionModel):
     """
     def __init__(
             self,
-            actor: torch.nn.Sequential,
+            gym,
             observable: Observable,
-            critic: torch.nn.Sequential = None,
             reward_cls: Task = None,
             record: bool = False
     ):
@@ -42,8 +42,7 @@ class MLModel(InteractionModel):
                 If true, record the outputs of the actor, critic, and reward function.
         """
         super().__init__()
-        self.actor = actor
-        self.critic = critic
+        self.gym = gym
         self.reward_cls = reward_cls
         self.observable = observable
         self.record = record
@@ -85,7 +84,7 @@ class MLModel(InteractionModel):
         Updates the class state.
         """
         try:
-            value = self.critic(feature_vector)
+            value = self.gym.critic.model(feature_vector)
         except TypeError:
             value = None
         try:
@@ -110,17 +109,20 @@ class MLModel(InteractionModel):
         action: Action
                 Return the action the colloid should take.
         """
-        scaling = torch.nn.Softmax()
         feature_vector = self.observable.compute_observable(colloid, other_colloids)
-        action_probabilities = scaling(self.actor(feature_vector))
+
+        action_probabilities = torch.nn.functional.softmax(
+            self.gym.actor.model(feature_vector), dim=-1
+        )
         action_distribution = Categorical(action_probabilities)
         action_idx = action_distribution.sample()
 
         if self.record:
             action_log_prob = action_distribution.log_prob(action_idx)
+
             distribution_entropy = action_distribution.entropy()
             self._record_parameters(
                 action_log_prob, distribution_entropy, feature_vector
             )
 
-        return self.actions[list(self.actions)[action_idx]]
+        return self.actions[list(self.actions)[action_idx.item()]]
