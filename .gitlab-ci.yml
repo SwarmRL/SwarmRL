@@ -19,12 +19,14 @@ stages:
 build-swarmrl:
   stage: build
   script:
-    - python3 --version
-    - pip3 --version
-    - pip3 install --upgrade pip
-    - pip3 install -r requirements.txt
-    - pip3 install -r dev-rerquirements.txt
-    - pip3 install .
+    - which python
+    - which pip
+    - pip --versiob
+    - python --version
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install -r dev-rerquirements.txt
+    - pip install .
 
 #build-espresso:
 #  stage: build
