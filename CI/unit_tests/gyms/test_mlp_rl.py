@@ -1,14 +1,16 @@
 """
 Test the mlp rl module.
 """
-from swarmrl.gyms.mlp_rl import MLPRL
 import numpy as np
+
+from swarmrl.gyms.mlp_rl import MLPRL
 
 
 class TestMLPRL:
     """
     Test the MLP RL module.
     """
+
     @classmethod
     def setup_class(cls):
         """
@@ -20,7 +22,7 @@ class TestMLPRL:
             task=None,
             loss=None,
             observable=None,
-            n_particles=2
+            n_particles=2,
         )
 
     def test_format_episode_data(self):
@@ -47,5 +49,3 @@ class TestMLPRL:
         np.testing.assert_array_equal(target_probs, probs)
         np.testing.assert_array_equal(target_values, values)
         np.testing.assert_array_equal(target_rewards, rewards)
-
-

@@ -15,4 +15,4 @@ package you need not reinstall.
 
 Getting started
 ===============
-The ideal flow is written out in the examples directory. Nothing runs yet.
+Go to examples and run it with espresso.

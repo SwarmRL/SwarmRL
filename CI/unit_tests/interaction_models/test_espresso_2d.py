@@ -1,11 +1,11 @@
-import context
+import tempfile
+import unittest as ut
+
+import numpy as np
+import pint
 
 from swarmrl.engine import espresso
 from swarmrl.models import dummy_models
-import pint
-import numpy as np
-import unittest as ut
-import tempfile
 
 
 class EspressoTest2D(ut.TestCase):

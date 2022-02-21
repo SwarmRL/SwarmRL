@@ -3,13 +3,15 @@ Module to implement a simple multi-layer perceptron for the colloids.
 """
 from typing import Tuple
 
+import numpy as np
+import torch
+
+from swarmrl.losses.loss import Loss
+from swarmrl.models.interaction_model import InteractionModel
+from swarmrl.models.ml_model import MLModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-from swarmrl.losses.loss import Loss
-from swarmrl.models.ml_model import MLModel
-import torch
-torch.autograd.set_detect_anomaly(True)
 
 
 class MLPRL:
@@ -36,7 +38,7 @@ class MLPRL:
         task: Task,
         loss: Loss,
         observable: Observable,
-        n_particles: int
+        n_particles: int,
     ):
         """
         Constructor for the MLP RL.
@@ -174,7 +176,7 @@ class MLPRL:
             gym=self,
             observable=self.observable,
             reward_cls=self.task,
-            record=True
+            record=True,
         )
 
     def update_rl(self, interaction_model: MLModel) -> MLModel:
@@ -228,7 +230,7 @@ class MLPRL:
             gym=self,
             observable=self.observable,
             reward_cls=self.task,
-            record=True
+            record=True,
         )
 
         return interaction_model

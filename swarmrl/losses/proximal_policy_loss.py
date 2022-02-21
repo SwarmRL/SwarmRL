@@ -6,7 +6,9 @@ Notes
 https://spinningup.openai.com/en/latest/algorithms/ppo.html
 """
 from abc import ABC
+
 import torch
+
 from swarmrl.losses.loss import Loss
 
 
@@ -14,6 +16,7 @@ class ProximalPolicyLoss(Loss, ABC):
     """
     Class to implement the proximal policy loss.
     """
+
     def _compute_ratios(self):
         """
         Compute the policy ratios.
@@ -54,11 +57,11 @@ class ProximalPolicyLoss(Loss, ABC):
         pass
 
     def compute_loss(
-            self,
-            log_probabilities: torch.Tensor,
-            values: torch.Tensor,
-            rewards: torch.Tensor,
-            entropy: torch.Tensor
+        self,
+        log_probabilities: torch.Tensor,
+        values: torch.Tensor,
+        rewards: torch.Tensor,
+        entropy: torch.Tensor,
     ):
         """
         Compute the Proximal policy loss.

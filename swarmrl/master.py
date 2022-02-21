@@ -1,8 +1,7 @@
+import numpy as np
+import pint
 from engine import espresso
 from models import dummy_models
-import pint
-import numpy as np
-
 
 if __name__ == "__main__":
     com_force_rule = dummy_models.ToCenterMass(1000, vision_angle=np.pi / 2.0)

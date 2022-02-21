@@ -5,6 +5,7 @@
 
 Welcome to SwarmRL's documentation!
 ===================================
+I'd like to start writing docs.
 
 .. toctree::
    :maxdepth: 2

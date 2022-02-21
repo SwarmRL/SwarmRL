@@ -6,15 +6,17 @@ try:
     from espressomd import System, visualization
 except ModuleNotFoundError:
     print("WARNING: Could not find espressomd. Features will not be available")
-import numpy as np
-import h5py
-import os
-import logging
 import dataclasses
+import logging
+import os
+
+import h5py
+import numpy as np
 import pint
 
-from .engine import Engine
 import swarmrl.models.interaction_model
+
+from .engine import Engine
 
 
 @dataclasses.dataclass()
@@ -294,10 +296,10 @@ class EspressoMD(Engine):
             4.0
             / 3.0
             * np.pi
-            * self.params.colloid_radius ** 3
+            * self.params.colloid_radius**3
             * self.params.colloid_density
         ).m_as("sim_mass")
-        colloid_rinertia = 2.0 / 5.0 * colloid_mass * colloid_radius ** 2
+        colloid_rinertia = 2.0 / 5.0 * colloid_mass * colloid_radius**2
 
         for _ in range(self.params.n_colloids):
             start_pos = _get_random_start_pos(init_radius, box_l, rng)
@@ -356,7 +358,7 @@ class EspressoMD(Engine):
             8
             * np.pi
             * self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity")
-            * colloid_radius ** 3
+            * colloid_radius**3
         )
 
         # remove overlap
@@ -422,10 +424,16 @@ class EspressoMD(Engine):
                     for val in self.traj_holder.values():
                         val.clear()
 
-            for coll in self.colloids:
-                other_colloids = [c for c in self.colloids if c is not coll]
+            swarmrl_colloids = []
+            for col in self.colloids:
+                swarmrl_colloids.append(
+                    swarmrl.models.interaction_model.Colloid(
+                        pos=col.pos, director=col.director, id=col.id
+                    )
+                )
+            actions = force_model.calc_action(swarmrl_colloids)
+            for action, coll in zip(actions, self.colloids):
                 # update the state of an active learner, ignored by non ML models.
-                action = force_model.calc_action(coll, other_colloids)
                 coll.swimming = {"f_swim": action.force}
                 coll.ext_torque = action.torque
                 new_direction = action.new_direction

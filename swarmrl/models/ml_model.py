@@ -2,21 +2,21 @@
 Espresso interaction model capable of handling a neural network as a function.
 """
 
-from swarmrl.models.interaction_model import InteractionModel
-from swarmrl.observables.observable import Observable
-from swarmrl.models.interaction_model import Action
-from swarmrl.tasks.task import Task
-
 import numpy as np
 import torch
 import torch.nn.functional
 from torch.distributions import Categorical
+
+from swarmrl.models.interaction_model import Action, InteractionModel
+from swarmrl.observables.observable import Observable
+from swarmrl.tasks.task import Task
 
 
 class MLModel(InteractionModel):
     """
     Class for a NN based espresso interaction model.
     """
+
     def __init__(
             self,
             gym,
@@ -57,14 +57,14 @@ class MLModel(InteractionModel):
             "RotateClockwise": rotate_clockwise,
             "Translate": translate,
             "RotateCounterClockwise": rotate_counter_clockwise,
-            "DoNothing": do_nothing
+            "DoNothing": do_nothing,
         }
 
     def _record_parameters(
-            self,
-            action_log_prob: float,
-            action_dist_entropy: float,
-            feature_vector: torch.Tensor
+        self,
+        action_log_prob: float,
+        action_dist_entropy: float,
+        feature_vector: torch.Tensor,
     ):
         """
         Record the outputs of the model.
@@ -92,7 +92,9 @@ class MLModel(InteractionModel):
         except AttributeError:
             reward = None
 
-        self.recorded_values.append([action_log_prob, value, reward, action_dist_entropy])
+        self.recorded_values.append(
+            [action_log_prob, value, reward, action_dist_entropy]
+        )
 
     def calc_action(self, colloid, other_colloids) -> Action:
         """

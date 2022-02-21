@@ -1,7 +1,7 @@
 # espresso does not allow multiple instances of a system. therefore we need to spawn the tests one by one manually
 
-import pathlib
 import os
+import pathlib
 
 test_root_dir = pathlib.Path(__file__).resolve().parent
 test_files = sorted(test_root_dir.glob("./**/test_*.py"))

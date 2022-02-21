@@ -5,10 +5,12 @@ Notes
 -----
 https://spinningup.openai.com/en/latest/algorithms/vpg.html
 """
-import torch
 from typing import Tuple
-import torch.nn.functional
+
 import numpy as np
+import torch
+import torch.nn.functional
+
 from swarmrl.losses.loss import Loss
 
 

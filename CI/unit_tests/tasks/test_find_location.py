@@ -1,8 +1,9 @@
 """
 Test the find origin task.
 """
-import pytest
 import numpy as np
+import pytest
+
 from swarmrl.tasks.searching.find_location import FindLocation
 
 
@@ -10,6 +11,7 @@ class TestFindLocation:
     """
     Test the find location task.
     """
+
     @classmethod
     def setup_class(cls):
         """
@@ -48,7 +50,7 @@ class TestFindLocation:
 
         Should return the same results as the first test on a much larger box.
         """
-        self.task.location = np.array([0., 0., 0.])
+        self.task.location = np.array([0.0, 0.0, 0.0])
         self.task.side_length = np.array([1000.0, 1000.0, 1000.0])
         self.task._compute_max_distance()  # recompute this attribute
         bad_reward = self.task.compute_reward(np.array([1000.0, 1000.0, 0.0]))

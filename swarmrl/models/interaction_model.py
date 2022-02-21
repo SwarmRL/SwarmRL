@@ -1,10 +1,22 @@
 """
 Model to compute external forces in an espresso simulation.
 """
-import torch
-import numpy as np
-from typing import Union
 import dataclasses
+
+import typing
+
+import numpy as np
+import torch
+
+
+@dataclasses.dataclass(frozen=True)
+class Colloid:
+    pos: np.ndarray
+    director: np.ndarray
+    id: int
+
+    def __eq__(self, other):
+        return self.id == other.id
 
 
 @dataclasses.dataclass
@@ -25,19 +37,18 @@ class InteractionModel(torch.nn.Module):
     Inherits from the module class of Torch.
     """
 
-    def calc_action(self, colloid, other_colloids) -> Action:
+    def calc_action(self, colloids: typing.List[Colloid]) -> typing.List[Action]:
         """
         Compute the next action on colloid.
 
         Parameters
         ----------
-        colloid : object
-                Colloid for which an action is being computed
-        other_colloids
-                Other colloids in the system.
+        colloids : list
+                List of all Colloids for which an action is being computed
 
         Returns
         -------
-        The action
+        action : list
+                List of Actions for all Colloids in the same order as input colloids
         """
         raise NotImplementedError("Interaction models must define a calc_action method")

@@ -1,26 +1,11 @@
 import dataclasses
 import unittest as ut
+
 import numpy as np
-import context
+
 import swarmrl.models.bechinger_models
 
-
-@dataclasses.dataclass
-class MockColloid:
-    id: int = 0
-    pos: np.ndarray = np.array([0, 0, 0])
-    director: np.ndarray = np.array([1, 0, 0])
-    pos_folded: np.ndarray = np.array([0, 0, 0])
-    mass: float = 1
-
-    def __eq__(self, other):
-        return (
-            self.id == other.id
-            and np.all(self.pos == other.pos)
-            and np.all(self.director == other.director)
-            and np.all(self.pos_folded == other.pos_folded)
-            and self.mass == other.mass
-        )
+import swarmrl.models.interaction_model as int_mod
 
 
 class TestLavergne(ut.TestCase):
@@ -37,23 +22,31 @@ class TestLavergne(ut.TestCase):
 
     def test_force(self):
         orientation = np.array([1, 0, 0])
-        test_coll = MockColloid(pos=[0, 0, 0], director=orientation)
-        coll_front = MockColloid(pos=[100, 0, 0])
-        coll_back = MockColloid(pos=[-0.01, 0, 0])
-        coll_side = MockColloid(pos=[0, 0.01, 0])
-
-        action = self.force_model.calc_action(
-            test_coll, [coll_front, coll_back, coll_side]
+        test_coll = int_mod.Colloid(pos=np.array([0, 0, 0]), director=orientation, id=1)
+        coll_front = int_mod.Colloid(
+            pos=np.array([100, 0, 0]), director=orientation, id=2
         )
-        force_is = action.force
+        coll_back = int_mod.Colloid(
+            pos=np.array([-0.01, 0, 0]), director=orientation, id=3
+        )
+        coll_side = int_mod.Colloid(
+            pos=np.array([0, 0.01, 0]), director=orientation, id=4
+        )
+
+        colloids = [test_coll, coll_front, coll_back, coll_side]
+
+        action = self.force_model.calc_action(colloids)
+        force_is = action[0].force
         # front colloid too far, back not visible
         self.assertAlmostEqual(force_is, 0)
 
-        coll_front.pos = [0.1, 0, 0]
-        action = self.force_model.calc_action(
-            test_coll, [coll_front, coll_back, coll_side]
+        coll_front_close = int_mod.Colloid(
+            pos=np.array([0.1, 0, 0]), director=orientation, id=5
         )
-        force_is = action.force
+        colloids.append(coll_front_close)
+
+        action = self.force_model.calc_action(colloids)
+        force_is = action[0].force
         # front close -> activity along orientation
         self.assertAlmostEqual(force_is, self.act_force)
 
@@ -77,15 +70,25 @@ class TestBaeuerle(ut.TestCase):
         )
 
     def test_torque(self):
-        test_coll = MockColloid(pos=np.array([0, 0, 0]), director=np.array([1, 0, 0]))
-        front_coll = MockColloid(pos=np.array([1, 0.1, 0]), director=[0, 1, 0])
-        front_close_coll = MockColloid(pos=[0.2, 0.1, 0], director=[0, -1, 0])
-        front_far_coll = MockColloid(pos=[10, 0, 0], director=[0, 1, 0])
-        side_coll = MockColloid(pos=[0, 0.1, 0])
-
-        action = self.force_model.calc_action(
-            test_coll, [front_coll, front_close_coll, front_far_coll, side_coll]
+        test_coll = int_mod.Colloid(
+            pos=np.array([0, 0, 0]), director=np.array([1, 0, 0]), id=1
         )
+        front_coll = int_mod.Colloid(
+            pos=np.array([1, 0.1, 0]), director=np.array([0, 1, 0]), id=2
+        )
+        front_close_coll = int_mod.Colloid(
+            pos=np.array([0.2, 0.1, 0]), director=np.array([0, -1, 0]), id=3
+        )
+        front_far_coll = int_mod.Colloid(
+            pos=np.array([10, 0, 0]), director=np.array([0, 1, 0]), id=4
+        )
+        side_coll = int_mod.Colloid(
+            pos=np.array([0, 0.1, 0]), director=np.array([0, 1, 0]), id=5
+        )
+
+        colloids = [test_coll, front_coll, front_close_coll, front_far_coll, side_coll]
+
+        action = self.force_model.calc_action(colloids)[0]
         torque = action.torque
         torque_norm = np.linalg.norm(torque)
 
@@ -101,11 +104,21 @@ class TestBaeuerle(ut.TestCase):
 
 class TestUtils(ut.TestCase):
     def test_coll_in_vision(self):
-        test_coll = MockColloid(pos=np.array([0, 0, 0]), director=np.array([1, 0, 0]))
-        front_coll = MockColloid(pos=np.array([1.1, 0, 0]))
-        front_far_coll = MockColloid(pos=np.array([100, 0, 0]))
-        side_coll = MockColloid(pos=np.array([0, 0.2, 0]))
-        slight_offset_coll = MockColloid(pos=np.array([1, 0, 0.1]))
+        test_coll = int_mod.Colloid(
+            pos=np.array([0, 0, 0]), director=np.array([1, 0, 0]), id=1
+        )
+        front_coll = int_mod.Colloid(
+            pos=np.array([1.1, 0, 0]), director=np.array([1, 0, 0]), id=2
+        )
+        front_far_coll = int_mod.Colloid(
+            pos=np.array([100, 0, 0]), director=np.array([1, 0, 0]), id=3
+        )
+        side_coll = int_mod.Colloid(
+            pos=np.array([0, 0.2, 0]), director=np.array([1, 0, 0]), id=4
+        )
+        slight_offset_coll = int_mod.Colloid(
+            pos=np.array([1, 0, 0.1]), director=np.array([1, 0, 0]), id=5
+        )
 
         colls_in_range = swarmrl.models.bechinger_models.get_colloids_in_vision(
             test_coll,
