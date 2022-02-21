@@ -79,7 +79,7 @@ class MLPRL:
         -------
         Runs back-propagation on the critic model.
         """
-        self.critic.update_model(loss)
+        self.critic.update_model(loss, retain=True)
 
     def update_actor(self, loss: torch.Tensor):
         """
@@ -93,9 +93,9 @@ class MLPRL:
         -------
         Runs back-propagation on the actor model.
         """
-        self.actor.update_model(loss)
+        self.actor.update_model(loss, retain=True)
 
-    def _format_episode_data(self, episode_data: np.ndarray) -> Tuple:
+    def _format_episode_data(self, episode_data: torch.Tensor) -> Tuple:
         """
         Format the episode data to use in the training.
 
@@ -106,34 +106,62 @@ class MLPRL:
 
         Returns
         -------
-        log_prob : torch.Tensor (n_particles, n_time_steps)
+        log_prob : torch.Tensor (n_time_steps, n_particles)
                 All log probabilities collected during an episode.
-        values : torch.Tensor (n_particles, n_time_steps)
+        values : torch.Tensor (n_time_steps, n_particles)
                 All values collected during the episode.
-        rewards : torch.Tensor (n_particles, n_time_steps)
+        rewards : torch.Tensor (n_time_steps, n_particles)
                 All rewards collected during the episode.
-        entropy : torch.Tensor (n_particles, n_time_steps)
-                Distirbution entropy computed during the run.
+        entropy : torch.Tensor (n_time_steps, n_particles)
+                Distribution entropy computed during the run.
+
+        Notes
+        -----
+        This is a gradient preserving method, that is, if a tensor requiring a gradient
+        comes in here, it is returned also requiring a gradient. DO NOT TOUCH this
+        method unless you know very well what you are doing. If the gradients are not
+        preserved here, the models will NOT train nor will they give you an error.
         """
-        time_steps = int(episode_data.shape[0] / self.n_particles)
+        time_steps = int(len(episode_data) / self.n_particles)
 
-        concat_log_probs = torch.tensor(episode_data[:, 0])
-        concat_values = torch.tensor(episode_data[:, 1])
-        concat_rewards = torch.tensor(episode_data[:, 2])
-        concat_entropy = torch.tensor(episode_data[:, 3])
+        log_probs = []
+        values = []
+        rewards = []
+        entropy = []
 
-        log_probs = np.zeros((self.n_particles, time_steps))
-        values = np.zeros((self.n_particles, time_steps))
-        rewards = np.zeros((self.n_particles, time_steps))
-        entropy = np.zeros((self.n_particles, time_steps))
+        for i in range(time_steps):
+            log_probs_snapshot = []
+            values_snapshot = []
+            rewards_snapshot = []
+            entropy_snapshot = []
+            for j in range(self.n_particles):
+                log_probs_snapshot.append(episode_data[j][0])
+                values_snapshot.append(episode_data[j][1])
+                rewards_snapshot.append(episode_data[j][2])
+                entropy_snapshot.append(episode_data[j][3])
 
-        for i in range(self.n_particles):
-            log_probs[i] = concat_log_probs[i :: self.n_particles]
-            values[i] = concat_values[i :: self.n_particles]
-            rewards[i] = concat_rewards[i :: self.n_particles]
-            entropy[i] = concat_entropy[i :: self.n_particles]
+            log_probs.append(log_probs_snapshot)
+            values.append(values_snapshot)
+            rewards.append(rewards_snapshot)
+            entropy.append(entropy_snapshot)
 
-        return log_probs, values, rewards, entropy
+        # Ensure that gradients have been kept
+        if not log_probs[0][0].requires_grad:
+            err_msg = "WARNING: The values predicted by the actor appear to have lost" \
+                      " their gradient. Without this gradient, the networks will NOT" \
+                      " train. If this was intentional, please ignore this message, if" \
+                      " not, check to see if you have re-cast anything coming out of a" \
+                      " network."
+            print(err_msg)
+        if not values[0][0].requires_grad:
+            err_msg = "WARNING: The values predicted by the critic appear to have lost" \
+                      " their gradient. Without this gradient, the networks will NOT" \
+                      " train. If this was intentional, please ignore this message, if" \
+                      " not, check to see if you have re-cast anything coming out of a" \
+                      " network."
+            print(err_msg)
+
+        return log_probs, values, rewards, entropy, time_steps
 
     def initialize_training(self) -> MLModel:
         """
@@ -145,8 +173,7 @@ class MLPRL:
                 Interaction model to start the simulation with.
         """
         return MLModel(
-            actor=self.actor.model,
-            critic=self.critic.model,
+            gym=self,
             observable=self.observable,
             reward_cls=self.task,
             record=True,
@@ -166,23 +193,41 @@ class MLPRL:
         interaction_model : MLModel
                 Interaction model to use in the next episode.
         """
-        episode_data = torch.tensor(interaction_model.recorded_values).detach().numpy()
+        episode_data = interaction_model.recorded_values
 
-        log_prob, values, rewards, entropy = self._format_episode_data(episode_data)
+        log_prob, values, rewards, entropy, time_steps = self._format_episode_data(
+            episode_data
+        )
 
         # Compute loss for actor and critic.
         actor_loss, critic_loss = self.loss.compute_loss(
-            log_probabilities=log_prob, values=values, rewards=rewards, entropy=entropy
+            log_probabilities=log_prob,
+            values=values,
+            rewards=rewards,
+            entropy=entropy,
+            n_particles=self.n_particles,
+            n_time_steps=time_steps
         )
+
+        if not actor_loss[0].requires_grad:
+            msg = "Actor loss values do not have an associated gradient. This means" \
+                  "that the networks will not train. Please check if you have " \
+                  "cast any tensor coming from a network as this destroys gradients."
+            print(msg)
+        if not critic_loss[0].requires_grad:
+            msg = "Critic loss values do not have an associated gradient. This means" \
+                  "that the networks will not train. Please check if you have " \
+                  "cast any tensor coming from a network as this destroys gradients."
+            print(msg)
 
         # Perform back-propagation.
         self.update_actor(actor_loss)
+
         self.update_critic(critic_loss)
 
         # Create a new interaction model.
         interaction_model = MLModel(
-            actor=self.actor.model,
-            critic=self.critic.model,
+            gym=self,
             observable=self.observable,
             reward_cls=self.task,
             record=True,

@@ -127,6 +127,7 @@ def run_simulation():
     # Define networks
     critic_stack = torch.nn.Sequential(
         torch.nn.Linear(3, 128),
+        torch.nn.ReLU(),
         torch.nn.Linear(128, 1),
     )
     actor_stack = torch.nn.Sequential(
@@ -161,8 +162,8 @@ def run_simulation():
     n_slices = int(run_params["sim_duration"] / md_params.time_slice)
 
     force_fn = rl_trainer.initialize_training()
-    for _ in tqdm.tqdm(range(2000)):
-        system_runner.integrate(int(np.ceil(n_slices / 500)), force_fn)
+    for _ in tqdm.tqdm(range(1000)):
+        system_runner.integrate(int(np.ceil(n_slices / 100)), force_fn)
         force_fn = rl_trainer.update_rl(force_fn)
 
     system_runner.finalize()
@@ -174,4 +175,4 @@ if __name__ == "__main__":
     """
     run_simulation()
     run_analysis()
-    # visualize_particles()
+    visualize_particles()
