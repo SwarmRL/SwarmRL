@@ -51,7 +51,7 @@ class TestMLModel:
         Test that the expected force output is returned by the model.
         """
         colloid = DummyColloid()
-        action = self.interaction.calc_action(colloid, [])
+        action = self.interaction.calc_action([colloid])
 
         assert action.force == 10.0
 
@@ -61,7 +61,7 @@ class TestMLModel:
         """
         torch.manual_seed(5)
         colloid = DummyColloid()
-        action = self.interaction.calc_action(colloid, [])
+        action = self.interaction.calc_action([colloid])
 
         np.testing.assert_array_equal(action.torque, [0.0, 0.0, -0.1])
 
