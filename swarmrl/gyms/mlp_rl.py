@@ -135,10 +135,10 @@ class MLPRL:
             rewards_snapshot = []
             entropy_snapshot = []
             for j in range(self.n_particles):
-                log_probs_snapshot.append(episode_data[j][0])
-                values_snapshot.append(episode_data[j][1])
-                rewards_snapshot.append(episode_data[j][2])
-                entropy_snapshot.append(episode_data[j][3])
+                log_probs_snapshot.append(episode_data[self.n_particles * i + j][0])
+                values_snapshot.append(episode_data[self.n_particles * i + j][1])
+                rewards_snapshot.append(episode_data[self.n_particles * i + j][2])
+                entropy_snapshot.append(episode_data[self.n_particles * i + j][3])
 
             log_probs.append(log_probs_snapshot)
             values.append(values_snapshot)
