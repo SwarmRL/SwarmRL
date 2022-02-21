@@ -42,7 +42,9 @@ class TestMLModel:
 
         observable = srl.observables.PositionObservable()
 
-        cls.interaction = MLModel(actor=model, observable=observable)
+        cls.interaction = MLModel(
+            actor=model, observable=observable
+                                  )
 
     def test_force_selection(self):
         """
