@@ -1,5 +1,5 @@
 numpy
-torch
+pytorch
 pytest
 pint
 h5py

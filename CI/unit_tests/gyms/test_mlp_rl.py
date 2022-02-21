@@ -29,13 +29,16 @@ class TestMLPRL:
         """
         Test that the format data method is working correctly.
         """
-        target_probs = np.array([[1, 2, 3], [5, 6, 7]])
-        target_values = np.array([[1, 2, 3], [5, 6, 7]])
-        target_rewards = np.array([[1, 2, 3], [5, 6, 7]])
+        # target_probs = np.array([[1, 2, 3], [5, 6, 7]])
+        target_probs = np.array([[1, 5], [2, 6], [3, 7]])
+        # target_values = np.array([[1, 2, 3], [5, 6, 7]])
+        target_values = np.array([[1, 5], [2, 6], [3, 7]])
+
+        # target_rewards = np.array([[1, 2, 3], [5, 6, 7]])
+        target_rewards = np.array([[1, 5], [2, 6], [3, 7]])
 
         # 2 particles for 3 time steps
-        input_data = np.array(
-            [
+        input_data = [
                 [1, 1, 1],
                 [5, 5, 5],
                 [2, 2, 2],
@@ -43,7 +46,7 @@ class TestMLPRL:
                 [3, 3, 3],
                 [7, 7, 7],
             ]
-        )
+
         probs, values, rewards, _ = self.rl_trainer._format_episode_data(input_data)
 
         np.testing.assert_array_equal(target_probs, probs)

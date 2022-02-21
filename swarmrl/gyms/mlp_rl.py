@@ -95,7 +95,7 @@ class MLPRL:
         """
         self.actor.update_model(loss, retain=True)
 
-    def _format_episode_data(self, episode_data: torch.Tensor) -> Tuple:
+    def _format_episode_data(self, episode_data: list) -> Tuple:
         """
         Format the episode data to use in the training.
 
