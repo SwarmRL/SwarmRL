@@ -8,50 +8,64 @@
 # https://hub.docker.com/r/library/python/tags/
 image: python:latest
 
-# Change pip's cache directory to be inside the project directory since we can
-# only cache local items.
 variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  PYPRESSSO: './espressomd/build/pypresso'
+stages:
+  - build
+  - linting
+  - test
+  - docs
 
-# Pip's cache doesn't store the python packages
-# https://pip.pypa.io/en/stable/reference/pip_install/#caching
-#
-# If you want to also cache the installed packages, you have to install
-# them in a virtualenv and cache it as well.
-cache:
-  paths:
-    - .cache/pip
-    - venv/
-
-before_script:
-  - python --version  # For debugging
-  - pip install virtualenv
-  - virtualenv venv
-  - source venv/bin/activate
-
-test:
+build-swarmrl:
+  stage: build
   script:
-    - python setup.py test
-    - pip install tox flake8  # you can also use tox
-    - tox -e py36,flake8
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install -r dev-rerquirements.txt
+    - pip install .
 
-run:
+build-espresso:
+  stage: build
   script:
-    - python setup.py bdist_wheel
-    # an alternative approach is to install and run:
-    - pip install dist/*
-    # run the command here
-  artifacts:
-    paths:
-      - dist/*.whl
+    - git submodule init
+    - git submodule update
+    - cd espresso
+    - mkdir build
+    - cd build
+    - cmake ../
+    - cmake --build .
 
-pages:
+# I split the unit tests and integration tests here as they will now run in parallel.
+python-unit-tests:
+  stage: test
   script:
-    - pip install sphinx sphinx-rtd-theme
-    - cd doc ; make html
-    - mv build/html/ ../public/
-  artifacts:
-    paths:
-      - public
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - cd CI/unit_tests
+    - pytest .
+
+python-integration-tests:
+  stage: test
+  script:
+    - cd CI/integration_tests
+    - pytest .
+
+# Run the espresso tests at one time.
+espresso-tests:
+  stage: test
+  script:
+    - cd CI
+    - ${PYPRESSO} run_espresso_test_suite.py
+
+black:
+  stage: linting
+  script:
+    - black --check --verbose .
+
+flak8:
+  stage: linting
+  script:
+    - flake8 .
+
+sphinx-docs:
+  stage: docs
+  script:
+    - cd docs ; make html

@@ -1,10 +1,8 @@
-numpy~=1.19.0
+numpy
 torch
 pytest
 pint
 h5py
-
-znvis~=0.0.1
-open3d~=0.14.1
-dataclasses~=0.6
-setuptools~=58.0.4
+znvis
+tqdm
+matplotlib
