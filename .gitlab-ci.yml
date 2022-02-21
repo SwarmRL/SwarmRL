@@ -20,7 +20,6 @@ build-swarmrl:
   stage: build
   script:
     - pip --version
-    - python --version
     - pip install --upgrade pip
     - pip install -r requirements.txt
     - pip install -r dev-rerquirements.txt
