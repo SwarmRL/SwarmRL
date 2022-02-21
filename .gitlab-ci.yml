@@ -19,9 +19,7 @@ stages:
 build-swarmrl:
   stage: build
   script:
-    - which python
-    - which pip
-    - pip --versiob
+    - pip --version
     - python --version
     - pip install --upgrade pip
     - pip install -r requirements.txt
