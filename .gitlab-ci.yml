@@ -19,11 +19,9 @@ stages:
 build-swarmrl:
   stage: build
   script:
-    - pip --version
-    - pip install --upgrade pip
-    - pip install -r requirements.txt
-    - pip install -r dev-rerquirements.txt
-    - pip install .
+    - pip install -r requirements.txt --user
+    - pip install -r dev-rerquirements.txt --user
+    - pip install . --user
 
 #build-espresso:
 #  stage: build
