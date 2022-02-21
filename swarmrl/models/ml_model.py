@@ -6,8 +6,9 @@ import numpy as np
 import torch
 import torch.nn.functional
 from torch.distributions import Categorical
+import typing
 
-from swarmrl.models.interaction_model import Action, InteractionModel
+from swarmrl.models.interaction_model import Action, InteractionModel, Colloid
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
 
@@ -96,7 +97,7 @@ class MLModel(InteractionModel):
             [action_log_prob, value, reward, action_dist_entropy]
         )
 
-    def calc_action(self, colloid, other_colloids) -> Action:
+    def calc_action(self, colloids: typing.List[Colloid]) -> typing.List[Action]:
         """
         Compute the state of the system based on the current colloid position.
 
@@ -111,20 +112,25 @@ class MLModel(InteractionModel):
         action: Action
                 Return the action the colloid should take.
         """
-        feature_vector = self.observable.compute_observable(colloid, other_colloids)
+        actions = []
+        for colloid in colloids:
+            other_colloids = [c for c in colloids if c is not colloid]
+            feature_vector = self.observable.compute_observable(colloid, other_colloids)
 
-        action_probabilities = torch.nn.functional.softmax(
-            self.gym.actor.model(feature_vector), dim=-1
-        )
-        action_distribution = Categorical(action_probabilities)
-        action_idx = action_distribution.sample()
-
-        if self.record:
-            action_log_prob = action_distribution.log_prob(action_idx)
-
-            distribution_entropy = action_distribution.entropy()
-            self._record_parameters(
-                action_log_prob, distribution_entropy, feature_vector
+            action_probabilities = torch.nn.functional.softmax(
+                self.gym.actor.model(feature_vector), dim=-1
             )
+            action_distribution = Categorical(action_probabilities)
+            action_idx = action_distribution.sample()
 
-        return self.actions[list(self.actions)[action_idx.item()]]
+            if self.record:
+                action_log_prob = action_distribution.log_prob(action_idx)
+
+                distribution_entropy = action_distribution.entropy()
+                self._record_parameters(
+                    action_log_prob, distribution_entropy, feature_vector
+                )
+
+            actions.append(self.actions[list(self.actions)[action_idx.item()]])
+
+        return actions

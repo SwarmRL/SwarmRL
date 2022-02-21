@@ -11,6 +11,9 @@ import torch
 
 @dataclasses.dataclass(frozen=True)
 class Colloid:
+    """
+    Wrapper class for a colloid object.
+    """
     pos: np.ndarray
     director: np.ndarray
     id: int
