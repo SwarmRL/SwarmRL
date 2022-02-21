@@ -19,7 +19,7 @@ stages:
 build-swarmrl:
   stage: build
   script:
-    - sleep 5
+    - sleep 5m
     - pip install -r requirements.txt --user
     - pip install -r dev-rerquirements.txt --user
     - pip install . --user
