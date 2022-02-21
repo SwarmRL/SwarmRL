@@ -1,8 +1,7 @@
 numpy
-# torch
-pytest
+torch
 pint
 h5py
-znvis
+# znvis
 tqdm
 matplotlib
