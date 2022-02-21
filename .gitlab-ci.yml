@@ -6,7 +6,7 @@
 
 # Official language image. Look for the different tagged releases at:
 # https://hub.docker.com/r/library/python/tags/
-image: python:latest
+image: ghcr.io/espressomd/docker/ubuntu-20.04:254edd4a9c6e4d7b557be73158e400f5794e4f99
 
 variables:
   PYPRESSSO: './espressomd/build/pypresso'
@@ -19,21 +19,21 @@ stages:
 build-swarmrl:
   stage: build
   script:
-    - pip install --upgrade pip
-    - pip install -r requirements.txt
-    - pip install -r dev-rerquirements.txt
-    - pip install .
+    - pip3 install --upgrade pip
+    - pip3 install -r requirements.txt
+    - pip3 install -r dev-rerquirements.txt
+    - pip3 install .
 
-build-espresso:
-  stage: build
-  script:
-    - git submodule init
-    - git submodule update
-    - cd espresso
-    - mkdir build
-    - cd build
-    - cmake ../
-    - cmake --build .
+#build-espresso:
+#  stage: build
+#  script:
+#    - git submodule init
+#    - git submodule update
+#    - cd espresso
+#    - mkdir build
+#    - cd build
+#    - cmake ../
+#    - cmake --build .
 
 # I split the unit tests and integration tests here as they will now run in parallel.
 python-unit-tests:
@@ -53,7 +53,7 @@ espresso-tests:
   stage: test
   script:
     - cd CI
-    - ${PYPRESSO} run_espresso_test_suite.py
+    - pypresso run_espresso_test_suite.py
 
 black:
   stage: linting
