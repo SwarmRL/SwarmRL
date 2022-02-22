@@ -20,12 +20,7 @@ stages:
 build-swarmrl:
   stage: build
   tags:
-    - cuda
-    - docker
-    - icp
-    - linux
-    - numa-deactivated
-    - ptrace
+    - swarm
   script:
     - pip install -r requirements.txt --user
     - pip install -r dev-requirements.txt --user
