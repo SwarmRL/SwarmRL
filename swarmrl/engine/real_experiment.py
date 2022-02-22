@@ -2,9 +2,11 @@
 Parent class for the engine.
 """
 import swarmrl.models.interaction_model
+from swarmrl.models.interaction_model import Colloid
 import swarmrl.engine.engine
 import numpy as np
 import struct
+import typing
 
 
 class ConnectionClosedError(Exception):
@@ -28,13 +30,35 @@ def vector_from_angle(angle):
 
 
 class RealExperiment(swarmrl.engine.engine.Engine):
+    """
+    Class for the real experiment interface.
+    """
     def __init__(self, connection):
+        """
+        Constructor for the experiment.
+
+        Parameters
+        ----------
+        connection : object
+                Communication object to be used to talk to the experiment.
+        """
         self.connection = connection
 
     def setup_simulation(self) -> None:
+        """
+        Method not required in the real experiment.
+        """
         pass
 
-    def receive_colloids(self):
+    def receive_colloids(self) -> typing.List[Colloid]:
+        """
+        Collect the colloid data from the experiment.
+
+        Returns
+        -------
+        colloids : list
+                A list of colloids.
+        """
         print("Waiting for receiving data_size")
         data_size = self.connection.recv(8)
         # break if connection closed
@@ -64,8 +88,28 @@ class RealExperiment(swarmrl.engine.engine.Engine):
         return colloids
 
     def get_actions(
-        self, colloids, force_model: swarmrl.models.interaction_model.InteractionModel
+            self,
+            colloids: typing.List,
+            force_model: swarmrl.models.interaction_model.InteractionModel
     ) -> np.array:
+        """
+        Collect the actions on the particles.
+
+        This method calls the interaction models and collects all of the actions on the
+        colloids.
+
+        Parameters
+        ----------
+        colloids : list
+                List of colloids on which to compute interactions.
+        force_model : swarmrl.models.interaction_model.InteractionModel
+                Interaction model to use in the action computation.
+
+        Returns
+        -------
+        ret : np.ndarray
+                A numpy array of the actions on each colloid.
+        """
         n_colloids = len(colloids)
         ret = np.zeros((n_colloids, 2))
         actions = force_model.calc_action(colloids)
@@ -90,7 +134,19 @@ class RealExperiment(swarmrl.engine.engine.Engine):
             ret[idx, 1] = action_id
         return ret
 
-    def send_actions(self, actions):
+    def send_actions(self, actions: np.ndarray):
+        """
+        Send the actions to the experiment apparatus.
+
+        Parameters
+        ----------
+        actions : np.ndarray
+                A numpy array of actions to send to the experiment.
+
+        Returns
+        -------
+        Sends all data to the experiment.
+        """
         # Flatten data in 'Fortran' style
         data = actions.flatten("F")
         print(f"Sending data with shape {np.shape(data)} \n")
@@ -103,6 +159,24 @@ class RealExperiment(swarmrl.engine.engine.Engine):
         n_slices: int,
         force_model: swarmrl.models.interaction_model.InteractionModel,
     ) -> None:
+        """
+        Perform the real-experiment equivalent of an integration step.
+
+        Parameters
+        ----------
+        n_slices : int
+                Number of integration steps to perform.
+        force_model : swarmrl.models.interaction_model.InteractionModel
+                Model to use in the interaction computations.
+
+        Returns
+        -------
+        Sends actions to the experiment.
+
+        Notes
+        -----
+        Can we always refer to real time as discreet? I like it.
+        """
         for _ in range(n_slices):
             try:
                 colloids = self.receive_colloids()
