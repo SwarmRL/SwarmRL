@@ -296,10 +296,10 @@ class EspressoMD(Engine):
             4.0
             / 3.0
             * np.pi
-            * self.params.colloid_radius**3
+            * self.params.colloid_radius ** 3
             * self.params.colloid_density
         ).m_as("sim_mass")
-        colloid_rinertia = 2.0 / 5.0 * colloid_mass * colloid_radius**2
+        colloid_rinertia = 2.0 / 5.0 * colloid_mass * colloid_radius ** 2
 
         for _ in range(self.params.n_colloids):
             start_pos = _get_random_start_pos(init_radius, box_l, rng)
@@ -358,7 +358,7 @@ class EspressoMD(Engine):
             8
             * np.pi
             * self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity")
-            * colloid_radius**3
+            * colloid_radius ** 3
         )
 
         # remove overlap

@@ -48,18 +48,10 @@ class FindLocation(Task, ABC):
         """
         reduced_position = self.location / self.side_length
         corner_distances = [
-            np.linalg.norm(
-                reduced_position - torch.tensor([1, 1, 0])
-            ),
-            np.linalg.norm(
-                reduced_position - torch.tensor([1, -1, 0])
-            ),
-            np.linalg.norm(
-                reduced_position - torch.tensor([-1, 1, 0])
-            ),
-            np.linalg.norm(
-                reduced_position - torch.tensor([-1, -1, 0])
-            ),
+            np.linalg.norm(reduced_position - torch.tensor([1, 1, 0])),
+            np.linalg.norm(reduced_position - torch.tensor([1, -1, 0])),
+            np.linalg.norm(reduced_position - torch.tensor([-1, 1, 0])),
+            np.linalg.norm(reduced_position - torch.tensor([-1, -1, 0])),
         ]
         self.max_distance = max(corner_distances)
 

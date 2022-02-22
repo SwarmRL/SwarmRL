@@ -14,6 +14,7 @@ class Colloid:
     """
     Wrapper class for a colloid object.
     """
+
     pos: np.ndarray
     director: np.ndarray
     id: int

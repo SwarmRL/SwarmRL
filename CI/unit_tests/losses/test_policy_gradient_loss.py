@@ -39,7 +39,8 @@ class TestLoss:
                     [10, 10, 10, 10, 10],
                 ]
             ),
-            0, 1
+            0,
+            1,
         )
 
     def test_expected_returns(self):
@@ -66,7 +67,8 @@ class TestLoss:
                     [50.0, 40.0, 30.0, 20.0, 10.0],
                 ]
             ),
-            0, 1
+            0,
+            1,
         )
         value_function = self.loss.compute_true_value_function(
             rewards=self.rewards, gamma=1, standardize=False
@@ -112,7 +114,8 @@ class TestLoss:
         action_probs = torch.nn.Softmax()(
             torch.transpose(
                 torch.tensor([[1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 2.0, 3.0, 4.0, 5.0]]),
-                0, 1
+                0,
+                1,
             )
         )
 
@@ -144,10 +147,7 @@ class TestLoss:
         )
 
         predicted_rewards = torch.transpose(
-            torch.tensor(
-                [[2.0, 3.0, 4.0, 5.0, 6.0], [2.0, 3.0, 4.0, 5.0, 6.0]]
-            ),
-            0, 1
+            torch.tensor([[2.0, 3.0, 4.0, 5.0, 6.0], [2.0, 3.0, 4.0, 5.0, 6.0]]), 0, 1
         )
         critic_loss = self.loss.compute_critic_loss(
             rewards=rewards, predicted_rewards=predicted_rewards

@@ -20,6 +20,7 @@ class DummyNetwork:
     """
     Dummy network for the test.
     """
+
     torch.manual_seed(0)  # set seed for reproducibility.
 
     # simple model for testing.
@@ -40,6 +41,7 @@ class DummyGym:
     """
     Dummy gym for the test.
     """
+
     actor = DummyNetwork()
     critic = DummyNetwork()
 

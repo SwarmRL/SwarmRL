@@ -96,7 +96,7 @@ def run_simulation():
     model_params["perception_threshold"] = (
         model_params["vision_half_angle"]
         * md_params.n_colloids
-        / (np.pi**2 * md_params.initiation_radius)
+        / (np.pi ** 2 * md_params.initiation_radius)
     )
     run_params = {"sim_duration": ureg.Quantity(1.5, "hour"), "seed": args.seed}
 

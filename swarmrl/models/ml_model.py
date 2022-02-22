@@ -19,11 +19,7 @@ class MLModel(InteractionModel):
     """
 
     def __init__(
-            self,
-            gym,
-            observable: Observable,
-            reward_cls: Task = None,
-            record: bool = False
+        self, gym, observable: Observable, reward_cls: Task = None, record: bool = False
     ):
         """
         Constructor for the NNModel.

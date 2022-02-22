@@ -147,18 +147,22 @@ class MLPRL:
 
         # Ensure that gradients have been kept
         if not log_probs[0][0].requires_grad:
-            err_msg = "WARNING: The values predicted by the actor appear to have lost" \
-                      " their gradient. Without this gradient, the networks will NOT" \
-                      " train. If this was intentional, please ignore this message, if" \
-                      " not, check to see if you have re-cast anything coming out of a" \
-                      " network."
+            err_msg = (
+                "WARNING: The values predicted by the actor appear to have lost"
+                " their gradient. Without this gradient, the networks will NOT"
+                " train. If this was intentional, please ignore this message, if"
+                " not, check to see if you have re-cast anything coming out of a"
+                " network."
+            )
             print(err_msg)
         if not values[0][0].requires_grad:
-            err_msg = "WARNING: The values predicted by the critic appear to have lost" \
-                      " their gradient. Without this gradient, the networks will NOT" \
-                      " train. If this was intentional, please ignore this message, if" \
-                      " not, check to see if you have re-cast anything coming out of a" \
-                      " network."
+            err_msg = (
+                "WARNING: The values predicted by the critic appear to have lost"
+                " their gradient. Without this gradient, the networks will NOT"
+                " train. If this was intentional, please ignore this message, if"
+                " not, check to see if you have re-cast anything coming out of a"
+                " network."
+            )
             print(err_msg)
 
         return log_probs, values, rewards, entropy, time_steps
@@ -206,18 +210,22 @@ class MLPRL:
             rewards=rewards,
             entropy=entropy,
             n_particles=self.n_particles,
-            n_time_steps=time_steps
+            n_time_steps=time_steps,
         )
 
         if not actor_loss[0].requires_grad:
-            msg = "Actor loss values do not have an associated gradient. This means" \
-                  "that the networks will not train. Please check if you have " \
-                  "cast any tensor coming from a network as this destroys gradients."
+            msg = (
+                "Actor loss values do not have an associated gradient. This means"
+                "that the networks will not train. Please check if you have "
+                "cast any tensor coming from a network as this destroys gradients."
+            )
             print(msg)
         if not critic_loss[0].requires_grad:
-            msg = "Critic loss values do not have an associated gradient. This means" \
-                  "that the networks will not train. Please check if you have " \
-                  "cast any tensor coming from a network as this destroys gradients."
+            msg = (
+                "Critic loss values do not have an associated gradient. This means"
+                "that the networks will not train. Please check if you have "
+                "cast any tensor coming from a network as this destroys gradients."
+            )
             print(msg)
 
         # Perform back-propagation.

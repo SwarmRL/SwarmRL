@@ -13,7 +13,7 @@ variables:
 
 stages:
   - build
-  - linting
+#  - linting
   - test
   - docs
 
@@ -57,15 +57,15 @@ espresso-tests:
     - cd CI
     - pypresso run_espresso_test_suite.py
 
-black:
-  stage: linting
-  script:
-    - black --check --verbose .
-
-flak8:
-  stage: linting
-  script:
-    - flake8 .
+#black:
+#  stage: linting
+#  script:
+#    - black --check --verbose .
+#
+#flake8:
+#  stage: linting
+#  script:
+#    - flake8 .
 
 sphinx-docs:
   stage: docs

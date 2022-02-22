@@ -10,13 +10,13 @@ class Loss:
     """
 
     def compute_loss(
-            self,
-            log_probabilities: torch.Tensor,
-            values: torch.Tensor,
-            rewards: torch.Tensor,
-            entropy: torch.Tensor,
-            n_particles: int,
-            n_time_steps: int
+        self,
+        log_probabilities: torch.Tensor,
+        values: torch.Tensor,
+        rewards: torch.Tensor,
+        entropy: torch.Tensor,
+        n_particles: int,
+        n_time_steps: int,
     ):
         """
 

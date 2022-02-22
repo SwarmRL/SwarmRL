@@ -32,6 +32,7 @@ class RealExperiment(swarmrl.engine.engine.Engine):
     """
     Class for the real experiment interface.
     """
+
     def __init__(self, connection):
         """
         Constructor for the experiment.
@@ -87,9 +88,9 @@ class RealExperiment(swarmrl.engine.engine.Engine):
         return colloids
 
     def get_actions(
-            self,
-            colloids: typing.List,
-            force_model: swarmrl.models.interaction_model.InteractionModel
+        self,
+        colloids: typing.List,
+        force_model: swarmrl.models.interaction_model.InteractionModel,
     ) -> np.array:
         """
         Collect the actions on the particles.

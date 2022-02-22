@@ -11,6 +11,7 @@ class DummyConnection:
     """
     Dummy connect class for the test.
     """
+
     def recv(self, bytes: int):
         """
         Dummy receive method.
