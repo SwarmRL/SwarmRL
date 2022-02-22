@@ -44,30 +44,30 @@ python-unit-tests:
   stage: test
   script:
     - cd CI/unit_tests
-    - /home/espresso/.local/bin/pytest .
+    - ./home/espresso/.local/bin/pytest .
 
 python-integration-tests:
   stage: test
   script:
     - cd CI/integration_tests
-    - /home/espresso/.local/bin/pytest .
+    - ./home/espresso/.local/bin/pytest .
 
 # Run the espresso tests at one time.
 espresso-tests:
   stage: test
   script:
     - cd CI
-    - /home/espresso/.local/bin/pypresso run_espresso_test_suite.py
+    - ./home/espresso/.local/bin/pypresso run_espresso_test_suite.py
 
 black:
   stage: linting
   script:
-    - /home/espresso/.local/bin/black --check --verbose .
+    - ./home/espresso/.local/bin/black --check --verbose .
 
 flake8:
   stage: linting
   script:
-    - /home/espresso/.local/bin/flake8 .
+    - ./home/espresso/.local/bin/flake8
 
 sphinx-docs:
   stage: docs

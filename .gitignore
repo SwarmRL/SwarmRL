@@ -1,6 +1,7 @@
 .idea
 .vscode
 SwarmRL/docs/build
+espresso
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
