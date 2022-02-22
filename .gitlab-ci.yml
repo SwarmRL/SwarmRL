@@ -19,9 +19,8 @@ stages:
 build-swarmrl:
   stage: build
   script:
-    - sleep 10m
     - pip install -r requirements.txt --user
-    - pip install -r dev-rerquirements.txt --user
+    - pip install -r dev-requirements.txt --user
     - pip install . --user
 
 #build-espresso:
