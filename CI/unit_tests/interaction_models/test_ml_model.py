@@ -41,6 +41,7 @@ class DummyGym:
     Dummy gym for the test.
     """
     actor = DummyNetwork()
+    critic = DummyNetwork()
 
 
 class TestMLModel:
@@ -95,9 +96,9 @@ class TestMLModel:
         colloid = DummyColloid()
         action = self.interaction.calc_action([colloid])
 
-        assert action.force == 0.0
+        assert action[0].force == 0.0
         np.testing.assert_array_equal(action[0].torque, [0.0, 0.0, 0.0])
-        assert action.new_direction is None
+        assert action[0].new_direction is None
 
     def test_action_only_record(self):
         """

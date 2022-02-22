@@ -6,7 +6,7 @@
 
 # Official language image. Look for the different tagged releases at:
 # https://hub.docker.com/r/library/python/tags/
-#image: ghcr.io/espressomd/docker/ubuntu-20.04:254edd4a9c6e4d7b557be73158e400f5794e4f99
+image: ghcr.io/espressomd/docker/ubuntu-20.04:254edd4a9c6e4d7b557be73158e400f5794e4f99
 
 variables:
   PYPRESSSO: './espressomd/build/pypresso'
