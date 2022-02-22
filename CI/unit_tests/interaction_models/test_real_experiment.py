@@ -35,11 +35,11 @@ class TestRealExperiment(ut.TestCase):
         """
         Test the real experiment interface.
         """
-        runner = swarmrl.engine.real_experiment.RealExperiment()
-        runner.setup_simulation()
-        f_model = swarmrl.models.dummy_models.ConstForce(123)
-        runner.integrate(100, f_model)
-        runner.finalize()
+        runner = swarmrl.engine.real_experiment.RealExperiment(DummyConnection())
+        # runner.setup_simulation()
+        # f_model = swarmrl.models.dummy_models.ConstForce(123)
+        # runner.integrate(100, f_model)
+        # runner.finalize()
 
 
 if __name__ == "__main__":
