@@ -7,7 +7,6 @@ https://spinningup.openai.com/en/latest/algorithms/vpg.html
 """
 from typing import Tuple
 
-import numpy as np
 import torch
 import torch.nn.functional
 

@@ -1,11 +1,13 @@
 """
 Parent class for the engine.
 """
-from swarmrl.models.interaction_model import Colloid
-import swarmrl.engine.engine
-import numpy as np
 import struct
 import typing
+
+import numpy as np
+
+import swarmrl.engine.engine
+from swarmrl.models.interaction_model import Colloid
 
 
 class ConnectionClosedError(Exception):

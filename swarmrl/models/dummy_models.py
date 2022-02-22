@@ -1,5 +1,7 @@
-import numpy as np
 import typing
+
+import numpy as np
+
 from . import interaction_model
 
 

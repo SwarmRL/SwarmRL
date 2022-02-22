@@ -42,6 +42,7 @@ class Engine:
 
     def finalize(self):
         """
-        Optional: to clean up after finishing the simulation (e.g. writing the last chunks of trajectory)
+        Optional: to clean up after finishing the simulation (e.g. writing the last
+        chunks of trajectory)
         """
         pass

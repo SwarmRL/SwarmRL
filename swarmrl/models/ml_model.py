@@ -2,13 +2,14 @@
 Espresso interaction model capable of handling a neural network as a function.
 """
 
+import typing
+
 import numpy as np
 import torch
 import torch.nn.functional
 from torch.distributions import Categorical
-import typing
 
-from swarmrl.models.interaction_model import Action, InteractionModel, Colloid
+from swarmrl.models.interaction_model import Action, Colloid, InteractionModel
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
 

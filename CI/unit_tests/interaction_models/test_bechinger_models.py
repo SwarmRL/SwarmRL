@@ -3,7 +3,6 @@ import unittest as ut
 import numpy as np
 
 import swarmrl.models.bechinger_models
-
 import swarmrl.models.interaction_model as int_mod
 
 

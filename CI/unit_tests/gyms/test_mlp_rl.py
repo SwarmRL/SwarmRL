@@ -2,10 +2,9 @@
 Test the mlp rl module.
 """
 import numpy as np
+import torch
 
 from swarmrl.gyms.mlp_rl import MLPRL
-
-import torch
 
 
 class TestMLPRL:

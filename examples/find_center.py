@@ -10,10 +10,10 @@ import numpy as np
 import pint
 import torch
 import tqdm
-import znvis as vis
-from bacteria import utils
 
 import swarmrl as srl
+import znvis as vis
+from bacteria import utils
 
 
 def run_analysis():

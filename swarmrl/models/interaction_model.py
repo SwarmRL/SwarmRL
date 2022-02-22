@@ -2,7 +2,6 @@
 Model to compute external forces in an espresso simulation.
 """
 import dataclasses
-
 import typing
 
 import numpy as np

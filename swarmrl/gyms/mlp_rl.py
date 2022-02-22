@@ -3,11 +3,9 @@ Module to implement a simple multi-layer perceptron for the colloids.
 """
 from typing import Tuple
 
-import numpy as np
 import torch
 
 from swarmrl.losses.loss import Loss
-from swarmrl.models.interaction_model import InteractionModel
 from swarmrl.models.ml_model import MLModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable

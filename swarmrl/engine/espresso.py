@@ -3,7 +3,7 @@ Module for the espressoMD simulations.
 """
 try:
     import espressomd
-    from espressomd import System, visualization
+    from espressomd import System
 except ModuleNotFoundError:
     print("WARNING: Could not find espressomd. Features will not be available")
 import dataclasses
@@ -242,7 +242,7 @@ class EspressoMD(Engine):
                 # save in format (time_step, n_particles, dimension)
                 dataset.resize(self.h5_time_steps_written + n_new_timesteps, axis=0)
                 dataset[
-                    self.h5_time_steps_written : self.h5_time_steps_written
+                    self.h5_time_steps_written: self.h5_time_steps_written
                     + n_new_timesteps,
                     ...,
                 ] = values
@@ -382,7 +382,8 @@ class EspressoMD(Engine):
         self.params.steps_per_slice = steps_per_slice
         if abs(steps_per_slice - time_slice / time_step) > 1e-10:
             raise ValueError(
-                "inconsistent parameters: time_slice must be integer multiple of time_step"
+                "inconsistent parameters: time_slice must be integer multiple of "
+                "time_step"
             )
 
     def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel):
