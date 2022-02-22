@@ -25,6 +25,8 @@ build-swarmrl:
     - pip install -r requirements.txt --user
     - pip install -r dev-requirements.txt --user
     - pip install . --user
+    - which black
+    - which flake8
 
 #build-espresso:
 #  stage: build
