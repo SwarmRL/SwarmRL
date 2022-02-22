@@ -10,6 +10,7 @@ image: ghcr.io/espressomd/docker/ubuntu-20.04:254edd4a9c6e4d7b557be73158e400f579
 
 variables:
   PYPRESSSO: './espressomd/build/pypresso'
+
 stages:
   - build
   - linting
@@ -18,6 +19,13 @@ stages:
 
 build-swarmrl:
   stage: build
+  tags:
+    - cuda
+    - docker
+    - icp
+    - linux
+    - numa-deactivated
+    - ptrace
   script:
     - pip install -r requirements.txt --user
     - pip install -r dev-requirements.txt --user
