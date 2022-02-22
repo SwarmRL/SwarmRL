@@ -25,8 +25,6 @@ build-swarmrl:
     - pip install -r requirements.txt --user
     - pip install -r dev-requirements.txt --user
     - pip install . --user
-    - which black
-    - which flake8
 
 #build-espresso:
 #  stage: build
@@ -50,6 +48,7 @@ python-integration-tests:
   stage: test
   script:
     - cd CI/integration_tests
+    - which pytest
     - ./home/espresso/.local/bin/pytest .
 
 # Run the espresso tests at one time.
@@ -62,11 +61,13 @@ espresso-tests:
 black:
   stage: linting
   script:
+    - which black
     - ./home/espresso/.local/bin/black --check --verbose .
 
 flake8:
   stage: linting
   script:
+    - which flake8
     - ./home/espresso/.local/bin/flake8
 
 sphinx-docs:
