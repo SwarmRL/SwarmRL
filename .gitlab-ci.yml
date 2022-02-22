@@ -25,6 +25,7 @@ build-swarmrl:
     - pip install -r requirements.txt --user
     - pip install -r dev-requirements.txt --user
     - pip install . --user
+    - which pytest
 
 #build-espresso:
 #  stage: build
