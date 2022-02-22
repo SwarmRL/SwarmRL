@@ -25,10 +25,9 @@ build-swarmrl:
     - pip install -r requirements.txt --user
     - pip install -r dev-requirements.txt --user
     - pip install . --user
-  artifacts:
+  cache:
     paths:
       - /home/espresso/.local/bin/
-    expire_in: 1 day
 
 #build-espresso:
 #  stage: build
