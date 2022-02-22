@@ -2,9 +2,10 @@
 Run an RL agent to find the center of a box.
 """
 import swarmrl as srl
+import swarmrl.utils
+import logging
 import argparse
 import copy
-from bacteria import utils
 import pint
 import numpy as np
 import tqdm
@@ -42,7 +43,7 @@ def visualize_particles():
     with hf.File('find_center/test/trajectory.hdf5') as db:
         data = np.array(db['colloids']['Unwrapped_Positions'])
 
-    mesh = vis.Sphere(radius=10.0, colour=np.array([30, 144, 255])/255, resolution=5)
+    mesh = vis.Sphere(radius=10.0, colour=np.array([30, 144, 255]) / 255, resolution=5)
     colloids = vis.Particle(name="Colloid", mesh=mesh, position=data)
 
     visualizer = vis.Visualizer(particles=[colloids], frame_rate=40)
@@ -57,7 +58,6 @@ def run_simulation():
     -------
 
     """
-    n_colloids = 10
     # Take user inputs
     parser = argparse.ArgumentParser()
     parser.add_argument('-outfolder_base', default='./find_center')
@@ -66,19 +66,21 @@ def run_simulation():
     parser.add_argument('--test', action='store_true')
     args = parser.parse_args()
 
-    outfolder, _ = utils.setup_sim_folders(
-        args.outfolder_base, args.name, check_existing=not args.test
+    outfolder = swarmrl.utils.setup_sim_folder(
+        args.outfolder_base, args.name, ask_if_exists=not args.test
     )
+    logger = swarmrl.utils.setup_swarmrl_logger(f"{outfolder}/{args.name}.log",
+                                                loglevel_terminal=logging.DEBUG)
 
     # Define the MD simulation parameters
     ureg = pint.UnitRegistry()
-    md_params = srl.espresso.MDParams(n_colloids=n_colloids,
+    md_params = srl.espresso.MDParams(n_colloids=10,
                                       ureg=ureg,
                                       colloid_radius=ureg.Quantity(2.14, 'micrometer'),
                                       fluid_dyn_viscosity=ureg.Quantity(8.9e-4,
                                                                         'pascal * second'),
-                                      WCA_epsilon=ureg.Quantity(293,
-                                                                'kelvin') * ureg.boltzmann_constant,
+                                      WCA_epsilon=ureg.Quantity(293, 'kelvin')
+                                                  * ureg.boltzmann_constant,
                                       colloid_density=ureg.Quantity(2.65,
                                                                     'gram / centimeter**3'),
                                       temperature=ureg.Quantity(293, 'kelvin'),
@@ -89,24 +91,18 @@ def run_simulation():
                                       time_step=ureg.Quantity(0.5, 'second') / 15,
                                       write_interval=ureg.Quantity(2, 'second'))
 
-    model_params = dict(target_vel_SI=ureg.Quantity(0.2, 'micrometer / second'),
-                        vision_half_angle=np.pi / 4.
-                        )
-    model_params['perception_threshold'] = model_params[
-                                               'vision_half_angle'] * md_params.n_colloids / (
-                                                   np.pi ** 2 * md_params.initiation_radius)
-    run_params = {'sim_duration': ureg.Quantity(1.5, 'hour'), 'seed': args.seed}
+    run_params = {'sim_duration': ureg.Quantity(2, 'hour'),
+                  'seed': args.seed}
 
     md_params_without_ureg = copy.deepcopy(md_params.__dict__)
     md_params_without_ureg.pop('ureg')
 
-    params_to_write = {'type': 'lavergne',
-                       'md_params': md_params_without_ureg,
-                       'model_params': model_params,
+    params_to_write = {'md_params': md_params_without_ureg,
                        'run_params': run_params
                        }
 
-    utils.write_params(outfolder, args.name, params_to_write)
+    swarmrl.utils.write_params(outfolder, args.name, params_to_write,
+                               write_espresso_version=True)
 
     # Define the simulation engine.
     system_runner = srl.espresso.EspressoMD(md_params=md_params,
@@ -115,12 +111,6 @@ def run_simulation():
                                             out_folder=outfolder,
                                             write_chunk_size=1000)
     system_runner.setup_simulation()
-    gamma = system_runner.colloid_friction_translation
-    target_vel = model_params['target_vel_SI'].m_as('sim_velocity')
-    act_force = target_vel * gamma
-
-    perception_threshold = model_params['perception_threshold'].m_as('1/ sim_length')
-
     # Define the force model.
 
     # Define networks
@@ -156,7 +146,7 @@ def run_simulation():
     task = srl.FindOrigin(engine=system_runner, alpha=1.0, beta=0.0, gamma=0.0)
 
     # Define the loss model
-    loss = srl.loss.Loss(n_colloids)
+    loss = srl.loss.Loss(md_params.n_colloids)
 
     observable = srl.PositionObservable()
 
@@ -165,10 +155,9 @@ def run_simulation():
 
     # Run the simulation.
     n_slices = int(run_params['sim_duration'] / md_params.time_slice)
-    print(n_slices)
-
-    for _ in tqdm.tqdm(range(100000)):
-        system_runner.integrate(int(np.ceil(n_slices / 2000)), force_model)
+    logger.info("Starting simulation")
+    for _ in tqdm.tqdm(range(100)):
+        system_runner.integrate(int(n_slices / 100), force_model)
         force_model.update_rl()
 
     system_runner.finalize()
@@ -181,4 +170,3 @@ if __name__ == '__main__':
     run_simulation()
     run_analysis()
     visualize_particles()
-
