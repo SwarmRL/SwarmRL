@@ -3,4 +3,3 @@ sphinx-rtd-theme
 flake8
 black
 pytest
-unittest
