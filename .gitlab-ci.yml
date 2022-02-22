@@ -25,7 +25,6 @@ build-swarmrl:
     - pip install -r requirements.txt --user
     - pip install -r dev-requirements.txt --user
     - pip install . --user
-    - which pytest
 
 #build-espresso:
 #  stage: build
@@ -43,30 +42,30 @@ python-unit-tests:
   stage: test
   script:
     - cd CI/unit_tests
-    - pytest .
+    - /home/espresso/.local/bin/pytest .
 
 python-integration-tests:
   stage: test
   script:
     - cd CI/integration_tests
-    - pytest .
+    - /home/espresso/.local/bin/pytest .
 
 # Run the espresso tests at one time.
 espresso-tests:
   stage: test
   script:
     - cd CI
-    - pypresso run_espresso_test_suite.py
+    - /home/espresso/.local/bin/pypresso run_espresso_test_suite.py
 
 black:
   stage: linting
   script:
-    - black --check --verbose .
+    - /home/espresso/.local/bin/black --check --verbose .
 
 flake8:
   stage: linting
   script:
-    - flake8 .
+    - /home/espresso/.local/bin/flake8 .
 
 sphinx-docs:
   stage: docs
