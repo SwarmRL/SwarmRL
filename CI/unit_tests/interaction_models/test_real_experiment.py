@@ -7,6 +7,29 @@ import swarmrl.engine.real_experiment
 import swarmrl.models.dummy_models
 
 
+class DummyConnection:
+    """
+    Dummy connect class for the test.
+    """
+    def recv(self, bytes: int):
+        """
+        Dummy receive method.
+        """
+        return [1, 2, 3, 4, 5]
+
+    def sendall(self):
+        """
+        Dummy sendall method.
+        """
+        pass
+
+    def close(self):
+        """
+        Dummy close method.
+        """
+        pass
+
+
 class TestRealExperiment(ut.TestCase):
     def test_runs(self):
         """

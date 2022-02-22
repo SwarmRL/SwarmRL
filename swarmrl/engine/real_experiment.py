@@ -1,7 +1,6 @@
 """
 Parent class for the engine.
 """
-import swarmrl.models.interaction_model
 from swarmrl.models.interaction_model import Colloid
 import swarmrl.engine.engine
 import numpy as np
