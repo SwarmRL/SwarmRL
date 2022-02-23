@@ -126,7 +126,7 @@ class EspressoMD(Engine):
         # three basis units chosen arbitrarily
         self.ureg.define("sim_length = 1e-6 meter")
         self.ureg.define("sim_time = 1 second")
-        self.ureg.define(f"sim_energy = 293 kelvin * boltzmann_constant")
+        self.ureg.define("sim_energy = 293 kelvin * boltzmann_constant")
 
         # derived units
         self.ureg.define("sim_velocity = sim_length / sim_time")
@@ -242,7 +242,7 @@ class EspressoMD(Engine):
                 # save in format (time_step, n_particles, dimension)
                 dataset.resize(self.h5_time_steps_written + n_new_timesteps, axis=0)
                 dataset[
-                    self.h5_time_steps_written: self.h5_time_steps_written
+                    self.h5_time_steps_written : self.h5_time_steps_written
                     + n_new_timesteps,
                     ...,
                 ] = values
