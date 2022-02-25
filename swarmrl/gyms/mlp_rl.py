@@ -218,7 +218,7 @@ class MLPRL:
                 Interaction model to use in the next episode.
         """
         episode_data = interaction_model.recorded_values
-        episode_pos_data = self.load_last_episode(episode_length)
+        # episode_pos_data = self.load_last_episode(episode_length)
         print(np.shape(data))
 
         log_prob, values, rewards, entropy, time_steps = self._format_episode_data(
