@@ -386,6 +386,10 @@ class EspressoMD(Engine):
                 "time_step"
             )
 
+    def _update_database(self):
+        """
+        Dump stored data into hdf5 database.
+        """
     def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel):
         """
         Integrate the system for n_slices steps.
@@ -401,7 +405,6 @@ class EspressoMD(Engine):
         -------
         Runs the simulation environment.
         """
-        data = []
         for _ in range(n_slices):
             if (
                 self.system.time
@@ -454,9 +457,6 @@ class EspressoMD(Engine):
                             coll.rotate(axis=rotation_axis, angle=rotation_angle)
 
             self.system.integrator.run(self.params.steps_per_slice)
-            data.append([c.pos for c in self.colloids])
-
-        return data
 
     def finalize(self):
         """

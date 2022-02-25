@@ -7,10 +7,15 @@ https://spinningup.openai.com/en/latest/algorithms/vpg.html
 """
 from typing import Tuple
 
+import numpy as np
+
 import torch
 import torch.nn.functional
 
+from swarmrl.networks.network import Network
 from swarmrl.losses.loss import Loss
+from swarmrl.observables.observable import Observable
+from swarmrl.tasks.task import Task
 
 
 class PolicyGradientLoss(Loss):
@@ -31,13 +36,12 @@ class PolicyGradientLoss(Loss):
 
     def compute_loss(
         self,
-        log_probabilities: torch.Tensor,
-        values: torch.Tensor,
-        rewards: torch.Tensor,
-        entropy: torch.Tensor,
-        n_particles: int,
-        n_time_steps: int,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+            actor: Network,
+            critic: Network,
+            observable: Observable,
+            episode_data: list,
+            task: Task
+    ):
         """
         Compute the loss functions for the actor and critic based on the reward.
 
@@ -48,8 +52,23 @@ class PolicyGradientLoss(Loss):
         loss_tuple : tuple
                 (actor_loss, critic_loss)
         """
-        self.n_particles = n_particles
-        self.n_time_steps = n_time_steps
+        self.n_particles = np.shape(episode_data)[1]
+        self.n_time_steps = np.shape(episode_data)[0]
+
+        loss = torch.tensor(0)  # empty loss vector.
+
+        for i in range(self.n_particles):
+            observable_vector = torch.zeros(
+                (self.n_time_steps, observable.observable_shape())
+            )
+            # Get data for single particle
+            for j in range(self.n_time_steps):
+                colloid = episode_data[j][i]
+                other_colloids = [c for c in episode_data[j] if c is not colloid]
+                observable_vector[j] = observable.compute_observable(
+                    colloid, other_colloids
+                )
+
 
         actor_loss = self.compute_actor_loss(log_probabilities, values, rewards)
         critic_loss = self.compute_critic_loss(values, rewards)

@@ -13,6 +13,26 @@ from swarmrl.models.interaction_model import Action, Colloid, InteractionModel
 from swarmrl.observables.observable import Observable
 from swarmrl.networks.network import Network
 
+import os
+
+
+def _record_trajectory(colloids: typing.List[Colloid]):
+    """
+    Record trajectory if required.
+
+    Returns
+    -------
+
+    """
+    try:
+        data = torch.load(".traj_data.pt")
+        os.remove(".traj_data.pt")
+    except FileNotFoundError:
+        data = []
+
+    data.append(colloids)
+    torch.save(data, ".traj_data.pt")
+
 
 class MLModel(InteractionModel):
     """
@@ -20,7 +40,7 @@ class MLModel(InteractionModel):
     """
 
     def __init__(
-        self, model: Network, observable: Observable
+        self, model: Network, observable: Observable, record_traj: bool = False
     ):
         """
         Constructor for the NNModel.
@@ -31,10 +51,13 @@ class MLModel(InteractionModel):
                 A SwarmRl model to use in the action computation.
         observable : Observable
                 A method to compute an observable given a current system state.
+        record_traj : bool
+                If true, store trajectory data to disk for training.
         """
         super().__init__()
         self.model = model
         self.observable = observable
+        self.record_traj = record_traj
 
         translate = Action(force=10.0)
         rotate_clockwise = Action(torque=np.array([0.0, 0.0, 0.1]))
@@ -47,6 +70,11 @@ class MLModel(InteractionModel):
             "RotateCounterClockwise": rotate_counter_clockwise,
             "DoNothing": do_nothing,
         }
+
+        try:
+            os.remove(".traj_data.pt")
+        except FileNotFoundError:
+            pass
 
     def calc_action(self, colloids: typing.List[Colloid]) -> typing.List[Action]:
         """
@@ -64,6 +92,10 @@ class MLModel(InteractionModel):
                 Return the action the colloid should take.
         """
         actions = []
+        # Record the trajectory if required.
+        if self.record_traj:
+            _record_trajectory(colloids)
+
         for colloid in colloids:
             other_colloids = [c for c in colloids if c is not colloid]
             feature_vector = self.observable.compute_observable(colloid, other_colloids)

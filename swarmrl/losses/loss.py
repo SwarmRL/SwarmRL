@@ -1,7 +1,9 @@
 """
 Module for the loss parent class.
 """
-import torch
+from swarmrl.networks.network import Network
+from swarmrl.observables.observable import Observable
+from swarmrl.tasks.task import Task
 
 
 class Loss:
@@ -11,29 +13,26 @@ class Loss:
 
     def compute_loss(
         self,
-        log_probabilities: torch.Tensor,
-        values: torch.Tensor,
-        rewards: torch.Tensor,
-        entropy: torch.Tensor,
-        n_particles: int,
-        n_time_steps: int,
+        actor: Network,
+        critic: Network,
+        observable: Observable,
+        episode_data: list,
+        task: Task
     ):
         """
+        Compute loss on models.
 
         Parameters
         ----------
-        log_probabilities : torch.Tensor (n_particles, n_steps)
-                Log of the actions predicted by the actor.
-        values : torch.Tensor (n_particles, n_steps)
-                Values predicted by the critic.
-        rewards : torch.Tensor (n_particles, n_steps)
-                Rewards for each state.
-        entropy : torch.Tensor (n_particles, n_steps)
-                Entropy computed from the distribution.
-
-        Returns
-        -------
-        loss_tuple : tuple
-                (actor_loss, critic_loss)
+        actor : Network
+                Actor network to train
+        critic : Network
+                Critic network to train.
+        observable : Observable
+                Observable class to compute observables with.
+        episode_data : dict
+                A dictionary of episode data.
+        task : Task
+                Task class from which to compute the reward.
         """
         raise NotImplementedError("Implemented in child class.")

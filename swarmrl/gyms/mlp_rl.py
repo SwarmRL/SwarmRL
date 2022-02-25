@@ -1,6 +1,8 @@
 """
 Module to implement a simple multi-layer perceptron for the colloids.
 """
+import copy
+import os
 from typing import Tuple
 
 import torch
@@ -174,19 +176,6 @@ class MLPRL:
 
         return log_probs, values, rewards, entropy, time_steps
 
-    def load_last_episode(self, episode_length: int):
-        """
-        Load the data of the last episode.
-
-        Returns
-        -------
-
-        """
-        with hf.File(f"{self.database_path}/trajectory.hdf5") as db:
-            data = db['colloids']['Unwrapped_Positions'][-episode_length:]
-
-        return data
-
     def initialize_training(self) -> MLModel:
         """
         Return an initialized interaction model.
@@ -201,38 +190,23 @@ class MLPRL:
             observable=self.observable,
         )
 
-    def update_rl(
-            self, interaction_model: MLModel, episode_length: int, data
-    ) -> MLModel:
+    def update_rl(self) -> MLModel:
         """
         Update the RL algorithm.
-
-        Parameters
-        ----------
-        interaction_model : MLModel
-                Interaction model to read the actor/critic and reward values.
 
         Returns
         -------
         interaction_model : MLModel
                 Interaction model to use in the next episode.
         """
-        episode_data = interaction_model.recorded_values
-        episode_pos_data = self.load_last_episode(episode_length)
-        print(np.shape(data))
-
-        log_prob, values, rewards, entropy, time_steps = self._format_episode_data(
-            episode_data
-        )
+        episode_data = torch.load(".traj_data.pt")
 
         # Compute loss for actor and critic.
         actor_loss, critic_loss = self.loss.compute_loss(
-            log_probabilities=log_prob,
-            values=values,
-            rewards=rewards,
-            entropy=entropy,
-            n_particles=self.n_particles,
-            n_time_steps=time_steps,
+            actor=copy.deepcopy(self.actor),
+            critic=copy.deepcopy(self.critic),
+            observable=self.observable,
+            episode_data=episode_data,
         )
 
         if not actor_loss[0].requires_grad:
@@ -280,7 +254,13 @@ class MLPRL:
         """
         force_fn = self.initialize_training()
         for _ in tqdm.tqdm(range(n_episodes)):
-            data = system_runner.integrate(episode_length, force_fn)
-            force_fn = self.update_rl(force_fn, episode_length=episode_length, data=data)
+            system_runner.integrate(episode_length, force_fn)
+            force_fn = self.update_rl()
 
         system_runner.finalize()
+
+        # Remove the file at the end of the training.
+        try:
+            os.remove(".traj_data.pt")
+        except FileNotFoundError:
+            pass
