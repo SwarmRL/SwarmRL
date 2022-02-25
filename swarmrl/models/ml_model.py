@@ -11,7 +11,7 @@ from torch.distributions import Categorical
 
 from swarmrl.models.interaction_model import Action, Colloid, InteractionModel
 from swarmrl.observables.observable import Observable
-from swarmrl.tasks.task import Task
+from swarmrl.networks.network import Network
 
 
 class MLModel(InteractionModel):
@@ -20,31 +20,21 @@ class MLModel(InteractionModel):
     """
 
     def __init__(
-        self, gym, observable: Observable, reward_cls: Task = None, record: bool = False
+        self, model: Network, observable: Observable
     ):
         """
         Constructor for the NNModel.
 
         Parameters
         ----------
-        actor : torch.nn.Sequential
-                A torch model to use in the action computation. In principle this need
-                not be a torch model and could simply be any callable.
+        model : Network
+                A SwarmRl model to use in the action computation.
         observable : Observable
                 A method to compute an observable given a current system state.
-        critic : torch.nn.Sequential
-                A critic model to collect information from.
-        reward_cls : Task
-                A callable with which to compute a reward.
-        record : bool
-                If true, record the outputs of the actor, critic, and reward function.
         """
         super().__init__()
-        self.gym = gym
-        self.reward_cls = reward_cls
+        self.model = model
         self.observable = observable
-        self.record = record
-        self.recorded_values = []
 
         translate = Action(force=10.0)
         rotate_clockwise = Action(torque=np.array([0.0, 0.0, 0.1]))
@@ -57,42 +47,6 @@ class MLModel(InteractionModel):
             "RotateCounterClockwise": rotate_counter_clockwise,
             "DoNothing": do_nothing,
         }
-
-    def _record_parameters(
-        self,
-        action_log_prob: float,
-        action_dist_entropy: float,
-        feature_vector: torch.Tensor,
-    ):
-        """
-        Record the outputs of the model.
-
-        Parameters
-        ----------
-        action_log_prob : float
-                The log prob of the action. Returned separately here as this can always
-                be recorded.
-        action_dist_entropy : float
-                Distribution entropy of the RL.
-        feature_vector : np.array
-                Feature vector used by the models to make predictions.
-
-        Returns
-        -------
-        Updates the class state.
-        """
-        try:
-            value = self.gym.critic.model(feature_vector)
-        except TypeError:
-            value = None
-        try:
-            reward = self.reward_cls.compute_reward(feature_vector)
-        except AttributeError:
-            reward = None
-
-        self.recorded_values.append(
-            [action_log_prob, value, reward, action_dist_entropy]
-        )
 
     def calc_action(self, colloids: typing.List[Colloid]) -> typing.List[Action]:
         """
@@ -115,18 +69,11 @@ class MLModel(InteractionModel):
             feature_vector = self.observable.compute_observable(colloid, other_colloids)
 
             action_probabilities = torch.nn.functional.softmax(
-                self.gym.actor.model(feature_vector), dim=-1
+                self.model(feature_vector), dim=-1
             )
             action_distribution = Categorical(action_probabilities)
             action_idx = action_distribution.sample()
-
-            if self.record:
-                action_log_prob = action_distribution.log_prob(action_idx)
-
-                distribution_entropy = action_distribution.entropy()
-                self._record_parameters(
-                    action_log_prob, distribution_entropy, feature_vector
-                )
+            # action_log_prob = action_distribution.log_prob(action_idx)
 
             actions.append(self.actions[list(self.actions)[action_idx.item()]])
 

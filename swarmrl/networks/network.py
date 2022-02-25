@@ -25,6 +25,8 @@ class Network(torch.nn.Module):
 
         Parameters
         ----------
+        retain : bool (default=False)
+                If true, retain the graph for further back-propagation on a stale model.
         loss_vector : torch.Tensor
                 Current state of the environment on which predictions should be made.
                 The elements of the loss vector MUST be torch tensors in order for the

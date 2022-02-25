@@ -46,12 +46,13 @@ class MLP(Network):
 
         Parameters
         ----------
+        retain : bool (default=False)
+                If true, retain the graph for further back-propagation on a stale model.
         loss_vector : torch.Tensor
                 Current state of the environment on which predictions should be made.
                 The elements of the loss vector MUST be torch tensors in order for the
                 backward() method to work.
         """
-        # for _ in range(10):
         for i, loss in enumerate(loss_vector):
             if i == 0:
                 total_loss = loss
@@ -61,3 +62,9 @@ class MLP(Network):
         self.optimizer.zero_grad()
         total_loss.backward(retain_graph=retain)
         self.optimizer.step()
+
+    def forward(self, state: torch.Tensor):
+        """
+        Compute the forward pass over the network.
+        """
+        return self.model(state)

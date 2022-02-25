@@ -1,7 +1,7 @@
 """
 Parent class for the engine.
 """
-import swarmrl.models.interaction_model
+from swarmrl.models.interaction_model import InteractionModel
 
 
 class Engine:
@@ -22,7 +22,7 @@ class Engine:
     def integrate(
         self,
         n_slices: int,
-        force_model,
+        force_model: InteractionModel,
     ) -> None:
         """
 

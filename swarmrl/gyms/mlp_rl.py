@@ -197,13 +197,13 @@ class MLPRL:
                 Interaction model to start the simulation with.
         """
         return MLModel(
-            gym=self,
+            model=self.actor,
             observable=self.observable,
-            reward_cls=self.task,
-            record=True,
         )
 
-    def update_rl(self, interaction_model: MLModel, episode_length: int, data) -> MLModel:
+    def update_rl(
+            self, interaction_model: MLModel, episode_length: int, data
+    ) -> MLModel:
         """
         Update the RL algorithm.
 
@@ -218,7 +218,7 @@ class MLPRL:
                 Interaction model to use in the next episode.
         """
         episode_data = interaction_model.recorded_values
-        # episode_pos_data = self.load_last_episode(episode_length)
+        episode_pos_data = self.load_last_episode(episode_length)
         print(np.shape(data))
 
         log_prob, values, rewards, entropy, time_steps = self._format_episode_data(
@@ -257,10 +257,8 @@ class MLPRL:
 
         # Create a new interaction model.
         interaction_model = MLModel(
-            gym=self,
+            model=self.actor,
             observable=self.observable,
-            reward_cls=self.task,
-            record=True,
         )
 
         return interaction_model
