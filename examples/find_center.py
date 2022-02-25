@@ -161,12 +161,14 @@ def run_simulation():
     # Run the simulation.
     n_slices = int(run_params["sim_duration"] / md_params.time_slice)
 
-    force_fn = rl_trainer.initialize_training()
-    for _ in tqdm.tqdm(range(1000)):
-        system_runner.integrate(int(np.ceil(n_slices / 100)), force_fn)
-        force_fn = rl_trainer.update_rl(force_fn)
+    n_episodes = 500
+    episode_length = int(np.ceil(n_slices / 800))
 
-    system_runner.finalize()
+    rl_trainer.perform_rl_training(
+        system_runner=system_runner,
+        n_episodes=n_episodes,
+        episode_length=episode_length
+    )
 
 
 if __name__ == "__main__":

@@ -5,11 +5,16 @@ from typing import Tuple
 
 import torch
 
+import tqdm
+
 from swarmrl.losses.loss import Loss
 from swarmrl.models.ml_model import MLModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
+from swarmrl.engine.engine import Engine
+
+import numpy as np
 
 
 class MLPRL:
@@ -240,3 +245,25 @@ class MLPRL:
         )
 
         return interaction_model
+
+    def perform_rl_training(
+            self, system_runner: Engine, n_episodes: int, episode_length: int
+    ):
+        """
+        Perform the RL training.
+
+        Parameters
+        ----------
+        system_runner : Engine
+                Engine used to perform steps for each agent.
+        n_episodes : int
+                Number of episodes to use in the training.
+        episode_length : int
+                Number of time steps in one episode.
+        """
+        force_fn = self.initialize_training()
+        for _ in tqdm.tqdm(range(n_episodes)):
+            system_runner.integrate(episode_length, force_fn)
+            force_fn = self.update_rl(force_fn)
+
+        system_runner.finalize()

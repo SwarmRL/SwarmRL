@@ -22,7 +22,7 @@ class Engine:
     def integrate(
         self,
         n_slices: int,
-        force_model: swarmrl.models.interaction_model.InteractionModel,
+        force_model,
     ) -> None:
         """
 
