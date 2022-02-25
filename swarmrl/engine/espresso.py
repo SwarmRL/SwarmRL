@@ -401,6 +401,7 @@ class EspressoMD(Engine):
         -------
         Runs the simulation environment.
         """
+        data = []
         for _ in range(n_slices):
             if (
                 self.system.time
@@ -453,6 +454,9 @@ class EspressoMD(Engine):
                             coll.rotate(axis=rotation_axis, angle=rotation_angle)
 
             self.system.integrator.run(self.params.steps_per_slice)
+            data.append([c.pos for c in self.colloids])
+
+        return data
 
     def finalize(self):
         """

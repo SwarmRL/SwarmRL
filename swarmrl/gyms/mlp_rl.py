@@ -14,6 +14,8 @@ from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
 from swarmrl.engine.engine import Engine
 
+import h5py as hf
+
 import numpy as np
 
 
@@ -42,6 +44,7 @@ class MLPRL:
         loss: Loss,
         observable: Observable,
         n_particles: int,
+        database_path: str
     ):
         """
         Constructor for the MLP RL.
@@ -68,6 +71,7 @@ class MLPRL:
         self.loss = loss
         self.observable = observable
         self.n_particles = n_particles
+        self.database_path = database_path
 
     def update_critic(self, loss: torch.Tensor):
         """
@@ -170,6 +174,19 @@ class MLPRL:
 
         return log_probs, values, rewards, entropy, time_steps
 
+    def load_last_episode(self, episode_length: int):
+        """
+        Load the data of the last episode.
+
+        Returns
+        -------
+
+        """
+        with hf.File(f"{self.database_path}/trajectory.hdf5") as db:
+            data = db['colloids']['Unwrapped_Positions'][-episode_length:]
+
+        return data
+
     def initialize_training(self) -> MLModel:
         """
         Return an initialized interaction model.
@@ -186,7 +203,7 @@ class MLPRL:
             record=True,
         )
 
-    def update_rl(self, interaction_model: MLModel) -> MLModel:
+    def update_rl(self, interaction_model: MLModel, episode_length: int, data) -> MLModel:
         """
         Update the RL algorithm.
 
@@ -201,6 +218,8 @@ class MLPRL:
                 Interaction model to use in the next episode.
         """
         episode_data = interaction_model.recorded_values
+        episode_pos_data = self.load_last_episode(episode_length)
+        print(np.shape(data))
 
         log_prob, values, rewards, entropy, time_steps = self._format_episode_data(
             episode_data
@@ -263,7 +282,7 @@ class MLPRL:
         """
         force_fn = self.initialize_training()
         for _ in tqdm.tqdm(range(n_episodes)):
-            system_runner.integrate(episode_length, force_fn)
-            force_fn = self.update_rl(force_fn)
+            data = system_runner.integrate(episode_length, force_fn)
+            force_fn = self.update_rl(force_fn, episode_length=episode_length, data=data)
 
         system_runner.finalize()

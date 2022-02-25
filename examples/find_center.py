@@ -71,6 +71,7 @@ def run_simulation():
     outfolder, _ = utils.setup_sim_folders(
         args.outfolder_base, args.name, check_existing=not args.test
     )
+    print(outfolder)
 
     # Define the MD simulation parameters
     ureg = pint.UnitRegistry()
@@ -156,7 +157,9 @@ def run_simulation():
     observable = srl.observables.PositionObservable()
 
     # Define the force model.
-    rl_trainer = srl.models.MLPRL(actor, critic, task, loss, observable, n_colloids)
+    rl_trainer = srl.models.MLPRL(
+        actor, critic, task, loss, observable, n_colloids, outfolder
+    )
 
     # Run the simulation.
     n_slices = int(run_params["sim_duration"] / md_params.time_slice)
