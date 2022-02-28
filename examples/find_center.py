@@ -151,7 +151,7 @@ def run_simulation():
     )
 
     # Define the loss model
-    loss = srl.losses.PolicyGradientLoss()
+    loss = srl.losses.ProximalPolicyLoss()
 
     # Define the observable.
     observable = srl.observables.PositionObservable()
