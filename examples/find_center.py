@@ -146,7 +146,8 @@ def run_simulation():
 
     # Define the task
     task = srl.tasks.searching.FindLocation(
-        side_length=np.array([1000.0, 1000.0, 1000.0])
+        side_length=np.array([1000.0, 1000.0, 1000.0]),
+        location=np.array([500, 500, 500]),
     )
 
     # Define the loss model

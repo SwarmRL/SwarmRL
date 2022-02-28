@@ -56,8 +56,8 @@ class PolicyGradientLoss(Loss):
         self.n_time_steps = np.shape(episode_data)[0]
 
         # Actor and critic losses.
-        actor_loss = torch.tensor(0)
-        critic_loss = torch.tensor(0)
+        actor_loss = torch.tensor(0, dtype=torch.double)
+        critic_loss = torch.tensor(0, dtype=torch.double)
 
         for i in range(self.n_particles):
             values = []
@@ -67,27 +67,29 @@ class PolicyGradientLoss(Loss):
                 # Compute observable
                 colloid = episode_data[j][i]
                 other_colloids = [c for c in episode_data[j] if c is not colloid]
-                observable = observable.compute_observable(colloid, other_colloids)
+                feature_vector = observable.compute_observable(colloid, other_colloids)
 
                 # Compute actor values
                 action_probability = torch.nn.functional.softmax(
-                    actor(observable), dim=-1
+                    actor(feature_vector), dim=-1
                 )
                 distribution = Categorical(action_probability)
                 index = distribution.sample()
                 log_probs.append(distribution.log_prob(index))
 
                 # Compute critic values
-                values.append(critic(observable))
+                values.append(critic(feature_vector))
 
                 # Compute reward
-                rewards.append(task(observable))
+                rewards.append(task(feature_vector))
 
             actor_loss += self.compute_actor_loss(log_probs, values, rewards)
             critic_loss += self.compute_critic_loss(values, rewards)
 
         actor.update_model([actor_loss])
         critic.update_model([critic_loss])
+
+        return actor, critic
 
     def compute_true_value_function(
         self, rewards: List, gamma: float = 0.99, standardize: bool = True
@@ -145,7 +147,7 @@ class PolicyGradientLoss(Loss):
         """
         value_function = self.compute_true_value_function(rewards)
 
-        particle_loss = torch.tensor(0)
+        particle_loss = torch.tensor(0, dtype=torch.double)
 
         for i in range(self.n_time_steps):
             particle_loss += particle_loss + torch.nn.functional.smooth_l1_loss(
@@ -179,7 +181,7 @@ class PolicyGradientLoss(Loss):
         value_function = self.compute_true_value_function(rewards)
         advantage = value_function - torch.tensor(predicted_values)
 
-        particle_loss = torch.tensor(0)
+        particle_loss = torch.tensor(0, dtype=torch.double)
         for i in range(self.n_time_steps):
             particle_loss += particle_loss + log_probs[i] * advantage[i]
 

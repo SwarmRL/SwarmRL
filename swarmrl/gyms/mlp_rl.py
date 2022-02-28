@@ -180,10 +180,7 @@ class MLPRL:
         interaction_model : MLModel
                 Interaction model to start the simulation with.
         """
-        return MLModel(
-            model=self.actor,
-            observable=self.observable,
-        )
+        return MLModel(model=self.actor, observable=self.observable, record_traj=True)
 
     def update_rl(self) -> MLModel:
         """
@@ -197,37 +194,39 @@ class MLPRL:
         episode_data = torch.load(".traj_data.pt")
 
         # Compute loss for actor and critic.
-        actor_loss, critic_loss = self.loss.compute_loss(
+        actor, critic = self.loss.compute_loss(
             actor=copy.deepcopy(self.actor),
             critic=copy.deepcopy(self.critic),
             observable=self.observable,
             episode_data=episode_data,
+            task=self.task,
         )
+        self.actor = actor
+        self.critic = critic
 
-        if not actor_loss[0].requires_grad:
-            msg = (
-                "Actor loss values do not have an associated gradient. This means"
-                "that the networks will not train. Please check if you have "
-                "cast any tensor coming from a network as this destroys gradients."
-            )
-            print(msg)
-        if not critic_loss[0].requires_grad:
-            msg = (
-                "Critic loss values do not have an associated gradient. This means"
-                "that the networks will not train. Please check if you have "
-                "cast any tensor coming from a network as this destroys gradients."
-            )
-            print(msg)
+        # if not actor_loss[0].requires_grad:
+        #     msg = (
+        #         "Actor loss values do not have an associated gradient. This means"
+        #         "that the networks will not train. Please check if you have "
+        #         "cast any tensor coming from a network as this destroys gradients."
+        #     )
+        #     print(msg)
+        # if not critic_loss[0].requires_grad:
+        #     msg = (
+        #         "Critic loss values do not have an associated gradient. This means"
+        #         "that the networks will not train. Please check if you have "
+        #         "cast any tensor coming from a network as this destroys gradients."
+        #     )
+        #     print(msg)
 
-        # Perform back-propagation.
-        self.update_actor(actor_loss)
-
-        self.update_critic(critic_loss)
+        # # Perform back-propagation.
+        # self.update_actor(actor_loss)
+        #
+        # self.update_critic(critic_loss)
 
         # Create a new interaction model.
         interaction_model = MLModel(
-            model=self.actor,
-            observable=self.observable,
+            model=self.actor, observable=self.observable, record_traj=True
         )
 
         return interaction_model

@@ -439,7 +439,6 @@ class EspressoMD(Engine):
                 )
             actions = force_model.calc_action(swarmrl_colloids)
             for action, coll in zip(actions, self.colloids):
-                # update the state of an active learner, ignored by non ML models.
                 coll.swimming = {"f_swim": action.force}
                 coll.ext_torque = action.torque
                 new_direction = action.new_direction
