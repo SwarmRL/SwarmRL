@@ -77,9 +77,6 @@ class PolicyGradientLoss(Loss):
                 index = distribution.sample()
                 log_probs.append(distribution.log_prob(index))
 
-                entropy = distribution.entropy()
-                print(entropy)
-
                 # Compute critic values
                 values.append(critic(observable))
 
@@ -88,6 +85,9 @@ class PolicyGradientLoss(Loss):
 
             actor_loss += self.compute_actor_loss(log_probs, values, rewards)
             critic_loss += self.compute_critic_loss(values, rewards)
+
+        actor.update_model([actor_loss])
+        critic.update_model([critic_loss])
 
     def compute_true_value_function(
         self, rewards: List, gamma: float = 0.99, standardize: bool = True
@@ -106,29 +106,29 @@ class PolicyGradientLoss(Loss):
 
         Returns
         -------
-        expected_returns : torch.Tensor (n_timesteps, n_particles)
+        expected_returns : torch.Tensor (n_timesteps, )
                 expected returns for each particle
         """
-        true_value_function = torch.zeros(self.n_time_steps, self.n_particles)
-        current_value_state = torch.zeros(self.n_particles)
+        true_value_function = torch.zeros(self.n_time_steps)
+        current_value_state = torch.tensor(0)
 
         for i in range(self.n_time_steps)[::-1]:
-            current_value_state = (
-                torch.tensor(rewards)[i, :] + current_value_state * gamma
-            )
+            current_value_state = rewards[i] + current_value_state * gamma
 
-            true_value_function[i, :] = current_value_state
+            true_value_function[i] = current_value_state
 
         # Standardize the value function.
         if standardize:
-            mean = torch.mean(true_value_function, dim=0)
-            std = torch.std(true_value_function, dim=0)
+            mean = torch.mean(torch.tensor(true_value_function), dim=0)
+            std = torch.std(torch.tensor(true_value_function), dim=0)
 
             true_value_function = (true_value_function - mean) / std
 
         return true_value_function
 
-    def compute_critic_loss(self, predicted_rewards: List, rewards: List) -> List:
+    def compute_critic_loss(
+        self, predicted_rewards: List, rewards: List
+    ) -> torch.Tensor:
         """
         Compute the critic loss.
 
@@ -144,29 +144,22 @@ class PolicyGradientLoss(Loss):
         Currently uses the Huber loss.
         """
         value_function = self.compute_true_value_function(rewards)
-        loss_vector = []
 
-        for i in range(self.n_particles):
-            for j in range(self.n_time_steps):
-                if j == 0:
-                    particle_loss = torch.nn.functional.smooth_l1_loss(
-                        predicted_rewards[j][i], value_function[j][i]
-                    )
-                else:
-                    particle_loss = particle_loss + torch.nn.functional.smooth_l1_loss(
-                        predicted_rewards[j][i], value_function[j][i]
-                    )
+        particle_loss = torch.tensor(0)
 
-            loss_vector.append(particle_loss)
+        for i in range(self.n_time_steps):
+            particle_loss += particle_loss + torch.nn.functional.smooth_l1_loss(
+                predicted_rewards[i], value_function[i]
+            )
 
-        return loss_vector
+        return particle_loss
 
     def compute_actor_loss(
         self,
         log_probs: List,
         predicted_values: List,
         rewards: List,
-    ) -> List:
+    ) -> torch.Tensor:
         """
         Compute the actor loss.
 
@@ -186,11 +179,8 @@ class PolicyGradientLoss(Loss):
         value_function = self.compute_true_value_function(rewards)
         advantage = value_function - torch.tensor(predicted_values)
 
-        losses = []
         particle_loss = torch.tensor(0)
         for i in range(self.n_time_steps):
-            particle_loss = particle_loss + log_probs[i] * advantage[i]
+            particle_loss += particle_loss + log_probs[i] * advantage[i]
 
-        losses.append(-1 * particle_loss)
-
-        return losses
+        return -1 * particle_loss
