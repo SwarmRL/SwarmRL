@@ -390,6 +390,7 @@ class EspressoMD(Engine):
         """
         Dump stored data into hdf5 database.
         """
+
     def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel):
         """
         Integrate the system for n_slices steps.

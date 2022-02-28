@@ -75,7 +75,7 @@ class FindLocation(Task, ABC):
 
         return absolute_distance
 
-    def compute_reward(self, observables: torch.Tensor):
+    def forward(self, observables: torch.Tensor):
         """
         Compute the reward on the whole group of particles.
 

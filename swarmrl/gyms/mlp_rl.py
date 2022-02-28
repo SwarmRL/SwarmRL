@@ -6,19 +6,14 @@ import os
 from typing import Tuple
 
 import torch
-
 import tqdm
 
+from swarmrl.engine.engine import Engine
 from swarmrl.losses.loss import Loss
 from swarmrl.models.ml_model import MLModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-from swarmrl.engine.engine import Engine
-
-import h5py as hf
-
-import numpy as np
 
 
 class MLPRL:
@@ -46,7 +41,7 @@ class MLPRL:
         loss: Loss,
         observable: Observable,
         n_particles: int,
-        database_path: str
+        database_path: str,
     ):
         """
         Constructor for the MLP RL.
@@ -238,7 +233,7 @@ class MLPRL:
         return interaction_model
 
     def perform_rl_training(
-            self, system_runner: Engine, n_episodes: int, episode_length: int
+        self, system_runner: Engine, n_episodes: int, episode_length: int
     ):
         """
         Perform the RL training.

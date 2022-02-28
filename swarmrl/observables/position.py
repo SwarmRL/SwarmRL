@@ -13,6 +13,7 @@ class PositionObservable(Observable, ABC):
     """
     Position in box observable.
     """
+
     _observable_shape = (3,)
 
     def compute_observable(self, colloid: object, other_colloids: list):

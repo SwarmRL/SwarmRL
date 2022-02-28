@@ -17,7 +17,7 @@ class Loss:
         critic: Network,
         observable: Observable,
         episode_data: list,
-        task: Task
+        task: Task,
     ):
         """
         Compute loss on models.

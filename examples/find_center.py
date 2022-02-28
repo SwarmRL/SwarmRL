@@ -9,11 +9,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pint
 import torch
-import tqdm
-
-import swarmrl as srl
 import znvis as vis
 from bacteria import utils
+
+import swarmrl as srl
 
 
 def run_analysis():
@@ -170,7 +169,7 @@ def run_simulation():
     rl_trainer.perform_rl_training(
         system_runner=system_runner,
         n_episodes=n_episodes,
-        episode_length=episode_length
+        episode_length=episode_length,
     )
 
 

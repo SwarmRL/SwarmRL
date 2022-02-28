@@ -1,7 +1,7 @@
 """
 Espresso interaction model capable of handling a neural network as a function.
 """
-
+import os
 import typing
 
 import numpy as np
@@ -10,10 +10,8 @@ import torch.nn.functional
 from torch.distributions import Categorical
 
 from swarmrl.models.interaction_model import Action, Colloid, InteractionModel
-from swarmrl.observables.observable import Observable
 from swarmrl.networks.network import Network
-
-import os
+from swarmrl.observables.observable import Observable
 
 
 def _record_trajectory(colloids: typing.List[Colloid]):

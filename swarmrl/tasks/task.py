@@ -21,7 +21,7 @@ class Task(torch.nn.Module):
         super(Task, self).__init__()
 
     @classmethod
-    def compute_reward(self, observables: torch.Tensor):
+    def forward(self, observables: torch.Tensor):
         """
         Compute the reward on the whole group of particles.
 

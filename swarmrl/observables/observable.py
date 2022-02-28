@@ -9,6 +9,7 @@ class Observable:
 
     Observables act as inputs to the neural networks.
     """
+
     _observable_shape: tuple
 
     def compute_observable(self, colloid: object, other_colloids: list):
