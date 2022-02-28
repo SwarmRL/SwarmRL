@@ -164,7 +164,8 @@ class ProximalPolicyLoss(Loss, ABC):
         true_value_function = self.compute_true_value_function(rewards)
         advantage = true_value_function - torch.tensor(new_values)
 
-        particle_loss = torch.tensor(0, dtype=torch.double)
+        actor_loss = torch.tensor(0, dtype=torch.double)
+        critic_loss = torch.tensor(0, dtype=torch.double)
 
         for i in range(self.n_time_steps):
             ratio = torch.exp(new_log_probs[i] - old_log_probs[i])
@@ -181,11 +182,10 @@ class ProximalPolicyLoss(Loss, ABC):
             )
             entropy_loss = -0.01 * new_entropy[i]
 
-            loss = surrogate_loss + critic_loss + entropy_loss
+            actor_loss += surrogate_loss + critic_loss.item() + entropy_loss
+            critic_loss += surrogate_loss.item() + critic_loss + entropy_loss.item()
 
-            particle_loss += loss
-
-        return particle_loss
+        return actor_loss, critic_loss
 
     def compute_loss(
         self,
@@ -209,7 +209,8 @@ class ProximalPolicyLoss(Loss, ABC):
         self.n_time_steps = np.shape(episode_data)[0]
 
         # Actor and critic losses.
-        loss = torch.tensor(0, dtype=torch.double)
+        actor_loss = torch.tensor(0, dtype=torch.double)
+        critic_loss = torch.tensor(0, dtype=torch.double)
 
         for _ in range(self.n_epochs):
             old_actor = copy.deepcopy(actor)
@@ -251,15 +252,17 @@ class ProximalPolicyLoss(Loss, ABC):
                     # Compute reward
                     rewards.append(task(feature_vector))
 
-                loss += self.compute_loss_values(
+                a_loss, c_loss = self.compute_loss_values(
                     new_log_probs=log_probs,
                     old_log_probs=old_log_probs,
                     new_values=values,
                     new_entropy=entropy,
                     rewards=rewards,
                 )
+                actor_loss += a_loss
+                critic_loss += c_loss
 
-            actor.update_model([loss])
-            critic.update_model([loss])
+            actor.update_model([actor_loss], retain=True)
+            critic.update_model([critic_loss], retain=True)
 
         return actor, critic
