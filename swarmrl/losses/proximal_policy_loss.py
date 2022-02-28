@@ -208,12 +208,12 @@ class ProximalPolicyLoss(Loss, ABC):
         self.n_particles = np.shape(episode_data)[1]
         self.n_time_steps = np.shape(episode_data)[0]
 
-        # Actor and critic losses.
-        actor_loss = torch.tensor(0, dtype=torch.double)
-        critic_loss = torch.tensor(0, dtype=torch.double)
-
         for _ in range(self.n_epochs):
             old_actor = copy.deepcopy(actor)
+
+            # Actor and critic losses.
+            actor_loss = torch.tensor(0, dtype=torch.double)
+            critic_loss = torch.tensor(0, dtype=torch.double)
 
             for i in range(self.n_particles):
                 values = []
