@@ -234,7 +234,7 @@ class MLPRL:
             system_runner.integrate(episode_length, force_fn)
             force_fn, add_reward = self.update_rl()
             reward_list.append(add_reward)
-            actor_weights_list.append(list(self.actor.parameters())[0][0].data.numpy())
+            actor_weights_list.append(list(self.actor.parameters())[2][0].data.numpy())
         system_runner.finalize()
 
         # Remove the file at the end of the training.

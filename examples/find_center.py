@@ -164,7 +164,7 @@ def run_simulation():
     # Run the simulation.
     n_slices = int(run_params["sim_duration"] / md_params.time_slice)
 
-    n_episodes = 50
+    n_episodes = 10000
     episode_length = int(np.ceil(n_slices / 1500))
     actor_weights_list,reward_list = rl_trainer.perform_rl_training(
         system_runner=system_runner,
