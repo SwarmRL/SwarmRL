@@ -135,7 +135,6 @@ class ProximalPolicyLoss(Loss, ABC):
         particle_loss = torch.tensor(0, dtype=torch.double)
         for i in range(self.n_time_steps):
             particle_loss += particle_loss + log_probs[i] * advantage[i]
-
         return -1 * particle_loss
 
     def compute_loss_values(
@@ -208,7 +207,7 @@ class ProximalPolicyLoss(Loss, ABC):
         self.n_particles = np.shape(episode_data)[1]
         self.n_time_steps = np.shape(episode_data)[0]
 
-        #actor_weights = []
+        # actor_weights = []
         #critic_weights = []
         for _ in range(self.n_epochs):
             old_actor = copy.deepcopy(actor)
@@ -264,11 +263,11 @@ class ProximalPolicyLoss(Loss, ABC):
                 actor_loss += a_loss
                 critic_loss += c_loss
 
-            actor.update_model([actor_loss], retain=True)
-            critic.update_model([critic_loss], retain=True)
-            #actor_weights.append(list(actor.parameters())[0][0].data.numpy())
-            #critic_weights.append(list(critic.parameters())[0][0].data.numpy())
-            #print("Actor weights equal: ", np.array_equal(actor_weights[0], actor_weights[-1]))
-            #print("Critic weights equal: ", np.array_equal(critic_weights[0], critic_weights[-1]))
+            actor.update_model([actor_loss])
+            critic.update_model([critic_loss])
+            # actor_weights.append(list(actor.parameters())[0][0].data.numpy())
+            # critic_weights.append(list(critic.parameters())[0][0].data.numpy())
+            # print("Actor weights equal: ", np.array_equal(actor_weights[0], actor_weights[-1]))
+            # print("Critic weights equal: ", np.array_equal(critic_weights[0], critic_weights[-1]))
 
-        return actor, critic
+        return actor, critic, rewards

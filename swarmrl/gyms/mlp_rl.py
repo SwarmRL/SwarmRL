@@ -194,7 +194,7 @@ class MLPRL:
         episode_data = torch.load(".traj_data.pt")
 
         # Compute loss for actor and critic.
-        actor, critic = self.loss.compute_loss(
+        actor, critic, rewards = self.loss.compute_loss(
             actor=copy.deepcopy(self.actor),
             critic=copy.deepcopy(self.critic),
             observable=self.observable,
@@ -209,7 +209,7 @@ class MLPRL:
             model=self.actor, observable=self.observable, record_traj=True
         )
 
-        return interaction_model
+        return interaction_model, rewards
 
     def perform_rl_training(
         self, system_runner: Engine, n_episodes: int, episode_length: int
@@ -227,10 +227,14 @@ class MLPRL:
                 Number of time steps in one episode.
         """
         force_fn = self.initialize_training()
+        actor_weights_list = []
+        reward_list = []
+
         for _ in tqdm.tqdm(range(n_episodes)):
             system_runner.integrate(episode_length, force_fn)
-            force_fn = self.update_rl()
-
+            force_fn, add_reward = self.update_rl()
+            reward_list.append(add_reward)
+            actor_weights_list.append(list(self.actor.parameters())[0][0].data.numpy())
         system_runner.finalize()
 
         # Remove the file at the end of the training.
@@ -238,3 +242,5 @@ class MLPRL:
             os.remove(".traj_data.pt")
         except FileNotFoundError:
             pass
+
+        return actor_weights_list,reward_list

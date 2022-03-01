@@ -63,6 +63,7 @@ class MLP(Network):
         total_loss.backward(retain_graph=retain)
         self.optimizer.step()
 
+
     def forward(self, state: torch.Tensor):
         """
         Compute the forward pass over the network.
