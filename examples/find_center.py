@@ -147,7 +147,7 @@ def run_simulation():
     # Define the task
     task = srl.tasks.searching.FindLocation(
         side_length=np.array([1000.0, 1000.0, 1000.0]),
-        location=np.array([500, 500, 500]),
+        location=np.array([0, 0, 0]),
     )
 
     # Define the loss model
@@ -164,7 +164,7 @@ def run_simulation():
     # Run the simulation.
     n_slices = int(run_params["sim_duration"] / md_params.time_slice)
 
-    n_episodes = 50
+    n_episodes = 5000
     episode_length = int(np.ceil(n_slices / 800))
 
     rl_trainer.perform_rl_training(
