@@ -208,6 +208,8 @@ class ProximalPolicyLoss(Loss, ABC):
         self.n_particles = np.shape(episode_data)[1]
         self.n_time_steps = np.shape(episode_data)[0]
 
+        #actor_weights = []
+        #critic_weights = []
         for _ in range(self.n_epochs):
             old_actor = copy.deepcopy(actor)
 
@@ -264,5 +266,9 @@ class ProximalPolicyLoss(Loss, ABC):
 
             actor.update_model([actor_loss], retain=True)
             critic.update_model([critic_loss], retain=True)
+            #actor_weights.append(list(actor.parameters())[0][0].data.numpy())
+            #critic_weights.append(list(critic.parameters())[0][0].data.numpy())
+            #print("Actor weights equal: ", np.array_equal(actor_weights[0], actor_weights[-1]))
+            #print("Critic weights equal: ", np.array_equal(critic_weights[0], critic_weights[-1]))
 
         return actor, critic
