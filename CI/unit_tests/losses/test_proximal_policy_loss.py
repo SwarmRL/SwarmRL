@@ -5,7 +5,7 @@ import pytest
 import torch
 
 from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
-
+torch.random.manual_seed(42)
 
 class TestLoss:
     """
@@ -52,28 +52,12 @@ class TestLoss:
         Checks the actual values return in the discounted returns without
         standardization and with the simple case of gamma=1
         """
-        target_values = torch.transpose(
-            torch.tensor(
-                [
-                    [5.0, 4.0, 3.0, 2.0, 1.0],
-                    [10.0, 8.0, 6.0, 4.0, 2.0],
-                    [15.0, 12.0, 9.0, 6.0, 3.0],
-                    [20.0, 16.0, 12.0, 8.0, 4.0],
-                    [25.0, 20.0, 15.0, 10.0, 5.0],
-                    [30.0, 24.0, 18.0, 12.0, 6.0],
-                    [35.0, 28.0, 21.0, 14.0, 7.0],
-                    [40.0, 32.0, 24.0, 16.0, 8.0],
-                    [45.0, 36.0, 27.0, 18.0, 9.0],
-                    [50.0, 40.0, 30.0, 20.0, 10.0],
-                ]
-            ),
-            0,
-            1,
-        )
+        rewards = torch.tensor([1,2,3,4,5])
+        discounted_return = torch.tensor([15,14,12,9,5])
         value_function = self.loss.compute_true_value_function(
-            rewards=self.rewards, gamma=1, standardize=False
+            rewards=rewards, gamma=1, standardize=False
         )
-        torch.testing.assert_allclose(target_values, value_function)
+        torch.testing.assert_allclose(discounted_return, value_function)
 
     def test_expected_returns_standardized(self):
         """
@@ -94,6 +78,41 @@ class TestLoss:
         torch.testing.assert_allclose(torch.std(discounted_returns[:, 2]).numpy(), 1.0)
         torch.testing.assert_allclose(torch.std(discounted_returns[:, 3]).numpy(), 1.0)
         torch.testing.assert_allclose(torch.std(discounted_returns[:, 4]).numpy(), 1.0)
+
+    def test_surrogate_loss(self):
+        """
+        Test the surrogate loss for 1 particle and equal old and new log probs.
+        """
+        # Update class parameters for new case.
+        self.loss.n_particles = 1
+        self.loss.n_time_steps = 5
+
+        new_log_probs = torch.log(torch.tensor([0.2, 0.3, 0.05, 0.15, 0.3]))
+
+        old_log_probs = torch.clone(new_log_probs)
+
+        adv = torch.rand(self.loss.n_time_steps)
+
+        expected_loss = -1 * adv
+        print(type(new_log_probs[0]))
+
+        predictions = []
+        for i in range(self.loss.n_time_steps):
+            predictions.append(self.loss.calculate_surrogate_loss(
+            new_log_probs[i],
+            old_log_probs[i],
+            adv[i].tolist()
+        ))
+
+        surr_tensor = torch.Tensor(predictions)
+        print(surr_tensor)
+        assert torch.allclose(expected_loss,surr_tensor)
+
+        # Reset to defaults for non-linear deployment case.
+        self.loss.n_particles = 10
+        self.loss.n_time_steps = 5
+
+
 
     def test_actor_loss(self):
         """
