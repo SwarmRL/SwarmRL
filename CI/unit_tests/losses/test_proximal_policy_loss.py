@@ -67,17 +67,10 @@ class TestLoss:
         -----
         Test that the expected returns are correct.
         """
-        discounted_returns = self.loss.compute_true_value_function(rewards=self.rewards)
-        torch.testing.assert_allclose(torch.mean(discounted_returns[:, 0]).numpy(), 0.0)
-        torch.testing.assert_allclose(torch.mean(discounted_returns[:, 1]).numpy(), 0.0)
-        torch.testing.assert_allclose(torch.mean(discounted_returns[:, 2]).numpy(), 0.0)
-        torch.testing.assert_allclose(torch.mean(discounted_returns[:, 3]).numpy(), 0.0)
-        torch.testing.assert_allclose(torch.mean(discounted_returns[:, 4]).numpy(), 0.0)
-        torch.testing.assert_allclose(torch.std(discounted_returns[:, 0]).numpy(), 1.0)
-        torch.testing.assert_allclose(torch.std(discounted_returns[:, 1]).numpy(), 1.0)
-        torch.testing.assert_allclose(torch.std(discounted_returns[:, 2]).numpy(), 1.0)
-        torch.testing.assert_allclose(torch.std(discounted_returns[:, 3]).numpy(), 1.0)
-        torch.testing.assert_allclose(torch.std(discounted_returns[:, 4]).numpy(), 1.0)
+        rewards = torch.tensor([1, 2, 3, 4, 5])
+        discounted_returns = self.loss.compute_true_value_function(rewards=rewards)
+        torch.testing.assert_allclose(torch.mean(discounted_returns).numpy(), 0.0)
+        torch.testing.assert_allclose(torch.std(discounted_returns).numpy(), 1.0)
 
     def test_surrogate_loss(self):
         """
@@ -112,7 +105,7 @@ class TestLoss:
         self.loss.n_particles = 10
         self.loss.n_time_steps = 5
 
-
+    #TODO write test for compute_loss_values
 
     def test_actor_loss(self):
         """
