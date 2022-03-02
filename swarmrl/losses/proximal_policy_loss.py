@@ -79,7 +79,23 @@ class ProximalPolicyLoss(Loss, ABC):
 
         return true_value_function
 
+    def calculate_surrogate_loss(
+            self,
+            new_log_probs: list,
+            old_log_probs: list,
+            advantage: torch.Tensor,
+            epsilon: float
+    ):
+        for i in range(self.n_time_steps):
+            ratio = torch.exp(new_log_probs[i] - old_log_probs[i])
 
+            surrogate_1 = ratio * advantage[i].item()
+            surrogate_2 = (
+                torch.clamp(ratio, 1 - self.epsilon, 1 + self.epsilon)
+                * advantage[i].item()
+            )
+            surrogate_loss = -1 * torch.min(surrogate_1, surrogate_2)
+        return surrogate_loss
 
     def compute_loss_values(
         self,
@@ -110,16 +126,14 @@ class ProximalPolicyLoss(Loss, ABC):
         actor_loss = torch.tensor(0, dtype=torch.double)
         critic_loss = torch.tensor(0, dtype=torch.double)
 
+        surrogate_loss = calculate_surrogate_loss(
+            new_log_probs,
+            old_log_probs,
+            advantage,
+            epsilon
+        )
+
         for i in range(self.n_time_steps):
-            ratio = torch.exp(new_log_probs[i] - old_log_probs[i])
-
-            surrogate_1 = ratio * advantage[i].item()
-            surrogate_2 = (
-                torch.clamp(ratio, 1 - self.epsilon, 1 + self.epsilon)
-                * advantage[i].item()
-            )
-
-            surrogate_loss = -1 * torch.min(surrogate_1, surrogate_2)
             critic_loss = 0.5 * torch.nn.functional.smooth_l1_loss(
                 true_value_function[i], new_values[i]
             )
@@ -129,6 +143,35 @@ class ProximalPolicyLoss(Loss, ABC):
             critic_loss += surrogate_loss.item() + critic_loss + entropy_loss.item()
 
         return actor_loss, critic_loss
+
+    def compute_actor_values(
+            self,
+            actor: Network,
+            old_actor: Network,
+            feature_vector: torch.Tensor,
+            log_probs: list,
+            old_log_probs: list,
+            entropy: list
+    ):
+            # Compute old actor values
+            old_action_probability = torch.nn.functional.softmax(
+                old_actor(feature_vector), dim=-1
+            )
+            old_distribution = Categorical(old_action_probability)
+            old_index = old_distribution.sample()
+            old_log_probs.append(old_distribution.log_prob(old_index).item())
+
+            # Compute actor values
+            action_probability = torch.nn.functional.softmax(
+                actor(feature_vector), dim=-1
+            )
+            distribution = Categorical(action_probability)
+            index = distribution.sample()
+            log_probs.append(distribution.log_prob(index))
+            entropy.append(distribution.entropy())
+
+            return log_probs, old_log_probs, entropy
+
 
     def compute_loss(
         self,
@@ -174,22 +217,14 @@ class ProximalPolicyLoss(Loss, ABC):
                         colloid, other_colloids
                     )
 
-                    # Compute old actor values
-                    old_action_probability = torch.nn.functional.softmax(
-                        old_actor(feature_vector), dim=-1
+                    log_probs, old_log_probs, entropy = compute_actor_values(
+                        actor,
+                        old_actor,
+                        feature_vector,
+                        log_probs,
+                        old_log_probs,
+                        entropy
                     )
-                    old_distribution = Categorical(old_action_probability)
-                    old_index = old_distribution.sample()
-                    old_log_probs.append(old_distribution.log_prob(old_index).item())
-
-                    # Compute actor values
-                    action_probability = torch.nn.functional.softmax(
-                        actor(feature_vector), dim=-1
-                    )
-                    distribution = Categorical(action_probability)
-                    index = distribution.sample()
-                    log_probs.append(distribution.log_prob(index))
-                    entropy.append(distribution.entropy())
 
                     # Compute critic values
                     values.append(critic(feature_vector))
