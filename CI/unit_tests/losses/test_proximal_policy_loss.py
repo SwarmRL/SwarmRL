@@ -15,13 +15,13 @@ class TestLoss:
     @classmethod
     def setup_class(cls) -> None:
         """
-        Set up the test class.
+        Set up the test cl
 
         Returns
         -------
 
         """
-        cls.loss = PolicyGradientLoss()
+        cls.loss = ProximalPolicyLoss()
         cls.loss.n_particles = 10
         cls.loss.n_time_steps = 5
         cls.rewards = torch.transpose(
@@ -43,9 +43,9 @@ class TestLoss:
             1,
         )
 
-    def test_expected_returns(self):
+    def test_true_values(self):
         """
-        Test the true values of the actual returns.
+        Compute the discounted returns of the actual rewards.
 
         Notes
         -------
