@@ -79,63 +79,7 @@ class ProximalPolicyLoss(Loss, ABC):
 
         return true_value_function
 
-    def compute_critic_loss(
-        self, predicted_rewards: List, rewards: List
-    ) -> torch.Tensor:
-        """
-        Compute the critic loss.
 
-        Parameters
-        ----------
-        predicted_rewards : List
-                Rewards predicted by the critic.
-        rewards : List
-                Real rewards computed by the rewards rule.
-
-        Notes
-        -----
-        Currently uses the Huber loss.
-        """
-        value_function = self.compute_true_value_function(rewards)
-
-        particle_loss = torch.tensor(0, dtype=torch.double)
-
-        for i in range(self.n_time_steps):
-            particle_loss += particle_loss + torch.nn.functional.smooth_l1_loss(
-                predicted_rewards[i], value_function[i]
-            )
-
-        return particle_loss
-
-    def compute_actor_loss(
-        self,
-        log_probs: List,
-        predicted_values: List,
-        rewards: List,
-    ) -> torch.Tensor:
-        """
-        Compute the actor loss.
-
-        Parameters
-        ----------
-        log_probs : List
-                Probabilities returned by the actor.
-        predicted_values : List
-                Values predicted by the critic.
-        rewards : List
-                Real rewards.
-
-        Returns
-        -------
-        losses : List
-        """
-        value_function = self.compute_true_value_function(rewards)
-        advantage = value_function - torch.tensor(predicted_values)
-
-        particle_loss = torch.tensor(0, dtype=torch.double)
-        for i in range(self.n_time_steps):
-            particle_loss += particle_loss + log_probs[i] * advantage[i]
-        return -1 * particle_loss
 
     def compute_loss_values(
         self,
