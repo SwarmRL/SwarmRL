@@ -98,9 +98,14 @@ class MLModel(InteractionModel):
             other_colloids = [c for c in colloids if c is not colloid]
             feature_vector = self.observable.compute_observable(colloid, other_colloids)
 
-            action_probabilities = torch.nn.functional.softmax(
-                self.model(feature_vector), dim=-1
-            )
+            # action_probabilities = torch.nn.functional.softmax(
+            #     self.model(feature_vector), dim=-1
+            # )
+
+            initial_prob = self.model(feature_vector)
+            initial_prob = initial_prob / torch.max(initial_prob)
+            action_probabilities = torch.nn.functional.softmax(initial_prob, dim=-1)
+
             action_distribution = Categorical(action_probabilities)
             action_idx = action_distribution.sample()
             # action_log_prob = action_distribution.log_prob(action_idx)
