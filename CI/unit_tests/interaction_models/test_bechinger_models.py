@@ -1,7 +1,7 @@
+import dataclasses
 import unittest as ut
-
 import numpy as np
-
+import context
 import swarmrl.models.bechinger_models
 import swarmrl.models.interaction_model as int_mod
 

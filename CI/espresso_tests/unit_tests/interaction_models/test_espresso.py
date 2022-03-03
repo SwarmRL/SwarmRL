@@ -2,10 +2,12 @@ import pathlib as pl
 import tempfile
 import unittest as ut
 
+import context
 import h5py
 import numpy as np
 import pint
 
+import swarmrl.utils
 from swarmrl.engine import espresso
 from swarmrl.models import dummy_models
 
@@ -37,6 +39,7 @@ class EspressoTest(ut.TestCase):
             runner = espresso.EspressoMD(
                 params, out_folder=temp_dir, write_chunk_size=1
             )
+            swarmrl.utils.setup_swarmrl_logger(f"{temp_dir}/simulation_log.log")
             self.assertListEqual(runner.colloids, [])
 
             runner.setup_simulation()

@@ -1,18 +1,19 @@
 """
 Run an RL agent to find the center of a box.
 """
+import swarmrl as srl
+import swarmrl.utils
+import logging
 import argparse
 import copy
-
+from bacteria import utils
+import pint
+import numpy as np
+import tqdm
+import torch
 import h5py as hf
 import matplotlib.pyplot as plt
-import numpy as np
-import pint
-import torch
 import znvis as vis
-from bacteria import utils
-
-import swarmrl as srl
 
 
 def run_analysis():
@@ -58,7 +59,6 @@ def run_simulation():
     -------
 
     """
-    n_colloids = 10
     # Take user inputs
     parser = argparse.ArgumentParser()
     parser.add_argument("-outfolder_base", default="./find_center")
@@ -67,10 +67,11 @@ def run_simulation():
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
 
-    outfolder, _ = utils.setup_sim_folders(
-        args.outfolder_base, args.name, check_existing=not args.test
+    outfolder = swarmrl.utils.setup_sim_folder(
+        args.outfolder_base, args.name, ask_if_exists=not args.test
     )
-    print(outfolder)
+    logger = swarmrl.utils.setup_swarmrl_logger(f"{outfolder}/{args.name}.log",
+                                                loglevel_terminal=logging.DEBUG)
 
     # Define the MD simulation parameters
     ureg = pint.UnitRegistry()
@@ -121,6 +122,11 @@ def run_simulation():
         write_chunk_size=1000,
     )
     system_runner.setup_simulation()
+    gamma = system_runner.colloid_friction_translation
+    target_vel = model_params['target_vel_SI'].m_as('sim_velocity')
+    act_force = target_vel * gamma
+
+    perception_threshold = model_params['perception_threshold'].m_as('1/ sim_length')
 
     # Define the force model.
 
@@ -128,10 +134,18 @@ def run_simulation():
     critic_stack = torch.nn.Sequential(
         torch.nn.Linear(3, 128),
         torch.nn.ReLU(),
+        torch.nn.Linear(128, 128),
+        torch.nn.ReLU(),
+        torch.nn.Linear(128, 128),
+        torch.nn.ReLU(),
         torch.nn.Linear(128, 1),
     )
     actor_stack = torch.nn.Sequential(
         torch.nn.Linear(3, 128),
+        torch.nn.ReLU(),
+        torch.nn.Linear(128, 128),
+        torch.nn.ReLU(),
+        torch.nn.Linear(128, 128),
         torch.nn.ReLU(),
         torch.nn.Linear(128, 4),
     )
@@ -181,3 +195,4 @@ if __name__ == "__main__":
     run_simulation()
     run_analysis()
     visualize_particles()
+

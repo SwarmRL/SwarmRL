@@ -1,6 +1,5 @@
-import typing
-
 import numpy as np
+import typing
 
 from swarmrl.models.interaction_model import Action, InteractionModel
 

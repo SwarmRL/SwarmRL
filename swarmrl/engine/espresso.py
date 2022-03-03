@@ -6,17 +6,19 @@ try:
     from espressomd import System
 except ModuleNotFoundError:
     print("WARNING: Could not find espressomd. Features will not be available")
-import dataclasses
-import logging
-import os
-
-import h5py
 import numpy as np
+import h5py
+import os
+import logging
+import dataclasses
 import pint
 
+from .engine import Engine
 import swarmrl.models.interaction_model
 
 from .engine import Engine
+
+logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass()
@@ -76,7 +78,6 @@ class EspressoMD(Engine):
         n_dims=3,
         seed=42,
         out_folder=".",
-        loglevel=logging.DEBUG,
         write_chunk_size=100,
     ):
         """
@@ -93,8 +94,6 @@ class EspressoMD(Engine):
         out_folder : str
                 Path to an output folder to store data in. This file should have a
                 reasonable amount of free space.
-        loglevel : object
-                Type of logging to perform.
         write_chunk_size : int
                 Chunk size to use in the hdf5 writing.
         """
@@ -105,7 +104,6 @@ class EspressoMD(Engine):
 
         self._init_unit_system()
         self._init_h5_output(write_chunk_size)
-        self._init_logger(loglevel)
         self._init_calculated_quantities()
 
         self.system = System(box_l=3 * [1])
@@ -183,34 +181,6 @@ class EspressoMD(Engine):
         self.write_idx = 0
         self.h5_time_steps_written = 0
 
-    def _init_logger(self, loglevel):
-        """
-        Initialize the system logger.
-
-        Parameters
-        ----------
-        loglevel : object
-                log level with which to initialize.
-
-        Returns
-        -------
-        Updates logging state in the class.
-        """
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(loglevel)
-        formatter = logging.Formatter(
-            fmt="[%(levelname)-10s] %(asctime)s %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        file_handler = logging.FileHandler(f"{self.out_folder}/simulation_log.log")
-        file_handler.setFormatter(formatter)
-        file_handler.setLevel(loglevel)
-        stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(formatter)
-        stream_handler.setLevel(loglevel)
-        self.logger.addHandler(file_handler)
-        self.logger.addHandler(stream_handler)
-
     def _init_calculated_quantities(self):
         """
         Initialize computerd values to be set later.
@@ -247,7 +217,7 @@ class EspressoMD(Engine):
                     ...,
                 ] = values
 
-        self.logger.debug(f"wrote {n_new_timesteps} time steps to hdf5 file")
+        logger.debug(f"wrote {n_new_timesteps} time steps to hdf5 file")
         self.h5_time_steps_written += n_new_timesteps
 
     def setup_simulation(self):
@@ -382,14 +352,9 @@ class EspressoMD(Engine):
         self.params.steps_per_slice = steps_per_slice
         if abs(steps_per_slice - time_slice / time_step) > 1e-10:
             raise ValueError(
-                "inconsistent parameters: time_slice must be integer multiple of "
-                "time_step"
+                "inconsistent parameters: time_slice must be integer multiple of time_step"
             )
 
-    def _update_database(self):
-        """
-        Dump stored data into hdf5 database.
-        """
 
     def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel):
         """

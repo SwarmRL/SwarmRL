@@ -55,3 +55,4 @@ class InteractionModel(torch.nn.Module):
                 List of Actions for all Colloids in the same order as input colloids
         """
         raise NotImplementedError("Interaction models must define a calc_action method")
+

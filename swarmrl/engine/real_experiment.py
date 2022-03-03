@@ -3,11 +3,17 @@ Parent class for the engine.
 """
 import struct
 import typing
-
 import numpy as np
+import dataclasses
 
 import swarmrl.engine.engine
 from swarmrl.models.interaction_model import Colloid
+
+@dataclasses.dataclass
+class Colloid:
+    pos: np.ndarray
+    director: np.ndarray
+    id: int
 
 
 class ConnectionClosedError(Exception):
@@ -29,6 +35,12 @@ experiment_actions = {
 def vector_from_angle(angle):
     return np.array([np.cos(angle), np.sin(angle), 0])
 
+    def get_particle_state(self) -> np.array:
+        pos = 5 * np.random.random((self.n_colloids, 2))
+        theta = 2 * np.pi * np.random.random((self.n_colloids,))
+        last_action = np.random.randint(1, 5, (self.n_colloids,))
+        state = np.column_stack((pos, theta, last_action))
+        return state
 
 class RealExperiment(swarmrl.engine.engine.Engine):
     """
