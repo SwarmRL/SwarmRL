@@ -178,7 +178,7 @@ def run_simulation():
     # Run the simulation.
     n_slices = int(run_params["sim_duration"] / md_params.time_slice)
 
-    n_episodes = 150
+    n_episodes = 5000
     episode_length = int(np.ceil(n_slices / 1500))
     actor_weights_list,reward_list = rl_trainer.perform_rl_training(
         system_runner=system_runner,
@@ -197,16 +197,16 @@ if __name__ == "__main__":
     """
     Run what you must.
     """
-    # actor_weights_list,reward_list, n_episodes = run_simulation()
-    # print("Actor weights equal: ", np.array_equal(actor_weights_list[0],
-    #                                               actor_weights_list[-1]))
-    # x_values = np.linspace(0, n_episodes, n_episodes)
-    # plt.plot(x_values, reward_list)
-    # plt.grid()
-    # plt.xlabel('t')
-    # plt.ylabel('Rewards')
-    # plt.show()
+    actor_weights_list,reward_list, n_episodes = run_simulation()
+    print("Actor weights equal: ", np.array_equal(actor_weights_list[0],
+                                                  actor_weights_list[-1]))
+    x_values = np.linspace(0, n_episodes, n_episodes)
+    plt.plot(x_values, reward_list)
+    plt.grid()
+    plt.xlabel('t')
+    plt.ylabel('Rewards')
+    plt.show()
 
 
-    run_analysis()
+    # run_analysis()
     # visualize_particles()
