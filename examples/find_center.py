@@ -61,7 +61,7 @@ def run_simulation():
     """
     # Take user inputs
     parser = argparse.ArgumentParser()
-    parser.add_argument("-outfolder_base", default="./find_center")
+    parser.add_argument("-outfolder_base", default="./example_output")
     parser.add_argument("-name", default="test")
     parser.add_argument("-seed", type=int, default=42)
     parser.add_argument("--test", action="store_true")
@@ -76,7 +76,7 @@ def run_simulation():
     # Define the MD simulation parameters
     ureg = pint.UnitRegistry()
     md_params = srl.espresso.MDParams(
-        n_colloids=n_colloids,
+        n_colloids=10,
         ureg=ureg,
         colloid_radius=ureg.Quantity(2.14, "micrometer"),
         fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
@@ -122,12 +122,6 @@ def run_simulation():
         write_chunk_size=1000,
     )
     system_runner.setup_simulation()
-    gamma = system_runner.colloid_friction_translation
-    target_vel = model_params['target_vel_SI'].m_as('sim_velocity')
-    act_force = target_vel * gamma
-
-    perception_threshold = model_params['perception_threshold'].m_as('1/ sim_length')
-
     # Define the force model.
 
     # Define networks
@@ -172,7 +166,7 @@ def run_simulation():
 
     # Define the force model.
     rl_trainer = srl.models.MLPRL(
-        actor, critic, task, loss, observable, n_colloids, outfolder
+        actor, critic, task, loss, observable, md_params.n_colloids, outfolder
     )
 
     # Run the simulation.

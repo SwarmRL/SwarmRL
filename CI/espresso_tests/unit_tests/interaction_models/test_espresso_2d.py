@@ -1,10 +1,5 @@
 import tempfile
 import unittest as ut
-
-<<<<<<< HEAD:CI/espresso_tests/unit_tests/interaction_models/test_espresso_2d.py
-=======
-import context
->>>>>>> master:CI/unit_tests/test_espresso_2d.py
 import numpy as np
 import pint
 
