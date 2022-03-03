@@ -124,6 +124,16 @@ def run_simulation():
 
     # Define the force model.
 
+    def weights_init_uniform_rule(m):
+        classname = m.__class__.__name__
+        # for every Linear layer in a model..
+        if classname.find('Linear') != -1:
+            # get the number of the inputs
+            n = m.in_features
+            y = 1.0/np.sqrt(n)
+            m.weight.data.uniform_(-y, y)
+            m.bias.data.fill_(0)
+
     # Define networks
     critic_stack = torch.nn.Sequential(
         torch.nn.Linear(3, 128),
@@ -134,7 +144,11 @@ def run_simulation():
         torch.nn.Linear(3, 128),
         torch.nn.ReLU(),
         torch.nn.Linear(128, 4),
+        torch.nn.ReLU()
     )
+
+    actor_stack.apply(weights_init_uniform_rule)
+    critic_stack.apply(weights_init_uniform_rule)
 
     actor = srl.networks.MLP(actor_stack)
     critic = srl.networks.MLP(critic_stack)
@@ -164,7 +178,7 @@ def run_simulation():
     # Run the simulation.
     n_slices = int(run_params["sim_duration"] / md_params.time_slice)
 
-    n_episodes = 2
+    n_episodes = 200
     episode_length = int(np.ceil(n_slices / 1500))
     actor_weights_list,reward_list = rl_trainer.perform_rl_training(
         system_runner=system_runner,
