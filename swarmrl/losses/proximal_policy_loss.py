@@ -194,9 +194,13 @@ class ProximalPolicyLoss(Loss, ABC):
         old_action_probability = torch.nn.functional.softmax(
             old_actor(feature_vector), dim=-1
         )
+        print(f'old action prob: {old_action_probability=}')
         old_distribution = Categorical(old_action_probability)
+        print(f'old distribution: {old_distribution=}')
         old_index = old_distribution.sample()
+        print(f'old indx: {old_index=}')
         old_log_probs.append(old_distribution.log_prob(old_index).item())
+        print(f'old log probs: {old_log_probs=}')
 
         # Compute actor values
         action_probability = torch.nn.functional.softmax(

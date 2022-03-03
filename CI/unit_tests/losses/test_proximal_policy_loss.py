@@ -3,6 +3,7 @@ Run a unit test on the loss module.
 """
 import pytest
 import torch
+import swarmrl as srl
 
 from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
 torch.random.manual_seed(42)
@@ -47,7 +48,7 @@ class TestLoss:
         torch.nn.ReLU(),
         torch.nn.Linear(128, 4),
     )
-        actor_initialiser = srl.networks.MLP(actor_stack)
+        actor_initialiser = srl.networks.MLP(cls.actor_stack)
         cls.actor = actor_initialiser.double()
 
         a = [200, 300, 400]
