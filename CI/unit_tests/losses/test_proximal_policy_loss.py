@@ -42,6 +42,22 @@ class TestLoss:
             0,
             1,
         )
+        cls.actor_stack = torch.nn.Sequential(
+        torch.nn.Linear(3, 128),
+        torch.nn.ReLU(),
+        torch.nn.Linear(128, 4),
+    )
+        actor_initialiser = srl.networks.MLP(actor_stack)
+        cls.actor = actor_initialiser.double()
+
+        a = [200, 300, 400]
+        b = [202, 298, 402]
+        c = [200, 296, 404]
+        d = [198, 294, 402]
+        e = [196, 296, 400]
+        cls.feature_vector = torch.Tensor([a, b, c, d, e])
+
+
 
     def test_true_values(self):
         """
@@ -81,15 +97,12 @@ class TestLoss:
         self.loss.n_time_steps = 5
 
         new_log_probs = torch.log(torch.tensor([0.2, 0.3, 0.05, 0.15, 0.3]))
-
         old_log_probs = torch.clone(new_log_probs)
 
         adv = torch.rand(self.loss.n_time_steps)
-
         expected_loss = -1 * adv
-        print(type(new_log_probs[0]))
-
         predictions = []
+
         for i in range(self.loss.n_time_steps):
             predictions.append(self.loss.calculate_surrogate_loss(
             new_log_probs[i],
@@ -98,7 +111,6 @@ class TestLoss:
         ))
 
         surr_tensor = torch.Tensor(predictions)
-        print(surr_tensor)
         assert torch.allclose(expected_loss,surr_tensor)
 
         # Reset to defaults for non-linear deployment case.
@@ -106,6 +118,27 @@ class TestLoss:
         self.loss.n_time_steps = 5
 
     #TODO write test for compute_loss_values
+
+    def test_compute_actor_values(self):
+        """
+
+        Returns
+        -------
+
+        """
+        log_probs = []
+        action_prob = torch.nn.functional.softmax(
+            self.actor(self.feature_vector), dim=-1
+        )
+        print(f'Action prob {action_prob}')
+        distribution = Categorical(action_prob)
+        print(f'distribution: {distribution}')
+        index = distribution.sample()
+        print(f'index: {index}')
+        new_prob = distribution[index]
+        print(f'new prob: {new_prob}')
+        log_probs.append(torch.log(new_prob))
+
 
     def test_actor_loss(self):
         """
