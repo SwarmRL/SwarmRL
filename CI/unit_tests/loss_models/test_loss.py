@@ -2,8 +2,10 @@
 Run a unit test on the loss module.
 """
 import unittest
-from swarmrl.loss_models.loss import Loss
+
 import torch
+
+from swarmrl.loss_models.loss import Loss
 
 
 class TestLoss(unittest.TestCase):
@@ -32,7 +34,7 @@ class TestLoss(unittest.TestCase):
                 [7, 7, 7, 7, 7],
                 [8, 8, 8, 8, 8],
                 [9, 9, 9, 9, 9],
-                [10, 10, 10, 10, 10]
+                [10, 10, 10, 10, 10],
             ]
         )
 
@@ -46,16 +48,20 @@ class TestLoss(unittest.TestCase):
         standardization and with the simple case of gamma=1
         """
         self.loss.particles = 10
-        true_values = torch.tensor([[5., 4., 3., 2., 1.],
-                                    [10., 8., 6., 4., 2.],
-                                    [15., 12., 9., 6., 3.],
-                                    [20., 16., 12., 8., 4.],
-                                    [25., 20., 15., 10., 5.],
-                                    [30., 24., 18., 12., 6.],
-                                    [35., 28., 21., 14., 7.],
-                                    [40., 32., 24., 16., 8.],
-                                    [45., 36., 27., 18., 9.],
-                                    [50., 40., 30., 20., 10.]])
+        true_values = torch.tensor(
+            [
+                [5.0, 4.0, 3.0, 2.0, 1.0],
+                [10.0, 8.0, 6.0, 4.0, 2.0],
+                [15.0, 12.0, 9.0, 6.0, 3.0],
+                [20.0, 16.0, 12.0, 8.0, 4.0],
+                [25.0, 20.0, 15.0, 10.0, 5.0],
+                [30.0, 24.0, 18.0, 12.0, 6.0],
+                [35.0, 28.0, 21.0, 14.0, 7.0],
+                [40.0, 32.0, 24.0, 16.0, 8.0],
+                [45.0, 36.0, 27.0, 18.0, 9.0],
+                [50.0, 40.0, 30.0, 20.0, 10.0],
+            ]
+        )
         discounted_returns = self.loss.compute_discounted_returns(
             rewards=self.rewards, standardize=False, gamma=1
         )
@@ -92,32 +98,17 @@ class TestLoss(unittest.TestCase):
 
         """
         self.loss.particles = 2
-        rewards = torch.tensor(
-            [
-                [1, 2, 3, 4, 5],
-                [1, 2, 3, 4, 5]
-            ]
-        )
+        rewards = torch.tensor([[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]])
 
         action_probs = torch.nn.Softmax()(
-            torch.tensor(
-                [
-                    [1., 2., 3., 4., 5.],
-                    [1., 2., 3., 4., 5.]
-                ]
-            )
+            torch.tensor([[1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 2.0, 3.0, 4.0, 5.0]])
         )
 
-        predicted_rewards = torch.tensor(
-            [
-                [1, 2, 3, 4, 5],
-                [1, 2, 3, 4, 5]
-            ]
-        )
+        predicted_rewards = torch.tensor([[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]])
         actor_loss = self.loss.compute_actor_loss(
             policy_probabilities=action_probs,
             rewards=rewards,
-            predicted_rewards=predicted_rewards
+            predicted_rewards=predicted_rewards,
         )
 
         self.assertEqual(129.41423116696092, float(actor_loss[0].numpy()))
@@ -133,21 +124,12 @@ class TestLoss(unittest.TestCase):
 
         """
         self.loss.particles = 2
-        rewards = torch.tensor(
-            [
-                [1., 2., 3., 4., 5.],
-                [1., 2., 3., 4., 5.]
-            ]
-        )
+        rewards = torch.tensor([[1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 2.0, 3.0, 4.0, 5.0]])
         predicted_rewards = torch.tensor(
-            [
-                [2., 3., 4., 5., 6.],
-                [2., 3., 4., 5., 6.]
-            ]
+            [[2.0, 3.0, 4.0, 5.0, 6.0], [2.0, 3.0, 4.0, 5.0, 6.0]]
         )
         critic_loss = self.loss.compute_critic_loss(
-            rewards=rewards,
-            predicted_rewards=predicted_rewards
+            rewards=rewards, predicted_rewards=predicted_rewards
         )
         self.assertEqual(len(critic_loss), 2)
         self.assertEqual(critic_loss[0], critic_loss[1])

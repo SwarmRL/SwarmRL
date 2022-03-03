@@ -7,6 +7,7 @@ The reward classes handle the computation of the reward from an environment and
 compute the loss for the models to train on.
 """
 import torch
+
 from swarmrl.engine.engine import Engine
 
 

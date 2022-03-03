@@ -1,13 +1,18 @@
-import typing
-import pickle
-import os
-import shutil
 import logging
+import os
+import pickle
+import shutil
+import typing
+
 import swarmrl
 
 
-def write_params(folder_name: str, sim_name: str, params: typing.Any,
-                 write_espresso_version: bool = False):
+def write_params(
+    folder_name: str,
+    sim_name: str,
+    params: typing.Any,
+    write_espresso_version: bool = False,
+):
     """
     Writes parameters human-readable and to pickle
 
@@ -26,21 +31,26 @@ def write_params(folder_name: str, sim_name: str, params: typing.Any,
     """
 
     fname_base = f"{folder_name}/params_{sim_name}"
-    with open(fname_base + '.txt', 'w') as txt_file:
+    with open(fname_base + ".txt", "w") as txt_file:
         if write_espresso_version:
             from espressomd import version
+
             txt_file.write(
                 f"Espresso version {version.friendly()} branch {version.git_branch()} "
-                f"at commit {version.git_commit()}\n")
+                f"at commit {version.git_commit()}\n"
+            )
         txt_file.write(str(params))
 
-    with open(fname_base + '.pick', 'wb') as pick_file:
+    with open(fname_base + ".pick", "wb") as pick_file:
         pickle.dump(params, pick_file)
 
 
-def setup_sim_folder(outfolder_base: str, name: str,
-                     ask_if_exists: bool = True,
-                     delete_existing: bool = True):
+def setup_sim_folder(
+    outfolder_base: str,
+    name: str,
+    ask_if_exists: bool = True,
+    delete_existing: bool = True,
+):
     """
     Create a simulation folder.
     Depending on flags, delete previous folders of the same name
@@ -61,27 +71,33 @@ def setup_sim_folder(outfolder_base: str, name: str,
     -------
 
     """
-    folder_name = f'{outfolder_base}/{name}'
+    folder_name = f"{outfolder_base}/{name}"
     if os.path.isdir(folder_name):
-        if ask_if_exists and input(
+        if (
+            ask_if_exists
+            and input(
                 f"Directory for sim '{name}' already exists in '{outfolder_base}'. "
-                f"Delete previous and create new? (yes/N) ") != "yes":
-            print('aborting')
+                "Delete previous and create new? (yes/N) "
+            )
+            != "yes"
+        ):
+            print("aborting")
             exit()
         elif delete_existing:
             shutil.rmtree(folder_name)
-            print(f'removed {folder_name} and all its contents')
+            print(f"removed {folder_name} and all its contents")
 
     os.makedirs(folder_name, exist_ok=True)
-    print(f'outdir {folder_name} created')
+    print(f"outdir {folder_name} created")
 
     return folder_name
 
 
-def setup_swarmrl_logger(filename: str,
-                         loglevel_terminal: typing.Union[int, str] = logging.INFO,
-                         loglevel_file: typing.Union[int, str] = logging.DEBUG) \
-        -> logging.Logger:
+def setup_swarmrl_logger(
+    filename: str,
+    loglevel_terminal: typing.Union[int, str] = logging.INFO,
+    loglevel_file: typing.Union[int, str] = logging.DEBUG,
+) -> logging.Logger:
     """
     Configure the swarmrl logger. This logger is used internally for logging, but you can
     also use it for your own log messages.
@@ -107,13 +123,16 @@ def setup_swarmrl_logger(filename: str,
         elif isinstance(loglevel, int):
             numeric_level = loglevel
         else:
-            raise ValueError(f'Invalid log level: {loglevel}. Must be either str or int')
+            raise ValueError(
+                f"Invalid log level: {loglevel}. Must be either str or int"
+            )
         return numeric_level
 
     logger = logging.getLogger(swarmrl._ROOT_NAME)
     logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(fmt="[%(levelname)-10s] %(asctime)s %(message)s",
-                                  datefmt='%Y-%m-%d %H:%M:%S')
+    formatter = logging.Formatter(
+        fmt="[%(levelname)-10s] %(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    )
     file_handler = logging.FileHandler(filename)
     file_handler.setFormatter(formatter)
     file_handler.setLevel(get_numeric_level(loglevel_file))

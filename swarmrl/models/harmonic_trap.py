@@ -2,9 +2,11 @@
 Example force computation.
 """
 from abc import ABC
-from swarmrl.models.interaction_model import InteractionModel
-import torch
+
 import numpy as np
+import torch
+
+from swarmrl.models.interaction_model import InteractionModel
 
 
 class HarmonicTrap(InteractionModel, ABC):

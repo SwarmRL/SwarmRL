@@ -1,8 +1,9 @@
 """
 Implement an MLP model.
 """
-import torch
 import numpy as np
+import torch
+
 from swarmrl.networks.network import Network
 
 

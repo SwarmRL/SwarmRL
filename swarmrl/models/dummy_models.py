@@ -1,5 +1,6 @@
-from . import interaction_model
 import numpy as np
+
+from . import interaction_model
 
 
 class ConstForce(interaction_model.InteractionModel):

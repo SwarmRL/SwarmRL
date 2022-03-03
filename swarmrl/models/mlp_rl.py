@@ -1,14 +1,14 @@
 """
 Module to implement a simple multi-layer perceptron for the colloids.
 """
-from swarmrl.models.interaction_model import InteractionModel
+import numpy as np
+import torch
+
+from swarmrl.loss_models.loss import Loss
+from swarmrl.models.interaction_model import Action, InteractionModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-from swarmrl.loss_models.loss import Loss
-from swarmrl.models.interaction_model import Action
-import torch
-import numpy as np
 
 
 class MLPRL(InteractionModel):
@@ -81,7 +81,7 @@ class MLPRL(InteractionModel):
             "RotateClockwise": rotate_clockwise,
             "Translate": translate,
             "RotateCounterClockwise": rotate_counter_clockwise,
-            "DoNothing": do_nothing
+            "DoNothing": do_nothing,
         }
 
     def calc_action(self, colloid, other_colloids) -> Action:
@@ -186,13 +186,10 @@ class MLPRL(InteractionModel):
 
         # Compute predicted rewards.
         predicted_rewards = self.critic(torch.tensor(self.observables))
-        predicted_rewards = torch.reshape(
-            predicted_rewards, (n_particles, time_steps)
-        )
+        predicted_rewards = torch.reshape(predicted_rewards, (n_particles, time_steps))
 
         action_probabilities = torch.reshape(
             torch.tensor(self.action_probabilities), (n_particles, time_steps)
-
         )
         # Compute loss.
         actor_loss, critic_loss = self.loss.compute_loss(

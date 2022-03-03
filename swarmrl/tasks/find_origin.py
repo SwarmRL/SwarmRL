@@ -7,11 +7,12 @@ with their radius of gyration. The idea being that they should form a ring aroun
 gyration reward may be adjusted such that the colloids form a tighter or wider ring.
 """
 from abc import ABC
+
+import numpy as np
 import torch
 
-from swarmrl.tasks.task import Task
-import numpy as np
 from swarmrl.engine.engine import Engine
+from swarmrl.tasks.task import Task
 
 
 class FindOrigin(Task, ABC):
@@ -124,9 +125,7 @@ class FindOrigin(Task, ABC):
         """
         n_episodes = int(len(observables) / n_particles)  # number of episodes.
         # Reshape for easier computation (n_particles, n_time_steps, 3)
-        observables = torch.reshape(
-            observables, (n_particles, n_episodes, 3)
-        )
+        observables = torch.reshape(observables, (n_particles, n_episodes, 3))
         distances = torch.linalg.norm(observables - self.origin, dim=-1)
         # differences = -1 * torch.diff(distances, dim=1)
         # differences[differences < 0] = 0
@@ -150,7 +149,7 @@ class FindOrigin(Task, ABC):
         """
         # {"Unwrapped_Positions": (n, 3), "Velocities": (n, 3), "Directors": (n, 3)}
         colloid_data = self.engine.get_particle_data()
-        n_particles = colloid_data['Unwrapped_Positions'].shape[0]
+        n_particles = colloid_data["Unwrapped_Positions"].shape[0]
 
         # com, com_reward = self.compute_center_of_mass_reward(
         #     colloid_data["Unwrapped_Positions"]

@@ -1,5 +1,6 @@
-from swarmrl.models.interaction_model import InteractionModel, Action
 import numpy as np
+
+from swarmrl.models.interaction_model import Action, InteractionModel
 
 
 class Lavergne2019(InteractionModel):

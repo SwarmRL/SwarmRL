@@ -2,9 +2,11 @@
 Perform an integration test on the harmonic trap class.
 """
 import unittest as ut
-from swarmrl.models.harmonic_trap import HarmonicTrap
+
 import numpy as np
 import torch
+
+from swarmrl.models.harmonic_trap import HarmonicTrap
 
 
 class TestHarmonicTrap(ut.TestCase):
