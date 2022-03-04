@@ -2,6 +2,7 @@
 Implement an MLP model.
 """
 import torch
+import numpy as np
 
 from swarmrl.networks.network import Network
 
@@ -38,7 +39,8 @@ class MLP(Network):
                 based on some distribution.
         """
         super(MLP, self).__init__()
-        self.model = layer_stack
+        self.layer_stack = layer_stack
+        self.model = self.layer_stack.apply(self.initialise_weights)
 
     def update_model(self, loss_vector: torch.Tensor, retain: bool = False):
         """
@@ -69,3 +71,23 @@ class MLP(Network):
         Compute the forward pass over the network.
         """
         return self.model(state)
+
+    def initialise_weights(self, model):
+        """
+        Initialises weights to be in range [-y,y] with y=sqrt(inputs).
+        Parameters
+        ----------
+        model: layer stack
+
+        Returns
+        -------
+        updated layer stack
+        """
+        classname = model.__class__.__name__
+        # for every Linear layer in a model..
+        if classname.find('Linear') != -1:
+            # get the number of the inputs
+            n = model.in_features
+            y = 1.0/np.sqrt(n)
+            model.weight.data.uniform_(-y, y)
+            model.bias.data.fill_(0)
