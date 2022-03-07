@@ -1,8 +1,8 @@
 """
 Implement an MLP model.
 """
-import torch
 import numpy as np
+import torch
 
 from swarmrl.networks.network import Network
 
@@ -65,7 +65,6 @@ class MLP(Network):
         total_loss.backward(retain_graph=retain)
         self.optimizer.step()
 
-
     def forward(self, state: torch.Tensor):
         """
         Compute the forward pass over the network.
@@ -85,9 +84,9 @@ class MLP(Network):
         """
         classname = model.__class__.__name__
         # for every Linear layer in a model..
-        if classname.find('Linear') != -1:
+        if classname.find("Linear") != -1:
             # get the number of the inputs
             n = model.in_features
-            y = 1.0/np.sqrt(n)
+            y = 1.0 / np.sqrt(n)
             model.weight.data.uniform_(-y, y)
             model.bias.data.fill_(0)

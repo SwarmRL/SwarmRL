@@ -7,7 +7,6 @@ https://spinningup.openai.com/en/latest/algorithms/ppo.html
 """
 import copy
 from abc import ABC
-from typing import List
 
 import numpy as np
 import torch
@@ -80,11 +79,7 @@ class ProximalPolicyLoss(Loss, ABC):
         return true_value_function
 
     def calculate_surrogate_loss(
-            self,
-            new_log_probs,
-            old_log_probs,
-            advantage: float,
-            epsilon: float = 0.2
+        self, new_log_probs, old_log_probs, advantage: float, epsilon: float = 0.2
     ):
         """
         Calculates the surrogate loss using the (clamped) ratio * advantage.
@@ -95,8 +90,8 @@ class ProximalPolicyLoss(Loss, ABC):
         new_log_probs: Float
             Element of a list of the log probabilities at the current step k
         old_log_probs: Float
-            Element of a list of the old log probabilities at the previous step k-1. instantiated
-            as copy of new_log_probs
+            Element of a list of the old log probabilities at the previous step
+            k-1. instantiated as copy of new_log_probs
         advantage: Float
             Difference between actual return and value function estimates
         epsilon: Float
@@ -104,18 +99,17 @@ class ProximalPolicyLoss(Loss, ABC):
             as it is in an OpenAi paper.
 
         Returns
-        surrogate_loss: Tensor
+        -------
+            surrogate_loss : Tensor
         -------
 
         """
         ratio = torch.exp(new_log_probs - old_log_probs)
 
         surrogate_1 = ratio * advantage
-        surrogate_2 = (
-            torch.clamp(ratio, 1 - self.epsilon, 1 + self.epsilon)
-            * advantage
-        )
+        surrogate_2 = torch.clamp(ratio, 1 - self.epsilon, 1 + self.epsilon) * advantage
         surrogate_loss = -1 * torch.min(surrogate_1, surrogate_2)
+
         return surrogate_loss
 
     def compute_loss_values(
@@ -149,9 +143,7 @@ class ProximalPolicyLoss(Loss, ABC):
 
         for i in range(self.n_time_steps):
             surrogate_loss = self.calculate_surrogate_loss(
-                new_log_probs[i],
-                old_log_probs[i],
-                advantage[i].item()
+                new_log_probs[i], old_log_probs[i], advantage[i].item()
             )
             critic_loss = 0.5 * torch.nn.functional.smooth_l1_loss(
                 true_value_function[i], new_values[i]
@@ -170,7 +162,7 @@ class ProximalPolicyLoss(Loss, ABC):
         feature_vector: torch.Tensor,
         log_probs: list,
         old_log_probs: list,
-        entropy: list
+        entropy: list,
     ):
         """
         Takes as input the log_probs, old_log_probs, and entropy values and returns
@@ -182,13 +174,14 @@ class ProximalPolicyLoss(Loss, ABC):
         old_actor: weights of actor NN at old step k-1
         feature_vector
         log_probs: A list of the log probabilities at the current step k
-        old_log_probs: A list of the old log probabilities at the previous step k-1. instantiated
-            as copy of new_log_probs.
-        entropy
+        old_log_probs: A list of the old log probabilities at the previous step k-1.
+        instantiated as copy of new_log_probs entropy
 
         Returns
         -------
-        Updated log_probs, old_log_probs, entropy
+        Updated log_probs,
+        old_log_probs,
+        entropy
         """
         # Compute old actor values
         old_initial_prob = old_actor(feature_vector)
@@ -208,7 +201,6 @@ class ProximalPolicyLoss(Loss, ABC):
         entropy.append(distribution.entropy())
 
         return log_probs, old_log_probs, entropy
-
 
     def compute_loss(
         self,
@@ -232,7 +224,7 @@ class ProximalPolicyLoss(Loss, ABC):
         self.n_time_steps = np.shape(episode_data)[0]
 
         # actor_weights = []
-        #critic_weights = []
+        # critic_weights = []
         for _ in range(self.n_epochs):
             old_actor = copy.deepcopy(actor)
 
@@ -260,7 +252,7 @@ class ProximalPolicyLoss(Loss, ABC):
                         feature_vector,
                         log_probs,
                         old_log_probs,
-                        entropy
+                        entropy,
                     )
 
                     # Compute critic values
@@ -281,9 +273,5 @@ class ProximalPolicyLoss(Loss, ABC):
 
             actor.update_model([actor_loss])
             critic.update_model([critic_loss])
-            # actor_weights.append(list(actor.parameters())[0][0].data.numpy())
-            # critic_weights.append(list(critic.parameters())[0][0].data.numpy())
-            # print("Actor weights equal: ", np.array_equal(actor_weights[0], actor_weights[-1]))
-            # print("Critic weights equal: ", np.array_equal(critic_weights[0], critic_weights[-1]))
 
-        return actor, critic, rewards
+        return actor, critic

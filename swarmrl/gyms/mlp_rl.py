@@ -243,4 +243,4 @@ class MLPRL:
         except FileNotFoundError:
             pass
 
-        return actor_weights_list,reward_list
+        return actor_weights_list, reward_list

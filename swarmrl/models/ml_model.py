@@ -119,6 +119,4 @@ class MLModel(InteractionModel):
 
             # action_log_prob = action_distribution.log_prob(action_idx)
 
-
-
         return actions
