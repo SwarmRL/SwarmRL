@@ -133,9 +133,9 @@ class TestLoss:
         """
         log_probs = []
         feature_vector = torch.tensor([498.4704, 531.5168, 0.6740]).double()
-        action_prob = torch.nn.functional.softmax(
-            self.actor(feature_vector), dim=-1
-        )
+        initial_prob = self.actor(feature_vector)
+        initial_prob = initial_prob / torch.max(initial_prob)
+        action_prob = torch.nn.functional.softmax(initial_prob, dim=-1)
         distribution = Categorical(action_prob)
         index = distribution.sample()
         log_probs.append(distribution.log_prob(index))
