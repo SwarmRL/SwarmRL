@@ -110,7 +110,6 @@ class MLModel(InteractionModel):
             action_idx = action_distribution.sample()
             # action_log_prob = action_distribution.log_prob(action_idx)
 
-            print(self.actions[list(self.actions)[action_idx.item()]])
             actions.append(self.actions[list(self.actions)[action_idx.item()]])
 
         return actions

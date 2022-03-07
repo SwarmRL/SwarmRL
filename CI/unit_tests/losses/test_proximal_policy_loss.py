@@ -4,8 +4,12 @@ Run a unit test on the loss module.
 import pytest
 import torch
 import swarmrl as srl
+import copy
+import numpy as np
 
 from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
+from torch.distributions import Categorical
+
 torch.random.manual_seed(42)
 
 class TestLoss:
@@ -56,7 +60,7 @@ class TestLoss:
         c = [200, 296, 404]
         d = [198, 294, 402]
         e = [196, 296, 400]
-        cls.feature_vector = torch.Tensor([a, b, c, d, e])
+        cls.feature_vector = torch.Tensor([a, b, c, d, e]).double()
 
 
 
@@ -122,23 +126,33 @@ class TestLoss:
 
     def test_compute_actor_values(self):
         """
-
+        Test the function for a single timestep of one particle.
         Returns
         -------
 
         """
         log_probs = []
+        feature_vector = torch.tensor([498.4704, 531.5168, 0.6740]).double()
         action_prob = torch.nn.functional.softmax(
-            self.actor(self.feature_vector), dim=-1
+            self.actor(feature_vector), dim=-1
         )
-        print(f'Action prob {action_prob}')
         distribution = Categorical(action_prob)
-        print(f'distribution: {distribution}')
         index = distribution.sample()
-        print(f'index: {index}')
-        new_prob = distribution[index]
-        print(f'new prob: {new_prob}')
-        log_probs.append(torch.log(new_prob))
+        log_probs.append(distribution.log_prob(index))
+
+        computed_log_probs,computed_old_log_probs,computed_entropy = self.loss.\
+            compute_actor_values(
+            actor=self.actor,
+            old_actor=self.actor,
+            feature_vector=feature_vector,
+            log_probs= [],
+            old_log_probs=[],
+            entropy=[]
+        )
+        print(f'{log_probs=}')
+        print(f'{computed_log_probs=}')
+        print(f'{computed_old_log_probs=}')
+        assert np.allclose(np.array(log_probs), np.array(computed_log_probs))
 
 
     def test_actor_loss(self):

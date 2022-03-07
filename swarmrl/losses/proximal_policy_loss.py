@@ -191,27 +191,17 @@ class ProximalPolicyLoss(Loss, ABC):
         Updated log_probs, old_log_probs, entropy
         """
         # Compute old actor values
-        old_action_probability = torch.nn.functional.softmax(
-            old_actor(feature_vector), dim=-1
-        )
-        # print(f'old action prob: {old_action_probability=}')
+        old_initial_prob = old_actor(feature_vector)
+        old_initial_prob = old_initial_prob / torch.max(old_initial_prob)
+        old_action_probability = torch.nn.functional.softmax(old_initial_prob, dim=-1)
         old_distribution = Categorical(old_action_probability)
-        # print(f'old distribution: {old_distribution=}')
         old_index = old_distribution.sample()
-        # print(f'old indx: {old_index=}')
-        old_log_probs.append(old_distribution.log_prob(old_index).item())
-        # print(f'old log probs: {old_log_probs=}')
+        old_log_probs.append(old_distribution.log_prob(old_index))
 
         # Compute actor values
         initial_prob = actor(feature_vector)
         initial_prob = initial_prob / torch.max(initial_prob)
         action_probability = torch.nn.functional.softmax(initial_prob, dim=-1)
-        # action_probability = torch.nn.functional.softmax(
-        #     actor(feature_vector), dim=-1
-        # )
-        # print(f'{actor=}')
-        # print(f'{actor(feature_vector)=}')
-        # print(f'{action_probability=}')
         distribution = Categorical(action_probability)
         index = distribution.sample()
         log_probs.append(distribution.log_prob(index))
