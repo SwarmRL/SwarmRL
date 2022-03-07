@@ -112,8 +112,6 @@ class MLModel(InteractionModel):
             if j >= 0.8:
                 action_idx = np.random.randint(0, len(self.actions))
                 actions.append(self.actions[list(self.actions)[action_idx]])
-                print(f'random choice: {action_idx}')
-                print(f'sample choice: {action_distribution.sample()}')
 
             else:
                 action_idx = action_distribution.sample()
