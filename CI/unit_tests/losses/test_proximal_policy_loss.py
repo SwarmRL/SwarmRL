@@ -1,16 +1,14 @@
 """
 Run a unit test on the loss module.
 """
-import pytest
 import torch
-import swarmrl as srl
-import copy
-import numpy as np
-
-from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
 from torch.distributions import Categorical
 
+import swarmrl as srl
+from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
+
 torch.random.manual_seed(42)
+
 
 class TestLoss:
     """
@@ -48,10 +46,10 @@ class TestLoss:
             1,
         )
         cls.actor_stack = torch.nn.Sequential(
-        torch.nn.Linear(3, 128),
-        torch.nn.ReLU(),
-        torch.nn.Linear(128, 4),
-    )
+            torch.nn.Linear(3, 128),
+            torch.nn.ReLU(),
+            torch.nn.Linear(128, 4),
+        )
         actor_initialiser = srl.networks.MLP(cls.actor_stack)
         cls.actor = actor_initialiser.double()
 
@@ -62,8 +60,6 @@ class TestLoss:
         e = [196, 296, 400]
         cls.feature_vector = torch.Tensor([a, b, c, d, e]).double()
 
-
-
     def test_true_values(self):
         """
         Compute the discounted returns of the actual rewards.
@@ -73,8 +69,8 @@ class TestLoss:
         Checks the actual values return in the discounted returns without
         standardization and with the simple case of gamma=1
         """
-        rewards = torch.tensor([1,2,3,4,5])
-        discounted_return = torch.tensor([15,14,12,9,5])
+        rewards = torch.tensor([1, 2, 3, 4, 5])
+        discounted_return = torch.tensor([15, 14, 12, 9, 5])
         value_function = self.loss.compute_true_value_function(
             rewards=rewards, gamma=1, standardize=False
         )
@@ -109,20 +105,18 @@ class TestLoss:
         predictions = []
 
         for i in range(self.loss.n_time_steps):
-            predictions.append(self.loss.calculate_surrogate_loss(
-            new_log_probs[i],
-            old_log_probs[i],
-            adv[i].tolist()
-        ))
+            predictions.append(
+                self.loss.calculate_surrogate_loss(
+                    new_log_probs[i], old_log_probs[i], adv[i].tolist()
+                )
+            )
 
         surr_tensor = torch.Tensor(predictions)
-        assert torch.allclose(expected_loss,surr_tensor)
+        assert torch.allclose(expected_loss, surr_tensor)
 
         # Reset to defaults for non-linear deployment case.
         self.loss.n_particles = 10
         self.loss.n_time_steps = 5
-
-    #TODO write test for compute_loss_values
 
     def test_compute_actor_values(self):
         """
@@ -140,26 +134,23 @@ class TestLoss:
 
         # Compute true results
         true_initial_prob = self.actor(feature_vector)
-        print(f'Result: {true_initial_prob=}')
+        print(f"Result: {true_initial_prob=}")
         true_initial_prob = true_initial_prob / torch.max(true_initial_prob)
-        print(f'Result: {true_initial_prob=}')
+        print(f"Result: {true_initial_prob=}")
         true_action_prob = torch.nn.functional.softmax(true_initial_prob, dim=-1)
-        print(f'Result: {true_action_prob=}')
+        print(f"Result: {true_action_prob=}")
         true_distribution = Categorical(true_action_prob)
         true_index = true_distribution.sample()
-        print(f'Result: {true_index=}')
+        print(f"Result: {true_index=}")
         true_log_probs.append(true_distribution.log_prob(true_index))
-        print(f'Result: {true_log_probs=}')
+        print(f"Result: {true_log_probs=}")
 
         # Compute result of function
-        computed_log_probs,computed_old_log_probs,computed_entropy = self.loss.\
-            compute_actor_values(
+        self.loss.compute_actor_values(
             actor=self.actor,
             old_actor=self.actor,
             feature_vector=feature_vector,
-            log_probs= [],
+            log_probs=[],
             old_log_probs=[],
-            entropy=[]
+            entropy=[],
         )
-
-        #assert torch.allclose(true_log_probs[0], computed_log_probs[0])
