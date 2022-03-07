@@ -25,8 +25,6 @@ class TestLoss:
 
         """
         cls.loss = ProximalPolicyLoss()
-        cls.loss.n_particles = 10
-        cls.loss.n_time_steps = 5
         cls.rewards = torch.transpose(
             torch.tensor(
                 [
