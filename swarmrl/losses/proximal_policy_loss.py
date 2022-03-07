@@ -200,11 +200,16 @@ class ProximalPolicyLoss(Loss, ABC):
 
         # Compute actor values
         initial_prob = actor(feature_vector)
+        # print(f'Computation: {initial_prob=}')
         initial_prob = initial_prob / torch.max(initial_prob)
+        # print(f'Computation: {initial_prob=}')
         action_probability = torch.nn.functional.softmax(initial_prob, dim=-1)
+        # print(f'Computation: {action_probability=}')
         distribution = Categorical(action_probability)
         index = distribution.sample()
+        # print(f'Computation: {index=}')
         log_probs.append(distribution.log_prob(index))
+        # print(f'Computation: {log_probs=}')
         entropy.append(distribution.entropy())
 
         return log_probs, old_log_probs, entropy

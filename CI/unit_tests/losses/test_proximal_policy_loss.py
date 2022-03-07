@@ -131,15 +131,23 @@ class TestLoss:
         -------
 
         """
-        log_probs = []
+        true_log_probs = []
         feature_vector = torch.tensor([498.4704, 531.5168, 0.6740]).double()
-        initial_prob = self.actor(feature_vector)
-        initial_prob = initial_prob / torch.max(initial_prob)
-        action_prob = torch.nn.functional.softmax(initial_prob, dim=-1)
-        distribution = Categorical(action_prob)
-        index = distribution.sample()
-        log_probs.append(distribution.log_prob(index))
 
+        # Compute true results
+        true_initial_prob = self.actor(feature_vector)
+        print(f'Result: {true_initial_prob=}')
+        true_initial_prob = true_initial_prob / torch.max(true_initial_prob)
+        print(f'Result: {true_initial_prob=}')
+        true_action_prob = torch.nn.functional.softmax(true_initial_prob, dim=-1)
+        print(f'Result: {true_action_prob=}')
+        true_distribution = Categorical(true_action_prob)
+        true_index = true_distribution.sample()
+        print(f'Result: {true_index=}')
+        true_log_probs.append(true_distribution.log_prob(true_index))
+        print(f'Result: {true_log_probs=}')
+
+        # Compute result of function
         computed_log_probs,computed_old_log_probs,computed_entropy = self.loss.\
             compute_actor_values(
             actor=self.actor,
@@ -149,10 +157,10 @@ class TestLoss:
             old_log_probs=[],
             entropy=[]
         )
-        print(f'{log_probs=}')
+        print(f'{true_log_probs=}')
         print(f'{computed_log_probs=}')
         print(f'{computed_old_log_probs=}')
-        assert np.allclose(np.array(log_probs), np.array(computed_log_probs))
+        assert torch.allclose(true_log_probs[0], computed_log_probs[0])
 
 
     def test_actor_loss(self):

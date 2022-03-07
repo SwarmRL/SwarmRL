@@ -107,9 +107,20 @@ class MLModel(InteractionModel):
             action_probabilities = torch.nn.functional.softmax(initial_prob, dim=-1)
 
             action_distribution = Categorical(action_probabilities)
-            action_idx = action_distribution.sample()
+
+            j = np.random.random()
+            if j >= 0.8:
+                action_idx = np.random.randint(0, len(self.actions))
+                actions.append(self.actions[list(self.actions)[action_idx]])
+                print(f'random choice: {action_idx}')
+                print(f'sample choice: {action_distribution.sample()}')
+
+            else:
+                action_idx = action_distribution.sample()
+                actions.append(self.actions[list(self.actions)[action_idx.item()]])
+
             # action_log_prob = action_distribution.log_prob(action_idx)
 
-            actions.append(self.actions[list(self.actions)[action_idx.item()]])
+
 
         return actions
