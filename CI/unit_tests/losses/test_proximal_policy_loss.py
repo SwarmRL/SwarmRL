@@ -25,6 +25,7 @@ class TestLoss:
 
         """
         cls.loss = ProximalPolicyLoss()
+        cls.loss.n_time_steps = 5
         cls.rewards = torch.tensor([1, 2, 3, 4, 5])
         cls.actor_stack = torch.nn.Sequential(
             torch.nn.Linear(3, 128),
