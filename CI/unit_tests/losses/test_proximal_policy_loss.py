@@ -25,24 +25,7 @@ class TestLoss:
 
         """
         cls.loss = ProximalPolicyLoss()
-        cls.rewards = torch.transpose(
-            torch.tensor(
-                [
-                    [1, 1, 1, 1, 1],
-                    [2, 2, 2, 2, 2],
-                    [3, 3, 3, 3, 3],
-                    [4, 4, 4, 4, 4],
-                    [5, 5, 5, 5, 5],
-                    [6, 6, 6, 6, 6],
-                    [7, 7, 7, 7, 7],
-                    [8, 8, 8, 8, 8],
-                    [9, 9, 9, 9, 9],
-                    [10, 10, 10, 10, 10],
-                ]
-            ),
-            0,
-            1,
-        )
+        cls.rewards = torch.tensor([1, 2, 3, 4, 5])
         cls.actor_stack = torch.nn.Sequential(
             torch.nn.Linear(3, 128),
             torch.nn.ReLU(),
@@ -67,10 +50,9 @@ class TestLoss:
         Checks the actual values return in the discounted returns without
         standardization and with the simple case of gamma=1
         """
-        rewards = torch.tensor([1, 2, 3, 4, 5])
         discounted_return = torch.tensor([15, 14, 12, 9, 5])
         value_function = self.loss.compute_true_value_function(
-            rewards=rewards, gamma=1, standardize=False
+            rewards=self.rewards, gamma=1, standardize=False
         )
         torch.testing.assert_allclose(discounted_return, value_function)
 
@@ -82,8 +64,7 @@ class TestLoss:
         -----
         Test that the expected returns are correct.
         """
-        rewards = torch.tensor([1, 2, 3, 4, 5])
-        discounted_returns = self.loss.compute_true_value_function(rewards=rewards)
+        discounted_returns = self.loss.compute_true_value_function(rewards=self.rewards)
         torch.testing.assert_allclose(torch.mean(discounted_returns).numpy(), 0.0)
         torch.testing.assert_allclose(torch.std(discounted_returns).numpy(), 1.0)
 

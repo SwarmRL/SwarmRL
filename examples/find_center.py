@@ -5,12 +5,12 @@ import argparse
 import copy
 
 import h5py as hf
+import matplotlib.pyplot as plt
 import numpy as np
 import pint
 import torch
 import znvis as vis
 from bacteria import utils
-from matplotlib import pyplot as plt
 
 import swarmrl as srl
 
@@ -70,6 +70,7 @@ def run_simulation():
     outfolder, _ = utils.setup_sim_folders(
         args.outfolder_base, args.name, check_existing=not args.test
     )
+    print(outfolder)
 
     # Define the MD simulation parameters
     ureg = pint.UnitRegistry()
@@ -133,7 +134,6 @@ def run_simulation():
         torch.nn.Linear(3, 128),
         torch.nn.ReLU(),
         torch.nn.Linear(128, 4),
-        torch.nn.ReLU(),
     )
 
     actor = srl.networks.MLP(actor_stack)
@@ -141,8 +141,8 @@ def run_simulation():
     actor = actor.double()
     critic = critic.double()
 
-    critic.optimizer = torch.optim.Adam(critic.parameters(), lr=0.01)
-    actor.optimizer = torch.optim.Adam(actor.parameters(), lr=0.01)
+    critic.optimizer = torch.optim.Adam(critic.parameters(), lr=0.03)
+    actor.optimizer = torch.optim.Adam(actor.parameters(), lr=0.03)
 
     # Define the task
     task = srl.tasks.searching.FindLocation(
@@ -164,36 +164,20 @@ def run_simulation():
     # Run the simulation.
     n_slices = int(run_params["sim_duration"] / md_params.time_slice)
 
-    n_episodes = 5
-    episode_length = int(np.ceil(n_slices / 1500))
-    actor_weights_list, reward_list = rl_trainer.perform_rl_training(
+    n_episodes = 5000
+    episode_length = int(np.ceil(n_slices / 800))
+
+    rl_trainer.perform_rl_training(
         system_runner=system_runner,
         n_episodes=n_episodes,
         episode_length=episode_length,
     )
-    with open("./simulation_data/actor_weights.txt", "w") as f:
-        print(actor_weights_list, file=f)
-    with open("./simulation_data/rewards.txt", "w") as f:
-        print(reward_list, file=f)
-
-    return actor_weights_list, reward_list, n_episodes
 
 
 if __name__ == "__main__":
     """
     Run what you must.
     """
-    actor_weights_list, reward_list, n_episodes = run_simulation()
-    print(
-        "Actor weights equal: ",
-        np.array_equal(actor_weights_list[0], actor_weights_list[-1]),
-    )
-    x_values = np.linspace(0, n_episodes, n_episodes)
-    plt.plot(x_values, reward_list)
-    plt.grid()
-    plt.xlabel("t")
-    plt.ylabel("Rewards")
-    plt.show()
-
+    run_simulation()
     run_analysis()
-    # visualize_particles()
+    visualize_particles()

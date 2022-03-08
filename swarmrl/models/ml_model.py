@@ -108,6 +108,7 @@ class MLModel(InteractionModel):
 
             action_distribution = Categorical(action_probabilities)
 
+            # Introduce exploration vs. exploitation feature
             j = np.random.random()
             if j >= 0.8:
                 action_idx = np.random.randint(0, len(self.actions))
