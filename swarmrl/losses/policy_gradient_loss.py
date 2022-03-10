@@ -180,11 +180,9 @@ class PolicyGradientLoss(Loss):
         """
         value_function = self.compute_true_value_function(rewards)
         advantage = value_function - torch.tensor(predicted_values)
-        print(f'{advantage=}')
-        print(f'{value_function=}')
 
         particle_loss = torch.tensor(0, dtype=torch.double)
         for i in range(self.n_time_steps):
-            particle_loss += particle_loss + log_probs[i] * advantage[i]
+            particle_loss = particle_loss + log_probs[i] * advantage[i]
 
         return -1 * particle_loss

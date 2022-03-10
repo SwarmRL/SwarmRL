@@ -114,7 +114,7 @@ class TestLoss:
         )
         actor_loss.register_hook(lambda grad: print(grad))
         actor_loss.backward(torch.ones_like(actor_loss))
-        gradient, *_ = action_probs.grad.data
+        gradient, *_ = action_probs[0].grad.data
         print(f"{gradient=}")
 
         assert (actor_loss.size()) == 3
