@@ -173,7 +173,7 @@ class ProximalPolicyLoss(Loss, ABC):
         actor: weights of actor NN at new step k
         old_actor: weights of actor NN at old step k-1
         feature_vector
-        log_probs: A list of the log probabilities at the current step k
+        log_probs: A list of tensors of the log probabilities at the current step k
         old_log_probs: A list of the old log probabilities at the previous step k-1.
         instantiated as copy of new_log_probs entropy
 
@@ -199,6 +199,15 @@ class ProximalPolicyLoss(Loss, ABC):
         index = distribution.sample()
         log_probs.append(distribution.log_prob(index))
         entropy.append(distribution.entropy())
+
+
+        initial_prob.register_hook(lambda grad: print(grad))
+        initial_prob.backward(torch.ones_like(initial_prob))
+        gradient = []
+        for param in actor.parameters():
+            grad, *_ = param.data.grad.data
+            gradient.append(grad)
+        print(f'{gradient=}')
 
         return log_probs, old_log_probs, entropy
 

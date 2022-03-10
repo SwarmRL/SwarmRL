@@ -26,7 +26,13 @@ class TestLoss:
         """
         cls.loss = ProximalPolicyLoss()
         cls.loss.n_time_steps = 5
-        cls.rewards = torch.tensor([1, 2, 3, 4, 5])
+        cls.rewards = [
+            torch.tensor([1.0], requires_grad=True),
+            torch.tensor([2.0], requires_grad=True),
+            torch.tensor([3.0], requires_grad=True),
+            torch.tensor([4.0], requires_grad=True),
+            torch.tensor([5.0], requires_grad=True)
+            ]
         cls.actor_stack = torch.nn.Sequential(
             torch.nn.Linear(3, 128),
             torch.nn.ReLU(),
@@ -66,8 +72,8 @@ class TestLoss:
         Test that the expected returns are correct.
         """
         discounted_returns = self.loss.compute_true_value_function(rewards=self.rewards)
-        torch.testing.assert_allclose(torch.mean(discounted_returns).numpy(), 0.0)
-        torch.testing.assert_allclose(torch.std(discounted_returns).numpy(), 1.0)
+        torch.testing.assert_allclose(torch.mean(discounted_returns), 0.0)
+        torch.testing.assert_allclose(torch.std(discounted_returns), 1.0)
 
     def test_surrogate_loss(self):
         """
@@ -98,9 +104,39 @@ class TestLoss:
         self.loss.n_particles = 10
         self.loss.n_time_steps = 5
 
+
+    def test_gradient_surrogate_loss(self):
+        """
+        Tests for probabilities with known gradient if the gradient remains as expected.
+        """
+
+        new_prob = torch.tensor([1.0], requires_grad=True)
+        old_prob = torch.tensor([1.0], requires_grad=True)
+
+        squared_new_probs = torch.pow(new_prob, 2.0)
+
+        surrogate_loss = self.loss.calculate_surrogate_loss(
+            new_log_probs=squared_new_probs,
+            old_log_probs=old_prob,
+            advantage=-1.0,
+            epsilon=1000
+        )
+
+        surrogate_loss.register_hook(lambda grad: print(grad))
+        surrogate_loss.backward(torch.ones_like(surrogate_loss))
+        new_prob_gradient, *_ = new_prob.grad.data
+        old_prob_gradient, *_ = old_prob.grad.data
+
+        assert torch.allclose(new_prob_gradient, torch.tensor(2, dtype=torch.float))
+        assert torch.allclose(old_prob_gradient, torch.tensor(-1, dtype=torch.float))
+
+
+
     def test_compute_actor_values(self):
         """
-        Test the function for a single timestep of one particle.
+        Test whether the function keeps the grad.
+
+        Also test the function for a single timestep of one particle.
         Issue: the compute_actor_values function returns only the final logprob and not
         the whole list of probabilities from which it samples. Since sampling is random,
         the test fails. Hence, I did a manual test which passed.
@@ -114,19 +150,14 @@ class TestLoss:
 
         # Compute true results
         true_initial_prob = self.actor(feature_vector)
-        print(f"Result: {true_initial_prob=}")
         true_initial_prob = true_initial_prob / torch.max(true_initial_prob)
-        print(f"Result: {true_initial_prob=}")
         true_action_prob = torch.nn.functional.softmax(true_initial_prob, dim=-1)
-        print(f"Result: {true_action_prob=}")
         true_distribution = Categorical(true_action_prob)
         true_index = true_distribution.sample()
-        print(f"Result: {true_index=}")
         true_log_probs.append(true_distribution.log_prob(true_index))
-        print(f"Result: {true_log_probs=}")
 
         # Compute result of function
-        self.loss.compute_actor_values(
+        log_probs, old_log_probs, entropy = self.loss.compute_actor_values(
             actor=self.actor,
             old_actor=self.actor,
             feature_vector=feature_vector,
@@ -134,3 +165,10 @@ class TestLoss:
             old_log_probs=[],
             entropy=[],
         )
+        print(f'{log_probs=}')
+        log_probs[0].register_hook(lambda grad: print(grad))
+        log_probs[0].backward(torch.ones_like(log_probs[0]))
+        gradient, *_ = initial_prob.grad.data
+        print(f'{gradient=}')
+
+        assert true_log_probs == log_probs
