@@ -28,10 +28,10 @@ class TestLoss:
         cls.loss.n_time_steps = 5
         cls.rewards = [
             torch.tensor([1.0], requires_grad=True),
-            torch.tensor([1.0], requires_grad=True),
-            torch.tensor([1.0], requires_grad=True),
-            torch.tensor([1.0], requires_grad=True),
-            torch.tensor([1.0], requires_grad=True)
+            torch.tensor([2.0], requires_grad=True),
+            torch.tensor([3.0], requires_grad=True),
+            torch.tensor([4.0], requires_grad=True),
+            torch.tensor([5.0], requires_grad=True)
             ]
         cls.actor_stack = torch.nn.Sequential(
             torch.nn.Linear(3, 128),
@@ -72,21 +72,13 @@ class TestLoss:
         Test that the expected returns are correct.
         """
         discounted_returns = self.loss.compute_true_value_function(rewards=self.rewards)
-        torch.testing.assert_allclose(torch.mean(discounted_returns).numpy(), 0.0)
-        torch.testing.assert_allclose(torch.std(discounted_returns).numpy(), 1.0)
+        torch.testing.assert_allclose(torch.mean(discounted_returns), 0.0)
+        torch.testing.assert_allclose(torch.std(discounted_returns), 1.0)
 
     def test_actor_loss(self):
         """
-        Test the actor loss for 2 particles.
-
-        Returns
-        -------
-
+        Test whether actor loss keeps the logprobs gradient.
         """
-        # Update class parameters for new case.
-        self.loss.n_particles = 1
-        self.loss.n_time_steps = 5
-
         action_probs = [
             torch.tensor([1.0], requires_grad=True),
             torch.tensor([1.0], requires_grad=True),
@@ -97,15 +89,10 @@ class TestLoss:
 
         squared_action_probs = []
         for i in range(len(action_probs)):
-            squared_action_probs.append(torch.pow(action_probs[i], 2))
-
-        # squared_action_probs.register_hook(lambda grad: print(grad))
-        # squared_action_probs.backward(torch.ones_like(action_probs))
-        # gradient, *_ = action_probs.grad.data
-        # print(f"{gradient=}")
+            squared_action_probs.append(torch.pow(action_probs[i], 2.0))
 
         predicted_values = self.loss.compute_true_value_function(self.rewards)
-        predicted_values = torch.add(predicted_values, -1)
+        predicted_values = torch.add(predicted_values, 1)
 
         actor_loss = self.loss.compute_actor_loss(
             log_probs=squared_action_probs,
@@ -115,39 +102,16 @@ class TestLoss:
         actor_loss.register_hook(lambda grad: print(grad))
         actor_loss.backward(torch.ones_like(actor_loss))
         gradient, *_ = action_probs[0].grad.data
-        print(f"{gradient=}")
 
-        assert (actor_loss.size()) == 3
-        # assert float(actor_loss[0].numpy()) == pytest.approx(7.5, 0.001)
-        # assert len(actor_loss) == 2
-        # assert actor_loss[0] == actor_loss[1]
-        #
-        # # Reset to defaults for non-linear deployment case.
-        # self.loss.n_particles = 1
-        # self.loss.n_time_steps = 5
+        assert torch.allclose(gradient, torch.tensor(2, dtype=torch.float))
 
     def test_critic_loss(self):
         """
-        Test the critic loss for 2 particles.
+        Test the critic loss by giving it the correct predicted rewards.
         """
-        # Update class parameters for new case.
-        self.loss.n_particles = 2
-        self.loss.n_time_steps = 5
-
-        rewards = torch.transpose(
-            torch.tensor([[1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 2.0, 3.0, 4.0, 5.0]]), 0, 1
-        )
-
-        predicted_rewards = torch.transpose(
-            torch.tensor([[2.0, 3.0, 4.0, 5.0, 6.0], [2.0, 3.0, 4.0, 5.0, 6.0]]), 0, 1
-        )
+        returns = self.loss.compute_true_value_function(self.rewards)
         critic_loss = self.loss.compute_critic_loss(
-            rewards=rewards, predicted_rewards=predicted_rewards
+            predicted_rewards=returns,
+            rewards = self.rewards
         )
-        assert len(critic_loss) == 2
-        assert critic_loss[0] == critic_loss[1]
-        assert critic_loss[0] == pytest.approx(17.5, 0.001)
-
-        # Reset to defaults for asymmetric deployment case.
-        self.loss.n_particles = 10
-        self.loss.n_time_steps = 5
+        assert torch.allclose(critic_loss, torch.tensor(0, dtype=torch.double))

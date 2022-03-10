@@ -150,7 +150,7 @@ class PolicyGradientLoss(Loss):
         particle_loss = torch.tensor(0, dtype=torch.double)
 
         for i in range(self.n_time_steps):
-            particle_loss += particle_loss + torch.nn.functional.smooth_l1_loss(
+            particle_loss = particle_loss + torch.nn.functional.smooth_l1_loss(
                 predicted_rewards[i], value_function[i]
             )
 
