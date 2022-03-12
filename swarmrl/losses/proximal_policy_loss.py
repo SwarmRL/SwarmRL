@@ -200,14 +200,6 @@ class ProximalPolicyLoss(Loss, ABC):
         log_probs.append(distribution.log_prob(index))
         entropy.append(distribution.entropy())
 
-        # initial_prob.register_hook(lambda grad: print(grad))
-        # initial_prob.backward(torch.ones_like(initial_prob))
-        # gradient = []
-        # for param in actor.parameters():
-        #     grad, *_ = param.data.grad.data
-        #     gradient.append(grad)
-        # print(f'{gradient=}')
-
         return log_probs, old_log_probs, entropy
 
     def compute_loss(
@@ -228,11 +220,13 @@ class ProximalPolicyLoss(Loss, ABC):
         loss_tuple : tuple
                 (actor_loss, critic_loss)
         """
+        print(f'{observable=}')
+        print(f'{episode_data=}')
+        print(f'{task=}')
+
         self.n_particles = np.shape(episode_data)[1]
         self.n_time_steps = np.shape(episode_data)[0]
 
-        # actor_weights = []
-        # critic_weights = []
         for _ in range(self.n_epochs):
             old_actor = copy.deepcopy(actor)
 

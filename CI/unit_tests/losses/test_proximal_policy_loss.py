@@ -31,8 +31,8 @@ class TestLoss:
             torch.tensor([2.0], requires_grad=True),
             torch.tensor([3.0], requires_grad=True),
             torch.tensor([4.0], requires_grad=True),
-            torch.tensor([5.0], requires_grad=True)
-            ]
+            torch.tensor([5.0], requires_grad=True),
+        ]
         cls.actor_stack = torch.nn.Sequential(
             torch.nn.Linear(3, 128),
             torch.nn.ReLU(),
@@ -104,7 +104,6 @@ class TestLoss:
         self.loss.n_particles = 10
         self.loss.n_time_steps = 5
 
-
     def test_gradient_surrogate_loss(self):
         """
         Tests for probabilities with known gradient if the gradient remains as expected.
@@ -119,7 +118,7 @@ class TestLoss:
             new_log_probs=squared_new_probs,
             old_log_probs=old_prob,
             advantage=-1.0,
-            epsilon=1000
+            epsilon=1000,
         )
 
         surrogate_loss.register_hook(lambda grad: print(grad))
@@ -130,22 +129,20 @@ class TestLoss:
         assert torch.allclose(new_prob_gradient, torch.tensor(2, dtype=torch.float))
         assert torch.allclose(old_prob_gradient, torch.tensor(-1, dtype=torch.float))
 
-
-
     def test_compute_actor_values(self):
         """
-        Test whether the function keeps the grad.
-
-        Also test the function for a single timestep of one particle.
+        Test the function for a single timestep of one particle.
         Issue: the compute_actor_values function returns only the final logprob and not
         the whole list of probabilities from which it samples. Since sampling is random,
-        the test fails. Hence, I did a manual test which passed.
+        the final log probs can not be compared. To mitigate this issue, the entropy of
+        action probabilities is tested for.
 
         Returns
         -------
 
         """
         true_log_probs = []
+        true_entropy = []
         feature_vector = torch.tensor([498.4704, 531.5168, 0.6740]).double()
 
         # Compute true results
@@ -155,6 +152,7 @@ class TestLoss:
         true_distribution = Categorical(true_action_prob)
         true_index = true_distribution.sample()
         true_log_probs.append(true_distribution.log_prob(true_index))
+        true_entropy.append(true_distribution.entropy())
 
         # Compute result of function
         log_probs, old_log_probs, entropy = self.loss.compute_actor_values(
@@ -165,10 +163,5 @@ class TestLoss:
             old_log_probs=[],
             entropy=[],
         )
-        print(f'{log_probs=}')
-        log_probs[0].register_hook(lambda grad: print(grad))
-        log_probs[0].backward(torch.ones_like(log_probs[0]))
-        gradient, *_ = initial_prob.grad.data
-        print(f'{gradient=}')
 
-        assert true_log_probs == log_probs
+        assert torch.isclose(true_entropy[0], entropy[0])

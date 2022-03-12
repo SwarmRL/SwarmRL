@@ -31,8 +31,8 @@ class TestLoss:
             torch.tensor([2.0], requires_grad=True),
             torch.tensor([3.0], requires_grad=True),
             torch.tensor([4.0], requires_grad=True),
-            torch.tensor([5.0], requires_grad=True)
-            ]
+            torch.tensor([5.0], requires_grad=True),
+        ]
         cls.actor_stack = torch.nn.Sequential(
             torch.nn.Linear(3, 128),
             torch.nn.ReLU(),
@@ -84,8 +84,8 @@ class TestLoss:
             torch.tensor([1.0], requires_grad=True),
             torch.tensor([1.0], requires_grad=True),
             torch.tensor([1.0], requires_grad=True),
-            torch.tensor([1.0], requires_grad=True)
-            ]
+            torch.tensor([1.0], requires_grad=True),
+        ]
 
         squared_action_probs = []
         for i in range(len(action_probs)):
@@ -97,7 +97,7 @@ class TestLoss:
         actor_loss = self.loss.compute_actor_loss(
             log_probs=squared_action_probs,
             rewards=self.rewards,
-            predicted_values=predicted_values
+            predicted_values=predicted_values,
         )
         actor_loss.register_hook(lambda grad: print(grad))
         actor_loss.backward(torch.ones_like(actor_loss))
@@ -111,7 +111,6 @@ class TestLoss:
         """
         returns = self.loss.compute_true_value_function(self.rewards)
         critic_loss = self.loss.compute_critic_loss(
-            predicted_rewards=returns,
-            rewards = self.rewards
+            predicted_rewards=returns, rewards=self.rewards
         )
         assert torch.allclose(critic_loss, torch.tensor(0, dtype=torch.double))
