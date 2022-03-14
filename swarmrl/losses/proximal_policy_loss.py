@@ -7,7 +7,6 @@ https://spinningup.openai.com/en/latest/algorithms/ppo.html
 """
 import copy
 from abc import ABC
-from typing import List
 
 import numpy as np
 import torch
@@ -43,7 +42,7 @@ class ProximalPolicyLoss(Loss, ABC):
         self.epsilon = epsilon
 
     def compute_true_value_function(
-        self, rewards: List, gamma: float = 0.99, standardize: bool = True
+        self, rewards: list, gamma: float = 0.99, standardize: bool = True
     ):
         """
         Compute the true value function from the rewards.
@@ -79,64 +78,39 @@ class ProximalPolicyLoss(Loss, ABC):
 
         return true_value_function
 
-    def compute_critic_loss(
-        self, predicted_rewards: List, rewards: List
-    ) -> torch.Tensor:
+    def calculate_surrogate_loss(
+        self, new_log_probs, old_log_probs, advantage: float, epsilon: float = 0.2
+    ):
         """
-        Compute the critic loss.
+        Calculates the surrogate loss using the (clamped) ratio * advantage.
+        Will be used in compute_loss_values method.
 
         Parameters
         ----------
-        predicted_rewards : List
-                Rewards predicted by the critic.
-        rewards : List
-                Real rewards computed by the rewards rule.
-
-        Notes
-        -----
-        Currently uses the Huber loss.
-        """
-        value_function = self.compute_true_value_function(rewards)
-
-        particle_loss = torch.tensor(0, dtype=torch.double)
-
-        for i in range(self.n_time_steps):
-            particle_loss += particle_loss + torch.nn.functional.smooth_l1_loss(
-                predicted_rewards[i], value_function[i]
-            )
-
-        return particle_loss
-
-    def compute_actor_loss(
-        self,
-        log_probs: List,
-        predicted_values: List,
-        rewards: List,
-    ) -> torch.Tensor:
-        """
-        Compute the actor loss.
-
-        Parameters
-        ----------
-        log_probs : List
-                Probabilities returned by the actor.
-        predicted_values : List
-                Values predicted by the critic.
-        rewards : List
-                Real rewards.
+        new_log_probs: Float
+            Element of a list of the log probabilities at the current step k
+        old_log_probs: Float
+            Element of a list of the old log probabilities at the previous step
+            k-1. instantiated as copy of new_log_probs
+        advantage: Float
+            Difference between actual return and value function estimates
+        epsilon: Float
+            Float to specify how much the loss can change in one step. Default is 0.2,
+            as it is in an OpenAi paper.
 
         Returns
         -------
-        losses : List
+            surrogate_loss : Tensor
+        -------
+
         """
-        value_function = self.compute_true_value_function(rewards)
-        advantage = value_function - torch.tensor(predicted_values)
+        ratio = torch.exp(new_log_probs - old_log_probs)
 
-        particle_loss = torch.tensor(0, dtype=torch.double)
-        for i in range(self.n_time_steps):
-            particle_loss += particle_loss + log_probs[i] * advantage[i]
+        surrogate_1 = ratio * advantage
+        surrogate_2 = torch.clamp(ratio, 1 - self.epsilon, 1 + self.epsilon) * advantage
+        surrogate_loss = -1 * torch.min(surrogate_1, surrogate_2)
 
-        return -1 * particle_loss
+        return surrogate_loss
 
     def compute_loss_values(
         self,
@@ -168,15 +142,9 @@ class ProximalPolicyLoss(Loss, ABC):
         critic_loss = torch.tensor(0, dtype=torch.double)
 
         for i in range(self.n_time_steps):
-            ratio = torch.exp(new_log_probs[i] - old_log_probs[i])
-
-            surrogate_1 = ratio * advantage[i].item()
-            surrogate_2 = (
-                torch.clamp(ratio, 1 - self.epsilon, 1 + self.epsilon)
-                * advantage[i].item()
+            surrogate_loss = self.calculate_surrogate_loss(
+                new_log_probs[i], old_log_probs[i], advantage[i].item()
             )
-
-            surrogate_loss = -1 * torch.min(surrogate_1, surrogate_2)
             critic_loss = 0.5 * torch.nn.functional.smooth_l1_loss(
                 true_value_function[i], new_values[i]
             )
@@ -186,6 +154,53 @@ class ProximalPolicyLoss(Loss, ABC):
             critic_loss += surrogate_loss.item() + critic_loss + entropy_loss.item()
 
         return actor_loss, critic_loss
+
+    def compute_actor_values(
+        self,
+        actor: Network,
+        old_actor: Network,
+        feature_vector: torch.Tensor,
+        log_probs: list,
+        old_log_probs: list,
+        entropy: list,
+    ):
+        """
+        Takes as input the log_probs, old_log_probs, and entropy values and returns
+        the updated list to be used in compute_loss method.
+
+        Parameters
+        ----------
+        actor: weights of actor NN at new step k
+        old_actor: weights of actor NN at old step k-1
+        feature_vector
+        log_probs: A list of tensors of the log probabilities at the current step k
+        old_log_probs: A list of the old log probabilities at the previous step k-1.
+        instantiated as copy of new_log_probs entropy
+
+        Returns
+        -------
+        Updated log_probs,
+        old_log_probs,
+        entropy
+        """
+        # Compute old actor values
+        old_initial_prob = old_actor(feature_vector)
+        old_initial_prob = old_initial_prob / torch.max(old_initial_prob)
+        old_action_probability = torch.nn.functional.softmax(old_initial_prob, dim=-1)
+        old_distribution = Categorical(old_action_probability)
+        old_index = old_distribution.sample()
+        old_log_probs.append(old_distribution.log_prob(old_index))
+
+        # Compute actor values
+        initial_prob = actor(feature_vector)
+        initial_prob = initial_prob / torch.max(initial_prob)
+        action_probability = torch.nn.functional.softmax(initial_prob, dim=-1)
+        distribution = Categorical(action_probability)
+        index = distribution.sample()
+        log_probs.append(distribution.log_prob(index))
+        entropy.append(distribution.entropy())
+
+        return log_probs, old_log_probs, entropy
 
     def compute_loss(
         self,
@@ -205,6 +220,10 @@ class ProximalPolicyLoss(Loss, ABC):
         loss_tuple : tuple
                 (actor_loss, critic_loss)
         """
+        print(f'{observable=}')
+        print(f'{episode_data=}')
+        print(f'{task=}')
+
         self.n_particles = np.shape(episode_data)[1]
         self.n_time_steps = np.shape(episode_data)[0]
 
@@ -229,22 +248,14 @@ class ProximalPolicyLoss(Loss, ABC):
                         colloid, other_colloids
                     )
 
-                    # Compute old actor values
-                    old_action_probability = torch.nn.functional.softmax(
-                        old_actor(feature_vector), dim=-1
+                    log_probs, old_log_probs, entropy = self.compute_actor_values(
+                        actor,
+                        old_actor,
+                        feature_vector,
+                        log_probs,
+                        old_log_probs,
+                        entropy,
                     )
-                    old_distribution = Categorical(old_action_probability)
-                    old_index = old_distribution.sample()
-                    old_log_probs.append(old_distribution.log_prob(old_index).item())
-
-                    # Compute actor values
-                    action_probability = torch.nn.functional.softmax(
-                        actor(feature_vector), dim=-1
-                    )
-                    distribution = Categorical(action_probability)
-                    index = distribution.sample()
-                    log_probs.append(distribution.log_prob(index))
-                    entropy.append(distribution.entropy())
 
                     # Compute critic values
                     values.append(critic(feature_vector))
@@ -262,7 +273,7 @@ class ProximalPolicyLoss(Loss, ABC):
                 actor_loss += a_loss
                 critic_loss += c_loss
 
-            actor.update_model([actor_loss], retain=True)
-            critic.update_model([critic_loss], retain=True)
+            actor.update_model([actor_loss])
+            critic.update_model([critic_loss])
 
         return actor, critic

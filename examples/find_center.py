@@ -172,7 +172,7 @@ def run_simulation():
     # Run the simulation.
     n_slices = int(run_params["sim_duration"] / md_params.time_slice)
 
-    n_episodes = 5000
+    n_episodes = 4000
     episode_length = int(np.ceil(n_slices / 800))
 
     rl_trainer.perform_rl_training(
