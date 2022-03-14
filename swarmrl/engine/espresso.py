@@ -3,7 +3,7 @@ Module for the espressoMD simulations.
 """
 try:
     import espressomd
-    from espressomd import System, visualization
+    from espressomd import System
 except ModuleNotFoundError:
     print("WARNING: Could not find espressomd. Features will not be available")
 import numpy as np
@@ -16,7 +16,9 @@ import pint
 from .engine import Engine
 import swarmrl.models.interaction_model
 
-logger= logging.getLogger(__name__)
+from .engine import Engine
+
+logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass()
@@ -122,7 +124,7 @@ class EspressoMD(Engine):
         # three basis units chosen arbitrarily
         self.ureg.define("sim_length = 1e-6 meter")
         self.ureg.define("sim_time = 1 second")
-        self.ureg.define(f"sim_energy = 293 kelvin * boltzmann_constant")
+        self.ureg.define("sim_energy = 293 kelvin * boltzmann_constant")
 
         # derived units
         self.ureg.define("sim_velocity = sim_length / sim_time")
@@ -353,7 +355,8 @@ class EspressoMD(Engine):
                 "inconsistent parameters: time_slice must be integer multiple of time_step"
             )
 
-    def integrate(self, n_slices, force_model: swarmrl.InteractionModel):
+
+    def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel):
         """
         Integrate the system for n_slices steps.
 
@@ -392,10 +395,15 @@ class EspressoMD(Engine):
                     for val in self.traj_holder.values():
                         val.clear()
 
-            for coll in self.colloids:
-                other_colloids = [c for c in self.colloids if c is not coll]
-                # update the state of an active learner, ignored by non ML models.
-                action = force_model.calc_action(coll, other_colloids)
+            swarmrl_colloids = []
+            for col in self.colloids:
+                swarmrl_colloids.append(
+                    swarmrl.models.interaction_model.Colloid(
+                        pos=col.pos, director=col.director, id=col.id
+                    )
+                )
+            actions = force_model.calc_action(swarmrl_colloids)
+            for action, coll in zip(actions, self.colloids):
                 coll.swimming = {"f_swim": action.force}
                 coll.ext_torque = action.torque
                 new_direction = action.new_direction

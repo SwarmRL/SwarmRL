@@ -6,6 +6,7 @@ import swarmrl.utils
 import logging
 import argparse
 import copy
+from bacteria import utils
 import pint
 import numpy as np
 import tqdm
@@ -23,8 +24,8 @@ def run_analysis():
     -------
 
     """
-    with hf.File('find_center/test/trajectory.hdf5') as db:
-        data = np.array(db['colloids']['Unwrapped_Positions'])
+    with hf.File("find_center/test/trajectory.hdf5") as db:
+        data = np.array(db["colloids"]["Unwrapped_Positions"])
     time = np.linspace(0, len(data), len(data), dtype=int)
     for i in range(len(data[0])):
         plt.plot(time, np.linalg.norm(data[:, i], axis=1))
@@ -40,8 +41,8 @@ def visualize_particles():
     -------
 
     """
-    with hf.File('find_center/test/trajectory.hdf5') as db:
-        data = np.array(db['colloids']['Unwrapped_Positions'])
+    with hf.File("find_center/test/trajectory.hdf5") as db:
+        data = np.array(db["colloids"]["Unwrapped_Positions"])
 
     mesh = vis.Sphere(radius=10.0, colour=np.array([30, 144, 255]) / 255, resolution=5)
     colloids = vis.Particle(name="Colloid", mesh=mesh, position=data)
@@ -60,10 +61,10 @@ def run_simulation():
     """
     # Take user inputs
     parser = argparse.ArgumentParser()
-    parser.add_argument('-outfolder_base', default='./find_center')
-    parser.add_argument('-name', default='test')
-    parser.add_argument('-seed', type=int, default=42)
-    parser.add_argument('--test', action='store_true')
+    parser.add_argument("-outfolder_base", default="./example_output")
+    parser.add_argument("-name", default="test")
+    parser.add_argument("-seed", type=int, default=42)
+    parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
 
     outfolder = swarmrl.utils.setup_sim_folder(
@@ -74,42 +75,52 @@ def run_simulation():
 
     # Define the MD simulation parameters
     ureg = pint.UnitRegistry()
-    md_params = srl.espresso.MDParams(n_colloids=10,
-                                      ureg=ureg,
-                                      colloid_radius=ureg.Quantity(2.14, 'micrometer'),
-                                      fluid_dyn_viscosity=ureg.Quantity(8.9e-4,
-                                                                        'pascal * second'),
-                                      WCA_epsilon=ureg.Quantity(293, 'kelvin')
-                                                  * ureg.boltzmann_constant,
-                                      colloid_density=ureg.Quantity(2.65,
-                                                                    'gram / centimeter**3'),
-                                      temperature=ureg.Quantity(293, 'kelvin'),
-                                      box_length=ureg.Quantity(1000, 'micrometer'),
-                                      initiation_radius=ureg.Quantity(106,
-                                                                      'micrometer'),
-                                      time_slice=ureg.Quantity(0.5, 'second'),
-                                      time_step=ureg.Quantity(0.5, 'second') / 15,
-                                      write_interval=ureg.Quantity(2, 'second'))
+    md_params = srl.espresso.MDParams(
+        n_colloids=10,
+        ureg=ureg,
+        colloid_radius=ureg.Quantity(2.14, "micrometer"),
+        fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
+        WCA_epsilon=ureg.Quantity(293, "kelvin") * ureg.boltzmann_constant,
+        colloid_density=ureg.Quantity(2.65, "gram / centimeter**3"),
+        temperature=ureg.Quantity(293, "kelvin"),
+        box_length=ureg.Quantity(1000, "micrometer"),
+        initiation_radius=ureg.Quantity(106, "micrometer"),
+        time_slice=ureg.Quantity(0.5, "second"),
+        time_step=ureg.Quantity(0.5, "second") / 15,
+        write_interval=ureg.Quantity(2, "second"),
+    )
 
-    run_params = {'sim_duration': ureg.Quantity(2, 'hour'),
-                  'seed': args.seed}
+    model_params = dict(
+        target_vel_SI=ureg.Quantity(0.2, "micrometer / second"),
+        vision_half_angle=np.pi / 4.0,
+    )
+    model_params["perception_threshold"] = (
+        model_params["vision_half_angle"]
+        * md_params.n_colloids
+        / (np.pi ** 2 * md_params.initiation_radius)
+    )
+    run_params = {"sim_duration": ureg.Quantity(1.5, "hour"), "seed": args.seed}
 
     md_params_without_ureg = copy.deepcopy(md_params.__dict__)
-    md_params_without_ureg.pop('ureg')
+    md_params_without_ureg.pop("ureg")
 
-    params_to_write = {'md_params': md_params_without_ureg,
-                       'run_params': run_params
-                       }
+    params_to_write = {
+        "type": "lavergne",
+        "md_params": md_params_without_ureg,
+        "model_params": model_params,
+        "run_params": run_params,
+    }
 
-    swarmrl.utils.write_params(outfolder, args.name, params_to_write,
-                               write_espresso_version=True)
+    utils.write_params(outfolder, args.name, params_to_write)
 
     # Define the simulation engine.
-    system_runner = srl.espresso.EspressoMD(md_params=md_params,
-                                            n_dims=2,
-                                            seed=run_params['seed'],
-                                            out_folder=outfolder,
-                                            write_chunk_size=1000)
+    system_runner = srl.espresso.EspressoMD(
+        md_params=md_params,
+        n_dims=2,
+        seed=run_params["seed"],
+        out_folder=outfolder,
+        write_chunk_size=1000,
+    )
     system_runner.setup_simulation()
     # Define the force model.
 
@@ -133,40 +144,49 @@ def run_simulation():
         torch.nn.Linear(128, 4),
     )
 
-    actor = srl.MLP(actor_stack)
-    critic = srl.MLP(critic_stack)
+    actor = srl.networks.MLP(actor_stack)
+    critic = srl.networks.MLP(critic_stack)
     actor = actor.double()
     critic = critic.double()
 
-    # Set the optimizer.
-    critic.optimizer = torch.optim.SGD(critic.parameters(), lr=0.001)
-    actor.optimizer = torch.optim.SGD(actor.parameters(), lr=0.001)
+    critic.optimizer = torch.optim.Adam(critic.parameters(), lr=0.03)
+    actor.optimizer = torch.optim.Adam(actor.parameters(), lr=0.03)
 
     # Define the task
-    task = srl.FindOrigin(engine=system_runner, alpha=1.0, beta=0.0, gamma=0.0)
+    task = srl.tasks.searching.FindLocation(
+        side_length=np.array([1000.0, 1000.0, 1000.0]),
+        location=np.array([0, 0, 0]),
+    )
 
     # Define the loss model
-    loss = srl.loss.Loss(md_params.n_colloids)
+    loss = srl.losses.ProximalPolicyLoss()
 
-    observable = srl.PositionObservable()
+    # Define the observable.
+    observable = srl.observables.PositionObservable()
 
     # Define the force model.
-    force_model = srl.mlp_rl.MLPRL(actor, critic, task, loss, observable)
+    rl_trainer = srl.models.MLPRL(
+        actor, critic, task, loss, observable, md_params.n_colloids, outfolder
+    )
 
     # Run the simulation.
-    n_slices = int(run_params['sim_duration'] / md_params.time_slice)
-    logger.info("Starting simulation")
-    for _ in tqdm.tqdm(range(100)):
-        system_runner.integrate(int(n_slices / 100), force_model)
-        force_model.update_rl()
+    n_slices = int(run_params["sim_duration"] / md_params.time_slice)
 
-    system_runner.finalize()
+    n_episodes = 4000
+    episode_length = int(np.ceil(n_slices / 800))
+
+    rl_trainer.perform_rl_training(
+        system_runner=system_runner,
+        n_episodes=n_episodes,
+        episode_length=episode_length,
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     """
     Run what you must.
     """
     run_simulation()
     run_analysis()
     visualize_particles()
+

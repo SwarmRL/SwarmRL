@@ -10,6 +10,8 @@ class Observable:
     Observables act as inputs to the neural networks.
     """
 
+    _observable_shape: tuple
+
     def compute_observable(self, colloid: object, other_colloids: list):
         """
         Compute the current state observable.
@@ -26,3 +28,13 @@ class Observable:
 
         """
         raise NotImplementedError("Implemented in child class.")
+
+    @property
+    def observable_shape(self):
+        """
+        Unchangeable shape of the observable.
+        Returns
+        -------
+
+        """
+        return self._observable_shape

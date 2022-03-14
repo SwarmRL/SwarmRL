@@ -1,7 +1,7 @@
 """
 Parent class for the engine.
 """
-import swarmrl.models.interaction_model
+from swarmrl.models.interaction_model import InteractionModel
 
 
 class Engine:
@@ -22,7 +22,7 @@ class Engine:
     def integrate(
         self,
         n_slices: int,
-        force_model: swarmrl.models.interaction_model.InteractionModel,
+        force_model: InteractionModel,
     ) -> None:
         """
 
@@ -42,6 +42,7 @@ class Engine:
 
     def finalize(self):
         """
-        Optional: to clean up after finishing the simulation (e.g. writing the last chunks of trajectory)
+        Optional: to clean up after finishing the simulation (e.g. writing the last
+        chunks of trajectory)
         """
         pass

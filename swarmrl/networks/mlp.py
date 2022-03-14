@@ -1,6 +1,7 @@
 """
 Implement an MLP model.
 """
+import numpy as np
 import torch
 import numpy as np
 from swarmrl.networks.network import Network
@@ -38,38 +39,54 @@ class MLP(Network):
                 based on some distribution.
         """
         super(MLP, self).__init__()
-        self.model = layer_stack
+        self.layer_stack = layer_stack
+        self.model = self.layer_stack.apply(self.initialise_weights)
 
-    def update_model(self, loss_vector: torch.Tensor):
+    def update_model(self, loss_vector: torch.Tensor, retain: bool = False):
         """
         Update the model.
 
         Parameters
         ----------
+        retain : bool (default=False)
+                If true, retain the graph for further back-propagation on a stale model.
         loss_vector : torch.Tensor
                 Current state of the environment on which predictions should be made.
                 The elements of the loss vector MUST be torch tensors in order for the
                 backward() method to work.
         """
-        # for loss in loss_vector:
-        for loss in loss_vector:
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+        for i, loss in enumerate(loss_vector):
+            if i == 0:
+                total_loss = loss
+            else:
+                total_loss = total_loss + loss
 
-    def forward(self, state: torch.Tensor) -> torch.Tensor:
+        self.optimizer.zero_grad()
+        total_loss.backward(retain_graph=retain)
+        self.optimizer.step()
+
+    def forward(self, state: torch.Tensor):
         """
-        Run the forward pass on the model.
+        Compute the forward pass over the network.
+        """
+        return self.model(state)
 
+    def initialise_weights(self, model):
+        """
+        Initialises weights to be in range [-y,y] with y=sqrt(inputs).
         Parameters
         ----------
-        state : torch.Tensor
-                Current state of the environment on which predictions should be made.
+        model: layer stack
 
         Returns
         -------
-        state : torch.Tensor
-                All possibilities computed.
+        updated layer stack
         """
-        possibilities = self.model(state)
-        return possibilities
+        classname = model.__class__.__name__
+        # for every Linear layer in a model..
+        if classname.find("Linear") != -1:
+            # get the number of the inputs
+            n = model.in_features
+            y = 1.0 / np.sqrt(n)
+            model.weight.data.uniform_(-y, y)
+            model.bias.data.fill_(0)

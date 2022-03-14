@@ -1,0 +1,76 @@
+# This file is a template, and might need editing before it works on your project.
+# To contribute improvements to CI/CD templates, please follow the Development guide at:
+# https://docs.gitlab.com/ee/development/cicd/templates.html
+# This specific template is located at:
+# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Python.gitlab-ci.yml
+
+# Official language image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/python/tags/
+image: ghcr.io/espressomd/docker/ubuntu-20.04:254edd4a9c6e4d7b557be73158e400f5794e4f99
+
+variables:
+  PYPRESSSO: './espressomd/build/pypresso'
+
+stages:
+  - build
+  - linting
+  - test
+  - docs
+
+build-swarmrl:
+  stage: build
+  tags:
+    - swarm
+  script:
+    - pip install -r requirements.txt --user
+    - pip install -r dev-requirements.txt --user
+    - pip install . --user
+  cache:
+    paths:
+      - /home/espresso/.local/bin/
+
+#build-espresso:
+#  stage: build
+#  script:
+#    - git submodule init
+#    - git submodule update
+#    - cd espresso
+#    - mkdir build
+#    - cd build
+#    - cmake ../
+#    - cmake --build .
+
+# I split the unit tests and integration tests here as they will now run in parallel.
+python-unit-tests:
+  stage: test
+  script:
+    - cd CI/unit_tests
+    - ./home/espresso/.local/bin/pytest .
+
+python-integration-tests:
+  stage: test
+  script:
+    - cd CI/integration_tests
+    - ./home/espresso/.local/bin/pytest .
+
+# Run the espresso tests at one time.
+espresso-tests:
+  stage: test
+  script:
+    - cd CI
+    - ./home/espresso/.local/bin/pypresso run_espresso_test_suite.py
+
+black:
+  stage: linting
+  script:
+    - ./home/espresso/.local/bin/black --check --verbose .
+
+flake8:
+  stage: linting
+  script:
+    - ./home/espresso/.local/bin/flake8
+
+sphinx-docs:
+  stage: docs
+  script:
+    - cd docs ; make html

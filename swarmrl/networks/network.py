@@ -17,33 +17,16 @@ class Network(torch.nn.Module):
         """
         super(Network, self).__init__()
         self.optimizer = optimizer
+        self.model = torch.nn.Module
 
-    def select_state(self, states: torch.Tensor):
-        """
-        Select a state based on some probability distribution.
-
-        Parameters
-        ----------
-        states : torch.Tensor
-                States from which to choose.
-
-        Returns
-        -------
-        state : torch.Tensor
-                State to be returned to the simulation.
-
-        Notes
-        -----
-        TODO: Should be implemented for several distribution.
-        """
-        return states[0]
-
-    def update_model(self, loss_vector: torch.Tensor):
+    def update_model(self, loss_vector: torch.Tensor, retain: bool = False):
         """
         Update the model.
 
         Parameters
         ----------
+        retain : bool (default=False)
+                If true, retain the graph for further back-propagation on a stale model.
         loss_vector : torch.Tensor
                 Current state of the environment on which predictions should be made.
                 The elements of the loss vector MUST be torch tensors in order for the

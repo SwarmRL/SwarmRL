@@ -2,6 +2,7 @@
 Position observable computer.
 """
 from abc import ABC
+
 import numpy as np
 import torch
 
@@ -12,6 +13,8 @@ class PositionObservable(Observable, ABC):
     """
     Position in box observable.
     """
+
+    _observable_shape = (3,)
 
     def compute_observable(self, colloid: object, other_colloids: list):
         """

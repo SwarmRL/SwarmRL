@@ -1,14 +1,14 @@
-import context
+import pathlib as pl
+import tempfile
+import unittest as ut
 
+import h5py
+import numpy as np
+import pint
+
+import swarmrl.utils
 from swarmrl.engine import espresso
 from swarmrl.models import dummy_models
-import swarmrl.utils
-import pint
-import numpy as np
-import unittest as ut
-import tempfile
-import pathlib as pl
-import h5py
 
 
 class EspressoTest(ut.TestCase):
