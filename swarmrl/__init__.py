@@ -2,6 +2,7 @@
 __init__ file for the swarmrl package.
 """
 import logging
+
 from swarmrl import losses, models, networks, observables, tasks
 from swarmrl.engine import espresso
 from swarmrl.utils import utils

@@ -1,4 +1,7 @@
 [flake8]
 ignore = E226,E302,E41, W503, E203
 max-line-length = 88
-exclude = CI/*
+exclude =
+    .git,
+    __pycache__,
+    espresso

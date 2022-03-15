@@ -99,14 +99,14 @@ def setup_swarmrl_logger(
     loglevel_file: typing.Union[int, str] = logging.DEBUG,
 ) -> logging.Logger:
     """
-    Configure the swarmrl logger. This logger is used internally for logging, but you can
-    also use it for your own log messages.
+    Configure the swarmrl logger. This logger is used internally for logging,
+    but you can also use it for your own log messages.
     Parameters
     ----------
     filename
         Name of the file where logs get written to
     loglevel_terminal
-        Loglevel of the termional output. The values correspond to
+        Loglevel of the terminal output. The values correspond to
         https://docs.python.org/3/library/logging.html#logging-levels.
         You can pass an integer (or logging predefined values such as logging.INFO)
         or a string that corresponds to the loglevels of the link above.

@@ -1,7 +1,9 @@
 [tool.black]
 line-length = 88
 experimental_string_processing = true
+exclude = '^/espresso'
 
 [tool.isort]
 profile = 'black'
 multi_line_output = 3
+skip_glob = ["espresso/*"]

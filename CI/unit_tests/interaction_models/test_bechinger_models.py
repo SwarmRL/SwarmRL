@@ -1,6 +1,7 @@
-import dataclasses
 import unittest as ut
+
 import numpy as np
+
 import swarmrl.models.bechinger_models
 import swarmrl.models.interaction_model as int_mod
 
@@ -93,7 +94,6 @@ class TestBaeuerle(ut.TestCase):
         self.assertGreater(self.act_torque, torque_norm)
         # com determied by front_coll and front_close_coll
         # orientation determined by front_close_coll
-        com = (front_coll.pos + front_close_coll.pos) / 2.0
 
         # force must be to the right of the com (coll_front_close point to -y)
         self.assertGreater(0, torque[2])

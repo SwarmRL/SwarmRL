@@ -1,11 +1,9 @@
 """
 Run a unit test on the loss module.
 """
-import pytest
 import torch
 
 import swarmrl as srl
-
 from swarmrl.losses.policy_gradient_loss import PolicyGradientLoss
 
 

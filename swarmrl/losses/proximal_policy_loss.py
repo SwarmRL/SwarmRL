@@ -220,9 +220,9 @@ class ProximalPolicyLoss(Loss, ABC):
         loss_tuple : tuple
                 (actor_loss, critic_loss)
         """
-        print(f'{observable=}')
-        print(f'{episode_data=}')
-        print(f'{task=}')
+        print(f"{observable=}")
+        print(f"{episode_data=}")
+        print(f"{task=}")
 
         self.n_particles = np.shape(episode_data)[1]
         self.n_time_steps = np.shape(episode_data)[0]

@@ -66,7 +66,8 @@ class EspressoTest(ut.TestCase):
             part_data_new = runner.get_particle_data()
             time_new = runner.system.time
 
-            # plausibility-tests for velocity and position because too lazy to do the actual calculation
+            # plausibility-tests for velocity and position
+            # because too lazy to do the actual calculation
             # friction must be the same for all particles and all directions
             gamma = runner.colloid_friction_translation
             new_vel = part_data_new["Velocities"]

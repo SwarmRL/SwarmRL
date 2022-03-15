@@ -3,9 +3,6 @@ Module for real experiment unit tests.
 """
 import unittest as ut
 
-import swarmrl.engine.real_experiment
-import swarmrl.models.dummy_models
-
 
 class DummyConnection:
     """
@@ -36,7 +33,7 @@ class TestRealExperiment(ut.TestCase):
         """
         Test the real experiment interface.
         """
-        runner = swarmrl.engine.real_experiment.RealExperiment(DummyConnection())
+        # runner = swarmrl.engine.real_experiment.RealExperiment(DummyConnection())
         # runner.setup_simulation()
         # f_model = swarmrl.models.dummy_models.ConstForce(123)
         # runner.integrate(100, f_model)

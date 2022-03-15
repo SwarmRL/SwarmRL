@@ -1,19 +1,20 @@
 """
 Run an RL agent to find the center of a box.
 """
-import swarmrl as srl
-import swarmrl.utils
-import logging
 import argparse
 import copy
-from bacteria import utils
-import pint
-import numpy as np
-import tqdm
-import torch
+import logging
+
 import h5py as hf
 import matplotlib.pyplot as plt
+import numpy as np
+import pint
+import torch
 import znvis as vis
+from bacteria import utils
+
+import swarmrl as srl
+import swarmrl.utils
 
 
 def run_analysis():
@@ -70,8 +71,9 @@ def run_simulation():
     outfolder = swarmrl.utils.setup_sim_folder(
         args.outfolder_base, args.name, ask_if_exists=not args.test
     )
-    logger = swarmrl.utils.setup_swarmrl_logger(f"{outfolder}/{args.name}.log",
-                                                loglevel_terminal=logging.DEBUG)
+    logger = swarmrl.utils.setup_swarmrl_logger(
+        f"{outfolder}/{args.name}.log", loglevel_terminal=logging.DEBUG
+    )
 
     # Define the MD simulation parameters
     ureg = pint.UnitRegistry()
@@ -170,6 +172,7 @@ def run_simulation():
     )
 
     # Run the simulation.
+    logger.info("starting simulation")
     n_slices = int(run_params["sim_duration"] / md_params.time_slice)
 
     n_episodes = 4000
@@ -189,4 +192,3 @@ if __name__ == "__main__":
     run_simulation()
     run_analysis()
     visualize_particles()
-
