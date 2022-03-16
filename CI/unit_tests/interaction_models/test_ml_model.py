@@ -6,6 +6,7 @@ import torch
 
 import swarmrl as srl
 from swarmrl.models.ml_model import MLModel
+from swarmrl.networks import MLP
 
 
 class DummyColloid:
@@ -14,36 +15,6 @@ class DummyColloid:
     """
 
     pos = np.array([1, 1, 1])
-
-
-class DummyNetwork:
-    """
-    Dummy network for the test.
-    """
-
-    torch.manual_seed(0)  # set seed for reproducibility.
-
-    # simple model for testing.
-    model = torch.nn.Sequential(
-        torch.nn.Linear(3, 12),
-        torch.nn.ReLU(),
-        torch.nn.Linear(12, 12),
-        torch.nn.ReLU(),
-        torch.nn.Linear(12, 12),
-        torch.nn.ReLU(),
-        torch.nn.Linear(12, 4),
-    )
-
-    model = model.double()
-
-
-class DummyGym:
-    """
-    Dummy gym for the test.
-    """
-
-    actor = DummyNetwork()
-    critic = DummyNetwork()
 
 
 class TestMLModel:
@@ -56,10 +27,25 @@ class TestMLModel:
         """
         Prepare the test suite.
         """
-        gym = DummyGym()
-        observable = srl.observables.PositionObservable()
+        torch.manual_seed(0)  # set seed for reproducibility.
 
-        cls.interaction = MLModel(gym=gym, observable=observable)
+        # simple model for testing.
+        model = torch.nn.Sequential(
+            torch.nn.Linear(3, 12),
+            torch.nn.ReLU(),
+            torch.nn.Linear(12, 12),
+            torch.nn.ReLU(),
+            torch.nn.Linear(12, 12),
+            torch.nn.ReLU(),
+            torch.nn.Linear(12, 4),
+        )
+
+        model = model.double()
+        network = MLP(layer_stack=model)
+        observable = srl.observables.PositionObservable()
+        cls.interaction = MLModel(
+            model=network, observable=observable
+        )
 
     def test_force_selection(self):
         """
@@ -101,18 +87,3 @@ class TestMLModel:
         assert action[0].force == 0.0
         np.testing.assert_array_equal(action[0].torque, [0.0, 0.0, 0.0])
         assert action[0].new_direction is None
-
-    def test_action_only_record(self):
-        """
-        Test that the model can record only actions correctly.
-        """
-        targets = np.array([-1.4799, -1.4799, -1.2056, -1.4799, -1.4840])
-        torch.manual_seed(1)
-        self.interaction.record = True
-        colloid = DummyColloid()
-        for i in range(5):
-            colloid.pos *= i  # change the colloid position.
-            _ = self.interaction.calc_action([colloid])
-
-        outputs = np.array(self.interaction.recorded_values)[:, 0]
-        np.testing.assert_array_almost_equal(targets, outputs, decimal=4)

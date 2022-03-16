@@ -41,7 +41,6 @@ class MLPRL:
         loss: Loss,
         observable: Observable,
         n_particles: int,
-        database_path: str,
     ):
         """
         Constructor for the MLP RL.
@@ -68,7 +67,6 @@ class MLPRL:
         self.loss = loss
         self.observable = observable
         self.n_particles = n_particles
-        self.database_path = database_path
 
     def update_critic(self, loss: torch.Tensor):
         """
@@ -98,78 +96,6 @@ class MLPRL:
         Runs back-propagation on the actor model.
         """
         self.actor.update_model(loss, retain=True)
-
-    def _format_episode_data(self, episode_data: list) -> Tuple:
-        """
-        Format the episode data to use in the training.
-
-        Parameters
-        ----------
-        episode_data : np.ndarray (n_particles * n_time_steps, 3)
-                Data collected during the episode.
-
-        Returns
-        -------
-        log_prob : torch.Tensor (n_time_steps, n_particles)
-                All log probabilities collected during an episode.
-        values : torch.Tensor (n_time_steps, n_particles)
-                All values collected during the episode.
-        rewards : torch.Tensor (n_time_steps, n_particles)
-                All rewards collected during the episode.
-        entropy : torch.Tensor (n_time_steps, n_particles)
-                Distribution entropy computed during the run.
-
-        Notes
-        -----
-        This is a gradient preserving method, that is, if a tensor requiring a gradient
-        comes in here, it is returned also requiring a gradient. DO NOT TOUCH this
-        method unless you know very well what you are doing. If the gradients are not
-        preserved here, the models will NOT train nor will they give you an error.
-        """
-        time_steps = int(len(episode_data) / self.n_particles)
-
-        log_probs = []
-        values = []
-        rewards = []
-        entropy = []
-
-        for i in range(time_steps):
-            log_probs_snapshot = []
-            values_snapshot = []
-            rewards_snapshot = []
-            entropy_snapshot = []
-            for j in range(self.n_particles):
-                log_probs_snapshot.append(episode_data[self.n_particles * i + j][0])
-                values_snapshot.append(episode_data[self.n_particles * i + j][1])
-                rewards_snapshot.append(episode_data[self.n_particles * i + j][2])
-                entropy_snapshot.append(episode_data[self.n_particles * i + j][3])
-
-            log_probs.append(log_probs_snapshot)
-            values.append(values_snapshot)
-            rewards.append(rewards_snapshot)
-            entropy.append(entropy_snapshot)
-
-        # Ensure that gradients have been kept
-        if not log_probs[0][0].requires_grad:
-            err_msg = (
-                "WARNING: The values predicted by the actor appear to have lost"
-                " their gradient. Without this gradient, the networks will NOT"
-                " train. If this was intentional, please ignore this message, if"
-                " not, check to see if you have re-cast anything coming out of a"
-                " network."
-            )
-            print(err_msg)
-        if not values[0][0].requires_grad:
-            err_msg = (
-                "WARNING: The values predicted by the critic appear to have lost"
-                " their gradient. Without this gradient, the networks will NOT"
-                " train. If this was intentional, please ignore this message, if"
-                " not, check to see if you have re-cast anything coming out of a"
-                " network."
-            )
-            print(err_msg)
-
-        return log_probs, values, rewards, entropy, time_steps
 
     def initialize_training(self) -> MLModel:
         """
