@@ -43,16 +43,14 @@ class TestMLModel:
         model = model.double()
         network = MLP(layer_stack=model)
         observable = srl.observables.PositionObservable()
-        cls.interaction = MLModel(
-            model=network, observable=observable
-        )
+        cls.interaction = MLModel(model=network, observable=observable)
 
     def test_force_selection(self):
         """
         Test that the expected force output is returned by the model.
         """
         colloid = DummyColloid()
-        action = self.interaction.calc_action([colloid])
+        action = self.interaction.calc_action([colloid], explore_mode=False)
 
         assert action[0].force == 10.0
 
@@ -62,7 +60,7 @@ class TestMLModel:
         """
         torch.manual_seed(5)
         colloid = DummyColloid()
-        action = self.interaction.calc_action([colloid])
+        action = self.interaction.calc_action([colloid], explore_mode=False)
 
         np.testing.assert_array_equal(action[0].torque, [0.0, 0.0, -0.1])
 
@@ -72,7 +70,7 @@ class TestMLModel:
         """
         torch.manual_seed(3)
         colloid = DummyColloid()
-        action = self.interaction.calc_action([colloid])
+        action = self.interaction.calc_action([colloid], explore_mode=False)
 
         np.testing.assert_array_equal(action[0].torque, [0.0, 0.0, 0.1])
 
@@ -82,7 +80,7 @@ class TestMLModel:
         """
         torch.manual_seed(2)
         colloid = DummyColloid()
-        action = self.interaction.calc_action([colloid])
+        action = self.interaction.calc_action([colloid], explore_mode=False)
 
         assert action[0].force == 0.0
         np.testing.assert_array_equal(action[0].torque, [0.0, 0.0, 0.0])

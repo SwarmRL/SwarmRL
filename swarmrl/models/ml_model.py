@@ -74,7 +74,9 @@ class MLModel(InteractionModel):
         except FileNotFoundError:
             pass
 
-    def calc_action(self, colloids: typing.List[Colloid]) -> typing.List[Action]:
+    def calc_action(
+        self, colloids: typing.List[Colloid], explore_mode: bool = True
+    ) -> typing.List[Action]:
         """
         Compute the state of the system based on the current colloid position.
 
@@ -108,8 +110,12 @@ class MLModel(InteractionModel):
 
             action_distribution = Categorical(action_probabilities)
 
-            # Introduce exploration vs. exploitation feature
-            j = np.random.random()
+            if explore_mode:
+                # Introduce exploration vs. exploitation feature
+                j = np.random.random()
+            else:
+                j = 0
+
             if j >= 0.8:
                 action_idx = np.random.randint(0, len(self.actions))
                 actions.append(self.actions[list(self.actions)[action_idx]])
