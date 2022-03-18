@@ -25,7 +25,7 @@ def run_analysis():
     -------
 
     """
-    with hf.File("find_center/test/trajectory.hdf5") as db:
+    with hf.File("example_output/test/trajectory.hdf5") as db:
         data = np.array(db["colloids"]["Unwrapped_Positions"])
     time = np.linspace(0, len(data), len(data), dtype=int)
     for i in range(len(data[0])):
@@ -42,7 +42,7 @@ def visualize_particles():
     -------
 
     """
-    with hf.File("find_center/test/trajectory.hdf5") as db:
+    with hf.File("example_output/test/trajectory.hdf5") as db:
         data = np.array(db["colloids"]["Unwrapped_Positions"])
 
     mesh = vis.Sphere(radius=10.0, colour=np.array([30, 144, 255]) / 255, resolution=5)
@@ -168,14 +168,14 @@ def run_simulation():
 
     # Define the force model.
     rl_trainer = srl.models.MLPRL(
-        actor, critic, task, loss, observable, md_params.n_colloids, outfolder
+        actor, critic, task, loss, observable, md_params.n_colloids
     )
 
     # Run the simulation.
     logger.info("starting simulation")
     n_slices = int(run_params["sim_duration"] / md_params.time_slice)
 
-    n_episodes = 4000
+    n_episodes = 100
     episode_length = int(np.ceil(n_slices / 800))
 
     rl_trainer.perform_rl_training(
