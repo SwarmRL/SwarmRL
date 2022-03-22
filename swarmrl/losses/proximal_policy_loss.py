@@ -71,8 +71,8 @@ class ProximalPolicyLoss(Loss, ABC):
 
         # Standardize the value function.
         if standardize:
-            mean = torch.mean(torch.tensor(true_value_function), dim=0)
-            std = torch.std(torch.tensor(true_value_function), dim=0)
+            mean = torch.mean(true_value_function.clone().detach(), dim=0)
+            std = torch.std(true_value_function.clone().detach(), dim=0)
 
             true_value_function = (true_value_function - mean) / std
 
@@ -145,13 +145,12 @@ class ProximalPolicyLoss(Loss, ABC):
             surrogate_loss = self.calculate_surrogate_loss(
                 new_log_probs[i], old_log_probs[i], advantage[i].item()
             )
-            critic_loss += 0.5 * torch.nn.functional.smooth_l1_loss(
-                true_value_function[i], new_values[i]
+            critic_loss += torch.nn.functional.smooth_l1_loss(
+                torch.tensor([true_value_function[i]]), new_values[i]
             )
             entropy_loss = -0.01 * new_entropy[i]
 
             actor_loss += surrogate_loss + entropy_loss
-            # critic_loss += surrogate_loss.item() + critic_loss + entropy_loss.item()
 
         return actor_loss, critic_loss
 
@@ -220,7 +219,6 @@ class ProximalPolicyLoss(Loss, ABC):
         loss_tuple : tuple
                 (actor_loss, critic_loss)
         """
-
         self.n_particles = np.shape(episode_data)[1]
         self.n_time_steps = np.shape(episode_data)[0]
 
