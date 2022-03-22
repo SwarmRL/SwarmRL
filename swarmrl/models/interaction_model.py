@@ -25,7 +25,7 @@ class Colloid:
 @dataclasses.dataclass
 class Action:
     """
-    Holds the 3 quantities that are applied to the colloid plus and identifier
+    Holds the 3 quantities that are applied to the colloid plus an identifier
     """
 
     id = 0

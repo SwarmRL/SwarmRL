@@ -116,9 +116,6 @@ class RealExperiment(swarmrl.engine.engine.Engine):
         ret = np.zeros((n_colloids, 2))
         actions = force_model.calc_action(colloids)
         for idx, coll in enumerate(colloids):
-            other_colloids = [c for c in colloids if c is not coll]
-            # update the state of an active learner, ignored by non ML models.
-            force_model.compute_state(coll, other_colloids)
             action = actions[idx]
 
             if not action.force == 0.0:
