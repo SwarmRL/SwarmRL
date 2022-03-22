@@ -10,8 +10,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pint
 import torch
-import znvis as vis
-from bacteria import utils
 
 import swarmrl as srl
 import swarmrl.utils
@@ -42,6 +40,8 @@ def visualize_particles():
     -------
 
     """
+    import znvis as vis
+    
     with hf.File("example_output/test/trajectory.hdf5") as db:
         data = np.array(db["colloids"]["Unwrapped_Positions"])
 
@@ -113,7 +113,7 @@ def run_simulation():
         "run_params": run_params,
     }
 
-    utils.write_params(outfolder, args.name, params_to_write)
+    swarmrl.utils.write_params(outfolder, args.name, params_to_write)
 
     # Define the simulation engine.
     system_runner = srl.espresso.EspressoMD(
@@ -191,4 +191,4 @@ if __name__ == "__main__":
     """
     run_simulation()
     run_analysis()
-    visualize_particles()
+    # visualize_particles()
