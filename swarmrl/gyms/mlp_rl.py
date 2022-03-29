@@ -3,7 +3,6 @@ Module to implement a simple multi-layer perceptron for the colloids.
 """
 import copy
 import os
-from typing import Tuple
 
 import torch
 import tqdm
