@@ -41,8 +41,8 @@ class TestFullSim(ut.TestCase):
             temperature=ureg.Quantity(293, "kelvin"),
             box_length=ureg.Quantity(1000, "micrometer"),
             initiation_radius=ureg.Quantity(60, "micrometer"),
-            time_slice=ureg.Quantity(0.2, "second"),
-            time_step=ureg.Quantity(0.2, "second") / 5,
+            time_slice=ureg.Quantity(0.2, "second"),  # model timestep
+            time_step=ureg.Quantity(0.2, "second") / 5,  # integrator timestep
             write_interval=ureg.Quantity(2, "second"),
         )
 
