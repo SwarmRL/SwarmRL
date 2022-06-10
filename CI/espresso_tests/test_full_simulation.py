@@ -1,8 +1,10 @@
 import copy
 import pickle
 import tempfile
+import threading
 import unittest as ut
 
+import espressomd.visualization
 import h5py
 import numpy as np
 import pint
@@ -22,6 +24,9 @@ class TestFullSim(ut.TestCase):
     simulation_name = "example_simulation"
     loglevel_terminal = "info"
     seed = 42
+
+    # manually turn on or off, cannot be checked in a test case
+    visualize = False
 
     def simulate_model(self, outfolder):
         logger = utils.setup_swarmrl_logger(
@@ -115,8 +120,31 @@ class TestFullSim(ut.TestCase):
         )
 
         logger.info("Starting simulation")
-        for _ in tqdm.tqdm(range(100)):
-            system_runner.integrate(int(np.ceil(n_slices / 100)), force_model)
+        if self.visualize:
+            logger.warning(
+                "Running test with visualization. "
+                "This is now a visual test and will terminate "
+                "when the visualizer is closed without actually testing"
+            )
+
+            def run_and_update_vis(n_slices_: int, visualizer_):
+                for _ in tqdm.tqdm(range(n_slices_)):
+                    system_runner.integrate(1, force_model)
+                    visualizer_.update()
+
+            visualizer = espressomd.visualization.openGLLive(system_runner.system)
+
+            t = threading.Thread(
+                target=run_and_update_vis,
+                args=(100 * n_slices, visualizer),
+            )
+            t.daemon = True
+            t.start()
+            visualizer.start()
+
+        else:
+            for _ in tqdm.tqdm(range(100)):
+                system_runner.integrate(int(np.ceil(n_slices / 100)), force_model)
 
         system_runner.finalize()
         logger.info("Simulation completed successfully")
