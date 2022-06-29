@@ -3,7 +3,7 @@ Module for the espressoMD simulations.
 """
 try:
     import espressomd
-    from espressomd import System
+    import espressomd.System
 except ModuleNotFoundError:
     print("WARNING: Could not find espressomd. Features will not be available")
 import dataclasses
@@ -106,7 +106,7 @@ class EspressoMD(Engine):
         self._init_h5_output(write_chunk_size)
         self._init_calculated_quantities()
 
-        self.system = System(box_l=3 * [1])
+        self.system = espressomd.System(box_l=3 * [1])
         self.colloids = list()
 
         espressomd.assert_features(["ROTATION", "EXTERNAL_FORCES"])
