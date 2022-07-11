@@ -296,6 +296,7 @@ class EspressoMD(Engine):
             elif self.n_dims == 2:
                 # initialize with body-frame = lab-frame to set correct rotation flags
                 # allow all rotations to bring the particle to correct state
+                start_pos[2] = 0  # set Z coordinate to 0 for 2D simulation
                 colloid = self.system.part.add(
                     pos=start_pos,
                     mass=colloid_mass,
