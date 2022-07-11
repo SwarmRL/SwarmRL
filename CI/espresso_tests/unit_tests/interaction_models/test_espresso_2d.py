@@ -39,6 +39,7 @@ class EspressoTest2D(ut.TestCase):
 
             runner.setup_simulation()
             self.assertEqual(len(runner.system.part[:]), params.n_colloids)
+            np.testing.assert_allclose(runner.system.part[:].pos[:, 2], 0)
 
             part_data = runner.get_particle_data()
 
