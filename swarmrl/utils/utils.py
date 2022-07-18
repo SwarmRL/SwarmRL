@@ -4,6 +4,8 @@ import pickle
 import shutil
 import typing
 
+import numpy as np
+
 import swarmrl
 
 
@@ -129,7 +131,7 @@ def setup_swarmrl_logger(
         return numeric_level
 
     logger = logging.getLogger(swarmrl._ROOT_NAME)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     formatter = logging.Formatter(
         fmt="[%(levelname)-10s] %(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
@@ -143,3 +145,91 @@ def setup_swarmrl_logger(
     logger.addHandler(stream_handler)
 
     return logger
+
+
+def gather_n_dim_indices(reference_array: np.ndarray, indices: np.ndarray):
+    """
+    Gather entries from an n_dim array using an n_dim index array
+
+    Parameters
+    ----------
+    reference_array : np.ndarray
+            Array that you want to gather the indices of.
+    indices : np.ndarray
+            Indices in the same shape as the array without the last dimension.
+
+    Returns
+    -------
+    reduced_array : np.ndarray
+            Shape is the reference array with the last dimension reduced to 1.
+            This array is the initial reference array with the desired indices chosen
+            out.
+    """
+    indices = indices.astype(int)
+    reference_shape = reference_array.shape
+
+    multiplier = (
+        np.linspace(0, len(indices.flatten()) - 1, len(indices.flatten()), dtype=int)
+        * reference_shape[-1]
+    )
+
+    indices = indices.flatten() + multiplier
+
+    gathered_array = reference_array.flatten()[indices]
+
+    return gathered_array.reshape(reference_shape[0], reference_shape[1])
+
+
+def record_trajectory(
+    features: np.ndarray,
+    actions: np.ndarray,
+    log_probs: np.ndarray,
+    rewards: np.ndarray,
+):
+    """
+    Record trajectory if required.
+
+    Parameters
+    ----------
+    rewards : np.ndarray (n_timesteps, n_particles, 1)
+            Rewards collected during the simulation to be used in training.
+    log_probs : np.ndarray (n_timesteps, n_particles, 1)
+            Log probabilities used for debugging.
+    features : np.ndarray (n_timesteps, n_particles, n_dimensions)
+            Features to store in the array.
+    actions : np.ndarray (n_timesteps, n_particles, 1)
+            A numpy array of actions
+
+    Returns
+    -------
+    Dumps a hidden file to disc which is often removed after reading.
+    """
+    try:
+        data = np.load(".traj_data.npy", allow_pickle=True)
+        feature_data = data.item().get("features")
+        action_data = data.item().get("actions")
+        log_probs_data = data.item().get("log_probs")
+        reward_data = data.item().get("rewards")
+
+        feature_data = np.append(feature_data, np.array([features]), axis=0)
+        action_data = np.append(action_data, np.array([actions]), axis=0)
+        log_probs_data = np.append(log_probs_data, np.array([log_probs]), axis=0)
+        reward_data = np.append(reward_data, np.array([rewards]), axis=0)
+
+        os.remove(".traj_data.npy")
+
+    except FileNotFoundError:
+        feature_data = np.array([features])
+        action_data = np.array([actions])
+        log_probs_data = np.array([log_probs])
+        reward_data = np.array([rewards])
+    np.save(
+        ".traj_data.npy",
+        {
+            "features": feature_data,
+            "actions": action_data,
+            "log_probs": log_probs_data,
+            "rewards": reward_data,
+        },
+        allow_pickle=True,
+    )

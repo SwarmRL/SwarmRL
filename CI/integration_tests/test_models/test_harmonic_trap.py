@@ -4,7 +4,6 @@ Perform an integration test on the harmonic trap class.
 import unittest as ut
 
 import numpy as np
-import torch
 
 from swarmrl.models.harmonic_trap import HarmonicTrap
 
@@ -35,7 +34,7 @@ class TestHarmonicTrap(ut.TestCase):
         Asserts that all of the force outputs are correct.
         """
         actual = np.array([[-0.0, -0.0, -0.0], [-10, -30, -79], [36, -32, 1.0]])
-        prediction = self.model(torch.tensor(self.colloids, dtype=torch.float64))
+        prediction = self.model(np.array(self.colloids))
         np.testing.assert_array_equal(prediction, actual)
 
 

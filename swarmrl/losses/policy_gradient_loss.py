@@ -1,21 +1,26 @@
 """
-Module for the parent class of the loss models.
+Module for the implementation of policy gradient loss.
+
+Policy gradient is the most simplistic loss function where critic loss drives the entire
+policy learning.
 
 Notes
 -----
 https://spinningup.openai.com/en/latest/algorithms/vpg.html
 """
-from typing import List
+import logging
 
-import numpy as np
-import torch
-import torch.nn.functional
-from torch.distributions import Categorical
+import jax
+import jax.numpy as np
+import optax
+from flax.core.frozen_dict import FrozenDict
 
 from swarmrl.losses.loss import Loss
 from swarmrl.networks.network import Network
-from swarmrl.observables.observable import Observable
-from swarmrl.tasks.task import Task
+from swarmrl.utils.utils import gather_n_dim_indices
+from swarmrl.value_functions.expected_returns import ExpectedReturns
+
+logger = logging.getLogger(__name__)
 
 
 class PolicyGradientLoss(Loss):
@@ -26,163 +31,155 @@ class PolicyGradientLoss(Loss):
     -----
     """
 
-    def __init__(self):
+    def __init__(self, value_function: ExpectedReturns):
         """
         Constructor for the reward class.
+
+        Parameters
+        ----------
+        value_function : ExpectedReturns
         """
         super(Loss, self).__init__()
+        self.value_function = value_function
         self.n_particles = None
         self.n_time_steps = None
+
+    def _compute_actor_loss(
+        self,
+        actor_params: FrozenDict,
+        feature_data: np.ndarray,
+        rewards: np.ndarray,
+        action_indices: np.ndarray,
+        actor: Network,
+        critic: Network,
+    ):
+        """
+        Compute the actor loss.
+
+        Parameters
+        ----------
+        actor_params : FrozenDict
+                Parameters of the actor model used.
+        feature_data : np.ndarray (n_timesteps, n_particles, feature_dimension)
+                Observable data for each time step and particle within the episode.
+        rewards : np.ndarray (n_timesteps, n_particles, reward_dimension)
+                Reward data for each time step and particle within the episode.
+        action_indices : np.ndarray (n_timesteps, n_particles)
+                Indices of the chosen actions at each time step so that exploration
+                is preserved in the model training.
+        actor : Network
+                Actor model to use in the analysis.
+        critic : Network
+                Critic model to use in the analysis.
+
+        Returns
+        -------
+        loss : float
+                The loss for the episode.
+        """
+        # (n_timesteps, n_particles, n_possibilities)
+        probabilities = actor.apply_fn({"params": actor_params}, feature_data)
+        probabilities = jax.nn.softmax(probabilities)
+        chosen_logits = gather_n_dim_indices(probabilities, action_indices)
+        chosen_logits = np.log(chosen_logits)
+
+        logger.debug(f"{chosen_logits.shape=}")
+
+        value_function_values = self.value_function(rewards)
+
+        logger.debug(f"{value_function_values.shape}")
+
+        critic_values = critic(feature_data)[:, :, 0]  # zero for trivial dimension
+
+        logger.debug(f"{critic_values.shape=}")
+
+        # (n_timesteps, n_particles)
+        advantage = value_function_values - critic_values
+
+        logger.debug(f"{advantage=}")
+
+        loss = -1 * ((chosen_logits * advantage).sum(axis=0)).mean()
+
+        logger.debug(f"{loss=}")
+
+        return loss
+
+    def _compute_critic_loss(
+        self,
+        critic_params: FrozenDict,
+        feature_data: np.ndarray,
+        rewards: np.ndarray,
+        critic: Network,
+    ):
+        """
+        Callable to be wrapped in grad for the critic loss.
+
+        Parameters
+        ----------
+        critic_params : FrozenDict
+                Parameters of the critic model used.
+        feature_data : np.ndarray (n_timesteps, n_particles, feature_dimension)
+                Observable data for each time step and particle within the episode.
+        rewards : np.ndarray (n_timesteps, n_particles, reward_dimension)
+                Reward data for each time step and particle within the episode.
+        critic : Network
+                Critic model to use in the analysis.
+
+        Returns
+        -------
+        loss : float
+                Critic loss for the episode.
+        """
+        critic_values = critic.apply_fn({"params": critic_params}, feature_data)[
+            :, :, 0
+        ]
+        logger.debug(f"{critic_values.shape=}")
+        value_function_values = self.value_function(rewards)
+        logger.debug(f"{value_function_values.shape=}")
+
+        loss = np.sum(optax.huber_loss(critic_values, value_function_values), axis=0)
+
+        loss = np.mean(loss)
+
+        return loss
 
     def compute_loss(
         self,
         actor: Network,
         critic: Network,
-        observable: Observable,
-        episode_data: list,
-        task: Task,
+        episode_data: np.ndarray,
     ):
         """
         Compute the loss functions for the actor and critic based on the reward.
-
-        For full doc string, see the parent class.
 
         Returns
         -------
         loss_tuple : tuple
                 (actor_loss, critic_loss)
         """
-        self.n_particles = np.shape(episode_data)[1]
-        self.n_time_steps = np.shape(episode_data)[0]
+        feature_data = episode_data.item().get("features")
+        action_data = episode_data.item().get("actions")
+        reward_data = episode_data.item().get("rewards")
 
-        # Actor and critic losses.
-        actor_loss = torch.tensor(0, dtype=torch.double)
-        critic_loss = torch.tensor(0, dtype=torch.double)
+        self.n_particles = np.shape(feature_data)[1]
+        self.n_time_steps = np.shape(feature_data)[0]
 
-        for i in range(self.n_particles):
-            values = []
-            log_probs = []
-            rewards = []
-            for j in range(self.n_time_steps):
-                # Compute observable
-                colloid = episode_data[j][i]
-                other_colloids = [c for c in episode_data[j] if c is not colloid]
-                feature_vector = observable.compute_observable(colloid, other_colloids)
+        actor_grad_fn = jax.value_and_grad(self._compute_actor_loss)
+        actor_loss, actor_grad = actor_grad_fn(
+            actor.model_state.params,
+            feature_data,
+            reward_data,
+            action_data,
+            actor,
+            critic,
+        )
 
-                # Compute actor values
-                action_probability = torch.nn.functional.softmax(
-                    actor(feature_vector), dim=-1
-                )
-                distribution = Categorical(action_probability)
-                index = distribution.sample()
-                log_probs.append(distribution.log_prob(index))
+        critic_grad_fn = jax.value_and_grad(self._compute_critic_loss)
+        critic_loss, critic_grads = critic_grad_fn(
+            critic.model_state.params, feature_data, reward_data, critic
+        )
 
-                # Compute critic values
-                values.append(critic(feature_vector))
+        actor.update_model(actor_grad)
+        critic.update_model(critic_grads)
 
-                # Compute reward
-                rewards.append(task(feature_vector))
-
-            actor_loss += self.compute_actor_loss(log_probs, values, rewards)
-            critic_loss += self.compute_critic_loss(values, rewards)
-
-        actor.update_model([actor_loss])
-        critic.update_model([critic_loss])
-
-        return actor, critic
-
-    def compute_true_value_function(
-        self, rewards: List, gamma: float = 0.99, standardize: bool = True
-    ):
-        """
-        Compute the true value function from the rewards.
-
-        Parameters
-        ----------
-        rewards : List
-                A tensor of scalar tasks on which the expected value is computed.
-        gamma : float (default=0.99)
-                A decay factor for the value of the tasks.
-        standardize : bool (default=True)
-                If true, the result is standardized.
-
-        Returns
-        -------
-        expected_returns : torch.Tensor (n_timesteps, )
-                expected returns for each particle
-        """
-        true_value_function = torch.zeros(self.n_time_steps)
-        current_value_state = torch.tensor(0)
-
-        for i in range(self.n_time_steps)[::-1]:
-            current_value_state = rewards[i] + current_value_state * gamma
-
-            true_value_function[i] = current_value_state
-
-        # Standardize the value function.
-        if standardize:
-            mean = torch.mean(torch.tensor(true_value_function), dim=0)
-            std = torch.std(torch.tensor(true_value_function), dim=0)
-
-            true_value_function = (true_value_function - mean) / std
-
-        return true_value_function
-
-    def compute_critic_loss(
-        self, predicted_rewards: List, rewards: List
-    ) -> torch.Tensor:
-        """
-        Compute the critic loss.
-
-        Parameters
-        ----------
-        predicted_rewards : List
-                Rewards predicted by the critic.
-        rewards : List
-                Real rewards computed by the rewards rule.
-
-        Notes
-        -----
-        Currently uses the Huber loss.
-        """
-        value_function = self.compute_true_value_function(rewards)
-
-        particle_loss = torch.tensor(0, dtype=torch.double)
-
-        for i in range(self.n_time_steps):
-            particle_loss = particle_loss + torch.nn.functional.smooth_l1_loss(
-                predicted_rewards[i], value_function[i]
-            )
-
-        return particle_loss
-
-    def compute_actor_loss(
-        self,
-        log_probs: List,
-        predicted_values: List,
-        rewards: List,
-    ) -> torch.Tensor:
-        """
-        Compute the actor loss.
-
-        Parameters
-        ----------
-        log_probs : List
-                Probabilities returned by the actor.
-        predicted_values : List
-                Values predicted by the critic.
-        rewards : List
-                Real rewards.
-
-        Returns
-        -------
-        losses : List
-        """
-        value_function = self.compute_true_value_function(rewards)
-        advantage = value_function - torch.tensor(predicted_values)
-
-        particle_loss = torch.tensor(0, dtype=torch.double)
-        for i in range(self.n_time_steps):
-            particle_loss = particle_loss + log_probs[i] * advantage[i]
-
-        return -1 * particle_loss
+        return actor.model_state, critic.model_state

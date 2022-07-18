@@ -1,50 +1,65 @@
 """
 Parent class for the networks.
 """
-import torch
+import jax.numpy as np
 
 
-class Network(torch.nn.Module):
+class Network:
     """
     A parent class for the networks that will be used.
     """
 
-    def __init__(self, optimizer: torch.optim.Optimizer = None):
+    def compute_action(self, feature_vector: np.ndarray, explore_mode: bool = False):
         """
-        Constructor for the Network parent class.
+        Compute and action from the action space.
 
-        This will just call super on the torch Module class.
-        """
-        super(Network, self).__init__()
-        self.optimizer = optimizer
-        self.model = torch.nn.Module
-
-    def update_model(self, loss_vector: torch.Tensor, retain: bool = False):
-        """
-        Update the model.
+        This method will compute and action for an agent and will include the
+        exploration vs exploitation strategy.
 
         Parameters
         ----------
-        retain : bool (default=False)
-                If true, retain the graph for further back-propagation on a stale model.
-        loss_vector : torch.Tensor
-                Current state of the environment on which predictions should be made.
-                The elements of the loss vector MUST be torch tensors in order for the
-                backward() method to work.
+        feature_vector : np.ndarray
+                Feature vector to be used in the network.
+        explore_mode : bool
+                If true, an exploration vs exploitation function is called.
+
+        Returns
+        -------
+        action : int
+                An integer bounded between 0 and the number of output neurons
+                corresponding to the action chosen by the agent.
         """
         raise NotImplementedError("Implemented in child class.")
 
-    def forward(self, state: torch.Tensor):
+    def __call__(self, feature_vector: np.ndarray):
         """
         Perform the forward pass on the model.
 
         Parameters
         ----------
-        state : torch.Tensor
-                Current state of the environment on which predictions should be made.
+        feature_vector : np.ndarray
+                Current state of the agent on which actions should be made.
 
         Returns
         -------
 
+        """
+        raise NotImplementedError("Implemented in child class.")
+
+    def update_model(
+        self,
+        grads,
+    ):
+        """
+        Train the model.
+
+        For jax model grads are used to update a model state directly. This method
+        takes the grads and updates the params dict corresponding to the relevant
+        model.
+
+        Parameters
+        ----------
+        grads : dict
+                Dict of grads from a jax value_and_grad call.
         """
         raise NotImplementedError("Implemented in child class.")

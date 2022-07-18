@@ -6,10 +6,10 @@ Notes
 The reward classes handle the computation of the reward from an environment and
 compute the loss for the models to train on.
 """
-import torch
+import jax.numpy as np
 
 
-class Task(torch.nn.Module):
+class Task:
     """
     Parent class for the reinforcement learning tasks.
     """
@@ -17,28 +17,26 @@ class Task(torch.nn.Module):
     def __init__(self):
         """
         Constructor for the reward class.
-
-        Parameters
-        ----------
-        engine : Engine
-                SwarmRL engine used to generate environment data. Could be, e.g. a
-                simulation or an experiment.
         """
         super(Task, self).__init__()
 
-    @classmethod
-    def forward(self, observables: torch.Tensor):
+    def __call__(self, observables: np.ndarray) -> float:
         """
         Compute the reward on the whole group of particles.
 
         Parameters
         ----------
-        observables : torch.Tensor
-                Observables collected during the episode.
-
+        observables : np.ndarray (dimension, )
+                Observable of a single colloid.
 
         Returns
         -------
+        Reward : float
+                Reward for the current state.
 
+        Examples
+        --------
+        my_task = Task()
+        reward = my_task(state)
         """
         raise NotImplementedError("Implemented in child class.")

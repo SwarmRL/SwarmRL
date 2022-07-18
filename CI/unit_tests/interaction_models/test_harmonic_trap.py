@@ -3,8 +3,8 @@ Test the harmonic trap potential.
 """
 import unittest as ut
 
+import jax.numpy as jnp
 import numpy as np
-import torch
 
 from swarmrl.models.harmonic_trap import HarmonicTrap
 
@@ -40,9 +40,7 @@ class TestHarmonicTrap(ut.TestCase):
         """
         self.model.center = np.array([0.0, 0.0, 0.0])
         actual = np.array([[-0.0, -0.0, -0.0], [-10, -30, -79], [36, -32, 1.0]])
-        prediction = self.model.compute_force(
-            torch.tensor(self.colloids, dtype=torch.float64)
-        )
+        prediction = self.model.compute_force(jnp.array(self.colloids))
         np.testing.assert_array_equal(prediction, actual)
 
     def test_compute_force_shifted(self):
@@ -56,9 +54,7 @@ class TestHarmonicTrap(ut.TestCase):
         self.model.center = np.array([1.0, 1.0, 1.0])
 
         actual = np.array([[10.0, 10.0, 10.0], [-0.0, -20.0, -69], [46.0, -22.0, 11.0]])
-        prediction = self.model.compute_force(
-            torch.tensor(self.colloids, dtype=torch.float64)
-        )
+        prediction = self.model.compute_force(jnp.array(self.colloids))
         np.testing.assert_array_equal(prediction, actual)
 
     def test_compute_force_shifted_centers(self):
@@ -74,9 +70,7 @@ class TestHarmonicTrap(ut.TestCase):
         )
 
         actual = np.array([[10.0, 10.0, 10.0], [-10, -30, -79], [46.0, -42.0, 1.0]])
-        prediction = self.model.compute_force(
-            torch.tensor(self.colloids, dtype=torch.float64)
-        )
+        prediction = self.model.compute_force(jnp.array(self.colloids))
         np.testing.assert_array_equal(prediction, actual)
 
 
