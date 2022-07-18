@@ -1,12 +1,18 @@
 """
 Test the ML based interaction model.
 """
+import os
+from pathlib import Path
+
+import flax.linen as nn
 import numpy as np
-import torch
+import optax
+from numpy.testing import assert_array_almost_equal
 
 import swarmrl as srl
 from swarmrl.models.ml_model import MLModel
-from swarmrl.networks import MLP
+from swarmrl.networks.flax_network import FlaxModel
+from swarmrl.sampling_strategies.categorical_distribution import CategoricalDistribution
 
 
 class DummyColloid:
@@ -14,7 +20,50 @@ class DummyColloid:
     Dummy colloid class for the test.
     """
 
-    pos = np.array([1, 1, 1])
+    def __init__(self, pos=np.array([1, 1, 0]), director=np.array([0, 0, 1])):
+        self.pos = pos
+        self.director = director
+
+
+def _action_to_index(action):
+    """
+    Convert an action to an index for this test.
+    """
+    if action.force != 0.0:
+        return 0
+    elif action.torque[-1] == 0.1:
+        return 1
+    elif action.torque[-1] == -0.1:
+        return 2
+    else:
+        return 3
+
+
+class FlaxNet(nn.Module):
+    """A simple dense model."""
+
+    @nn.compact
+    def __call__(self, x):
+        x = nn.Dense(features=12)(x)
+        x = nn.relu(x)
+        x = nn.Dense(features=12)(x)
+        x = nn.relu(x)
+        x = nn.Dense(features=12)(x)
+        x = nn.relu(x)
+        x = nn.Dense(features=4)(x)
+        return x
+
+
+class DummyTask:
+    """
+    Dummy task for the test
+    """
+
+    def __call__(self, data):
+        """
+        Dummy call method.
+        """
+        return 1.0
 
 
 class TestMLModel:
@@ -27,61 +76,117 @@ class TestMLModel:
         """
         Prepare the test suite.
         """
-        torch.manual_seed(0)  # set seed for reproducibility.
-
-        # simple model for testing.
-        model = torch.nn.Sequential(
-            torch.nn.Linear(3, 12),
-            torch.nn.ReLU(),
-            torch.nn.Linear(12, 12),
-            torch.nn.ReLU(),
-            torch.nn.Linear(12, 12),
-            torch.nn.ReLU(),
-            torch.nn.Linear(12, 4),
+        observable = srl.observables.PositionObservable(
+            box_length=np.array([1000, 1000, 1000])
+        )
+        network = FlaxModel(
+            flax_model=FlaxNet(),
+            input_shape=(3,),
+            optimizer=optax.sgd(0.001),
+            rng_key=6862168,
+            sampling_strategy=CategoricalDistribution(),
+        )
+        cls.interaction = MLModel(
+            model=network, observable=observable, task=DummyTask()
         )
 
-        model = model.double()
-        network = MLP(layer_stack=model)
-        observable = srl.observables.PositionObservable()
-        cls.interaction = MLModel(model=network, observable=observable)
+    def test_file_saving(self):
+        """
+        Test that classes are saved correctly.
+        """
+        colloid_1 = DummyColloid(np.array([3, 7, 1]), np.array([0, 0, 1]))
+        colloid_2 = DummyColloid(np.array([1, 1, 0]), np.array([0, 0, -1]))
+        colloid_3 = DummyColloid(np.array([100, 27, 0.222]), np.array([0, 0, 1]))
 
-    def test_force_selection(self):
+        self.interaction.record_traj = True
+        self.interaction.calc_action(
+            [colloid_1, colloid_2, colloid_3], explore_mode=False
+        )
+
+        # Check if the file exists
+        data_file = Path(".traj_data.npy")
+        assert data_file.exists()
+
+        # Check that data is stored correctly
+        data = np.load(".traj_data.npy", allow_pickle=True)
+        data = data.item().get("features")
+        print(data)
+
+        # Colloid 1
+        assert_array_almost_equal(data[0][0], colloid_1.pos / 1000.0)
+        # assert_array_equal(data[0][0].director, colloid_1.director)
+
+        # Colloid 2
+        assert_array_almost_equal(data[0][1], colloid_2.pos / 1000.0)
+        # assert_array_equal(data[0][1].director, colloid_2.director)
+
+        # Colloid 3
+        assert_array_almost_equal(data[0][2], colloid_3.pos / 1000.0)
+        # assert_array_equal(data[0][2].director, colloid_3.director)
+
+        # Check for additional colloid addition
+        colloid_1 = DummyColloid(np.array([9, 1, 6]), np.array([0, 0, -1.0]))
+        colloid_2 = DummyColloid(np.array([8, 8, 8]), np.array([0, 0, 1.0]))
+        colloid_3 = DummyColloid(np.array([-4.7, 3, -0.222]), np.array([0, 0, -1.0]))
+        self.interaction.calc_action(
+            [colloid_1, colloid_2, colloid_3], explore_mode=False
+        )
+
+        # Check if the file exists
+        data_file = Path(".traj_data.npy")
+        assert data_file.exists()
+
+        # Check that data is stored correctly
+        data = np.load(".traj_data.npy", allow_pickle=True)
+        data = data.item().get("features")
+
+        # Colloid 1
+        assert_array_almost_equal(data[1][0], colloid_1.pos / 1000.0)
+        # assert_array_equal(data[1][0].director, colloid_1.director)
+
+        # Colloid 2
+        assert_array_almost_equal(data[1][1], colloid_2.pos / 1000.0)
+        # assert_array_equal(data[1][1].director, colloid_2.director)
+
+        # Colloid 3
+        assert_array_almost_equal(data[1][2], colloid_3.pos / 1000.0)
+        # assert_array_equal(data[1][2].director, colloid_3.director)
+
+        self.interaction.record_traj = False
+        os.remove(".traj_data.npy")
+
+    def _test_force_selection(self):
         """
-        Test that the expected force output is returned by the model.
+        Test that the model returns actions with equal probability.
+
+        At first initialization, the actor should output roughly even actions. In this
+        test, we compute the action 1000 times and check the distribution turns out to
+        be approximately 0.25 for each.
+
+        Notes
+        -----
+        We could make this stricter but numpy array equal allows only for this decimal
+        check. If we used a difference the value could be constrained to around
+        0.23 - 0.27.
         """
+
         colloid = DummyColloid()
-        action = self.interaction.calc_action([colloid], explore_mode=False)
 
-        assert action[0].force == 10.0
+        actions = []
+        for _ in range(1000):
+            action = self.interaction.calc_action([colloid], explore_mode=False)
+            actions.append(_action_to_index(action[0]))
 
-    def test_negative_torque(self):
-        """
-        Test that I can always get a negative torque for a fixed input.
-        """
-        torch.manual_seed(5)
-        colloid = DummyColloid()
-        action = self.interaction.calc_action([colloid], explore_mode=False)
+        actions = np.array(actions)
 
-        np.testing.assert_array_equal(action[0].torque, [0.0, 0.0, -0.1])
+        action_0_freq = np.count_nonzero(actions == 0)
+        action_1_freq = np.count_nonzero(actions == 1)
+        action_2_freq = np.count_nonzero(actions == 2)
+        action_3_freq = np.count_nonzero(actions == 3)
 
-    def test_positive_torque(self):
-        """
-        Test that I can always get a positive torque for a fixed input.
-        """
-        torch.manual_seed(3)
-        colloid = DummyColloid()
-        action = self.interaction.calc_action([colloid], explore_mode=False)
-
-        np.testing.assert_array_equal(action[0].torque, [0.0, 0.0, 0.1])
-
-    def test_no_action(self):
-        """
-        Test that I can get a no action for a fixed input.
-        """
-        torch.manual_seed(2)
-        colloid = DummyColloid()
-        action = self.interaction.calc_action([colloid], explore_mode=False)
-
-        assert action[0].force == 0.0
-        np.testing.assert_array_equal(action[0].torque, [0.0, 0.0, 0.0])
-        assert action[0].new_direction is None
+        freq_array = (
+            np.array([action_0_freq, action_1_freq, action_2_freq, action_3_freq])
+            / 1000
+        )
+        ref_array = np.array([0.25, 0.25, 0.25, 0.25])
+        assert_array_almost_equal(freq_array, ref_array, decimal=1)

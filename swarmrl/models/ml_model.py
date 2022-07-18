@@ -5,31 +5,12 @@ import os
 import typing
 
 import numpy as np
-import torch
-import torch.nn.functional
-from torch.distributions import Categorical
 
 from swarmrl.models.interaction_model import Action, Colloid, InteractionModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
-
-
-def _record_trajectory(colloids: typing.List[Colloid]):
-    """
-    Record trajectory if required.
-
-    Returns
-    -------
-
-    """
-    try:
-        data = torch.load(".traj_data.pt")
-        os.remove(".traj_data.pt")
-    except FileNotFoundError:
-        data = []
-
-    data.append(colloids)
-    torch.save(data, ".traj_data.pt")
+from swarmrl.tasks.task import Task
+from swarmrl.utils.utils import record_trajectory
 
 
 class MLModel(InteractionModel):
@@ -38,7 +19,11 @@ class MLModel(InteractionModel):
     """
 
     def __init__(
-        self, model: Network, observable: Observable, record_traj: bool = False
+        self,
+        model: Network,
+        observable: Observable,
+        task: Task,
+        record_traj: bool = False,
     ):
         """
         Constructor for the NNModel.
@@ -46,20 +31,25 @@ class MLModel(InteractionModel):
         Parameters
         ----------
         model : Network
-                A SwarmRl model to use in the action computation.
+                A SwarmRl network to use in the action computation.
         observable : Observable
                 A method to compute an observable given a current system state.
         record_traj : bool
                 If true, store trajectory data to disk for training.
+
+        Notes
+        -----
+        TODO: Move the action definitions to user input.
         """
         super().__init__()
         self.model = model
         self.observable = observable
+        self.task = task
         self.record_traj = record_traj
 
         translate = Action(force=10.0)
-        rotate_clockwise = Action(torque=np.array([0.0, 0.0, 0.1]))
-        rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -0.1]))
+        rotate_clockwise = Action(torque=np.array([0.0, 0.0, 15.0]))
+        rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -15.0]))
         do_nothing = Action()
 
         self.actions = {
@@ -70,12 +60,12 @@ class MLModel(InteractionModel):
         }
 
         try:
-            os.remove(".traj_data.pt")
+            os.remove(".traj_data.npy")
         except FileNotFoundError:
             pass
 
     def calc_action(
-        self, colloids: typing.List[Colloid], explore_mode: bool = True
+        self, colloids: typing.List[Colloid], explore_mode: bool = False
     ) -> typing.List[Action]:
         """
         Compute the state of the system based on the current colloid position.
@@ -92,38 +82,34 @@ class MLModel(InteractionModel):
                 Return the action the colloid should take.
         """
         actions = []
-        # Record the trajectory if required.
-        if self.record_traj:
-            _record_trajectory(colloids)
+        action_indices = []
+        log_probs = []
+        rewards = []
+
+        # (n_particles, n_dims) array of features
+        feature_vectors = []
 
         for colloid in colloids:
             other_colloids = [c for c in colloids if c is not colloid]
             feature_vector = self.observable.compute_observable(colloid, other_colloids)
+            reward = self.task(feature_vector)
+            action_index, log_prob = self.model.compute_action(
+                feature_vector=feature_vector, explore_mode=explore_mode
+            )
+            actions.append(self.actions[list(self.actions)[int(action_index)]])
 
-            # action_probabilities = torch.nn.functional.softmax(
-            #     self.model(feature_vector), dim=-1
-            # )
+            action_indices.append(action_index)
+            feature_vectors.append(feature_vector)
+            log_probs.append(log_prob)
+            rewards.append(reward)
 
-            initial_prob = self.model(feature_vector)
-            initial_prob = initial_prob / torch.max(initial_prob)
-            action_probabilities = torch.nn.functional.softmax(initial_prob, dim=-1)
-
-            action_distribution = Categorical(action_probabilities)
-
-            if explore_mode:
-                # Introduce exploration vs. exploitation feature
-                j = np.random.random()
-            else:
-                j = 0
-
-            if j >= 0.8:
-                action_idx = np.random.randint(0, len(self.actions))
-                actions.append(self.actions[list(self.actions)[action_idx]])
-
-            else:
-                action_idx = action_distribution.sample()
-                actions.append(self.actions[list(self.actions)[action_idx.item()]])
-
-            # action_log_prob = action_distribution.log_prob(action_idx)
+        # Record the trajectory if required.
+        if self.record_traj:
+            record_trajectory(
+                features=np.array(feature_vectors),
+                actions=np.array(action_indices),
+                log_probs=np.array(log_probs),
+                rewards=np.array(rewards),
+            )
 
         return actions

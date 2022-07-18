@@ -1,6 +1,6 @@
 """
 Helper module to instantiate several modules.
 """
-from swarmrl.networks.mlp import MLP
+from swarmrl.networks.flax_network import FlaxModel
 
-__all__ = [MLP.__name__]
+__all__ = [FlaxModel.__name__]

@@ -16,3 +16,10 @@ package you need not reinstall.
 Getting started
 ===============
 Go to examples and run it with espresso.
+
+TODO
+====
+We need to connect observables with models. If we have a gradient model that requires
+historical distances, this should be returned by the task as it is 100 % task
+dependent. It also reduces the amount of stuff the user has to instantiate which is a
+win-win.

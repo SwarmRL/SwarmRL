@@ -5,7 +5,6 @@ import dataclasses
 import typing
 
 import numpy as np
-import torch
 
 
 @dataclasses.dataclass(frozen=True)
@@ -34,7 +33,7 @@ class Action:
     new_direction: np.ndarray = None
 
 
-class InteractionModel(torch.nn.Module):
+class InteractionModel:
     """
     Parent class to compute external forces on colloids in a simulation.
     Inherits from the module class of Torch.

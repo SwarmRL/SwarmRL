@@ -1,6 +1,8 @@
 """
 Modules for search algorithms.
 """
-from swarmrl.tasks.searching.find_location import FindLocation
+from swarmrl.tasks.searching.gradient_sensing import GradientSensing
 
-__all__ = [FindLocation.__name__]
+__all__ = [
+    GradientSensing.__name__,
+]

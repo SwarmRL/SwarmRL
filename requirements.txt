@@ -1,7 +1,13 @@
-numpy
-torch
-pint
-h5py
-# znvis
-tqdm
-matplotlib
+numpy~=1.22.2
+pint~=0.18
+h5py~=3.1.0
+znvis
+tqdm~=4.62.3
+matplotlib~=3.4.3
+pytest~=6.2.5
+jax~=0.3.4
+flax~=0.4.1
+setuptools~=58.0.4
+optax~=0.1.2
+rich~=10.12.0
+dataclasses~=0.6

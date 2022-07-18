@@ -5,11 +5,12 @@ import argparse
 import copy
 import logging
 
+import flax.linen as nn
 import h5py as hf
 import matplotlib.pyplot as plt
 import numpy as np
+import optax
 import pint
-import torch
 
 import swarmrl as srl
 import swarmrl.utils
@@ -25,9 +26,8 @@ def run_analysis():
     """
     with hf.File("example_output/test/trajectory.hdf5") as db:
         data = np.array(db["colloids"]["Unwrapped_Positions"])
-    time = np.linspace(0, len(data), len(data), dtype=int)
     for i in range(len(data[0])):
-        plt.plot(time, np.linalg.norm(data[:, i], axis=1))
+        plt.plot(data[:, i][:, 0], data[:, i][:, 1])
 
     plt.show()
 
@@ -72,21 +72,21 @@ def run_simulation():
         args.outfolder_base, args.name, ask_if_exists=not args.test
     )
     logger = swarmrl.utils.setup_swarmrl_logger(
-        f"{outfolder}/{args.name}.log", loglevel_terminal=logging.DEBUG
+        f"{outfolder}/{args.name}.log", loglevel_terminal=logging.INFO
     )
 
     # Define the MD simulation parameters
     ureg = pint.UnitRegistry()
     md_params = srl.espresso.MDParams(
-        n_colloids=10,
+        n_colloids=100,
         ureg=ureg,
         colloid_radius=ureg.Quantity(2.14, "micrometer"),
         fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
-        WCA_epsilon=ureg.Quantity(293, "kelvin") * ureg.boltzmann_constant,
+        WCA_epsilon=ureg.Quantity(1.0, "kelvin") * ureg.boltzmann_constant,
         colloid_density=ureg.Quantity(2.65, "gram / centimeter**3"),
-        temperature=ureg.Quantity(293, "kelvin"),
+        temperature=ureg.Quantity(300.0, "kelvin"),
         box_length=ureg.Quantity(1000, "micrometer"),
-        initiation_radius=ureg.Quantity(106, "micrometer"),
+        initiation_radius=ureg.Quantity(500, "micrometer"),
         time_slice=ureg.Quantity(0.5, "second"),
         time_step=ureg.Quantity(0.5, "second") / 15,
         write_interval=ureg.Quantity(2, "second"),
@@ -121,67 +121,97 @@ def run_simulation():
         n_dims=2,
         seed=run_params["seed"],
         out_folder=outfolder,
-        write_chunk_size=1000,
+        write_chunk_size=100,
     )
     system_runner.setup_simulation()
     # Define the force model.
 
+    class ActorNet(nn.Module):
+        """A simple dense model."""
+
+        @nn.compact
+        def __call__(self, x):
+            x = nn.Dense(features=128)(x)
+            x = nn.relu(x)
+            x = nn.Dense(features=4)(x)
+            return x
+
+    class CriticNet(nn.Module):
+        """A simple dense model."""
+
+        @nn.compact
+        def __call__(self, x):
+            x = nn.Dense(features=128)(x)
+            x = nn.relu(x)
+            x = nn.Dense(features=1)(x)
+            return x
+
     # Define networks
-    critic_stack = torch.nn.Sequential(
-        torch.nn.Linear(3, 128),
-        torch.nn.ReLU(),
-        torch.nn.Linear(128, 128),
-        torch.nn.ReLU(),
-        torch.nn.Linear(128, 128),
-        torch.nn.ReLU(),
-        torch.nn.Linear(128, 1),
+    critic_stack = CriticNet()
+    actor_stack = ActorNet()
+
+    # Define an exploration policy
+    exploration_policy = srl.exploration_policies.RandomExploration(probability=0.1)
+
+    # Define a sampling_strategy
+    sampling_strategy = srl.sampling_strategies.GumbelDistribution()
+
+    # Value function to use
+    value_function = srl.value_functions.ExpectedReturns(gamma=0.99, standardize=True)
+
+    # Define the models.
+    actor = srl.networks.FlaxModel(
+        flax_model=actor_stack,
+        optimizer=optax.adam(learning_rate=0.001),
+        input_shape=(1,),
+        sampling_strategy=sampling_strategy,
+        exploration_policy=exploration_policy,
     )
-    actor_stack = torch.nn.Sequential(
-        torch.nn.Linear(3, 128),
-        torch.nn.ReLU(),
-        torch.nn.Linear(128, 128),
-        torch.nn.ReLU(),
-        torch.nn.Linear(128, 128),
-        torch.nn.ReLU(),
-        torch.nn.Linear(128, 4),
+    critic = srl.networks.FlaxModel(
+        flax_model=critic_stack,
+        optimizer=optax.adam(learning_rate=0.001),
+        input_shape=(1,),
     )
 
-    actor = srl.networks.MLP(actor_stack)
-    critic = srl.networks.MLP(critic_stack)
-    actor = actor.double()
-    critic = critic.double()
+    def scale_function(distance: float):
+        """
+        Scaling function for the task
+        """
+        return 1 - distance
 
-    critic.optimizer = torch.optim.Adam(critic.parameters(), lr=0.03)
-    actor.optimizer = torch.optim.Adam(actor.parameters(), lr=0.03)
-
-    # Define the task
-    task = srl.tasks.searching.FindLocation(
-        side_length=np.array([1000.0, 1000.0, 1000.0]),
-        location=np.array([0, 0, 0]),
+    task = srl.tasks.searching.GradientSensing(
+        source=np.array([500.0, 500.0, 0.0]),
+        decay_function=scale_function,
+        reward_scale_factor=10,
+        box_size=np.array([1000.0, 1000.0, 1000]),
     )
+    observable = task.init_task()
 
     # Define the loss model
-    loss = srl.losses.ProximalPolicyLoss()
-
-    # Define the observable.
-    observable = srl.observables.PositionObservable()
+    loss = srl.losses.PolicyGradientLoss(value_function=value_function)
 
     # Define the force model.
-    rl_trainer = srl.models.MLPRL(
-        actor, critic, task, loss, observable, md_params.n_colloids
+    rl_trainer = srl.gyms.Gym(
+        actor,
+        critic,
+        task,
+        loss,
+        observable,
+        md_params.n_colloids,
     )
 
     # Run the simulation.
     logger.info("starting simulation")
     n_slices = int(run_params["sim_duration"] / md_params.time_slice)
 
-    n_episodes = 100
-    episode_length = int(np.ceil(n_slices / 800))
+    n_episodes = 500
+    episode_length = int(np.ceil(n_slices / 900))
 
     rl_trainer.perform_rl_training(
         system_runner=system_runner,
         n_episodes=n_episodes,
         episode_length=episode_length,
+        initialize=True,
     )
 
 

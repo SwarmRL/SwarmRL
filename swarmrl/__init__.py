@@ -3,7 +3,17 @@ __init__ file for the swarmrl package.
 """
 import logging
 
-from swarmrl import losses, models, networks, observables, tasks
+from swarmrl import (
+    exploration_policies,
+    gyms,
+    losses,
+    models,
+    networks,
+    observables,
+    sampling_strategies,
+    tasks,
+    value_functions,
+)
 from swarmrl.engine import espresso
 from swarmrl.utils import utils
 
@@ -17,9 +27,13 @@ _logger.setLevel(logging.NOTSET)
 __all__ = [
     espresso.__name__,
     utils.__name__,
-    "losses",
-    "tasks",
-    "observables",
-    "networks",
-    "models",
+    losses.__name__,
+    tasks.__name__,
+    observables.__name__,
+    networks.__name__,
+    models.__name__,
+    exploration_policies.__name__,
+    gyms.__name__,
+    sampling_strategies.__name__,
+    value_functions.__name__,
 ]

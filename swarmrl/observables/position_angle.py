@@ -1,5 +1,5 @@
 """
-Position observable computer.
+Give position and angle.
 """
 from abc import ABC
 
@@ -9,7 +9,7 @@ import numpy as onp
 from .observable import Observable
 
 
-class PositionObservable(Observable, ABC):
+class PositionAngleObservable(Observable, ABC):
     """
     Position in box observable.
     """
@@ -37,11 +37,10 @@ class PositionObservable(Observable, ABC):
                 Colloid for which the observable should be computed.
         other_colloids
                 Other colloids in the system.
-
-        Returns
-        -------
-
         """
         data = onp.copy(colloid.pos)
+        director = onp.copy(colloid.director)
 
-        return np.array(data) / self.box_length
+        data = np.concatenate((np.array(data) / (self.box_length / 2), director))
+        print(data)
+        return data

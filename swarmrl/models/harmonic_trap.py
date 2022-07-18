@@ -3,8 +3,7 @@ Example force computation.
 """
 from abc import ABC
 
-import numpy as np
-import torch
+import jax.numpy as np
 
 from swarmrl.models.interaction_model import InteractionModel
 
@@ -31,7 +30,7 @@ class HarmonicTrap(InteractionModel, ABC):
         self.stiffness = stiffness
         self.center = center
 
-    def compute_force(self, colloids: torch.Tensor) -> np.ndarray:
+    def compute_force(self, colloids: np.ndarray) -> np.ndarray:
         """
         Compute the forces on the colloids.
 
@@ -46,9 +45,9 @@ class HarmonicTrap(InteractionModel, ABC):
         forces : np.ndarray
                 Numpy array of forces to apply to the colloids. shape=(n_colloids, 3)
         """
-        return (-self.stiffness * (colloids - self.center)).numpy()
+        return -self.stiffness * (colloids - self.center)
 
-    def forward(self, colloids: torch.Tensor, state: torch.Tensor = None) -> np.ndarray:
+    def __call__(self, colloids: np.ndarray, state: np.ndarray = None) -> np.ndarray:
         """
         Perform the forward pass over the model.
 

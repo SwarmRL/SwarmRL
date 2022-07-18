@@ -1,6 +1,7 @@
 """
 Run a unit test on the loss module.
 """
+import jax.numpy as jnp
 import torch
 
 import swarmrl as srl
@@ -25,11 +26,11 @@ class TestLoss:
         cls.loss.n_particles = 1
         cls.loss.n_time_steps = 5
         cls.rewards = [
-            torch.tensor([1.0], requires_grad=True),
-            torch.tensor([2.0], requires_grad=True),
-            torch.tensor([3.0], requires_grad=True),
-            torch.tensor([4.0], requires_grad=True),
-            torch.tensor([5.0], requires_grad=True),
+            jnp.array([1.0]),
+            jnp.array([2.0]),
+            jnp.array([3.0]),
+            jnp.array([4.0]),
+            jnp.array([5.0]),
         ]
         cls.actor_stack = torch.nn.Sequential(
             torch.nn.Linear(3, 128),
@@ -44,7 +45,7 @@ class TestLoss:
         c = [200, 296, 404]
         d = [198, 294, 402]
         e = [196, 296, 400]
-        cls.feature_vector = torch.Tensor([a, b, c, d, e]).double()
+        cls.feature_vector = jnp.array([a, b, c, d, e])
 
     def test_expected_returns(self):
         """
