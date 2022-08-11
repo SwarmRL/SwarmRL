@@ -11,16 +11,26 @@ class Lavergne2019(InteractionModel):
     """
 
     def __init__(
-        self, vision_half_angle=np.pi / 2.0, act_force=1, perception_threshold=1
+        self,
+        vision_half_angle=np.pi / 2.0,
+        act_force=1,
+        perception_threshold=1,
+        acts_on_types: typing.List[int] = None,
     ):
         self.vision_half_angle = vision_half_angle
         self.act_force = act_force
         self.perception_threshold = perception_threshold
+        if acts_on_types is None:
+            acts_on_types = [0]
+        self.acts_on_types = acts_on_types
 
     def calc_action(self, colloids) -> typing.List[Action]:
         # determine perception value
         actions = []
         for colloid in colloids:
+            if colloid.type not in self.acts_on_types:
+                actions.append(Action())
+                continue
             other_colloids = [c for c in colloids if c is not colloid]
 
             colls_in_vision = get_colloids_in_vision(
@@ -54,6 +64,7 @@ class Baeuerle2020(InteractionModel):
         detection_radius_orientation=1.0,
         vision_half_angle=np.pi / 2.0,
         angular_deviation=1,
+        acts_on_types: typing.List[int] = None,
     ):
         self.act_force = act_force
         self.act_torque = act_torque
@@ -61,11 +72,17 @@ class Baeuerle2020(InteractionModel):
         self.detection_radius_orientation = detection_radius_orientation
         self.vision_half_angle = vision_half_angle
         self.angular_deviation = angular_deviation
+        if acts_on_types is None:
+            acts_on_types = [0]
+        self.acts_on_types = acts_on_types
 
     def calc_action(self, colloids) -> typing.List[Action]:
         # get vector to center of mass
         actions = []
         for colloid in colloids:
+            if colloid.type not in self.acts_on_types:
+                actions.append(Action())
+                continue
             other_colloids = [c for c in colloids if c is not colloid]
             colls_in_vision_pos = get_colloids_in_vision(
                 colloid,

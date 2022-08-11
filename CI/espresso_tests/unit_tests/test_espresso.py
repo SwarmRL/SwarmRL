@@ -14,22 +14,20 @@ from swarmrl.models import dummy_models
 class EspressoTest(ut.TestCase):
     def assertIsFile(self, path):
         if not pl.Path(path).resolve().is_file():
-            raise AssertionError("File does not exist: %s" % str(path))
+            raise AssertionError(f"File does not exist: {path}")
 
     def test_class(self):
         """
         Sadly, espresso systems are global so we have to do all tests on only one object
         """
         ureg = pint.UnitRegistry()
+        # large box for no particle interaction
         params = espresso.MDParams(
-            n_colloids=2,
             ureg=ureg,
-            colloid_radius=ureg.Quantity(1, "micrometer"),
             fluid_dyn_viscosity=ureg.Quantity(8.9e-3, "pascal * second"),
             WCA_epsilon=ureg.Quantity(1e-20, "joule"),
-            colloid_density=ureg.Quantity(2.65, "gram / centimeter**3"),
             temperature=ureg.Quantity(0, "kelvin"),
-            box_length=ureg.Quantity(10000, "micrometer"),
+            box_length=ureg.Quantity(1000, "micrometer"),
             time_step=ureg.Quantity(0.05, "second"),
             time_slice=ureg.Quantity(0.1, "second"),
             write_interval=ureg.Quantity(0.1, "second"),
@@ -41,11 +39,33 @@ class EspressoTest(ut.TestCase):
             swarmrl.utils.setup_swarmrl_logger(f"{temp_dir}/simulation_log.log")
             self.assertListEqual(runner.colloids, [])
 
-            runner.setup_simulation()
-            self.assertEqual(len(runner.system.part[:]), params.n_colloids)
+            n_colloids = [2, 3]
+            coll_types = [1, 2]
+            coll_radius = ureg.Quantity(1, "micrometer")
+            box_center = ureg.Quantity(np.array(3 * [500]), "micrometer")
+            init_radius = ureg.Quantity(500, "micrometer")
+            runner.add_colloids(
+                n_colloids[0],
+                coll_radius,
+                box_center,
+                init_radius,
+                type_colloid=coll_types[0],
+            )
+
+            runner.add_colloids(
+                n_colloids[1],
+                coll_radius,
+                box_center,
+                init_radius,
+                type_colloid=coll_types[1],
+            )
+
+            self.assertEqual(len(runner.system.part.all()), sum(n_colloids))
+            self.assertEqual(
+                len(runner.system.part.select(type=coll_types[1])), n_colloids[1]
+            )
 
             part_data_old = runner.get_particle_data()
-
             # rotate all particles along one axis
             direc = np.array([1 / np.sqrt(3), 1 / np.sqrt(3), 1 / np.sqrt(3)])
             rotator = dummy_models.ToConstDirection(direc)
@@ -66,22 +86,24 @@ class EspressoTest(ut.TestCase):
             part_data_new = runner.get_particle_data()
             time_new = runner.system.time
 
-            # plausibility-tests for velocity and position
-            # because too lazy to do the actual calculation
-            # friction must be the same for all particles and all directions
-            gamma = runner.colloid_friction_translation
+            gamma_trans, gamma_rot = runner.get_friction_coefficients(coll_types[0])
             new_vel = part_data_new["Velocities"]
-            new_vel_shouldbe = force * direc / gamma
+            new_vel_shouldbe = force * direc / gamma_trans
             for vel in new_vel:
                 np.testing.assert_array_almost_equal(vel, new_vel_shouldbe)
 
             old_pos = part_data_old["Unwrapped_Positions"]
             new_pos = part_data_new["Unwrapped_Positions"]
-            self.assertTrue(not np.any(new_pos == old_pos))
 
-            # time must be the same for all particles and all directions
-            time_passed = (new_pos - old_pos) / new_vel
-            np.testing.assert_array_almost_equal(time_passed, time_passed[0, 0])
+            np.testing.assert_allclose(old_pos + time_new * new_vel, new_pos)
+
+            # check interactions after first integrate call
+            wca_params = runner.system.non_bonded_inter[
+                coll_types[0], coll_types[1]
+            ].wca.get_params()
+            np.testing.assert_allclose(
+                wca_params["cutoff"], 2 * coll_radius.m_as("sim_length")
+            )
 
             # write_interval == time_slice -> one output per slice
             # writing happens before integrating -> run one more
@@ -97,7 +119,14 @@ class EspressoTest(ut.TestCase):
                 self.assertAlmostEqual(part_group["Times"][-1, 0, 0], time_new)
                 self.assertSetEqual(
                     set(part_group.keys()),
-                    {"Unwrapped_Positions", "Velocities", "Times", "Directors"},
+                    {
+                        "Types",
+                        "Ids",
+                        "Unwrapped_Positions",
+                        "Velocities",
+                        "Times",
+                        "Directors",
+                    },
                 )
 
 

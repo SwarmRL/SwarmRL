@@ -16,6 +16,7 @@ class Colloid:
     pos: np.ndarray
     director: np.ndarray
     id: int
+    type: int = 0
 
     def __eq__(self, other):
         return self.id == other.id

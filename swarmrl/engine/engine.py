@@ -13,12 +13,6 @@ class Engine:
     experimental interface.
     """
 
-    def setup_simulation(self) -> None:
-        """
-        optional: prepare the simulation before integration
-        """
-        pass
-
     def integrate(
         self,
         n_slices: int,
@@ -33,12 +27,14 @@ class Engine:
         force_model
             A an instance of swarmrl.models.interaction_model.InteractionModel
         """
-        raise NotImplementedError("Implemented in child class.")
+        raise NotImplementedError
 
     def get_particle_data(self) -> dict:
         """
-        Get position, velocity and director of the particles as a dict of np.array
+        Get type, id, position, velocity and director of the particles
+        as a dict of np.array
         """
+        raise NotImplementedError
 
     def finalize(self):
         """
