@@ -8,23 +8,21 @@ from swarmrl.engine import espresso
 from swarmrl.models import dummy_models
 
 
-class EspressoTest2D(ut.TestCase):
-    def assertNotArrayAlmostEqual(self, arr0, arr1):
-        with self.assertRaises(Exception):
-            np.testing.assert_array_almost_equal(arr0, arr1)
+def assertNotArrayAlmostEqual(arr0, arr1, atol=1e-6):
+    with np.testing.assert_raises(Exception):
+        np.testing.assert_array_almost_equal(arr0, arr1, atol=atol)
 
+
+class EspressoTest2D(ut.TestCase):
     def test_class(self):
         """
         Sadly, espresso systems are global so we have to do all tests on only one object
         """
         ureg = pint.UnitRegistry()
         params = espresso.MDParams(
-            n_colloids=10,
             ureg=ureg,
-            colloid_radius=ureg.Quantity(1, "micrometer"),
             fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
             WCA_epsilon=ureg.Quantity(1e-20, "joule"),
-            colloid_density=ureg.Quantity(2.65, "gram / centimeter**3"),
             temperature=ureg.Quantity(300, "kelvin"),
             box_length=ureg.Quantity(10000, "micrometer"),
             time_step=ureg.Quantity(0.05, "second"),
@@ -37,9 +35,16 @@ class EspressoTest2D(ut.TestCase):
             )
             self.assertListEqual(runner.colloids, [])
 
-            runner.setup_simulation()
-            self.assertEqual(len(runner.system.part[:]), params.n_colloids)
-            np.testing.assert_allclose(runner.system.part[:].pos[:, 2], 0)
+            n_colloids = 14
+            runner.add_colloids(
+                n_colloids,
+                ureg.Quantity(1, "micrometer"),
+                ureg.Quantity(np.array([500, 500, 0]), "micrometer"),
+                ureg.Quantity(100, "micrometer"),
+                type_colloid=3,
+            )
+            self.assertEqual(len(runner.system.part.all()), n_colloids)
+            np.testing.assert_allclose(runner.system.part.all().pos[:, 2], 0)
 
             part_data = runner.get_particle_data()
 
@@ -59,7 +64,7 @@ class EspressoTest2D(ut.TestCase):
                 directors_new_z, np.zeros_like(directors_new_z)
             )
 
-            self.assertNotArrayAlmostEqual(directors, directors_new)
+            assertNotArrayAlmostEqual(directors, directors_new)
 
             # test rotation from force model
             orientation = np.array([1 / np.sqrt(2), 1 / np.sqrt(2), 0])
