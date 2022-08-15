@@ -1,3 +1,4 @@
+markupsafe==2.0.1
 numpy~=1.22.2
 pint~=0.18
 h5py~=3.1.0
