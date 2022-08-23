@@ -67,7 +67,7 @@ class ConcentrationField(Observable, ABC):
             position = onp.copy(item.pos) / self.box_length
             self.historic_positions[str(index)] = position
 
-    def compute_observable(self, colloid: Colloid, other_colloids: list):
+    def compute_observable(self, colloid: Colloid, other_colloids: List[Colloid]):
         """
         Compute the position of the colloid.
 
@@ -100,6 +100,9 @@ class ConcentrationField(Observable, ABC):
         historic_distance = np.linalg.norm(self.source - previous_position)
 
         # TODO: make this a real thing and not some arbitrary parameter.
-        return 10000 * np.array(
-            [self.decay_fn(current_distance) - self.decay_fn(historic_distance)]
+        return (
+            10000
+            * np.array(
+                [self.decay_fn(current_distance) - self.decay_fn(historic_distance)]
+            )[0]
         )
