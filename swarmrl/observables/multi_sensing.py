@@ -96,4 +96,5 @@ class MultiSensing(Observable, ABC):
             observable.append(
                 item.compute_observable(colloid=colloid, other_colloids=other_colloids)
             )
-        return observable
+
+        return np.concatenate(observable, axis=-1)
