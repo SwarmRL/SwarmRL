@@ -5,268 +5,190 @@ Notes
 -----
 https://spinningup.openai.com/en/latest/algorithms/ppo.html
 """
-# import copy
-# from abc import ABC
-#
-# import numpy as np
-# import torch
-# import torch.nn.functional
-# from torch.distributions import Categorical
-#
-# from swarmrl.losses.loss import Loss
-# from swarmrl.networks.network import Network
-# from swarmrl.observables.observable import Observable
-# from swarmrl.tasks.task import Task
-#
-#
-# class ProximalPolicyLoss(Loss, ABC):
-#     """
-#     Class to implement the proximal policy loss.
-#     """
-#
-#     n_particles: int
-#     n_time_steps: int
-#
-#     def __init__(self, n_epochs: int = 10, epsilon: float = 0.2):
-#         """
-#         Constructor for the PPO class.
-#
-#         Parameters
-#         ----------
-#         n_epochs : int
-#                 Number of epochs to use in each PPO cycle.
-#         """
-#         self.n_epochs = n_epochs
-#         self.epsilon = epsilon
-#
-#     def compute_true_value_function(
-#         self, rewards: list, gamma: float = 0.99, standardize: bool = True
-#     ):
-#         """
-#         Compute the true value function from the rewards.
-#
-#         Parameters
-#         ----------
-#         rewards : List
-#                 A tensor of scalar tasks on which the expected value is computed.
-#         gamma : float (default=0.99)
-#                 A decay factor for the value of the tasks.
-#         standardize : bool (default=True)
-#                 If true, the result is standardized.
-#
-#         Returns
-#         -------
-#         expected_returns : torch.Tensor (n_timesteps, )
-#                 expected returns for each particle
-#         """
-#         true_value_function = torch.zeros(self.n_time_steps)
-#         current_value_state = torch.tensor(0)
-#
-#         for i in range(self.n_time_steps)[::-1]:
-#             current_value_state = rewards[i] + current_value_state * gamma
-#
-#             true_value_function[i] = current_value_state
-#
-#         # Standardize the value function.
-#         if standardize:
-#             mean = torch.mean(true_value_function.clone().detach(), dim=0)
-#             std = torch.std(true_value_function.clone().detach(), dim=0)
-#
-#             true_value_function = (true_value_function - mean) / std
-#
-#         return true_value_function
-#
-#     def calculate_surrogate_loss(
-#         self, new_log_probs, old_log_probs, advantage: float, epsilon: float = 0.2
-#     ):
-#         """
-#         Calculates the surrogate loss using the (clamped) ratio * advantage.
-#         Will be used in compute_loss_values method.
-#
-#         Parameters
-#         ----------
-#         new_log_probs: Float
-#             Element of a list of the log probabilities at the current step k
-#         old_log_probs: Float
-#             Element of a list of the old log probabilities at the previous step
-#             k-1. instantiated as copy of new_log_probs
-#         advantage: Float
-#             Difference between actual return and value function estimates
-#         epsilon: Float
-#             Float to specify how much the loss can change in one step. Default is 0.2,
-#             as it is in an OpenAi paper.
-#
-#         Returns
-#         -------
-#             surrogate_loss : Tensor
-#         -------
-#
-#         """
-#         ratio = torch.exp(new_log_probs - old_log_probs)
-#
-#         surrogate_1 = ratio * advantage
-#       surrogate_2 = torch.clamp(ratio, 1 - self.epsilon, 1 + self.epsilon) * advantage
-#         surrogate_loss = -1 * torch.min(surrogate_1, surrogate_2)
-#
-#         return surrogate_loss
-#
-#     def compute_loss_values(
-#         self,
-#         new_log_probs: list,
-#         old_log_probs: list,
-#         new_values: list,
-#         new_entropy: list,
-#         rewards: list,
-#     ):
-#         """
-#
-#         Parameters
-#         ----------
-#         new_log_probs
-#         old_log_probs
-#         new_values
-#         new_entropy
-#         rewards
-#
-#         Returns
-#         -------
-#         total loss for the particle to be used in the back-propagation of both the
-#         actor and the critic.
-#         """
-#         true_value_function = self.compute_true_value_function(rewards)
-#         advantage = true_value_function - torch.tensor(new_values)
-#
-#         actor_loss = torch.tensor(0, dtype=torch.double)
-#         critic_loss = torch.tensor(0, dtype=torch.double)
-#
-#         for i in range(self.n_time_steps):
-#             surrogate_loss = self.calculate_surrogate_loss(
-#                 new_log_probs[i], old_log_probs[i], advantage[i].item()
-#             )
-#             critic_loss += torch.nn.functional.smooth_l1_loss(
-#                 torch.tensor([true_value_function[i]]), new_values[i]
-#             )
-#             entropy_loss = -0.01 * new_entropy[i]
-#
-#             actor_loss += surrogate_loss + entropy_loss
-#
-#         return actor_loss, critic_loss
-#
-#     def compute_actor_values(
-#         self,
-#         actor: Network,
-#         old_actor: Network,
-#         feature_vector: torch.Tensor,
-#         log_probs: list,
-#         old_log_probs: list,
-#         entropy: list,
-#     ):
-#         """
-#         Takes as input the log_probs, old_log_probs, and entropy values and returns
-#         the updated list to be used in compute_loss method.
-#
-#         Parameters
-#         ----------
-#         actor: weights of actor NN at new step k
-#         old_actor: weights of actor NN at old step k-1
-#         feature_vector
-#         log_probs: A list of tensors of the log probabilities at the current step k
-#         old_log_probs: A list of the old log probabilities at the previous step k-1.
-#         instantiated as copy of new_log_probs entropy
-#
-#         Returns
-#         -------
-#         Updated log_probs,
-#         old_log_probs,
-#         entropy
-#         """
-#         # Compute old actor values
-#         old_initial_prob = old_actor(feature_vector)
-#         old_initial_prob = old_initial_prob / torch.max(old_initial_prob)
-#         old_action_probability = torch.nn.functional.softmax(old_initial_prob, dim=-1)
-#         old_distribution = Categorical(old_action_probability)
-#         old_index = old_distribution.sample()
-#         old_log_probs.append(old_distribution.log_prob(old_index))
-#
-#         # Compute actor values
-#         initial_prob = actor(feature_vector)
-#         initial_prob = initial_prob / torch.max(initial_prob)
-#         action_probability = torch.nn.functional.softmax(initial_prob, dim=-1)
-#         distribution = Categorical(action_probability)
-#         index = distribution.sample()
-#         log_probs.append(distribution.log_prob(index))
-#         entropy.append(distribution.entropy())
-#
-#         return log_probs, old_log_probs, entropy
-#
-#     def compute_loss(
-#         self,
-#         actor: Network,
-#         critic: Network,
-#         observable: Observable,
-#         episode_data: list,
-#         task: Task,
-#     ):
-#         """
-#         Compute the loss functions for the actor and critic based on the reward.
-#
-#         For full doc string, see the parent class.
-#
-#         Returns
-#         -------
-#         loss_tuple : tuple
-#                 (actor_loss, critic_loss)
-#         """
-#         self.n_particles = np.shape(episode_data)[1]
-#         self.n_time_steps = np.shape(episode_data)[0]
-#
-#         for _ in range(self.n_epochs):
-#             old_actor = copy.deepcopy(actor)
-#
-#             # Actor and critic losses.
-#             actor_loss = torch.tensor(0, dtype=torch.double)
-#             critic_loss = torch.tensor(0, dtype=torch.double)
-#
-#             for i in range(self.n_particles):
-#                 values = []
-#                 log_probs = []
-#                 old_log_probs = []
-#                 entropy = []
-#                 rewards = []
-#                 for j in range(self.n_time_steps):
-#                     # Compute observable
-#                     colloid = episode_data[j][i]
-#                     other_colloids = [c for c in episode_data[j] if c is not colloid]
-#                     feature_vector = observable.compute_observable(
-#                         colloid, other_colloids
-#                     )
-#
-#                     log_probs, old_log_probs, entropy = self.compute_actor_values(
-#                         actor,
-#                         old_actor,
-#                         feature_vector,
-#                         log_probs,
-#                         old_log_probs,
-#                         entropy,
-#                     )
-#
-#                     # Compute critic values
-#                     values.append(critic(feature_vector))
-#
-#                     # Compute reward
-#                     rewards.append(task(feature_vector))
-#
-#                 a_loss, c_loss = self.compute_loss_values(
-#                     new_log_probs=log_probs,
-#                     old_log_probs=old_log_probs,
-#                     new_values=values,
-#                     new_entropy=entropy,
-#                     rewards=rewards,
-#                 )
-#                 actor_loss += a_loss
-#                 critic_loss += c_loss
-#
-#             actor.update_model([actor_loss])
-#             critic.update_model([critic_loss])
-#
-#         return actor, critic
+from abc import ABC
+
+import jax
+import jax.numpy as jnp
+import optax
+from flax.core.frozen_dict import FrozenDict
+
+from swarmrl.losses.loss import Loss
+from swarmrl.networks.flax_network import FlaxModel
+from swarmrl.utils.utils import gather_n_dim_indices
+from swarmrl.value_functions.expected_returns import ExpectedReturns
+
+
+class ProximalPolicyLoss(Loss, ABC):
+    """
+    Class to implement the proximal policy loss.
+    """
+
+    def __init__(
+        self,
+        value_function: ExpectedReturns,
+        n_epochs: int = 10,
+        epsilon: float = 0.2,
+    ):
+        """
+        Constructor for the PPO class.
+
+        Parameters
+        ----------
+        value_function : Callable
+            A the state value function that computes the value of a series of states for
+            using the reward of the trajectory visiting these states
+        n_epochs : int
+            number of PPO updates
+        epsilon : float
+            the maximum of the relative distance between old and updated policy.
+        """
+        self.value_function = value_function
+        self.n_epochs = n_epochs
+        self.epsilon = epsilon
+
+    def compute_critic_loss(
+        self, critic: FlaxModel, critic_params: FrozenDict, features, true_values
+    ) -> jnp.array:
+        """
+        A function that computes the critic loss.
+
+        Parameters
+        ----------
+        critic : FlaxModel
+            The critic network that approximates the state value function.
+        critic_params : FrozenDict
+            Parameters of the critic model used.
+        features : np.ndarray (n_time_steps, n_particles, feature_dimension)
+            Observable data for each time step and particle within the episode.
+        true_values : np.ndarray (n_time_steps, n_particles)
+            The state value computed for all time steps and particles during one episode
+            using the value_function given to the class.
+
+        Returns
+        -------
+        critic_loss: jnp.array ()
+            Critic loss of an episode, summed over all time steps and meaned over
+            all particles.
+        """
+        predicted_values = critic.apply_fn({"params": critic_params}, features)
+        predicted_values = jnp.squeeze(predicted_values)
+
+        value_loss = optax.huber_loss(predicted_values, true_values)
+
+        particle_loss = jnp.mean(value_loss, 0)
+
+        critic_loss = jnp.mean(particle_loss)
+        return critic_loss
+
+    def compute_actor_loss(
+        self,
+        actor: FlaxModel,
+        actor_params: FrozenDict,
+        critic: FlaxModel,
+        features,
+        actions,
+        old_log_probs,
+        true_values,
+    ) -> jnp.array:
+        """
+        A function that computes the actor loss.
+
+        Parameters
+        ----------
+        actor : FlaxModel
+            The actor network that computes the log probs of the possible actions for a
+            given observable vector
+        actor_params : FrozenDict
+            Parameters of the actor model used.
+        critic : FlaxModel
+            The critic network that approximates the state value function.
+        features : np.ndarray (n_time_steps, n_particles, feature_dimension)
+            Observable data for each time step and particle within the episode.
+        actions : np.ndarray (n_time_steps, n_particles)
+            The actions taken during the episode at each time steps and by each agent.
+        old_log_probs : np.ndarray (n_time_steps, n_particles)
+            The log probs of the taken action during the episode at each time steps and
+            by each agent.
+        true_values : np.ndarray (n_time_steps, n_particles)
+            The state value computed using the rewards received during the episode. To
+            compute them one uses the value function given to the class.
+
+        Returns
+        -------
+        actor_loss: float
+            The actor loss of an episode, summed over all time steps and meaned over
+            all particles.
+        """
+
+        # compute the probabilities of the old actions under the new policy
+        new_log_props = actor.apply_fn({"params": actor_params}, features)
+        new_log_props = gather_n_dim_indices(new_log_props, actions)
+
+        # compute the ratio between old and new probs
+        ratio = jnp.exp(new_log_props - old_log_probs)
+
+        # compute the predicted values and to get the advantage
+        predicted_values = critic(features)
+        advantage = true_values - jnp.squeeze(predicted_values)
+        # advantage = (advantage - jnp.mean(advantage)) / (jnp.std(advantage) + 1e-10)
+
+        # compute the clipped loss
+        clipped_loss = -1 * jnp.minimum(
+            ratio * advantage,
+            jnp.clip(ratio, 1 - self.epsilon, 1 + self.epsilon) * advantage,
+        )
+
+        # sum over the time steps
+        particle_loss = jnp.mean(clipped_loss, 0)
+
+        # mean over the particle losses
+        actor_loss = jnp.mean(particle_loss)
+
+        return actor_loss
+
+    def compute_loss(self, actor: FlaxModel, critic: FlaxModel, episode_data) -> tuple:
+        """
+        Compute the loss and update the actor and critic.
+        Parameters
+        ----------
+        actor : FlaxModel
+            The actor network that computes the log probs of the possible actions for a
+            given observable vector
+        critic : FlaxModel
+            The critic network that approximates the state value function.
+        episode_data : dict
+            A dictionary containing the features, log_probs, actions and rewards of the
+            previous episode at each time step for each colloid.
+        Returns
+        -------
+        model_tuple : tuple ( FlaxModel, FlaxModel
+            The updated actor and critic network.
+        """
+        feature_data = episode_data.item().get("features")
+        old_log_probs_data = episode_data.item().get("log_probs")
+        action_data = episode_data.item().get("actions")
+        reward_data = episode_data.item().get("rewards")
+
+        for _ in range(self.n_epochs):
+            actor_grad_fn = jax.value_and_grad(self.compute_actor_loss, 1)
+            actor_loss, actor_grad = actor_grad_fn(
+                actor,
+                actor.model_state.params,
+                critic,
+                feature_data,
+                action_data,
+                old_log_probs_data,
+                self.value_function(reward_data),
+            )
+
+            critic_grad_fn = jax.value_and_grad(self.compute_critic_loss, 1)
+            critic_loss, critic_grad = critic_grad_fn(
+                critic,
+                critic.model_state.params,
+                feature_data,
+                self.value_function(reward_data),
+            )
+
+            actor.update_model(actor_grad)
+            critic.update_model(critic_grad)
+        return actor.model_state, critic.model_state
