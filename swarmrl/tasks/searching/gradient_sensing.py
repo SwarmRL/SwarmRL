@@ -79,5 +79,4 @@ class GradientSensing(Task, ABC):
         reward : float
                 Reward for the colloid at the current state.
         """
-
         return self.reward_scale_factor * np.clip(observable[0], 0, None)

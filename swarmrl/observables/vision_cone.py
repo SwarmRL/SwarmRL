@@ -109,4 +109,4 @@ class VisionCone(Observable, ABC, Task):
         if self.return_cone is True:
             return colls_in_vision
         else:
-            return jnp.sum(jnp.array(colls_distance))
+            return [jnp.sum(jnp.array(colls_distance))]
