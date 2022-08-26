@@ -1,7 +1,7 @@
 """
 Run and tumble task
 
-This task uses the change in the gradient to determine whether a move as good or not.
+This task uses the change in the gradient to determine whether a move was good or not.
 
 Notes
 -----
@@ -79,5 +79,4 @@ class GradientSensing(Task, ABC):
         reward : float
                 Reward for the colloid at the current state.
         """
-
         return self.reward_scale_factor * np.clip(observable[0], 0, None)

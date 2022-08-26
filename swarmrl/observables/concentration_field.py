@@ -67,7 +67,7 @@ class ConcentrationField(Observable, ABC):
             position = onp.copy(item.pos) / self.box_length
             self.historic_positions[str(index)] = position
 
-    def compute_observable(self, colloid: Colloid, other_colloids: list):
+    def compute_observable(self, colloid: Colloid, other_colloids: List[Colloid]):
         """
         Compute the position of the colloid.
 

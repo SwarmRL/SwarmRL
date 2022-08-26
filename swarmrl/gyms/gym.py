@@ -58,7 +58,6 @@ class Gym:
         n_particles : int
                 Number of particles in the environment.
         """
-        super().__init__()
         self.actor = actor
         self.critic = critic
         self.task = task
@@ -132,7 +131,7 @@ class Gym:
         -------
         Saves the actor and the critic to the specific directory.
         """
-        # Save the actor
+
         with open(f"{directory}/actor.pickle", "w") as f:
             pickle.dump(self.actor, f)
 

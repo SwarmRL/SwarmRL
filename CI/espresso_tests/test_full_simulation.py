@@ -37,15 +37,11 @@ class TestFullSim(ut.TestCase):
 
         ureg = pint.UnitRegistry()
         md_params = espresso.MDParams(
-            n_colloids=10,
             ureg=ureg,
-            colloid_radius=ureg.Quantity(3.15, "micrometer"),
             fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
             WCA_epsilon=ureg.Quantity(293, "kelvin") * ureg.boltzmann_constant,
-            colloid_density=ureg.Quantity(2.65, "gram / centimeter**3"),
             temperature=ureg.Quantity(293, "kelvin"),
             box_length=ureg.Quantity(1000, "micrometer"),
-            initiation_radius=ureg.Quantity(60, "micrometer"),
             time_slice=ureg.Quantity(0.2, "second"),  # model timestep
             time_step=ureg.Quantity(0.2, "second") / 5,  # integrator timestep
             write_interval=ureg.Quantity(2, "second"),
@@ -61,7 +57,11 @@ class TestFullSim(ut.TestCase):
             "angular_deviation": 67.5 * np.pi / 180,
         }
 
-        run_params = {"sim_duration": ureg.Quantity(3, "minute"), "seed": self.seed}
+        run_params = {
+            "n_colloids": 10,
+            "sim_duration": ureg.Quantity(3, "minute"),
+            "seed": self.seed,
+        }
 
         # from now on, no new parameters are introduced
 
@@ -73,15 +73,19 @@ class TestFullSim(ut.TestCase):
             write_chunk_size=1000,
         )
 
-        # setup_simulation() is needed here to calculate the friction coefficients
-        system_runner.setup_simulation()
-        gamma = system_runner.colloid_friction_translation
+        coll_type = 0
+        system_runner.add_colloids(
+            run_params["n_colloids"],
+            ureg.Quantity(3.15, "micrometer"),
+            ureg.Quantity(np.array([500, 500, 0]), "micrometer"),
+            ureg.Quantity(60, "micrometer"),
+            type_colloid=coll_type,
+        )
+        gamma, gamma_rot = system_runner.get_friction_coefficients(coll_type)
         target_vel = model_params["target_vel_SI"].m_as("sim_velocity")
         act_force = target_vel * gamma
-
-        gamma_rotation = system_runner.colloid_friction_rotation
         target_ang_vel = model_params["target_ang_vel_SI"].m_as("1 / sim_time")
-        act_torque = target_ang_vel * gamma_rotation
+        act_torque = target_ang_vel * gamma_rot
 
         detection_radius_pos = model_params["detection_radius_position_SI"].m_as(
             "sim_length"
@@ -170,7 +174,7 @@ class TestFullSim(ut.TestCase):
 
             # just for illustration purposes let's access some data
 
-            n_colloids = params["md_params"].n_colloids
+            n_colloids = params["run_params"]["n_colloids"]
             box_length = params["md_params"].box_length.m_as("micrometer")
 
             n_timesteps = len(times)
