@@ -91,6 +91,7 @@ class VisionCone(Observable, ABC, Task):
                 0,  # z value
             ]
         )
+        my_director = my_director / jnp.linalg.norm(my_director)
         # TODO: Add 3D support
         colls_in_vision = []
         colls_distance = []
@@ -101,7 +102,7 @@ class VisionCone(Observable, ABC, Task):
             if not in_range:
                 continue
             in_cone = (
-                jnp.arccos(jnp.dot(dist / dist_norm, -my_director)) < vision_half_angle
+                jnp.arccos(jnp.dot(dist / dist_norm, my_director)) < vision_half_angle
             )
             if in_cone and in_range:
                 colls_in_vision.append(other_p)

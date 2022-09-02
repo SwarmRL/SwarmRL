@@ -72,7 +72,7 @@ class GradientSensingVisionCone(Task, ABC):
         self.cone_reward_scale_factor = cone_reward_scale_factor
         self.return_cone = return_cone
         self.vision_angle = vision_angle
-        self.vision_range = np.linalg.norm(box_size)
+        self.vision_range = np.linalg.norm(box_size) / 55
         self.vision_direction = vision_direction
 
     def init_task(self):
@@ -81,9 +81,40 @@ class GradientSensingVisionCone(Task, ABC):
 
         Returns
         -------
-        observable :
-                Returns the observable required for the task.
+        Multisensing : MultiSensing
+                Returns a collection of multiple observables.
         """
+        concentration = ConcentrationField(self.source, self.decay_fn, self.box_size)
+        vision_cone = VisionCone(
+            vision_angle=self.vision_angle,
+            vision_range=self.vision_range,
+            return_cone=self.return_cone,
+            vision_direction=self.vision_direction,
+        )
+
+        return MultiSensing(
+            observables=[concentration, vision_cone],
+            source=self.source,
+            decay_fn=self.decay_fn,
+            box_length=self.box_size,
+        )
+
+    def change_source(self, new_source: np.ndarray):
+        """
+        Changes the concentration field source.
+
+        Parameters
+        ----------
+        new_source : np.ndarray
+                Coordinates of the new source.
+
+        Returns
+        -------
+        Multisensing : MultiSensing
+                Returns a collection of multiple observables. Similar output as
+                init_task.
+        """
+        self.source = new_source / self.box_size
         concentration = ConcentrationField(self.source, self.decay_fn, self.box_size)
         vision_cone = VisionCone(
             vision_angle=self.vision_angle,

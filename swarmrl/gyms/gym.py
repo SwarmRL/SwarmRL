@@ -3,10 +3,10 @@ Module to implement a simple multi-layer perceptron for the colloids.
 """
 import copy
 import os
-import pickle
 from typing import Tuple
 
 import numpy as np
+from flax.training import checkpoints
 from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
 from swarmrl.engine.engine import Engine
@@ -118,7 +118,7 @@ class Gym:
 
         return interaction_model, reward
 
-    def export_models(self, directory: str = "."):
+    def export_models(self, step: int = 0, directory: str = "."):
         """
         Export the models to the specified directory.
 
@@ -132,11 +132,43 @@ class Gym:
         Saves the actor and the critic to the specific directory.
         """
 
-        with open(f"{directory}/actor.pickle", "w") as f:
-            pickle.dump(self.actor, f)
+        # Saves actor trainstate
+        actor_state = self.actor.model_state
+        checkpoints.save_checkpoint(
+            ckpt_dir=f"{directory}/Checkpoints/Actor_CKPTS",
+            target=actor_state,
+            step=step,
+            overwrite=True,
+        )
 
-        with open(f"{directory}/critic.pickle", "w") as f:
-            pickle.dump(self.critic, f)
+        critic_state = self.critic.model_state
+        checkpoints.save_checkpoint(
+            ckpt_dir=f"{directory}/Checkpoints/Critic_CKPTS",
+            target=critic_state,
+            step=step,
+            overwrite=True,
+        )
+
+    def import_models(self, directory: str = "."):
+        """
+        Export the models to the specified directory.
+
+        Parameters
+        ----------
+        directory : str (default='.')
+                Directory from which to load the objects.
+
+        Returns
+        -------
+        Loads the actor and critic from the specific directory.
+        """
+        self.actor.model_state = checkpoints.restore_checkpoint(
+            ckpt_dir=f"./{directory}/Actor_CKPTS", target=self.actor.model_state
+        )
+
+        self.critic.model_state = checkpoints.restore_checkpoint(
+            ckpt_dir=f"./{directory}/Critic_CKPTS", target=self.critic.model_state
+        )
 
     def perform_rl_training(
         self,
