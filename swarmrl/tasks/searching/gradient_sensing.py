@@ -61,6 +61,23 @@ class GradientSensing(Task, ABC):
         """
         return ConcentrationField(self.source, self.decay_fn, self.box_size)
 
+    def change_source(self, new_source: np.ndarray):
+        """
+        Changes the concentration field source.
+
+        Parameters
+        ----------
+        new_source : np.ndarray
+                Coordinates of the new source.
+
+        Returns
+        -------
+        observable :
+                Returns the observable required for the task.
+        """
+        self.source = new_source / self.box_size
+        return ConcentrationField(self.source, self.decay_fn, self.box_size)
+
     def __call__(self, observable: np.ndarray):
         """
         Compute the reward.
