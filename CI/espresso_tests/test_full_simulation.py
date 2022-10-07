@@ -26,7 +26,8 @@ class TestFullSim(ut.TestCase):
     seed = 42
 
     # manually turn on or off, cannot be checked in a test case
-    visualize = False
+    visualize = True
+
 
     def simulate_model(self, outfolder):
         logger = utils.setup_swarmrl_logger(

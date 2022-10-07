@@ -369,6 +369,7 @@ class EspressoMD(Engine):
                 "(both in simulation units)"
             )
 
+
         director = _vector_from_angles(np.pi / 2, rod_start_angle)
 
         for k in range(n_particles - 1):
