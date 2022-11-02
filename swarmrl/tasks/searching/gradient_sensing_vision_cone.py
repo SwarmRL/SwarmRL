@@ -36,7 +36,6 @@ class GradientSensingVisionCone(Task, ABC):
         return_cone=False,
         vision_direction=complex(0, 1),
     ):
-
         """
         Constructor for the find origin task.
 
