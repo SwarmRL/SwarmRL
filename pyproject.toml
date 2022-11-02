@@ -1,6 +1,6 @@
 [tool.black]
 line-length = 88
-experimental_string_processing = true
+preview = true
 exclude = '^/espresso'
 
 [tool.isort]

@@ -101,9 +101,8 @@ class EspressoTest(ut.TestCase):
             wca_params = runner.system.non_bonded_inter[
                 coll_types[0], coll_types[1]
             ].wca.get_params()
-            np.testing.assert_allclose(
-                wca_params["cutoff"], 2 * coll_radius.m_as("sim_length")
-            )
+            cutoff = wca_params["sigma"] * 2 ** (1 / 6)
+            np.testing.assert_allclose(cutoff, 2 * coll_radius.m_as("sim_length"))
 
             # write_interval == time_slice -> one output per slice
             # writing happens before integrating -> run one more
