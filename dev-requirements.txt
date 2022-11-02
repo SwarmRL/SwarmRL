@@ -1,5 +1,5 @@
-sphinx
-sphinx-rtd-theme
-flake8
-black
-pytest
+sphinx==4.2.0
+sphinx-rtd-theme==1.0.0
+flake8==5.0.4
+black==22.10.0
+pytest==6.2.5
