@@ -1,4 +1,3 @@
-# noinspection PyInterpreter
 """
 Espresso interaction model capable of handling a neural network as a function.
 """

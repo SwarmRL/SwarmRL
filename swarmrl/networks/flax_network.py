@@ -3,12 +3,12 @@ Jax model for reinforcement learning.
 """
 import logging
 from abc import ABC
-from typing import Callable
 
 import jax
 import jax.numpy as np
 import numpy as onp
 from flax import linen as nn
+from flax.training import checkpoints
 from flax.training.train_state import TrainState
 from optax._src.base import GradientTransformation
 
@@ -22,17 +22,22 @@ logger = logging.getLogger(__name__)
 class FlaxModel(Network, ABC):
     """
     Class for the Flax model in ZnRND.
+
+    Attributes
+    ----------
+    epoch_count : int
+            Current epoch stage. Used in saving the models.
     """
 
     def __init__(
         self,
         flax_model: nn.Module,
         input_shape: tuple,
-        optimizer: GradientTransformation,
-        loss_fn: Callable = None,
+        optimizer: GradientTransformation = None,
         exploration_policy: ExplorationPolicy = None,
         sampling_strategy: SamplingStrategy = None,
-        rng_key: int = onp.random.randint(0, 500),
+        rng_key: int = None,
+        deployment_mode: bool = False,
     ):
         """
         Constructor for a Flax model.
@@ -41,8 +46,6 @@ class FlaxModel(Network, ABC):
         ----------
         flax_model : nn.Module
                 Flax model as a neural network.
-        loss_fn : Callable
-                A function to use in the loss computation.
         optimizer : Callable
                 optimizer to use in the training. OpTax is used by default and
                 cross-compatibility is not assured.
@@ -51,46 +54,28 @@ class FlaxModel(Network, ABC):
         rng_key : int
                 Key to seed the model with. Default is a randomly generated key but
                 the parameter is here for testing purposes.
+        deployment_mode : bool
+                If true, the model is a shell for the network and nothing else. No
+                training can be performed, this is only used in deployment.
         """
-        self.sampling_strategy: SamplingStrategy
-        self.exploration_policy: ExplorationPolicy
-        self.model_state: TrainState
-        self.rng = jax.random.PRNGKey(onp.random.randint(0, 500))
-
+        if rng_key is None:
+            rng_key = onp.random.randint(0, 1027465782564)
+        self.sampling_strategy = sampling_strategy
         self.model = flax_model
         self.apply_fn = jax.jit(self.model.apply)
-        self.loss_fn = loss_fn
-        self.optimizer = optimizer
         self.input_shape = input_shape
-        self.exploration_policy = exploration_policy
-        self.sampling_strategy = sampling_strategy
+        self.model_state = None
 
-        # initialize the model state
-        init_rng = jax.random.PRNGKey(rng_key)
-        state = self._create_train_state(init_rng)
-        self.model_state = state
+        if not deployment_mode:
+            self.optimizer = optimizer
+            self.exploration_policy = exploration_policy
 
-    def _compute_metrics(self, predictions: np.ndarray, targets: np.ndarray) -> dict:
-        """
-        Compute the current metrics of the training.
+            # initialize the model state
+            init_rng = jax.random.PRNGKey(rng_key)
+            _, subkey = jax.random.split(init_rng)
+            self.model_state = self._create_train_state(subkey)
 
-        Parameters
-        ----------
-        predictions : np.ndarray
-                Predictions made by the network.
-        targets : np.ndarray
-                Targets from the training data.
-
-        Returns
-        -------
-        metrics : dict
-                A dict of current training metrics, e.g. {"loss": ..., "accuracy": ...}
-        """
-        loss = self.loss_fn(predictions, targets)
-
-        metrics = {"loss": loss}
-
-        return metrics
+            self.epoch_count = 0
 
     def _create_train_state(self, init_rng: int) -> TrainState:
         """
@@ -126,14 +111,21 @@ class FlaxModel(Network, ABC):
         self.model_state = self.model_state.apply_gradients(grads=grads)
         logger.debug(f"{self.model_state=}")
 
+        self.epoch_count += 1
+
     def compute_action(self, feature_vector: np.ndarray, explore_mode: bool = False):
         """
         Compute the action.
         """
         # Compute state
-        model_output = self.apply_fn(
-            {"params": self.model_state.params}, feature_vector
-        )
+        try:
+            model_output = self.apply_fn(
+                {"params": self.model_state.params}, feature_vector
+            )
+        except AttributeError:
+            model_output = self.apply_fn(
+                {"params": self.model_state["params"]}, feature_vector
+            )
         logger.debug(f"{model_output=}")
 
         # Compute the action
@@ -143,6 +135,41 @@ class FlaxModel(Network, ABC):
             index = self.exploration_policy(index, len(model_output))
 
         return index, model_output[index]
+
+    def export_model(self, directory: str = "Models"):
+        """
+        Export the model state to a directory.
+
+        Parameters
+        ----------
+        directory : str (default=Models)
+                Directory in which to save the models. If the directory is not
+                in the currently directory, it will be created.
+
+        """
+        checkpoints.save_checkpoint(
+            ckpt_dir=directory,
+            target=self.model_state,
+            step=self.epoch_count,
+            overwrite=True,
+        )
+
+    def restore_model_state(self, directory):
+        """
+        Restore the model state from a file.
+
+        Parameters
+        ----------
+        directory : str
+                Path to the model state.
+
+        Returns
+        -------
+        Updates the model state.
+        """
+        self.model_state = checkpoints.restore_checkpoint(
+            ckpt_dir=directory, target=self.model_state
+        )
 
     def __call__(self, feature_vector: np.ndarray):
         """

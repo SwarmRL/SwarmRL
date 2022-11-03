@@ -179,7 +179,6 @@ class PolicyGradientLoss(Loss):
             critic.model_state.params, feature_data, reward_data, critic
         )
 
+        # Update the models
         actor.update_model(actor_grad)
         critic.update_model(critic_grads)
-
-        return actor.model_state, critic.model_state
