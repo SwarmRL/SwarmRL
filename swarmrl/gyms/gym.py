@@ -1,12 +1,10 @@
 """
 Module to implement a simple multi-layer perceptron for the colloids.
 """
-import copy
 import os
 from typing import Tuple
 
 import numpy as np
-from flax.training import checkpoints
 from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
 from swarmrl.engine.engine import Engine
@@ -97,16 +95,11 @@ class Gym:
         reward = np.mean(episode_data.item().get("rewards"))
 
         # Compute loss for actor and critic.
-        updated_actor_state, updated_critic_state = self.loss.compute_loss(
-            actor=copy.deepcopy(self.actor),
-            critic=copy.deepcopy(self.critic),
+        self.loss.compute_loss(
+            actor=self.actor,
+            critic=self.critic,
             episode_data=episode_data,
         )
-
-        # Set the new model state in the models. Note, this is here instead of a pure
-        # param update so that the optimizer state is also retained.
-        self.actor.model_state = updated_actor_state
-        self.critic.model_state = updated_critic_state
 
         # Create a new interaction model.
         interaction_model = MLModel(
@@ -118,57 +111,38 @@ class Gym:
 
         return interaction_model, reward
 
-    def export_models(self, step: int = 0, directory: str = "."):
+    def export_models(self, directory: str = "Models"):
         """
         Export the models to the specified directory.
 
         Parameters
         ----------
-        directory : str (default='.')
-                Directory in which to save the objects.
+        directory : str (default='Models')
+                Directory in which to save the models.
 
         Returns
         -------
         Saves the actor and the critic to the specific directory.
         """
+        self.actor.export_model(f"{directory}/Actor")
+        self.critic.export_model(f"{directory}/Critic")
 
-        # Saves actor trainstate
-        actor_state = self.actor.model_state
-        checkpoints.save_checkpoint(
-            ckpt_dir=f"{directory}/Checkpoints/Actor_CKPTS",
-            target=actor_state,
-            step=step,
-            overwrite=True,
-        )
-
-        critic_state = self.critic.model_state
-        checkpoints.save_checkpoint(
-            ckpt_dir=f"{directory}/Checkpoints/Critic_CKPTS",
-            target=critic_state,
-            step=step,
-            overwrite=True,
-        )
-
-    def import_models(self, directory: str = "."):
+    def restore_models(self, directory: str = "Models"):
         """
         Export the models to the specified directory.
 
         Parameters
         ----------
-        directory : str (default='.')
+        directory : str (default='Models')
                 Directory from which to load the objects.
 
         Returns
         -------
         Loads the actor and critic from the specific directory.
         """
-        self.actor.model_state = checkpoints.restore_checkpoint(
-            ckpt_dir=f"./{directory}/Actor_CKPTS", target=self.actor.model_state
-        )
+        self.actor.restore_model_state(f"./{directory}/Actor")
 
-        self.critic.model_state = checkpoints.restore_checkpoint(
-            ckpt_dir=f"./{directory}/Critic_CKPTS", target=self.critic.model_state
-        )
+        self.critic.restore_model_state(f"./{directory}/Critic")
 
     def perform_rl_training(
         self,

@@ -1,3 +1,7 @@
+"""
+Unit test for the vision cone.
+"""
+
 import numpy as np
 
 from swarmrl.observables.vision_cone import VisionCone
