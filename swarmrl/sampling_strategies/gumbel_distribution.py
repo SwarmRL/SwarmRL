@@ -40,14 +40,12 @@ class GumbelDistribution(SamplingStrategy, ABC):
         rng = jax.random.PRNGKey(onp.random.randint(0, 1236534623))
         length = len(logits)
         noise = jax.random.uniform(rng, shape=(length,))
-
-        index = np.argmax(logits - np.log(-np.log(noise)))
-
-        probabilities = np.exp(logits)
-        entropy_val = -1 * (probabilities * np.log(probabilities)).sum()
-        max_entropy = -1 * np.log(1 / len(logits))
-
         if entropy:
-            return index, entropy_val / max_entropy
+            probabilities = np.exp(logits)
+            entropy_val = -1 * (probabilities * np.log(probabilities)).sum()
+            max_entropy = -1 * np.log(1 / len(logits))
+            return entropy_val / max_entropy
+
         else:
+            index = np.argmax(logits - np.log(-np.log(noise)))
             return index

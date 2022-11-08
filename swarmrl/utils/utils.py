@@ -233,3 +233,34 @@ def record_trajectory(
         },
         allow_pickle=True,
     )
+
+
+def record_training(training_dict: dict):
+    """
+    Records the training data if required.
+
+    Parameters:
+    ----------
+    training_dict : a dictionary containing the critic_loss, new_log_probs, entropy,
+            ratio, advantage and actor_loss from the PPO algorithm.
+
+    Returns
+    -------
+    Dumps a  file to disc to evaluate training.
+    """
+
+    try:
+        training_data = np.load("training_records.npy", allow_pickle=True)
+        for key in training_dict:
+            training_data.item()[key] = np.vstack(
+                (training_data.item()[key], training_dict[key])
+            )
+
+    except FileNotFoundError:
+        training_data = training_dict
+
+    np.save(
+        "training_records.npy",
+        training_data,
+        allow_pickle=True,
+    )
