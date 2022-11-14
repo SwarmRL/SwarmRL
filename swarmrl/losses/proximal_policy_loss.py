@@ -31,7 +31,7 @@ class ProximalPolicyLoss(Loss, ABC):
         n_epochs: int = 10,
         epsilon: float = 0.2,
         entropy_coefficient: float = 0.01,
-        record_training=True,
+        record_training=False,
     ):
         """
         Constructor for the PPO class.
@@ -45,6 +45,8 @@ class ProximalPolicyLoss(Loss, ABC):
             number of PPO updates
         epsilon : float
             the maximum of the relative distance between old and updated policy.
+        entropy_coefficient : float
+            Entropy coefficient for the PPO update. # TODO Add more here.
         record_training : bool
             If true, training data is stored.
         """
@@ -144,14 +146,15 @@ class ProximalPolicyLoss(Loss, ABC):
         """
 
         # compute the probabilities of the old actions under the new policy
-        new_log_props = actor.apply_fn({"params": actor_params}, features)
+        new_logits = actor.apply_fn({"params": actor_params}, features)
+        new_probabilities = jax.nn.softmax(new_logits)
 
         # compute the entropy of the whole distribution
-        entropy = jnp.mean(self.sampling_strategy(new_log_props, entropy=True))
-        new_log_props = gather_n_dim_indices(new_log_props, actions)
+        entropy = jnp.mean(self.sampling_strategy.compute_entropy(new_probabilities))
+        new_log_probs = jnp.log(gather_n_dim_indices(new_probabilities, actions))
 
         # compute the ratio between old and new probs
-        ratio = jnp.exp(new_log_props - old_log_probs)
+        ratio = jnp.exp(new_log_probs - old_log_probs)
 
         # compute the predicted values and to get the advantage
         predicted_values = critic(features)
@@ -172,30 +175,30 @@ class ProximalPolicyLoss(Loss, ABC):
         # this exception is necessary to pass the tests.
         try:
             if self.record_training:
-                self.storage["new_log_probs"].append(new_log_props.primal)
-                self.storage["entropy"].append(entropy.primal)
+                self.storage["new_log_probs"].append(new_log_probs)
+                self.storage["entropy"].append(entropy)
                 self.storage["ratio"].append(ratio.primal)
-                self.storage["actor_loss"].append(actor_loss.primal)
+                self.storage["actor_loss"].append(actor_loss)
                 self.storage["advantage"].append(advantage)
             return actor_loss + self.entropy_coefficient * entropy.primal
 
         except AttributeError:
             if self.record_training:
-                self.storage["new_log_probs"].append(new_log_props)
+                self.storage["new_log_probs"].append(new_log_probs)
                 self.storage["entropy"].append(entropy)
                 self.storage["ratio"].append(ratio)
                 self.storage["actor_loss"].append(actor_loss)
                 self.storage["advantage"].append(advantage)
-            return actor_loss + self.entropy_coefficient * entropy
+            return actor_loss + self.entropy_coefficient * entropy.primal
 
-    def compute_loss(self, actor: FlaxModel, critic: FlaxModel, episode_data) -> tuple:
+    def compute_loss(self, actor: FlaxModel, critic: FlaxModel, episode_data):
         """
         Compute the loss and update the actor and critic.
         Parameters
         ----------
         actor : FlaxModel
             The actor network that computes the log probs of the possible actions for a
-            given observable vector
+            given observable vector.
         critic : FlaxModel
             The critic network that approximates the state value function.
         episode_data : dict
@@ -203,13 +206,12 @@ class ProximalPolicyLoss(Loss, ABC):
             previous episode at each time step for each colloid.
         Returns
         -------
-        model_tuple : tuple ( FlaxModel, FlaxModel
+        model_tuple : tuple  FlaxModel, FlaxModel
             The updated actor and critic network.
         """
         feature_data = episode_data.item().get("features")
-        old_log_probs_data = episode_data.item().get("log_probs")
+        old_log_probs_data = jnp.log(jax.nn.softmax(episode_data.item().get("logits")))
         action_data = episode_data.item().get("actions")
-        # reward_data = jnp.sum(episode_data.item().get("rewards"), axis=(2, 3))
         reward_data = episode_data.item().get("rewards")
 
         for _ in range(self.n_epochs):
@@ -241,5 +243,3 @@ class ProximalPolicyLoss(Loss, ABC):
         # empty storage
         for key, value in self.storage.items():
             self.storage[key] = []
-
-        return actor.model_state, critic.model_state

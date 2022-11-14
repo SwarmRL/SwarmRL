@@ -108,9 +108,9 @@ class TestProximalPolicyLoss:
         new_log_probs_all = actor.apply_fn(actor_params, features)
         new_log_probs = gather_n_dim_indices(new_log_probs_all, actions)
         # calculate the entropy of the new_log_probs
-        entropy = np.mean(sampling_strategy(new_log_probs_all, entropy=True))
+        entropy = np.mean(sampling_strategy.compute_entropy(new_log_probs_all))
         # These results were compared to by hand computed values.
-        richtige_results = []
+        true_results = []
         for probs in old_log_probs_list:
             for values in true_value_list:
                 ratios = ratio(new_log_probs, probs)
@@ -125,7 +125,7 @@ class TestProximalPolicyLoss:
                 )
                 loss = np.mean(clipped_loss, 0)
                 loss = np.mean(loss) + entropy_coefficient * entropy
-                richtige_results.append(loss)
+                true_results.append(loss)
 
         for i, loss in enumerate(results):
-            tst.assert_almost_equal(loss, richtige_results[i], decimal=3)
+            tst.assert_almost_equal(loss, true_results[i], decimal=3)

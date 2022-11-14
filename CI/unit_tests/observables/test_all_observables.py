@@ -23,7 +23,7 @@ class TestVisionCone:
         cls.gradfield = ConcentrationField(
             source=np.array([0.0, 0.0, 0.0]),
             decay_fn=cls.decay_fn,
-            box_size=np.array([1.0, 1.0, 0.0]),
+            box_length=np.array([1.0, 1.0, 0.0]),
         )
         cls.multisensing = MultiSensing(observables=[cls.vc, cls.gradfield])
 

@@ -2,7 +2,7 @@
 Module to implement a simple multi-layer perceptron for the colloids.
 """
 import os
-from typing import Tuple
+from typing import List, Tuple
 
 import numpy as np
 from rich.progress import BarColumn, Progress, TimeRemainingColumn
@@ -10,9 +10,7 @@ from rich.progress import BarColumn, Progress, TimeRemainingColumn
 from swarmrl.engine.engine import Engine
 from swarmrl.losses.loss import Loss
 from swarmrl.models.ml_model import MLModel
-from swarmrl.networks.network import Network
-from swarmrl.observables.observable import Observable
-from swarmrl.tasks.task import Task
+from swarmrl.rl_protocols.actor_critic import ActorCritic
 
 
 class Gym:
@@ -31,37 +29,26 @@ class Gym:
 
     def __init__(
         self,
-        actor: Network,
-        critic: Network,
-        task: Task,
+        rl_protocols: List[ActorCritic],
         loss: Loss,
-        observable: Observable,
-        n_particles: int,
     ):
         """
         Constructor for the MLP RL.
 
         Parameters
         ----------
-        actor : Network
-                A sequential torch model to use as an actor.
-        critic : Network
-                A sequential torch model to use as a critic.
-        task : Task
-                Callable from which a reward can be computed.
+        rl_protocols : dict
+                A dictionary of RL protocols
         loss : Loss
                 A loss model to use in the A-C loss computation.
-        observable : Observable
-                Observable class with which to compute the input vector.
-        n_particles : int
-                Number of particles in the environment.
         """
-        self.actor = actor
-        self.critic = critic
-        self.task = task
         self.loss = loss
-        self.observable = observable
-        self.n_particles = n_particles
+        self.rl_protocols = {}
+
+        # Add the protocols to an easily accessible internal dict.
+        # TODO: Maybe turn into a dataclass? Not sure if it helps yet.
+        for item in rl_protocols:
+            self.rl_protocols[str(item.particle_type)] = item
 
     def initialize_training(self) -> MLModel:
         """
@@ -72,13 +59,26 @@ class Gym:
         interaction_model : MLModel
                 Interaction model to start the simulation with.
         """
+        # Collect the force models for the simulation runs.
+        force_models = {}
+        observables = {}
+        tasks = {}
+        actions = {}
+        for item, value in self.rl_protocols.items():
+            force_models[item] = value.actor
+            observables[item] = value.observable
+            tasks[item] = value.task
+            actions[item] = value.actions
+
         return MLModel(
-            model=self.actor,
-            observable=self.observable,
+            models=force_models,
+            observables=observables,
             record_traj=True,
-            task=self.task,
+            tasks=tasks,
+            actions=actions,
         )
 
+    @property
     def update_rl(self) -> Tuple[MLModel, np.ndarray]:
         """
         Update the RL algorithm.
@@ -90,26 +90,38 @@ class Gym:
         reward : np.ndarray
                 Current mean episode reward. This is returned for nice progress bars.
         """
-        episode_data = np.load(".traj_data.npy", allow_pickle=True)
+        reward = 0.0  # TODO: Separate between species and optimize visualization.
 
-        reward = np.mean(episode_data.item().get("rewards"))
+        force_models = {}
+        observables = {}
+        tasks = {}
+        actions = {}
+        for item, val in self.rl_protocols.items():
+            episode_data = np.load(f".traj_data_{item}.npy", allow_pickle=True)
 
-        # Compute loss for actor and critic.
-        self.loss.compute_loss(
-            actor=self.actor,
-            critic=self.critic,
-            episode_data=episode_data,
-        )
+            reward += np.mean(episode_data.item().get("rewards"))
+
+            # Compute loss for actor and critic.
+            self.loss.compute_loss(
+                actor=val.actor,
+                critic=val.critic,
+                episode_data=episode_data,
+            )
+
+            force_models[item] = val.actor
+            observables[item] = val.observable
+            tasks[item] = val.task
+            actions[item] = val.actions
 
         # Create a new interaction model.
         interaction_model = MLModel(
-            model=self.actor,
-            observable=self.observable,
+            models=force_models,
+            observables=observables,
             record_traj=True,
-            task=self.task,
+            tasks=tasks,
+            actions=actions,
         )
-
-        return interaction_model, reward
+        return interaction_model, np.array(reward) / len(self.rl_protocols)
 
     def export_models(self, directory: str = "Models"):
         """
@@ -123,9 +135,15 @@ class Gym:
         Returns
         -------
         Saves the actor and the critic to the specific directory.
+
+        Notes
+        -----
+        This is super lazy. We should add this to the rl protocol I guess. Same with the
+        model restoration.
         """
-        self.actor.export_model(f"{directory}/Actor")
-        self.critic.export_model(f"{directory}/Critic")
+        for item, val in self.rl_protocols.items():
+            val.actor.export_model(f"{directory}/Actor_{item}")
+            val.critic.export_model(f"{directory}/Critic_{item}")
 
     def restore_models(self, directory: str = "Models"):
         """
@@ -140,9 +158,9 @@ class Gym:
         -------
         Loads the actor and critic from the specific directory.
         """
-        self.actor.restore_model_state(f"./{directory}/Actor")
-
-        self.critic.restore_model_state(f"./{directory}/Critic")
+        for item, val in self.rl_protocols.items():
+            val.actor.restore_model_state(f"./{directory}/Actor_{item}")
+            val.critic.restore_model_state(f"./{directory}/Critic_{item}")
 
     def perform_rl_training(
         self,
@@ -172,7 +190,8 @@ class Gym:
         force_fn = self.initialize_training()
 
         if initialize:
-            self.observable.initialize(system_runner.colloids)
+            for item, val in self.rl_protocols.items():
+                val.observable.initialize(system_runner.colloids)
 
         progress = Progress(
             "Episode: {task.fields[Episode]}",
@@ -192,7 +211,7 @@ class Gym:
             )
             for _ in range(n_episodes):
                 system_runner.integrate(episode_length, force_fn)
-                force_fn, current_reward = self.update_rl()
+                force_fn, current_reward = self.update_rl
                 rewards.append(current_reward)
                 episode += 1
                 progress.update(
@@ -206,7 +225,8 @@ class Gym:
         system_runner.finalize()
 
         # Remove the file at the end of the training.
-        try:
-            os.remove(".traj_data.npy")
-        except FileNotFoundError:
-            pass
+        for item in self.rl_protocols:
+            try:
+                os.remove(f".traj_data_{item}.npy")
+            except FileNotFoundError:
+                pass

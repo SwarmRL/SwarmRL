@@ -59,7 +59,7 @@ class TestFullSim(ut.TestCase):
 
         run_params = {
             "n_colloids": 10,
-            "sim_duration": ureg.Quantity(3, "minute"),
+            "sim_duration": ureg.Quantity(0.1, "minute"),
             "seed": self.seed,
         }
 
