@@ -21,8 +21,7 @@ from swarmrl.tasks.task import Task
 
 class GradientSensingVisionCone(Task, ABC):
     """
-    Find a location in a box using distances. Then, let the colloids form a circle
-    by incentivising them to be in front of each other.
+    Find a location in a box using the gradient and the vision cone.
     """
 
     def __init__(
@@ -33,8 +32,9 @@ class GradientSensingVisionCone(Task, ABC):
         grad_reward_scale_factor: int = 10,
         cone_reward_scale_factor: float = 0.5,
         vision_angle: int = 60,
-        return_cone=False,
-        vision_direction=complex(0, 1),
+        detect_source: bool = True,
+        return_cone: bool = False,
+        vision_direction: complex = complex(0, 1),
     ):
         """
         Constructor for the find origin task.
@@ -56,6 +56,11 @@ class GradientSensingVisionCone(Task, ABC):
                 particles in vision cone).
         vision_angle : int (default = 60)
                 Measurement how big the vision cone is.
+        detect_source : bool (default = True)
+                Whether the source should be detected in the vision cone. If true and
+                the source is in the vision cone,the vision cone returns a number alpha
+                close to 0 such that the reward = cone_reward_scale_factor / alpha >> 1.
+                This incentivises the particle to move towards the source.
         return_cone : bool (default = False)
                 Whether the entire cone should be returned (True) or only the mean
                 distance of particles within the cone.
@@ -63,15 +68,16 @@ class GradientSensingVisionCone(Task, ABC):
                 Direction which the vision cone points to. Default is front,
                 complex(1,0) would be right, ...
         """
-        super(GradientSensingVisionCone, self).__init__()
-        self.source = source / box_size
+
+        self.source = source
         self.decay_fn = decay_function
         self.box_size = box_size
         self.grad_reward_scale_factor = grad_reward_scale_factor
         self.cone_reward_scale_factor = cone_reward_scale_factor
         self.return_cone = return_cone
+        self.detect_source = detect_source
         self.vision_angle = vision_angle
-        self.vision_range = np.linalg.norm(box_size) / 55
+        self.vision_range = np.inf  # TODO: np.linalg.norm(box_size) / 4
         self.vision_direction = vision_direction
 
     def init_task(self):
@@ -85,18 +91,16 @@ class GradientSensingVisionCone(Task, ABC):
         """
         concentration = ConcentrationField(self.source, self.decay_fn, self.box_size)
         vision_cone = VisionCone(
+            vision_direction=self.vision_direction,
             vision_angle=self.vision_angle,
             vision_range=self.vision_range,
             return_cone=self.return_cone,
-            vision_direction=self.vision_direction,
+            source=self.source,
+            detect_source=self.detect_source,
+            box_size=self.box_size,
         )
 
-        return MultiSensing(
-            observables=[concentration, vision_cone],
-            source=self.source,
-            decay_fn=self.decay_fn,
-            box_length=self.box_size,
-        )
+        return MultiSensing(observables=[concentration, vision_cone])
 
     def change_source(self, new_source: np.ndarray):
         """
@@ -113,21 +117,19 @@ class GradientSensingVisionCone(Task, ABC):
                 Returns a collection of multiple observables. Similar output as
                 init_task.
         """
-        self.source = new_source / self.box_size
+        self.source = new_source
         concentration = ConcentrationField(self.source, self.decay_fn, self.box_size)
         vision_cone = VisionCone(
+            vision_direction=self.vision_direction,
             vision_angle=self.vision_angle,
             vision_range=self.vision_range,
             return_cone=self.return_cone,
-            vision_direction=self.vision_direction,
+            source=self.source,
+            detect_source=self.detect_source,
+            box_size=self.box_size,
         )
 
-        return MultiSensing(
-            observables=[concentration, vision_cone],
-            source=self.source,
-            decay_fn=self.decay_fn,
-            box_length=self.box_size,
-        )
+        return MultiSensing(observables=[concentration, vision_cone])
 
     def __call__(self, observable: np.ndarray):
         """
@@ -147,20 +149,20 @@ class GradientSensingVisionCone(Task, ABC):
 
         Returns
         -------
-        reward : float
+        total_reward : jnp.array
                 Reward for the colloid at the current state.
         """
-
         gradient_sensing_reward = self.grad_reward_scale_factor * np.clip(
             observable[0], 0, None
         )
 
-        if np.isclose(observable[1], 0):
-            cone_reward = 0
+        if observable[1] == 0.0:
+            cone_reward = 0.0
         else:
-            cone_reward = self.cone_reward_scale_factor / observable[1]
+            cone_reward = np.clip(
+                -self.cone_reward_scale_factor * np.log(observable[1]), 0, None
+            )
 
-        # print(f"{gradient_sensing_reward=}")
-        # print(f"{cone_reward=}")
+        total_reward = gradient_sensing_reward + cone_reward
 
-        return gradient_sensing_reward + cone_reward
+        return total_reward
