@@ -78,28 +78,23 @@ class PolicyGradientLoss(Loss):
                 The loss for the episode.
         """
         # (n_timesteps, n_particles, n_possibilities)
-        probabilities = actor.apply_fn({"params": actor_params}, feature_data)
-        probabilities = jax.nn.softmax(probabilities)
-        chosen_logits = gather_n_dim_indices(probabilities, action_indices)
-        chosen_logits = np.log(chosen_logits)
-
-        logger.debug(f"{chosen_logits.shape=}")
+        logits = actor.apply_fn({"params": actor_params}, feature_data)
+        probabilities = jax.nn.softmax(logits)  # get probabilities
+        chosen_probabilities = gather_n_dim_indices(probabilities, action_indices)
+        log_probs = np.log(chosen_probabilities)
+        logger.debug(f"{log_probs.shape=}")
 
         value_function_values = self.value_function(rewards)
-
         logger.debug(f"{value_function_values.shape}")
 
         critic_values = critic(feature_data)[:, :, 0]  # zero for trivial dimension
-
         logger.debug(f"{critic_values.shape=}")
 
         # (n_timesteps, n_particles)
         advantage = value_function_values - critic_values
-
         logger.debug(f"{advantage=}")
 
-        loss = -1 * ((chosen_logits * advantage).sum(axis=0)).mean()
-
+        loss = -1 * ((log_probs * advantage).sum(axis=0)).mean()
         logger.debug(f"{loss=}")
 
         return loss

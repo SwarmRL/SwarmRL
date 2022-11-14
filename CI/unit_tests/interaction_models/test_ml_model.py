@@ -10,6 +10,7 @@ import optax
 from numpy.testing import assert_array_almost_equal
 
 import swarmrl as srl
+from swarmrl.models.interaction_model import Action
 from swarmrl.models.ml_model import MLModel
 from swarmrl.networks.flax_network import FlaxModel
 from swarmrl.sampling_strategies.categorical_distribution import CategoricalDistribution
@@ -23,6 +24,7 @@ class DummyColloid:
     def __init__(self, pos=np.array([1, 1, 0]), director=np.array([0, 0, 1])):
         self.pos = pos
         self.director = director
+        self.type = 0
 
 
 def _action_to_index(action):
@@ -86,8 +88,23 @@ class TestMLModel:
             rng_key=6862168,
             sampling_strategy=CategoricalDistribution(),
         )
+        translate = Action(force=10.0)
+        rotate_clockwise = Action(torque=np.array([0.0, 0.0, 15.0]))
+        rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -15.0]))
+        do_nothing = Action()
+
+        action_space = {
+            "RotateClockwise": rotate_clockwise,
+            "Translate": translate,
+            "RotateCounterClockwise": rotate_counter_clockwise,
+            "DoNothing": do_nothing,
+        }
+
         cls.interaction = MLModel(
-            model=network, observable=observable, task=DummyTask()
+            models={"0": network},
+            observables={"0": observable},
+            tasks={"0": DummyTask()},
+            actions={"0": action_space},
         )
 
     def test_file_saving(self):
@@ -104,13 +121,12 @@ class TestMLModel:
         )
 
         # Check if the file exists
-        data_file = Path(".traj_data.npy")
+        data_file = Path(".traj_data_0.npy")
         assert data_file.exists()
 
         # Check that data is stored correctly
-        data = np.load(".traj_data.npy", allow_pickle=True)
+        data = np.load(".traj_data_0.npy", allow_pickle=True)
         data = data.item().get("features")
-        print(data)
 
         # Colloid 1
         assert_array_almost_equal(data[0][0], colloid_1.pos / 1000.0)
@@ -133,11 +149,11 @@ class TestMLModel:
         )
 
         # Check if the file exists
-        data_file = Path(".traj_data.npy")
+        data_file = Path(".traj_data_0.npy")
         assert data_file.exists()
 
         # Check that data is stored correctly
-        data = np.load(".traj_data.npy", allow_pickle=True)
+        data = np.load(".traj_data_0.npy", allow_pickle=True)
         data = data.item().get("features")
 
         # Colloid 1
@@ -153,7 +169,7 @@ class TestMLModel:
         # assert_array_equal(data[1][2].director, colloid_3.director)
 
         self.interaction.record_traj = False
-        os.remove(".traj_data.npy")
+        os.remove(".traj_data_0.npy")
 
     def _test_force_selection(self):
         """

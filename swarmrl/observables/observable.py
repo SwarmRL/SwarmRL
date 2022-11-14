@@ -1,6 +1,9 @@
 """
 Parent class for the observable.
 """
+from typing import List
+
+from swarmrl.models.interaction_model import Colloid
 
 
 class Observable:
@@ -12,6 +15,21 @@ class Observable:
 
     _observable_shape: tuple
 
+    def initialize(self, colloids: List[Colloid]):
+        """
+        Initialize the observable with starting positions of the colloids.
+
+        Parameters
+        ----------
+        colloids : List[Colloid]
+                List of colloids with which to initialize the observable.
+
+        Returns
+        -------
+        Updates the class state.
+        """
+        raise NotImplementedError("Implemented in child class.")
+
     def compute_observable(self, colloid: object, other_colloids: list):
         """
         Compute the current state observable.
@@ -22,9 +40,6 @@ class Observable:
                 Colloid for which the observable should be computed.
         other_colloids
                 Other colloids in the system.
-
-        Returns
-        -------
 
         """
         raise NotImplementedError("Implemented in child class.")

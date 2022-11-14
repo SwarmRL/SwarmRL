@@ -576,7 +576,7 @@ class EspressoMD(Engine):
         )
         self.system.integrator.set_brownian_dynamics()
 
-    def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel):
+    def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel = None):
         """
         Integrate the system for n_slices steps.
 
@@ -612,30 +612,33 @@ class EspressoMD(Engine):
                         val.clear()
 
             swarmrl_colloids = []
-            for col in self.colloids:
-                swarmrl_colloids.append(
-                    swarmrl.models.interaction_model.Colloid(
-                        pos=col.pos, director=col.director, id=col.id, type=col.type
+            if force_model is not None:
+                for col in self.colloids:
+                    swarmrl_colloids.append(
+                        swarmrl.models.interaction_model.Colloid(
+                            pos=col.pos, director=col.director, id=col.id, type=col.type
+                        )
                     )
-                )
-            actions = force_model.calc_action(swarmrl_colloids)
-            for action, coll in zip(actions, self.colloids):
-                coll.swimming = {"f_swim": action.force}
-                coll.ext_torque = action.torque
-                new_direction = action.new_direction
-                if new_direction is not None:
-                    if self.n_dims == 3:
-                        coll.director = new_direction
-                    else:
-                        old_direction = coll.director
-                        rotation_angle = np.arccos(np.dot(new_direction, old_direction))
-                        if rotation_angle > 1e-6:
-                            rotation_axis = np.cross(old_direction, new_direction)
-                            rotation_axis /= np.linalg.norm(rotation_axis)
-                            # only values of [0,0,1], [0,0,-1] can come out here,
-                            # plusminus numerical errors
-                            rotation_axis = [0, 0, round(rotation_axis[2])]
-                            coll.rotate(axis=rotation_axis, angle=rotation_angle)
+                actions = force_model.calc_action(swarmrl_colloids)
+                for action, coll in zip(actions, self.colloids):
+                    coll.swimming = {"f_swim": action.force}
+                    coll.ext_torque = action.torque
+                    new_direction = action.new_direction
+                    if new_direction is not None:
+                        if self.n_dims == 3:
+                            coll.director = new_direction
+                        else:
+                            old_direction = coll.director
+                            rotation_angle = np.arccos(
+                                np.dot(new_direction, old_direction)
+                            )
+                            if rotation_angle > 1e-6:
+                                rotation_axis = np.cross(old_direction, new_direction)
+                                rotation_axis /= np.linalg.norm(rotation_axis)
+                                # only values of [0,0,1], [0,0,-1] can come out here,
+                                # plusminus numerical errors
+                                rotation_axis = [0, 0, round(rotation_axis[2])]
+                                coll.rotate(axis=rotation_axis, angle=rotation_angle)
 
             self.system.integrator.run(self.params.steps_per_slice)
 

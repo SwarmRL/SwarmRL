@@ -29,9 +29,7 @@ class ConcentrationField(Observable, ABC):
             computation.
     """
 
-    _observable_shape = (3,)
-
-    def __init__(self, source: np.ndarray, decay_fn: callable, box_size: np.ndarray):
+    def __init__(self, source: np.ndarray, decay_fn: callable, box_length: np.ndarray):
         """
         Constructor for the observable.
 
@@ -44,10 +42,11 @@ class ConcentrationField(Observable, ABC):
         box_size : np.ndarray
                 Array for scaling of the distances.
         """
-        self.source = source / box_size
+        self.source = source / box_length
         self.decay_fn = decay_fn
         self.historic_positions = {}
-        self.box_size = box_size
+        self.box_length = box_length
+        self._observable_shape = (3,)
 
     def initialize(self, colloids: List[Colloid]):
         """
@@ -64,7 +63,7 @@ class ConcentrationField(Observable, ABC):
         """
         for item in colloids:
             index = onp.copy(item.id)
-            position = onp.copy(item.pos) / self.box_size
+            position = onp.copy(item.pos) / self.box_length
             self.historic_positions[str(index)] = position
 
     def compute_observable(self, colloid: Colloid, other_colloids: List[Colloid]):
@@ -89,7 +88,7 @@ class ConcentrationField(Observable, ABC):
                 "initialize attribute of the gym to true and try again."
             )
             raise ValueError(msg)
-        position = onp.copy(colloid.pos) / self.box_size
+        position = onp.copy(colloid.pos) / self.box_length
         index = onp.copy(colloid.id)
         previous_position = self.historic_positions[str(index)]
 
