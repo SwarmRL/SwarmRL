@@ -4,7 +4,7 @@ Class for an observable which computes several observables.
 from abc import ABC
 from typing import List
 
-import numpy as np
+import jax.numpy as np
 
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.observable import Observable
@@ -18,9 +18,6 @@ class MultiSensing(Observable, ABC):
     def __init__(
         self,
         observables: List[Observable],
-        source: np.ndarray,
-        decay_fn: callable,
-        box_length: np.ndarray,
     ):
         """
         Constructor for the observable.
@@ -32,33 +29,8 @@ class MultiSensing(Observable, ABC):
         ----------
         Observables : List[Observable]
                 List of observables. Their order is extremely important!
-        source : np.ndarray
-                Source of the field.
-        decay_fn : callable
-                Decay function of the field.
-        box_length : np.ndarray
-                Array for scaling of the distances.
         """
         self.observables = observables
-        self.source = (source,)
-        self.decay_fn = (decay_fn,)
-        self.box_length = (box_length,)
-        self.historic_positions = {}
-
-    def init_task(self) -> Observable:
-        """
-        Prepare the task for running.
-
-        Returns
-        -------
-        observable :
-                Returns the observable required for the task.
-        """
-
-        observable = []
-        for item in self.observables:
-            observable.append(item.init_task())
-        return observable
 
     def initialize(self, colloids: List[Colloid]):
         """
@@ -71,7 +43,8 @@ class MultiSensing(Observable, ABC):
 
         Returns
         -------
-        Updates the class state.
+        Initialisation step used to generate historic positions for the concentration
+        field observable to calculate change in gradient.
         """
         for item in self.observables:
             item.initialize(colloids)
@@ -80,7 +53,7 @@ class MultiSensing(Observable, ABC):
         self, colloid: Colloid, other_colloids: List[Colloid]
     ) -> List[Observable]:
         """
-        Computes vision cone for all colloids
+        Computes all observables and returns them in a concatenated list.
 
         Parameters
         ----------
