@@ -127,6 +127,14 @@ class EspressoTest(ut.TestCase):
                         "Directors",
                     },
                 )
+            const_force = ureg.Quantity(np.array([0.1, 0.2, 0.3]), "newton")
+            runner.add_const_force_to_colloids(const_force, coll_types[0])
+
+            type_0_colls = runner.system.part.select(type=coll_types[0])
+            type_1_colls = runner.system.part.select(type=coll_types[1])
+
+            assert np.all(type_0_colls.ext_force > 0)
+            assert np.all(type_1_colls.ext_force == 0)
 
 
 if __name__ == "__main__":
