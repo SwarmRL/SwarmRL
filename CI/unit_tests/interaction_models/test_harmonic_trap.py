@@ -9,7 +9,7 @@ import numpy as np
 from swarmrl.models.harmonic_trap import HarmonicTrap
 
 
-class TestHarmonicTrap(ut.TestCase):
+class TestHarmonicTrapMethods(ut.TestCase):
     """
     Test the harmonic trap potential.
     """
