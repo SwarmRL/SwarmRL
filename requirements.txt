@@ -12,4 +12,4 @@ setuptools~=58.0.4
 optax~=0.1.2
 rich~=10.12.0
 dataclasses~=0.6
-tensorflow~=2.9.1
+tensorflow

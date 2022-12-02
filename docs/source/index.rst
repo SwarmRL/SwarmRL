@@ -1,16 +1,28 @@
-.. SwarmRL documentation master file, created by
-   sphinx-quickstart on Mon Oct 25 17:43:41 2021.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+SwarmRL
+=======
+Welcome to the SwarmRL documentation.
+Here you can find examples for how to use the library as well (as soon as we write it)
+theory about the methods implemented.
+There is also an API documentation section for those interested in the technical details.
 
-Welcome to SwarmRL's documentation!
-===================================
-I'd like to start writing docs.
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 1
+   :caption: Getting Started:
 
+   _pages/_getting_started/installation
+
+.. toctree::
+   :maxdepth: 1
+   :caption: User Guide:
+
+   _pages/_user_guide/example_notebooks
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Developer Documentation:
+
+   _pages/_developer_documentation/contributing
 
 
 Indices and tables
