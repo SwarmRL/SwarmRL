@@ -4,7 +4,6 @@ import tempfile
 import threading
 import unittest as ut
 
-import espressomd.visualization
 import h5py
 import numpy as np
 import pint
@@ -125,6 +124,8 @@ class TestFullSim(ut.TestCase):
 
         logger.info("Starting simulation")
         if self.visualize:
+            import espressomd.visualization
+
             logger.warning(
                 "Running test with visualization. "
                 "This is now a visual test and will terminate "
