@@ -438,6 +438,25 @@ class EspressoMD(Engine):
                     epsilon=self.params.WCA_epsilon.m_as("sim_energy"),
                 )
 
+    def add_const_force_to_colloids(self, force: pint.Quantity, type: int):
+        """
+        Parameters
+        ----------
+        force: pint.Quantity
+            A Quantity of numpy array, e.g. f = Quantity(np.array([1,2,3]), "newton")
+        type: int
+            The type of colloid that gets the force.
+            Needs to be already added to the engine
+        """
+        force_simunits = force.m_as("sim_force")
+        parts = self.system.part.select(type=type)
+        if len(parts) == 0:
+            raise ValueError(
+                f"Particles of type {type} not added to engine. "
+                f"You currently have {self.colloid_radius_register.keys()}"
+            )
+        parts.ext_force = force_simunits
+
     def get_friction_coefficients(self, type: int):
         """
         Returns both the translational and the rotational friction coefficient
