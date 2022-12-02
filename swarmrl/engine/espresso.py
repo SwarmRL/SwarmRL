@@ -80,7 +80,7 @@ def _calc_friction_coefficients(
     dyn_visc: float, radius: float
 ) -> typing.Tuple[float, float]:
     particle_gamma_translation = 6 * np.pi * dyn_visc * radius
-    particle_gamma_rotation = 8 * np.pi * dyn_visc * radius ** 3
+    particle_gamma_rotation = 8 * np.pi * dyn_visc * radius**3
     return particle_gamma_translation, particle_gamma_rotation
 
 
