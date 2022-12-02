@@ -47,4 +47,4 @@ jobs:
       - name: Run test suite
         run: |
           echo ${PATH}
-          pypresso CI/run_espresso_test_suite.py
+          espresso/build/pypresso CI/run_espresso_test_suite.py
