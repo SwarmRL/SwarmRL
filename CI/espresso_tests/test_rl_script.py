@@ -12,6 +12,7 @@ import pint
 
 import swarmrl as srl
 import swarmrl.engine.espresso as espresso
+from swarmrl.models.interaction_model import Action
 from swarmrl.utils import utils
 
 
@@ -153,15 +154,29 @@ class TestRLScript(ut.TestCase):
 
         # Define the loss model
         loss = srl.losses.PolicyGradientLoss(value_function=value_function)
+        translate = Action(force=10.0)
+        rotate_clockwise = Action(torque=np.array([0.0, 0.0, 10.0]))
+        rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -10.0]))
+        do_nothing = Action()
 
+        actions = {
+            "RotateClockwise": rotate_clockwise,
+            "Translate": translate,
+            "RotateCounterClockwise": rotate_counter_clockwise,
+            "DoNothing": do_nothing,
+        }
+        protocol = srl.rl_protocols.ActorCritic(
+            particle_type=0,
+            actor=actor,
+            critic=critic,
+            task=task,
+            observable=observable,
+            actions=actions,
+        )
         # Define the force model.
         rl_trainer = srl.gyms.Gym(
-            actor,
-            critic,
-            task,
+            [protocol],
             loss,
-            observable,
-            run_params["n_colloids"],
         )
 
         params_to_write = {

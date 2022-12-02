@@ -1,0 +1,47 @@
+# This workflow will install espresso and python dependencies before running the
+# espresso tests.
+
+name: Espresso Test
+
+on:
+  push:
+    branches:
+      - 'master'
+  pull_request:
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+        - 3.8
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: mpi4py/setup-mpi@v1
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r dev-requirements.txt
+      - name: Install package
+        run: |
+          pip install .
+      - name: Install espresso
+        run: |
+          pip install cython
+          sudo apt-get install libboost-all-dev
+          git clone https://github.com/espressomd/espresso.git
+          cd espresso
+          mkdir build && cd build
+          cmake ../
+          cmake --build .
+      - name: Run test suite
+        run: |
+          espresso/build/pypresso CI/run_espresso_test_suite.py
