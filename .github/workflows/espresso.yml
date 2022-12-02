@@ -6,6 +6,8 @@ name: Espresso Test
 on:
   push:
   pull_request:
+    branches:
+      - 'master'
 
 jobs:
   build:
@@ -33,13 +35,13 @@ jobs:
       - name Install espresso
         run: |
           pip install cython
-#          git clone https://github.com/espressomd/espresso.git
-#          cd espresso
-#          mkdir build && cd build
-#          cmake ../
-#          cmake --build .
-#          wd=pwd
-#          export PATH=${wd}/pypresso:${PATH}
+          git clone https://github.com/espressomd/espresso.git
+          cd espresso
+          mkdir build && cd build
+          cmake ../
+          cmake --build .
+          wd=pwd
+          export PATH=${wd}/pypresso:${PATH}
       - name: Run test suite
         run: |
           pypresso CI/run_espresso_test_suite.py
