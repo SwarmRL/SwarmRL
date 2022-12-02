@@ -6,8 +6,6 @@ name: Espresso Test
 on:
   push:
   pull_request:
-    branches:
-      - 'master'
 
 jobs:
   build:
@@ -32,7 +30,7 @@ jobs:
       - name: Install package
         run: |
           pip install .
-      - name Install espresso
+      - name: Install espresso
         run: |
           pip install cython
           git clone https://github.com/espressomd/espresso.git
