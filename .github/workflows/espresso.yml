@@ -46,4 +46,5 @@ jobs:
           export PATH=${wd}/pypresso:${PATH}
       - name: Run test suite
         run: |
+          echo ${PATH}
           pypresso CI/run_espresso_test_suite.py
