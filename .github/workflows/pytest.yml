@@ -36,4 +36,4 @@ jobs:
           pip install .
       - name: Pytest
         run: |
-          pytest --ignore espresso_tests
+          pytest --ignore CI/espresso_tests
