@@ -6,55 +6,19 @@ import unittest as ut
 
 import flax.linen as nn
 import h5py as hf
-import matplotlib.pyplot as plt
 import numpy as np
 import optax
 import pint
 
 import swarmrl as srl
 import swarmrl.engine.espresso as espresso
+from swarmrl.models.interaction_model import Action
 
 
 class TestFindCenter(ut.TestCase):
     """
     Functional test, also to be used as an example for simulation scripts
     """
-
-    def run_analysis(folder_name: str):
-        """
-        Run some analysis.
-
-        Returns
-        -------
-
-        """
-        with hf.File(f"example_output/{folder_name}/trajectory.hdf5") as db:
-            data = np.array(db["colloids"]["Unwrapped_Positions"])
-        for i in range(len(data[0])):
-            plt.plot(data[:, i][:, 0], data[:, i][:, 1])
-
-        plt.show()
-
-    def visualize_particles(folder_name: str):
-        """
-        Run a visualization of the particles in the database.
-
-        Returns
-        -------
-
-        """
-        import znvis as vis
-
-        with hf.File(f"example_output/{folder_name}/trajectory.hdf5") as db:
-            data = np.array(db["colloids"]["Unwrapped_Positions"])
-
-        mesh = vis.Sphere(
-            radius=10.0, colour=np.array([30, 144, 255]) / 255, resolution=5
-        )
-        colloids = vis.Particle(name="Colloid", mesh=mesh, position=data)
-
-        visualizer = vis.Visualizer(particles=[colloids], frame_rate=40)
-        visualizer.run_visualization()
 
     def run_simulation(
         self, exploration_prob, cone_reward_scale_factor, vision_angle, folder_name
@@ -190,14 +154,28 @@ class TestFindCenter(ut.TestCase):
         # Define the loss model
         loss = srl.losses.PolicyGradientLoss(value_function=value_function)
 
+        translate = Action(force=10.0)
+        rotate_clockwise = Action(torque=np.array([0.0, 0.0, 10.0]))
+        rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -10.0]))
+        do_nothing = Action()
+        actions = {
+            "RotateClockwise": rotate_clockwise,
+            "Translate": translate,
+            "RotateCounterClockwise": rotate_counter_clockwise,
+            "DoNothing": do_nothing,
+        }
+        protocol = srl.rl_protocols.ActorCritic(
+            particle_type=0,
+            actor=actor,
+            critic=critic,
+            task=task,
+            observable=observable,
+            actions=actions,
+        )
         # Define the force model.
         rl_trainer = srl.gyms.Gym(
-            actor,
-            critic,
-            task,
+            [protocol],
             loss,
-            observable,
-            run_params["n_colloids"],
         )
 
         # Run the simulation.
@@ -217,8 +195,6 @@ class TestFindCenter(ut.TestCase):
     def test_find_center(self):
         exploration_prob = 0.2
         cone_reward_scale_factor, vision_angle = 0.2, 30
-        # folder_name = 'scale' + str(int(cone_reward_scale_factor * 1000)) + \
-        #               'angle' + str(vision_angle)
         folder_name = "test"
         self.run_simulation(
             exploration_prob, cone_reward_scale_factor, vision_angle, folder_name

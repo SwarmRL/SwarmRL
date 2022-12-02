@@ -42,9 +42,6 @@ jobs:
           mkdir build && cd build
           cmake ../
           cmake --build .
-          wd=pwd
-          export PATH=${wd}/pypresso:${PATH}
       - name: Run test suite
         run: |
-          echo ${PATH}
           espresso/build/pypresso CI/run_espresso_test_suite.py
