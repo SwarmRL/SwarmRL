@@ -1,7 +1,7 @@
 # This workflow will install espresso and python dependencies before running the
 # espresso tests.
 
-name: espresso-tests
+name: Espresso Test
 
 on:
   push:
@@ -44,6 +44,6 @@ jobs:
           cmake --build .
           wd=pwd
           export PATH=${wd}/pypresso:${PATH}
-      - name: Pytest
+      - name: Run test suite
         run: |
           pypresso CI/run_espresso_test_suite.py
