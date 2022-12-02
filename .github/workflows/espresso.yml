@@ -6,8 +6,6 @@ name: Espresso Test
 on:
   push:
   pull_request:
-  schedule:
-    - cron: '14 3 * * 1'  # at 03:14 on Monday.
 
 jobs:
   build:
@@ -18,8 +16,6 @@ jobs:
       matrix:
         python-version:
         - 3.8
-        - 3.9
-        - "3.10"
 
     steps:
       - uses: actions/checkout@v2
@@ -37,13 +33,13 @@ jobs:
       - name Install espresso
         run: |
           pip install cython
-          git clone https://github.com/espressomd/espresso.git
-          cd espresso
-          mkdir build && cd build
-          cmake ../
-          cmake --build .
-          wd=pwd
-          export PATH=${wd}/pypresso:${PATH}
+#          git clone https://github.com/espressomd/espresso.git
+#          cd espresso
+#          mkdir build && cd build
+#          cmake ../
+#          cmake --build .
+#          wd=pwd
+#          export PATH=${wd}/pypresso:${PATH}
       - name: Run test suite
         run: |
           pypresso CI/run_espresso_test_suite.py
