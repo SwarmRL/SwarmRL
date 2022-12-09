@@ -29,8 +29,6 @@ class ConcentrationField(Observable, ABC):
             computation.
     """
 
-    _observable_shape = (3,)
-
     def __init__(self, source: np.ndarray, decay_fn: callable, box_length: np.ndarray):
         """
         Constructor for the observable.
@@ -41,13 +39,14 @@ class ConcentrationField(Observable, ABC):
                 Source of the field.
         decay_fn : callable
                 Decay function of the field.
-        box_length : np.ndarray
+        box_size : np.ndarray
                 Array for scaling of the distances.
         """
-        self.source = source
+        self.source = source / box_length
         self.decay_fn = decay_fn
         self.historic_positions = {}
         self.box_length = box_length
+        self._observable_shape = (3,)
 
     def initialize(self, colloids: List[Colloid]):
         """

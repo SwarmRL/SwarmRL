@@ -10,6 +10,7 @@ from swarmrl import (
     models,
     networks,
     observables,
+    rl_protocols,
     sampling_strategies,
     tasks,
     value_functions,
@@ -36,4 +37,5 @@ __all__ = [
     gyms.__name__,
     sampling_strategies.__name__,
     value_functions.__name__,
+    rl_protocols.__name__,
 ]

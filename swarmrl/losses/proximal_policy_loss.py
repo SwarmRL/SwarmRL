@@ -14,7 +14,8 @@ from flax.core.frozen_dict import FrozenDict
 
 from swarmrl.losses.loss import Loss
 from swarmrl.networks.flax_network import FlaxModel
-from swarmrl.utils.utils import gather_n_dim_indices
+from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
+from swarmrl.utils.utils import gather_n_dim_indices, record_training
 from swarmrl.value_functions.expected_returns import ExpectedReturns
 
 
@@ -26,8 +27,11 @@ class ProximalPolicyLoss(Loss, ABC):
     def __init__(
         self,
         value_function: ExpectedReturns,
+        sampling_strategy: GumbelDistribution,
         n_epochs: int = 10,
         epsilon: float = 0.2,
+        entropy_coefficient: float = 0.01,
+        record_training=False,
     ):
         """
         Constructor for the PPO class.
@@ -41,10 +45,25 @@ class ProximalPolicyLoss(Loss, ABC):
             number of PPO updates
         epsilon : float
             the maximum of the relative distance between old and updated policy.
+        entropy_coefficient : float
+            Entropy coefficient for the PPO update. # TODO Add more here.
+        record_training : bool
+            If true, training data is stored.
         """
         self.value_function = value_function
+        self.sampling_strategy = sampling_strategy
         self.n_epochs = n_epochs
         self.epsilon = epsilon
+        self.entropy_coefficient = entropy_coefficient
+        self.record_training = record_training
+        self.storage = {
+            "critic_loss": [],
+            "new_log_probs": [],
+            "entropy": [],
+            "ratio": [],
+            "advantage": [],
+            "actor_loss": [],
+        }
 
     def compute_critic_loss(
         self, critic: FlaxModel, critic_params: FrozenDict, features, true_values
@@ -78,6 +97,10 @@ class ProximalPolicyLoss(Loss, ABC):
         particle_loss = jnp.mean(value_loss, 0)
 
         critic_loss = jnp.mean(particle_loss)
+
+        if self.record_training:
+            self.storage["critic_loss"].append(critic_loss.primal)
+
         return critic_loss
 
     def compute_actor_loss(
@@ -112,6 +135,8 @@ class ProximalPolicyLoss(Loss, ABC):
         true_values : np.ndarray (n_time_steps, n_particles)
             The state value computed using the rewards received during the episode. To
             compute them one uses the value function given to the class.
+        entropies : np.ndarray (n_time_steps, n_particles)
+            The Shannon entropy of the distribution
 
         Returns
         -------
@@ -121,16 +146,19 @@ class ProximalPolicyLoss(Loss, ABC):
         """
 
         # compute the probabilities of the old actions under the new policy
-        new_log_props = actor.apply_fn({"params": actor_params}, features)
-        new_log_props = gather_n_dim_indices(new_log_props, actions)
+        new_logits = actor.apply_fn({"params": actor_params}, features)
+        new_probabilities = jax.nn.softmax(new_logits)
+
+        # compute the entropy of the whole distribution
+        entropy = jnp.mean(self.sampling_strategy.compute_entropy(new_probabilities))
+        new_log_probs = jnp.log(gather_n_dim_indices(new_probabilities, actions))
 
         # compute the ratio between old and new probs
-        ratio = jnp.exp(new_log_props - old_log_probs)
+        ratio = jnp.exp(new_log_probs - old_log_probs)
 
         # compute the predicted values and to get the advantage
         predicted_values = critic(features)
         advantage = true_values - jnp.squeeze(predicted_values)
-        # advantage = (advantage - jnp.mean(advantage)) / (jnp.std(advantage) + 1e-10)
 
         # compute the clipped loss
         clipped_loss = -1 * jnp.minimum(
@@ -144,16 +172,33 @@ class ProximalPolicyLoss(Loss, ABC):
         # mean over the particle losses
         actor_loss = jnp.mean(particle_loss)
 
-        return actor_loss
+        # this exception is necessary to pass the tests.
+        try:
+            if self.record_training:
+                self.storage["new_log_probs"].append(new_log_probs)
+                self.storage["entropy"].append(entropy)
+                self.storage["ratio"].append(ratio.primal)
+                self.storage["actor_loss"].append(actor_loss)
+                self.storage["advantage"].append(advantage)
+            return actor_loss + self.entropy_coefficient * entropy.primal
 
-    def compute_loss(self, actor: FlaxModel, critic: FlaxModel, episode_data) -> tuple:
+        except AttributeError:
+            if self.record_training:
+                self.storage["new_log_probs"].append(new_log_probs)
+                self.storage["entropy"].append(entropy)
+                self.storage["ratio"].append(ratio)
+                self.storage["actor_loss"].append(actor_loss)
+                self.storage["advantage"].append(advantage)
+            return actor_loss + self.entropy_coefficient * entropy.primal
+
+    def compute_loss(self, actor: FlaxModel, critic: FlaxModel, episode_data):
         """
         Compute the loss and update the actor and critic.
         Parameters
         ----------
         actor : FlaxModel
             The actor network that computes the log probs of the possible actions for a
-            given observable vector
+            given observable vector.
         critic : FlaxModel
             The critic network that approximates the state value function.
         episode_data : dict
@@ -161,11 +206,11 @@ class ProximalPolicyLoss(Loss, ABC):
             previous episode at each time step for each colloid.
         Returns
         -------
-        model_tuple : tuple ( FlaxModel, FlaxModel
+        model_tuple : tuple  FlaxModel, FlaxModel
             The updated actor and critic network.
         """
         feature_data = episode_data.item().get("features")
-        old_log_probs_data = episode_data.item().get("log_probs")
+        old_log_probs_data = jnp.log(jax.nn.softmax(episode_data.item().get("logits")))
         action_data = episode_data.item().get("actions")
         reward_data = episode_data.item().get("rewards")
 
@@ -191,4 +236,10 @@ class ProximalPolicyLoss(Loss, ABC):
 
             actor.update_model(actor_grad)
             critic.update_model(critic_grad)
-        return actor.model_state, critic.model_state
+
+        # write training specs to disc
+        record_training(self.storage)
+
+        # empty storage
+        for key, value in self.storage.items():
+            self.storage[key] = []

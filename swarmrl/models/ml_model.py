@@ -1,9 +1,9 @@
-# noinspection PyInterpreter
 """
 Espresso interaction model capable of handling a neural network as a function.
 """
 import os
 import typing
+from typing import Dict
 
 import numpy as np
 
@@ -21,49 +21,42 @@ class MLModel(InteractionModel):
 
     def __init__(
         self,
-        model: Network,
-        observable: Observable,
-        task: Task,
+        models: Dict[str, Network],
+        observables: Dict[str, Observable],
+        tasks: Dict[str, Task],
         record_traj: bool = False,
+        actions: dict = None,
     ):
         """
         Constructor for the NNModel.
 
         Parameters
         ----------
-        model : Network
-                A SwarmRl network to use in the action computation.
-        observable : Observable
-                A method to compute an observable given a current system state.
-        record_traj : bool
+        models : dict
+                SwarmRl networks to use in the action computation. This is a dict so as
+                to allow for multiple models to be passed.
+        observables : dict[Observables]
+                A method to compute an observable given a current system state.This is a
+                dict so as to allow for multiple models to be passed.
+        tasks : dict[Task]
+                Tasks for each particle type to perform.
+        record_traj : bool (default=False)
                 If true, store trajectory data to disk for training.
-
-        Notes
-        -----
-        TODO: Move the action definitions to user input.
         """
         super().__init__()
-        self.model = model
-        self.observable = observable
-        self.task = task
+        self.models = models
+        self.observables = observables
+        self.tasks = tasks
         self.record_traj = record_traj
 
-        translate = Action(force=10.0)
-        rotate_clockwise = Action(torque=np.array([0.0, 0.0, 15.0]))
-        rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -15.0]))
-        do_nothing = Action()
-
-        self.actions = {
-            "RotateClockwise": rotate_clockwise,
-            "Translate": translate,
-            "RotateCounterClockwise": rotate_counter_clockwise,
-            "DoNothing": do_nothing,
-        }
-
-        try:
-            os.remove(".traj_data.npy")
-        except FileNotFoundError:
-            pass
+        self.actions = actions
+        # Used in the data saving.
+        self.particle_types = [item for item in self.models]
+        for item in self.particle_types:
+            try:
+                os.remove(f".traj_data_{item}.npy")
+            except FileNotFoundError:
+                pass
 
     def calc_action(
         self, colloids: typing.List[Colloid], explore_mode: bool = False
@@ -83,34 +76,45 @@ class MLModel(InteractionModel):
                 Return the action the colloid should take.
         """
         actions = []
-        action_indices = []
-        log_probs = []
-        rewards = []
-
-        # (n_particles, n_dims) array of features
-        feature_vectors = []
+        action_indices = {item: [] for item in self.particle_types}
+        logits = {item: [] for item in self.particle_types}
+        rewards = {item: [] for item in self.particle_types}
+        feature_vectors = {item: [] for item in self.particle_types}
 
         for colloid in colloids:
             other_colloids = [c for c in colloids if c is not colloid]
-            feature_vector = self.observable.compute_observable(colloid, other_colloids)
-            reward = self.task(feature_vector)
-            action_index, log_prob = self.model.compute_action(
-                feature_vector=feature_vector, explore_mode=explore_mode
-            )
-            actions.append(self.actions[list(self.actions)[int(action_index)]])
 
-            action_indices.append(action_index)
-            feature_vectors.append(feature_vector)
-            log_probs.append(log_prob)
-            rewards.append(reward)
+            # Compute the action for a specific colloid type.
+            try:
+                feature_vector = self.observables[str(colloid.type)].compute_observable(
+                    colloid, other_colloids
+                )
+                reward = self.tasks[str(colloid.type)](feature_vector)
+                action_index, logit = self.models[str(colloid.type)].compute_action(
+                    feature_vector=feature_vector, explore_mode=explore_mode
+                )
+                actions.append(
+                    self.actions[str(colloid.type)][
+                        list(self.actions[str(colloid.type)])[int(action_index)]
+                    ]
+                )
+
+                action_indices[str(colloid.type)].append(action_index)
+                feature_vectors[str(colloid.type)].append(feature_vector)
+                logits[str(colloid.type)].append(logit)
+                rewards[str(colloid.type)].append(reward)
+            except KeyError:
+                actions.append(Action())
 
         # Record the trajectory if required.
         if self.record_traj:
-            record_trajectory(
-                features=np.array(feature_vectors),
-                actions=np.array(action_indices),
-                log_probs=np.array(log_probs),
-                rewards=np.array(rewards),
-            )
+            for item in self.particle_types:
+                record_trajectory(
+                    particle_type=item,
+                    features=np.array(feature_vectors[item]),
+                    actions=np.array(action_indices[item]),
+                    logits=np.array(logits[item]),
+                    rewards=np.array(rewards[item]),
+                )
 
         return actions

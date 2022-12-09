@@ -2,6 +2,7 @@ import numpy as np
 import numpy.testing as tst
 
 from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
+from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.utils.utils import gather_n_dim_indices
 
 
@@ -33,24 +34,25 @@ class TestProximalPolicyLoss:
 
         """
         # Create
-        n_epochs = 10
         epsilon = 0.2
         n_particles = 10
         n_time_steps = 20
         observable_dimension = 4
         value_function = False
+        entropy_coefficient = 0.01
+        sampling_strategy = GumbelDistribution()
 
         loss = ProximalPolicyLoss(
             value_function=value_function,
-            n_epochs=n_epochs,
-            epsilon=epsilon,
+            sampling_strategy=sampling_strategy,
+            entropy_coefficient=entropy_coefficient,
         )
 
         actor = DummyActor()
         actor_params = 10
         critic = DummyCritic()
 
-        features = np.random.rand(n_time_steps, n_particles, observable_dimension)
+        features = np.ones((n_time_steps, n_particles, observable_dimension))
 
         actions = np.ones((n_time_steps, n_particles), dtype=int)
 
@@ -103,26 +105,27 @@ class TestProximalPolicyLoss:
         predicted_value = np.squeeze(critic(features=features))
 
         # the dummy_actor will return just 2
-        new_log_probs = actor.apply_fn(actor_params, features)
-        new_log_probs = gather_n_dim_indices(new_log_probs, actions)
-
+        new_log_probs_all = actor.apply_fn(actor_params, features)
+        new_log_probs = gather_n_dim_indices(new_log_probs_all, actions)
+        # calculate the entropy of the new_log_probs
+        entropy = np.mean(sampling_strategy.compute_entropy(new_log_probs_all))
         # These results were compared to by hand computed values.
-        richtige_results = []
+        true_results = []
         for probs in old_log_probs_list:
             for values in true_value_list:
                 ratios = ratio(new_log_probs, probs)
-                print(ratios[0])
+
                 advantages = advantage(predicted_value, values)
                 # advantages = (advantages - np.mean(advantages)) / (
                 #            np.std(advantages) + 1e-10)
-                print(advantages[0])
+
                 clipped_loss = -1 * np.minimum(
                     ratios * advantages,
                     np.clip(ratios, 1 - epsilon, 1 + epsilon) * advantages,
                 )
                 loss = np.mean(clipped_loss, 0)
-                loss = np.mean(loss)
-                richtige_results.append(loss)
+                loss = np.mean(loss) + entropy_coefficient * entropy
+                true_results.append(loss)
 
         for i, loss in enumerate(results):
-            tst.assert_almost_equal(loss, richtige_results[i], decimal=3)
+            tst.assert_almost_equal(loss, true_results[i], decimal=3)

@@ -1,3 +1,6 @@
+"""
+Utils for the SwarmRL package.
+"""
 import logging
 import os
 import pickle
@@ -181,9 +184,10 @@ def gather_n_dim_indices(reference_array: np.ndarray, indices: np.ndarray):
 
 
 def record_trajectory(
+    particle_type: str,
     features: np.ndarray,
     actions: np.ndarray,
-    log_probs: np.ndarray,
+    logits: np.ndarray,
     rewards: np.ndarray,
 ):
     """
@@ -191,10 +195,12 @@ def record_trajectory(
 
     Parameters
     ----------
+    particle_type : str
+            Type of the particle saved. Important for the multi-species training.
     rewards : np.ndarray (n_timesteps, n_particles, 1)
             Rewards collected during the simulation to be used in training.
-    log_probs : np.ndarray (n_timesteps, n_particles, 1)
-            Log probabilities used for debugging.
+    logits : np.ndarray (n_timesteps, n_particles, 1)
+            Logits used for debugging.
     features : np.ndarray (n_timesteps, n_particles, n_dimensions)
             Features to store in the array.
     actions : np.ndarray (n_timesteps, n_particles, 1)
@@ -205,31 +211,63 @@ def record_trajectory(
     Dumps a hidden file to disc which is often removed after reading.
     """
     try:
-        data = np.load(".traj_data.npy", allow_pickle=True)
+        data = np.load(f".traj_data_{particle_type}.npy", allow_pickle=True)
         feature_data = data.item().get("features")
         action_data = data.item().get("actions")
-        log_probs_data = data.item().get("log_probs")
+        logits_data = data.item().get("logits")
         reward_data = data.item().get("rewards")
 
         feature_data = np.append(feature_data, np.array([features]), axis=0)
         action_data = np.append(action_data, np.array([actions]), axis=0)
-        log_probs_data = np.append(log_probs_data, np.array([log_probs]), axis=0)
+        logits_data = np.append(logits_data, np.array([logits]), axis=0)
         reward_data = np.append(reward_data, np.array([rewards]), axis=0)
 
-        os.remove(".traj_data.npy")
+        os.remove(f".traj_data_{particle_type}.npy")
 
     except FileNotFoundError:
         feature_data = np.array([features])
         action_data = np.array([actions])
-        log_probs_data = np.array([log_probs])
+        logits_data = np.array([logits])
         reward_data = np.array([rewards])
+
     np.save(
-        ".traj_data.npy",
+        f".traj_data_{particle_type}.npy",
         {
             "features": feature_data,
             "actions": action_data,
-            "log_probs": log_probs_data,
+            "logits": logits_data,
             "rewards": reward_data,
         },
+        allow_pickle=True,
+    )
+
+
+def record_training(training_dict: dict):
+    """
+    Records the training data if required.
+
+    Parameters:
+    ----------
+    training_dict : a dictionary containing the critic_loss, new_log_probs, entropy,
+            ratio, advantage and actor_loss from the PPO algorithm.
+
+    Returns
+    -------
+    Dumps a  file to disc to evaluate training.
+    """
+
+    try:
+        training_data = np.load("training_records.npy", allow_pickle=True)
+        for key in training_dict:
+            training_data.item()[key] = np.vstack(
+                (training_data.item()[key], training_dict[key])
+            )
+
+    except FileNotFoundError:
+        training_data = training_dict
+
+    np.save(
+        "training_records.npy",
+        training_data,
         allow_pickle=True,
     )

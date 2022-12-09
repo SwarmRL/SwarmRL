@@ -1,17 +1,10 @@
-"""
-Test the Gumbel distribution.
-"""
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 
-from swarmrl.tasks.searching.gradient_sensing import GradientSensing
+from swarmrl.tasks.searching import GradientSensingVisionCone
 
 
-class TestGradientSensing:
-    """
-    Test suite for the run and tumble task.
-    """
-
+class TestGSVC:
     def scale_function(distance: float):
         """
         Scaling function for the task
@@ -23,11 +16,14 @@ class TestGradientSensing:
         """
         Set some initial attributes.
         """
-        cls.task = GradientSensing(
+        cls.task = GradientSensingVisionCone(
             source=np.array([500.0, 500.0, 0.0]),
             decay_function=cls.scale_function,
-            reward_scale_factor=10,
+            grad_reward_scale_factor=10,
             box_size=np.array([1000.0, 1000.0, 1000.0]),
+            cone_reward_scale_factor=0.01,
+            vision_angle=60,
+            vision_direction=complex(0, 1),
         )
 
     def test_change_source(self):
@@ -36,10 +32,3 @@ class TestGradientSensing:
         """
         _ = self.task.change_source(new_source=np.array([0.0, 0.0, 0.0]))
         assert_array_almost_equal(self.task.source, np.array([0.0, 0.0, 0.0]))
-
-    def test_init_linear_change(self):
-        """
-        Test how the reward scales with a linear change function and a particle moving
-        directly towards the source.
-        """
-        _ = self.task.init_task()

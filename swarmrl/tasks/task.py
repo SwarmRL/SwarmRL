@@ -18,7 +18,7 @@ class Task:
         """
         Constructor for the reward class.
         """
-        super(Task, self).__init__()
+        pass
 
     def __call__(self, observables: np.ndarray) -> float:
         """

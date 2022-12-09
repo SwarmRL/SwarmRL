@@ -45,7 +45,7 @@ class GradientSensing(Task, ABC):
 
         """
         super(GradientSensing, self).__init__()
-        self.source = source / box_size
+        self.source = source
         self.decay_fn = decay_function
         self.reward_scale_factor = reward_scale_factor
         self.box_size = box_size
@@ -59,6 +59,23 @@ class GradientSensing(Task, ABC):
         observable :
                 Returns the observable required for the task.
         """
+        return ConcentrationField(self.source, self.decay_fn, self.box_size)
+
+    def change_source(self, new_source: np.ndarray):
+        """
+        Changes the concentration field source.
+
+        Parameters
+        ----------
+        new_source : np.ndarray
+                Coordinates of the new source.
+
+        Returns
+        -------
+        observable :
+                Returns the observable required for the task.
+        """
+        self.source = new_source
         return ConcentrationField(self.source, self.decay_fn, self.box_size)
 
     def __call__(self, observable: np.ndarray):

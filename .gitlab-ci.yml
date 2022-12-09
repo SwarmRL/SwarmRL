@@ -43,7 +43,7 @@ black:
   tags:
     - swarm
   script:
-    - CI/ci_scripts/_swarm_rl_install.sh
+    - pip install --user black --constraint dev-requirements.txt --constraint requirements.txt
     - black --check --verbose .
 
 flake8:
@@ -51,7 +51,7 @@ flake8:
   tags:
     - swarm
   script:
-    - CI/ci_scripts/_swarm_rl_install.sh
+    - pip install --user flake8 --constraint dev-requirements.txt --constraint requirements.txt
     - flake8
 
 sphinx-docs:

@@ -15,7 +15,27 @@ class GumbelDistribution(SamplingStrategy, ABC):
     Class for the Gumbel distribution.
     """
 
-    def __call__(self, logits: np.ndarray, entropy: bool = False):
+    def compute_entropy(self, probabilities: np.ndarray):
+        """
+        Compute the entropy of the distribution.
+
+        Parameters
+        ----------
+        probabilities : np.ndarray
+                Array of probabilities on which to compute the entropy.
+
+        Returns
+        -------
+        entropy : float
+                Returns the shannon entropy of the distribution.
+
+        """
+        entropy_val = -1 * (probabilities * np.log(probabilities)).sum()
+        max_entropy = -1 * np.log(1 / probabilities.shape[-1])
+
+        return entropy_val / max_entropy
+
+    def __call__(self, logits: np.ndarray, **kwargs):
         """
         Sample from the distribution.
 
@@ -23,15 +43,11 @@ class GumbelDistribution(SamplingStrategy, ABC):
         ----------
         logits : np.ndarray
                 Logits from the model to use in the computation.
-        entropy : bool
-                If true, the Shannon entropy of the distribution is returned.
 
         Returns
         -------
         sample : int
                 Index of the selected option in the distribution.
-        entropy : float (optional)
-                Shannon entropy of the distribution.
 
         Notes
         -----
@@ -42,12 +58,4 @@ class GumbelDistribution(SamplingStrategy, ABC):
         noise = jax.random.uniform(rng, shape=(length,))
 
         index = np.argmax(logits - np.log(-np.log(noise)))
-
-        probabilities = np.exp(logits)
-        entropy_val = -1 * (probabilities * np.log(probabilities)).sum()
-        max_entropy = -1 * np.log(1 / len(logits))
-
-        if entropy:
-            return index, entropy_val / max_entropy
-        else:
-            return index
+        return index

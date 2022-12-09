@@ -65,8 +65,9 @@ class RodTest(ut.TestCase):
             self.assertGreater(np.linalg.norm(director_after - director_before), 1e-3)
             # check correct wca between differently sized particles
             wca_params = runner.system.non_bonded_inter[0, 2].wca.get_params()
+            cutoff = wca_params["sigma"] * 2 ** (1 / 6)
             np.testing.assert_allclose(
-                wca_params["cutoff"],
+                cutoff,
                 coll_rad.m_as("sim_length") + rod_thickness.m_as("sim_length"),
             )
 
