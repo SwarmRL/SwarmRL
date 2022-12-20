@@ -15,6 +15,9 @@ import numpy as onp
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.observable import Observable
 
+from scipy.special import kv  # modivied bessel function of second kind of real order v
+from scipy.special import kvp  # derivative of modified bessel Function of second kind of real order
+
 logger = logging.getLogger(__name__)
 
 
@@ -102,3 +105,60 @@ class ConcentrationField(Observable, ABC):
         return 10000 * np.array(
             [self.decay_fn(current_distance) - self.decay_fn(historic_distance)]
         )
+
+def calc_schmell(schmellpos, colpos, Dcoltrans=670):  # glucose in water in mum^2/s
+    # result of Diffusion differential equation in 2D yielding a concentration field
+    '''
+    #Test script
+    from scipy.special import kv  # modivied bessel function of second kind of real order v
+    from scipy.special import kvp  # derivative of modified bessel Function of second kind of real order
+    import numpy as np
+    import matplotlib.pyplot as plt
+    rodthickness = 5  # micrometer
+    B = np.linspace(0.1, 10, 100)
+    D = 0.0014  # translative Diffusion coefficient
+    const = -2 * np.pi * D * rodthickness / 2 * B * kvp(0, B * rodthickness / 2)
+    plt.plot(B, const)
+    plt.show()
+
+    # => the system is rather diffusion dominated if B is small and decay dominated if B is large B=np.sqrt(O/D)
+
+    rodthickness = 5  # micrometer
+    O=0.00000    01 #  in per second
+    J=0.002
+    Dcoltranss=0.0014 # micrometer ^2 / second
+    B = np.sqrt(O/Dcoltranss)
+
+    const = -2 * np.pi * Dcoltranss * rodthickness / 2 * B * kvp(0, B * rodthickness / 2)
+    print(const)
+    A= J/const
+    print(A)
+    r=np.linspace(2, 200, 100)
+    l = B * r
+    schmellmagnitude = A*kv(0,l)
+    plt.plot(r,schmellmagnitude)
+    plt.show()
+    '''
+
+    Deltadistance = np.linalg.norm(np.array(schmellpos) - np.array(colpos), axis=-1)
+    Deltadistance = np.where(Deltadistance == 0, 5, Deltadistance)
+    # prevent zero division
+    direction = (schmellpos - colpos) / np.stack([Deltadistance, Deltadistance], axis=-1)
+    '''
+    #uncomment this for gaus curves
+    schmellmagnitude += np.exp(-0.5 * Deltadistance ** 2 / rodthickness ** 2)
+    schmellgradient += Deltadistance * np.exp(-0.5 * Deltadistance ** 2 / rodthickness ** 2) * direction
+    '''
+    O = 0.4  # in per second
+    J = 1800  # in chemics per second whatever units the chemics are in. These values are chosen according to the Amplitude \approx 1
+    # const = -2 * np.pi * Dcoltrans * rodthickness / 2 * np.sqrt(O / Dcoltrans) * kvp(0, np.sqrt(
+    #   O / Dcoltrans) * rodthickness / 2) #reuse already calculated value
+    const = 4182.925639571625
+    # J=const*A the const sums over the chemics that flow throw an imaginary boundary at radius rodthickness/2
+    # A is the Amplitude of the potential i.e. the chemical density (google "first ficks law" for theoretical info)
+    A = J / const
+
+    l = np.sqrt(O / Dcoltrans) * Deltadistance
+    schmellmagnitude = A * kv(0, l)
+    schmellgradient = - np.stack([A * kvp(0, l), A * kvp(0, l)], axis=-1) * direction
+    return schmellmagnitude, schmellgradient
