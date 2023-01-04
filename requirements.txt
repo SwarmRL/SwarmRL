@@ -8,7 +8,7 @@ matplotlib~=3.4.3
 pytest~=6.2.5
 jax
 jaxlib
-flax
+flax>=0.6.1
 setuptools~=58.0.4
 optax~=0.1.2
 rich~=10.12.0
