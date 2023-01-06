@@ -9,7 +9,6 @@ compute the loss for the models to train on.
 import jax.numpy as np
 
 
-
 class Task:
     """
     Parent class for the reinforcement learning tasks.
@@ -21,11 +20,13 @@ class Task:
         """
         pass
 
-    def __call__(self,
-                 observables: np.ndarray,
-                 colloid: object,
-                 colloids: list,
-                 other_colloids: list) -> float:
+    def __call__(
+        self,
+        observables: np.ndarray,
+        colloid: object,
+        colloids: list,
+        other_colloids: list,
+    ) -> float:
         """
         Compute the reward on the whole group of particles.
 
