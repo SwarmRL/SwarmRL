@@ -131,7 +131,11 @@ class GradientSensingVisionCone(Task, ABC):
 
         return MultiSensing(observables=[concentration, vision_cone])
 
-    def __call__(self, observable: np.ndarray):
+    def __call__(self,
+                 observable: np.ndarray,
+                 colloid: object,
+                 colloids: list,
+                 other_colloids: list) -> float:
         """
         Compute the reward.
 
@@ -144,8 +148,14 @@ class GradientSensingVisionCone(Task, ABC):
 
         Parameters
         ----------
-        observable : np.ndarray (dim, )
-                Position of the colloid.
+        observable : np.ndarray (dimension, )
+                Observable of a single colloid.
+        colloid : object
+                The colloid, the reward should be computed for.
+        colloids : list
+                A list of all colloids in the system.
+        other_colloids : list
+                A list of all other colloids in the system.
 
         Returns
         -------

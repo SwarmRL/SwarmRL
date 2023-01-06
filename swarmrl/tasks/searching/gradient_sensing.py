@@ -78,7 +78,11 @@ class GradientSensing(Task, ABC):
         self.source = new_source
         return ConcentrationField(self.source, self.decay_fn, self.box_size)
 
-    def __call__(self, observable: np.ndarray):
+    def __call__(self,
+                 observable: np.ndarray,
+                 colloid: object,
+                 colloids: list,
+                 other_colloids: list) -> float:
         """
         Compute the reward.
 
@@ -88,11 +92,16 @@ class GradientSensing(Task, ABC):
 
         Parameters
         ----------
-        observable : np.ndarray (dim, )
-                Position of the colloid.
-
+        observable : np.ndarray (dimension, )
+                Observable of a single colloid.
+        colloid : object
+                The colloid, the reward should be computed for.
+        colloids : list
+                A list of all colloids in the system.
+        other_colloids : list
+                A list of all other colloids in the system.
         Returns
-        -------
+        ----------
         reward : float
                 Reward for the colloid at the current state.
         """

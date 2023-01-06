@@ -89,7 +89,10 @@ class MLModel(InteractionModel):
                 feature_vector = self.observables[str(colloid.type)].compute_observable(
                     colloid, other_colloids
                 )
-                reward = self.tasks[str(colloid.type)](feature_vector)
+                reward = self.tasks[str(colloid.type)](feature_vector,
+                                                       colloid,
+                                                       colloids,
+                                                       other_colloids)
                 action_index, logit = self.models[str(colloid.type)].compute_action(
                     feature_vector=feature_vector, explore_mode=explore_mode
                 )
