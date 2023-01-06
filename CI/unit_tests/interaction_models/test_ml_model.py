@@ -50,7 +50,11 @@ class DummyTask:
     Dummy task for the test
     """
 
-    def __call__(self, data):
+    def __call__(self,
+                 observable: np.ndarray,
+                 colloid: object,
+                 colloids: list,
+                 other_colloids: list):
         """
         Dummy call method.
         """
