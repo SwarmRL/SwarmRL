@@ -4,9 +4,9 @@ Uni test for the Flax network
 from pathlib import Path
 
 import flax.linen as nn
+import jax
 import numpy as np
 import optax
-import jax
 
 import swarmrl as srl
 from swarmrl.networks import FlaxModel
