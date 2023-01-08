@@ -2,8 +2,8 @@
 Jax model for reinforcement learning.
 """
 import logging
-import pickle
 import os
+import pickle
 from abc import ABC
 
 import jax
