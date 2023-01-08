@@ -1,25 +1,18 @@
 SwarmRL
 -------
-Python package to study particle motion with reinforcement learning.
+Python package to study colloid motion with reinforcement learning.
 
 Installation
 ============
 
+Currently SwamrRL is only available from source so it must be installed within the local
+directory.
+
 .. code-block:: bash
 
+   git clone https://github.com/christophlohrmann/SwarmRL.git
    cd SwarmRL
    pip install -e .
 
-This will add reference to the current directory. Therefore, when you change the
-package you need not reinstall.
-
-Getting started
-===============
-Go to examples and run it with espresso.
-
-TODO
-====
-We need to connect observables with models. If we have a gradient model that requires
-historical distances, this should be returned by the task as it is 100 % task
-dependent. It also reduces the amount of stuff the user has to instantiate which is a
-win-win.
+This will install the package with a reference to the current directory.
+This means that if you change the code, you will not need to re-install it.
