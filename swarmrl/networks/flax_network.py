@@ -2,13 +2,16 @@
 Jax model for reinforcement learning.
 """
 import logging
+import pickle
+import os
 from abc import ABC
 
 import jax
 import jax.numpy as np
 import numpy as onp
 from flax import linen as nn
-from flax.training import checkpoints
+
+# from flax.training import checkpoints
 from flax.training.train_state import TrainState
 from optax._src.base import GradientTransformation
 
@@ -136,40 +139,52 @@ class FlaxModel(Network, ABC):
 
         return index, model_output[index]
 
-    def export_model(self, directory: str = "Models"):
+    def export_model(self, filename: str = "model", directory: str = "Models"):
         """
         Export the model state to a directory.
 
         Parameters
         ----------
+        filename : str (default=models)
+                Name of the file the models are saved in.
         directory : str (default=Models)
                 Directory in which to save the models. If the directory is not
                 in the currently directory, it will be created.
 
         """
-        checkpoints.save_checkpoint(
-            ckpt_dir=directory,
-            target=self.model_state,
-            step=self.epoch_count,
-            overwrite=True,
-        )
+        model_params = self.model_state.params
+        opt_state = self.model_state.opt_state
+        opt_step = self.model_state.step
+        epoch = self.epoch_count
 
-    def restore_model_state(self, directory):
+        os.makedirs(directory, exist_ok=True)
+
+        with open(directory + "/" + filename + ".pkl", "wb") as f:
+            pickle.dump((model_params, opt_state, opt_step, epoch), f)
+
+    def restore_model_state(self, filename, directory):
         """
         Restore the model state from a file.
 
         Parameters
         ----------
+        filename : str
+                Name of the model state file
         directory : str
-                Path to the model state.
+                Path to the model state file.
 
         Returns
         -------
         Updates the model state.
         """
-        self.model_state = checkpoints.restore_checkpoint(
-            ckpt_dir=directory, target=self.model_state
+
+        with open(directory + "/" + filename + ".pkl", "rb") as f:
+            model_params, opt_state, opt_step, epoch = pickle.load(f)
+
+        self.model_state = self.model_state.replace(
+            params=model_params, opt_state=opt_state, step=opt_step
         )
+        self.epoch_count = epoch
 
     def __call__(self, feature_vector: np.ndarray):
         """

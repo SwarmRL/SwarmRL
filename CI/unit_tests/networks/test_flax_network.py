@@ -6,6 +6,7 @@ from pathlib import Path
 import flax.linen as nn
 import numpy as np
 import optax
+import jax
 
 import swarmrl as srl
 from swarmrl.networks import FlaxModel
@@ -55,10 +56,10 @@ class TestFlaxNetwork:
         )
         input_vector = np.array([1.0, 2.0])
         pre_save_output = pre_save_model(input_vector)
-        pre_save_model.export_model("Models/model/checkpoint_0")
+        pre_save_model.export_model(filename="model", directory="Models")
 
         # Check if the model exists
-        assert Path("Models/model").exists()
+        assert Path("Models/model.pkl").exists()
 
         # Create a new model
         post_save_model = FlaxModel(
@@ -79,7 +80,27 @@ class TestFlaxNetwork:
         )
 
         # Load the model state
-        post_save_model.restore_model_state("Models/model/checkpoint_0")
+        post_save_model.restore_model_state(directory="Models", filename="model")
         post_restore_output = post_save_model(input_vector)
-
         np.testing.assert_array_equal(pre_save_output, post_restore_output)
+
+        # Check that the epoch counts are equal
+        pre_count = pre_save_model.epoch_count
+        post_count = post_save_model.epoch_count
+        np.testing.assert_equal(pre_count, post_count)
+
+        # Check that the optimizer steps are equal
+        pre_save_opt_step = pre_save_model.model_state.step
+        post_restore_opt_step = post_save_model.model_state.step
+        np.testing.assert_equal(pre_save_opt_step, post_restore_opt_step)
+
+        # Check that the optimizer states are equal
+        pre_save_opt_state = pre_save_model.model_state.opt_state
+        post_restore_opt_state = post_save_model.model_state.opt_state
+
+        def compare_two_opt_states(state1, state2):
+            jax.tree_map(
+                lambda x, y: np.testing.assert_array_equal(x, y), state1, state2
+            )
+
+        compare_two_opt_states(pre_save_opt_state, post_restore_opt_state)
