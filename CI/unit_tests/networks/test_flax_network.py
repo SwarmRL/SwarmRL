@@ -2,15 +2,17 @@
 Uni test for the Flax network
 """
 from pathlib import Path
+import os
 
 import flax.linen as nn
 import jax
 import numpy as np
 import optax
 
+
 import swarmrl as srl
 from swarmrl.networks import FlaxModel
-
+from swarmrl.rl_protocols.actor_critic import ActorCritic
 
 class TestFlaxNetwork:
     """
@@ -40,7 +42,19 @@ class TestFlaxNetwork:
                 x = nn.Dense(features=4)(x)
                 return x
 
-        cls.network = ActorNet()
+        class CriticNet(nn.Module):
+            """A simple dense model."""
+
+            @nn.compact
+            def __call__(self, x):
+                x = nn.Dense(features=128)(x)
+                x = nn.relu(x)
+                x = nn.Dense(features=1)(x)
+                return x
+
+
+        cls.actor_network = ActorNet()
+        cls.critic_network = CriticNet()
 
     def test_saving_and_reloading(self):
         """
@@ -48,7 +62,7 @@ class TestFlaxNetwork:
         """
         # Create a model and export it.
         pre_save_model = FlaxModel(
-            flax_model=self.network,
+            flax_model=self.actor_network,
             optimizer=optax.adam(learning_rate=0.001),
             input_shape=(2,),
             sampling_strategy=self.sampling_strategy,
@@ -63,7 +77,7 @@ class TestFlaxNetwork:
 
         # Create a new model
         post_save_model = FlaxModel(
-            flax_model=self.network,
+            flax_model=self.actor_network,
             optimizer=optax.adam(learning_rate=0.001),
             input_shape=(2,),
             sampling_strategy=self.sampling_strategy,
@@ -104,3 +118,48 @@ class TestFlaxNetwork:
             )
 
         compare_two_opt_states(pre_save_opt_state, post_restore_opt_state)
+
+
+    def test_saving_multiple_models(self):
+
+        rl_protocols = {}
+
+        for i in range(4):
+            actor_model = FlaxModel(
+                flax_model=self.actor_network,
+                optimizer=optax.adam(learning_rate=0.001),
+                input_shape=(2,),
+                sampling_strategy=self.sampling_strategy,
+                exploration_policy=self.exploration_policy,
+            )
+            critic_model = FlaxModel(
+                flax_model=self.actor_network,
+                optimizer=optax.adam(learning_rate=0.001),
+                input_shape=(2,),
+                sampling_strategy=self.sampling_strategy,
+                exploration_policy=self.exploration_policy,
+            )
+
+            protocol = ActorCritic(particle_type=i,
+                                       actor=actor_model,
+                                       critic=critic_model,
+                                       task=None,
+                                       observable=None,
+                                       actions=None)
+
+            rl_protocols[f"{i}"] = protocol
+
+
+        for item, val in rl_protocols.items():
+            val.actor.export_model(filename=f"ActorModel_{item}",
+                                   directory="MultiModels")
+            val.critic.export_model(filename=f"CriticModel_{item}",
+                                    directory="MultiModels")
+
+        count = 0
+        # Iterate directory
+        for path in os.listdir("MultiModels"):
+            # check if current path is a file
+            if os.path.isfile(os.path.join("MultiModels", path)):
+                count += 1
+        np.testing.assert_equal(count, 8)
