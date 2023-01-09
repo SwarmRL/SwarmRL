@@ -1,18 +1,18 @@
 """
 Uni test for the Flax network
 """
-from pathlib import Path
 import os
+from pathlib import Path
 
 import flax.linen as nn
 import jax
 import numpy as np
 import optax
 
-
 import swarmrl as srl
 from swarmrl.networks import FlaxModel
 from swarmrl.rl_protocols.actor_critic import ActorCritic
+
 
 class TestFlaxNetwork:
     """
@@ -51,7 +51,6 @@ class TestFlaxNetwork:
                 x = nn.relu(x)
                 x = nn.Dense(features=1)(x)
                 return x
-
 
         cls.actor_network = ActorNet()
         cls.critic_network = CriticNet()
@@ -119,9 +118,7 @@ class TestFlaxNetwork:
 
         compare_two_opt_states(pre_save_opt_state, post_restore_opt_state)
 
-
     def test_saving_multiple_models(self):
-
         rl_protocols = {}
 
         for i in range(4):
@@ -140,21 +137,24 @@ class TestFlaxNetwork:
                 exploration_policy=self.exploration_policy,
             )
 
-            protocol = ActorCritic(particle_type=i,
-                                       actor=actor_model,
-                                       critic=critic_model,
-                                       task=None,
-                                       observable=None,
-                                       actions=None)
+            protocol = ActorCritic(
+                particle_type=i,
+                actor=actor_model,
+                critic=critic_model,
+                task=None,
+                observable=None,
+                actions=None,
+            )
 
             rl_protocols[f"{i}"] = protocol
 
-
         for item, val in rl_protocols.items():
-            val.actor.export_model(filename=f"ActorModel_{item}",
-                                   directory="MultiModels")
-            val.critic.export_model(filename=f"CriticModel_{item}",
-                                    directory="MultiModels")
+            val.actor.export_model(
+                filename=f"ActorModel_{item}", directory="MultiModels"
+            )
+            val.critic.export_model(
+                filename=f"CriticModel_{item}", directory="MultiModels"
+            )
 
         count = 0
         # Iterate directory

@@ -159,10 +159,12 @@ class Gym:
         Loads the actor and critic from the specific directory.
         """
         for item, val in self.rl_protocols.items():
-            val.actor.restore_model_state(filename=f"ActorModel_{item}",
-                                          directory=directory)
-            val.critic.restore_model_state(filename=f"CriticModel_{item}",
-                                           directory=directory)
+            val.actor.restore_model_state(
+                filename=f"ActorModel_{item}", directory=directory
+            )
+            val.critic.restore_model_state(
+                filename=f"CriticModel_{item}", directory=directory
+            )
 
     def perform_rl_training(
         self,
