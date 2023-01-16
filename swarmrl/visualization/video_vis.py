@@ -6,13 +6,35 @@ from matplotlib.widgets import Slider
 from matplotlib.collections import LineCollection
 import matplotlib.colors as colors
 
-from swarmrl.observables.concentration_field import calc_schmell
+from scipy.special import kv # modivied bessel function of second kind of real order v
+from scipy.special import kvp # derivative of modified bessel Function of second kind of real order
+
+
 
 import random
 import h5py
 import numpy as np
 import pint
 
+
+def calc_schmell(schmellpos,colpos,Dcoltrans = 670): #glucose in water in mum^2/s
+    Deltadistance = np.linalg.norm(np.array(schmellpos) - np.array(colpos),axis=-1)
+    Deltadistance = np.where(Deltadistance == 0, 5, Deltadistance)
+    # prevent zero division
+    direction = (schmellpos - colpos) / np.stack([Deltadistance, Deltadistance], axis=-1)
+    O=0.4 #  in per second
+    J=1800 # in chemics per second whatever units the chemics are in. These values are chosen acording to the Amplitude \approx 1
+    #const = -2 * np.pi * Dcoltrans * rodthickness / 2 * np.sqrt(O / Dcoltrans) * kvp(0, np.sqrt(
+    #   O / Dcoltrans) * rodthickness / 2) #reuse already calculated value
+    const=4182.925639571625
+    # J=const*A the const sums over the chemics that flow throw an imaginary boundary at radius rodthickness/2
+    # A is the Amplitude of the potential i.e. the chemical density (google "first ficks law" for theoretical info)
+    A = J / const
+
+    l=np.sqrt(O/Dcoltrans)*Deltadistance
+    schmellmagnitude = A*kv(0,l)
+    schmellgradient = - np.stack([A* np.sqrt(O/Dcoltrans)*kvp(0,l),A*np.sqrt(O/Dcoltrans)*kvp(0,l)],axis=-1)*direction
+    return schmellmagnitude, schmellgradient
 
 class Animations:
     def __init__(self, fig, ax, positions, directors, times, ids, types):
@@ -21,14 +43,17 @@ class Animations:
         self.x_0 = None
         self.fig = fig
         self.ax = ax
+        self.written_info_data = None
         self.positions = positions
         self.directors = directors
         self.times = times
         self.ids = ids
         self.types = types
+        self.vision_cone_data = None
 
         self.vision_cone_boolean = [False] * len(self.ids)
         self.cone_radius = [0] * len(self.ids)
+        self.nCones = 1
         self.cone_angle = [0] * len(self.ids)
         self.trace_boolean = [False] * len(self.ids)
         self.trace_fade_boolean = [False] * len(self.ids)
@@ -37,12 +62,13 @@ class Animations:
         self.schmell_boolean = [False] * len(self.ids)
 
         self.trace = [0] * len(self.ids)
-        self.cone = [0] * len(self.ids)
+
         self.part_body = [0] * len(self.ids)
         self.part_lefteye = [0] * len(self.ids)
         self.part_righteye = [0] * len(self.ids)
         self.time_annotate = [0]
         self.schmell = [0]
+        self.written_info= [0]
 
     def animation_plt_init(self):
 
@@ -63,6 +89,11 @@ class Animations:
         self.ax.set_ylabel(f'y-position in ${l:~L}$')
         self.ax.grid(True)
 
+        if self.written_info_data != None:
+            if len(self.written_info_data) != len(self.times):
+                raise Exception("In Visualization written_info_data is " + str(len(self.written_info_data)) + " long and self.times is " + str(
+                        len(self.times)))
+
         # prepare colors for trace fade and schmell
         self.color_names = []
         for color_name, color in colors.TABLEAU_COLORS.items():
@@ -80,6 +111,23 @@ class Animations:
         cfade = colors.to_rgb(self.color_names[4]) + (0.0,)
         self.schmellcolor = colors.LinearSegmentedColormap.from_list('my', [cfade, self.color_names[4]])
 
+        #prepare vision cones
+        if self.nCones < 1: #default =1
+            print(
+                "You have choosen zero vision cones (self.nCones<1), I made self.vision_cone_boolean[i]=False because no vision is what you want.  ")
+            self.vision_cone_boolean = [False] * len(self.ids)
+            self.nCones = 1
+        self.cone = [0] * (self.nCones * len(self.ids))
+
+        if self.vision_cone_boolean!=[False] * len(self.ids) and self.vision_cone_data == None:
+            print("You set haven't self.vision_cone_boolean[i] !=0 for some i, i.e. you want vision cones but no self.vision_cone_data in the options are provided. Then default is created")
+            self.vision_cone_data = [[[ 0.2  for _ in range(self.nCones)] for _ in range(len(self.ids))] for _ in range(len(self.times)) ]
+
+        if self.vision_cone_boolean!=[False] * len(self.ids) and self.vision_cone_data != None :
+            if len(self.vision_cone_data) != len(self.times):
+                raise Exception("vision_cone_data is " + str(len(self.vision_cone_data)) + " long and self.times is " + str(
+                    len(self.times)))
+
         partN = len(self.ids)
         for i in range(partN):
             self.part_body[i] = self.ax.add_patch(
@@ -87,7 +135,7 @@ class Animations:
                                radius=self.radius_col[i],
                                alpha=0.7,
                                color='g',
-                               zorder=partN * 2 + i))
+                               zorder=partN + partN * self.nCones + i))
             if self.trace_boolean[i] and not self.trace_fade_boolean[i]:
                 self.trace[i], = self.ax.plot([], [], zorder=i + 1)
             elif self.trace_boolean[i] and self.trace_fade_boolean[i]:
@@ -96,26 +144,29 @@ class Animations:
             elif not self.trace_boolean[i]:
                 self.trace[i], = self.ax.plot([], [], zorder=i + 1, alpha=0)
             else:
-                raise Exception("self.trace_boolean is neither Tru nor False")
+                raise Exception("self.trace_boolean is neither True nor False")
+
             if self.vision_cone_boolean[i]:
-                self.cone[i] = self.ax.add_patch(patches.Wedge(center=(0, 0),
-                                                               r=self.cone_radius[i],
-                                                               theta1=0,
-                                                               theta2=0,
-                                                               alpha=0.2,
-                                                               color='r',
-                                                               zorder=partN + i))
+                for j in range(self.nCones):
+                    self.cone[i*self.nCones+j] = self.ax.add_patch(patches.Wedge(center=(0, 0),
+                                                                r=self.cone_radius[i],
+                                                                theta1=0,
+                                                                theta2=0,
+                                                                alpha=0.2,
+                                                                color='r',
+                                                                zorder=partN + i*self.nCones+j))
             else:
-                self.cone[i] = self.ax.add_patch(patches.Wedge(center=(0, 0), r=42, theta1=0, theta2=0, alpha=0))
+                for j in range(self.nCones):
+                    self.cone[i*self.nCones+j] = self.ax.add_patch(patches.Wedge(center=(0, 0), r=42, theta1=0, theta2=0, alpha=0))
             if self.eyes_boolean[i]:
                 self.part_lefteye[i] = self.ax.add_patch(patches.Circle(xy=(0, 0),
                                                                         radius=self.radius_col[i] / 5,
                                                                         alpha=0.7,
-                                                                        color='k', zorder=partN * 3 + 2 * i))
+                                                                        color='k', zorder=partN*2 + partN * self.nCones + 2 * i))
                 self.part_righteye[i] = self.ax.add_patch(patches.Circle(xy=(0, 0),
                                                                          radius=self.radius_col[i] / 5,
                                                                          alpha=0.7,
-                                                                         color='k', zorder=partN * 3 + 1 + 2 * i))
+                                                                         color='k', zorder=partN*2 + partN * self.nCones + 1 + 2 * i))
             else:
                 self.part_lefteye[i] = self.ax.add_patch(patches.Circle(xy=(0, 0), radius=42, alpha=0))
                 self.part_righteye[i] = self.ax.add_patch(patches.Circle(xy=(0, 0), radius=42, alpha=0))
@@ -143,9 +194,16 @@ class Animations:
         self.time_annotate[0] = self.ax.annotate(f"time in ${t:g~L}$",
                                                  xy=(.02, .95),
                                                  xycoords='axes fraction',
-                                                 zorder=partN * 4)
+                                                 zorder=partN * 3 + partN * self.nCones)
+        self.written_info[0] = self.ax.annotate(f"",xy=(.70, .60),xycoords='axes fraction')
 
     def animation_plt_update(self, frame):
+        t = round(self.times[frame], 0)
+        self.time_annotate[0].set(text=f"time in ${t:g~L}$")
+
+        if self.written_info_data != None:
+            self.written_info[0].set(text=self.written_info_data[frame])
+
         if self.schmell_boolean != [False] * len(self.ids):
             self.schmellmagnitude_shape = np.zeros((self.schmell_N, self.schmell_N))
 
@@ -166,9 +224,15 @@ class Animations:
             else:
                 pass
             if self.vision_cone_boolean[i]:
-                self.cone[i].set(center=(xdata[frame], ydata[frame]))
-                self.cone[i].set(theta1=(directors_angle - self.cone_angle[i]) * 180 / np.pi,
-                                 theta2=(directors_angle + self.cone_angle[i]) * 180 / np.pi)
+                for j in range(self.nCones):
+                    self.cone[i*self.nCones+j].set(center=(xdata[frame], ydata[frame]))
+                    anglerange = 2*self.cone_angle[i]
+                    theta1 = - self.cone_angle[i]+anglerange/self.nCones*j
+                    theta2 = - self.cone_angle[i]+anglerange/self.nCones*(j+1)
+                    self.cone[i*self.nCones+j].set(theta1=(directors_angle + theta1) * 180 / np.pi,
+                                                    theta2=(directors_angle + theta2) * 180 / np.pi)
+                    if self.vision_cone_data != None:
+                        self.cone[i*self.nCones+j].set(alpha=self.vision_cone_data[frame][i][j])
             if self.eyes_boolean[i]:
                 lefteye_x = self.radius_col[i] * 0.9 * np.cos(directors_angle + np.pi / 4)
                 lefteye_y = self.radius_col[i] * 0.9 * np.sin(directors_angle + np.pi / 4)
@@ -183,27 +247,18 @@ class Animations:
         if self.schmell_boolean != [False] * len(self.ids):
             self.schmell[0].set_array(self.schmellmagnitude_shape)
 
-        t = round(self.times[frame], 0)
-        self.time_annotate[0].set(text=f"time in ${t:g~L}$")
         return tuple(
-            self.trace + self.cone + self.part_body + self.part_lefteye + self.part_righteye + self.time_annotate + self.schmell)
+            self.trace + self.cone + self.part_body + self.part_lefteye + self.part_righteye + self.time_annotate + self.schmell + self.written_info )
 
-
-def gifvisualization(positions, directors, times, ids, types, parameters, gif_file_names):
-    fig, ax = plt.subplots(figsize=(7, 7))
-    # setup the units for automatic ax_labeling
-    ureg = parameters['ureg']
-    positions.ito(ureg.micrometer)
-    times.ito(ureg.second)
-    ani_instance = Animations(fig, ax, positions, directors, times, ids, types)
-
+def set_gif_options(ani_instance, parameters, ureg):
     # Adjust in for loop what you want (default is False) and place parameters that you have
     possible_types = list(dict.fromkeys(ani_instance.types))
     for i in range(len(ani_instance.ids)):
         if ani_instance.types[i] == possible_types[0]:  # type=0 correspond to normal colloids
             # print(possible_types[0])
-            ani_instance.vision_cone_boolean[i] = False
+            ani_instance.vision_cone_boolean[i] = True
             ani_instance.cone_radius[i] = parameters['detectionRadiusPosition'].to(ureg.micrometer).magnitude
+            ani_instance.nCones = parameters['nCones'] #  different Cone numbers for different particles is not yet supported
             ani_instance.cone_angle[i] = parameters['visionHalfAngle'].magnitude
             ani_instance.trace_boolean[i] = True
             ani_instance.trace_fade_boolean[i] = True
@@ -229,6 +284,27 @@ def gifvisualization(positions, directors, times, ids, types, parameters, gif_fi
         else:
             raise Exception("unknown colloid type in visualisation")
 
+def load_extra_data_to_gif(ani_instance, parameters):
+    if "title_data" in parameters.keys() and parameters["title_data"]!= None :
+        ani_instance.written_info_data=parameters["title_data"]
+    else:
+        ani_instance.written_info_data=None
+    if "vision_cone_data" in parameters.keys() and parameters["vision_cone_data"]!= None:
+        ani_instance.vision_cone_data=parameters["vision_cone_data"]
+    else:
+        ani_instance.vision_cone_data=None
+def gifvisualization(positions, directors, times, ids, types, parameters, gif_file_names):
+    fig, ax = plt.subplots(figsize=(7, 7))
+    # setup the units for automatic ax_labeling
+    ureg = parameters['ureg']
+    positions.ito(ureg.micrometer)
+    times.ito(ureg.second)
+    ani_instance = Animations(fig, ax, positions, directors, times, ids, types)
+
+    load_extra_data_to_gif(ani_instance, parameters)
+
+    set_gif_options(ani_instance, parameters, ureg)
+
     ani_instance.animation_plt_init()
     # set start and end of visualization
     ani = FuncAnimation(fig, ani_instance.animation_plt_update, frames=len(times[:]), blit=True, interval=1)
@@ -236,6 +312,7 @@ def gifvisualization(positions, directors, times, ids, types, parameters, gif_fi
     plt.show()
     # outcomment this to build a gif file (might take a while )
     # ani.save(f'{fold_struct_names["analysis_outfolder"]}/animation.gif', fps=60)
+
 
 
 def slidervisualization(positions, directors, times, ids, types, parameters):
@@ -249,46 +326,19 @@ def slidervisualization(positions, directors, times, ids, types, parameters):
 
     ani_instance = Animations(fig, ax, positions, directors, times, ids, types)
 
-    # Adjust in for loop what you want und place parameters that you have
-    possible_types = list(dict.fromkeys(ani_instance.types))
-    for i in range(len(ani_instance.ids)):
-        if ani_instance.types[i] == possible_types[0]:  # type=0 correspond to normal colloids
-            # print(possible_types[0])
-            ani_instance.vision_cone_boolean[i] = False
-            ani_instance.cone_radius[i] = parameters['detectionRadiusPosition'].to(ureg.micrometer).magnitude
-            ani_instance.cone_angle[i] = parameters['visionHalfAngle'].magnitude
-            ani_instance.trace_boolean[i] = True
-            ani_instance.trace_fade_boolean[i] = True
-            ani_instance.eyes_boolean[i] = True
-            ani_instance.radius_col[i] = parameters["radiusColloid"].to(ureg.micrometer).magnitude
-        elif ani_instance.types[i] == possible_types[1]:  # type=1 correspond to rod colloids
-            # print(possible_types[1])
-            ani_instance.vision_cone_boolean[i] = False
-            ani_instance.trace_boolean[i] = False
-            ani_instance.trace_fade_boolean[i] = False
-            ani_instance.eyes_boolean[i] = False
-            ani_instance.radius_col[i] = parameters["rodThickness"].to(ureg.micrometer).magnitude
-            if int(ani_instance.ids[i]) in parameters[
-                'rodBorderpartsId']:  # those ids correspond to chemical emitting colloids
-                ani_instance.schmell_boolean[i] = False
-        elif ani_instance.types[i] == possible_types[2]:  # type=2 correspond to ??? colloids
-            # print(possible_types[2])
-            ani_instance.vision_cone_boolean[i] = False
-            ani_instance.trace_boolean[i] = False
-            ani_instance.trace_fade_boolean[i] = False
-            ani_instance.eyes_boolean[i] = False
-            ani_instance.radius_col[i] = 0
-        else:
-            raise Exception("unknown colloid type in visualisation")
+    load_extra_data_to_gif(ani_instance, parameters)
+
+    set_gif_options(ani_instance, parameters, ureg)
 
     ani_instance.animation_plt_init()
     ax_slider = plt.axes([0.25, 0.1, 0.65, 0.03], facecolor='gray')
-    time_interval = int(parameters['writeInterval'].to(ureg.second).magnitude)
+    time_interval = parameters['writeInterval'].to(ureg.second).magnitude
+
     t = times.units
     slider_frame = Slider(ax_slider,
                           f'time in ${t:~L}$',
                           0,
-                          (len(positions[:, 0, 0]) - 1) * time_interval,
+                          (len(times[:]) - 1) * time_interval,
                           valinit=time_interval,
                           valstep=time_interval
                           )
