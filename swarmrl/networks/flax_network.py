@@ -133,8 +133,7 @@ class FlaxModel(Network, ABC):
 
         if explore_mode:
             index = self.exploration_policy(index, len(model_output))
-
-        return index, model_output[index]
+        return index, jax.nn.softmax(model_output)[index]
 
     def export_model(self, directory: str = "Models"):
         """
