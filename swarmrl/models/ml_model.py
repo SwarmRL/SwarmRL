@@ -11,7 +11,8 @@ from swarmrl.models.interaction_model import Action, Colloid, InteractionModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-from swarmrl.utils.utils import record_trajectory
+from swarmrl.utils.utils import record_trajectory, record_rewards
+
 
 
 class MLModel(InteractionModel):
@@ -48,6 +49,7 @@ class MLModel(InteractionModel):
         self.observables = observables
         self.tasks = tasks
         self.record_traj = record_traj
+        self.eps = np.finfo(np.float32).eps.item()
 
         self.actions = actions
         # Used in the data saving.
@@ -118,5 +120,7 @@ class MLModel(InteractionModel):
                     logits=np.array(logits[item]),
                     rewards=np.array(rewards[item]),
                 )
+        for item in self.particle_types:
+            record_rewards(particle_type=item, new_rewards=np.array(rewards[item]))
 
         return actions

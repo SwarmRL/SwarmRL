@@ -271,3 +271,34 @@ def record_training(training_dict: dict):
         training_data,
         allow_pickle=True,
     )
+
+
+def record_rewards(particle_type, new_rewards):
+    rewards = []
+    try:
+        reward_data = np.load(f"reward_records_{particle_type}.npy", allow_pickle=True)
+        num_partial_rewards = len(reward_data.item())
+        for i, key in enumerate(reward_data.item()):
+            reward = reward_data.item().get(key)
+            if num_partial_rewards > 1:
+                rewards.append(np.append(reward, np.array(new_rewards[:, i])))
+            else:
+                rewards.append(np.append(reward, np.array(new_rewards)))
+
+    except FileNotFoundError:
+        num_partial_rewards = np.shape(new_rewards)[1]
+        if num_partial_rewards > 1:
+            for i in range(num_partial_rewards):
+                rewards.append(new_rewards[:, i])
+        else:
+            rewards.append(new_rewards)
+
+    reward_data = {}
+
+    for i in range(num_partial_rewards):
+        reward_data[f"reward{i + 1}"] = rewards[i]
+    np.save(
+        f"reward_records_{particle_type}.npy",
+        reward_data,
+        allow_pickle=True,
+    )

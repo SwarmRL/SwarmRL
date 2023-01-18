@@ -51,9 +51,6 @@ class GAE:
                 Expected returns for the rewards.
         """
         gae = 0
-        print(np.shape(rewards))
-        print(np.shape(values))
-        print(len(rewards))
         advantages = onp.zeros_like(rewards)
         for t in reversed(range(len(rewards))):
             delta = rewards[t] + self.gamma * values[t + 1] - values[t]
