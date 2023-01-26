@@ -46,12 +46,14 @@ class Network:
         """
         raise NotImplementedError("Implemented in child class.")
 
-    def export_model(self, directory: str = "Models"):
+    def export_model(self, filename: str = "models", directory: str = "Models"):
         """
         Export the model state to a directory.
 
         Parameters
         ----------
+        filename : str (default=models)
+                Name of the file the models are saved in.
         directory : str (default=Models)
                 Directory in which to save the models. If the directory is not
                 in the currently directory, it will be created.
@@ -59,14 +61,16 @@ class Network:
         """
         raise NotImplementedError("Implemented in child class")
 
-    def restore_model_state(self, directory):
+    def restore_model_state(self, filename, directory):
         """
         Restore the model state from a file.
 
         Parameters
         ----------
+        filename : str
+                Name of the model state file.
         directory : str
-                Path to the model state.
+                Path to the model state file.
 
         Returns
         -------
