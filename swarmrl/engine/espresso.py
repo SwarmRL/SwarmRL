@@ -429,6 +429,34 @@ class EspressoMD(Engine):
         # the wall itself has no radius, only the particle radius counts
         self.colloid_radius_register.update({wall_type: 0.0})
 
+    def add_maze(self, maze_walls: list, maze_type: int):
+        z_offset=-100
+        wallthickness=10
+        maze_shapes = []
+
+        for wall in maze_walls:
+            a=[wall[2]-wall[0],wall[3]-wall[1],0] # direction along lengthy wall
+            norm = np.linalg.norm(a) # is also the norm of b
+            b=[a[1]*wallthickness/(2*norm),-a[0]*wallthickness/(2*norm),0] #wall thickness of lengthy wall
+            corner = [wall[0]-b[0]/2, wall[1]-b[1]/2, z_offset] #anchor point of wall shifted by wallthickness*1/2
+            c= [0,0,-z_offset*2]
+            maze_shapes.append(espressomd.shapes.Rhomboid(corner=corner,a=a,b=b,c=c,direction=1))
+            #print("corner",corner)
+            #print("a",a)
+            #print("b",b)
+            #print("c",c)
+            #maze_shapes.append(espressomd.shapes.Rhomboid(corner=[0,0,0],a=[1,0,0],b=[0,1,0],c=[0,0,1],direction=1))
+
+        for maze_shape in maze_shapes:
+            constr = espressomd.constraints.ShapeBasedConstraint(
+                shape=maze_shape, particle_type=maze_type, penetrable=False
+            )
+            self.system.constraints.add(constr)
+
+        # the maze wall itself has no radius, only the particle radius counts
+        self.colloid_radius_register.update({maze_type: 0.0})
+
+
     def _setup_interactions(self):
         for type_0, rad_0 in self.colloid_radius_register.items():
             for type_1, rad_1 in self.colloid_radius_register.items():

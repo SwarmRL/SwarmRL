@@ -5,6 +5,7 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.widgets import Slider
 from matplotlib.collections import LineCollection
 import matplotlib.colors as colors
+import pickle
 
 from scipy.special import kv # modivied bessel function of second kind of real order v
 from scipy.special import kvp # derivative of modified bessel Function of second kind of real order
@@ -15,6 +16,9 @@ import random
 import h5py
 import numpy as np
 import pint
+
+def angle_from_vector(vec) -> float:
+    return np.arctan2(vec[1], vec[0])
 
 
 def calc_schmell(schmellpos,colpos,Dcoltrans = 670): #glucose in water in mum^2/s
@@ -41,6 +45,8 @@ class Animations:
         self.color_index = None
         self.x_1 = None
         self.x_0 = None
+        self.y_1 = None
+        self.y_0 = None
         self.fig = fig
         self.ax = ax
         self.written_info_data = None
@@ -50,6 +56,7 @@ class Animations:
         self.ids = ids
         self.types = types
         self.vision_cone_data = None
+        self.vision_cone_data_frame = None
 
         self.vision_cone_boolean = [False] * len(self.ids)
         self.cone_radius = [0] * len(self.ids)
@@ -60,6 +67,10 @@ class Animations:
         self.eyes_boolean = [False] * len(self.ids)
         self.radius_col = [0] * len(self.ids)
         self.schmell_boolean = [False] * len(self.ids)
+        self.maze_boolean = False
+        self.maze_points = {}
+        self.wall_thickness = 42
+        self.maze_walls = []
 
         self.trace = [0] * len(self.ids)
 
@@ -69,19 +80,19 @@ class Animations:
         self.time_annotate = [0]
         self.schmell = [0]
         self.written_info= [0]
+        self.maze = []
 
     def animation_plt_init(self):
-
         # calc figure limits
-        Delta_max_x = np.max(self.positions[:, :, 0]) - np.min(self.positions[:, :, 0])
-        mean_x = (np.min(self.positions[:, :, 0] + np.max(self.positions[:, :, 0]))) / 2
-        delta_max_y = np.max(self.positions[:, :, 1]) - np.min(self.positions[:, :, 1])
-        mean_y = (np.min(self.positions[:, :, 1] + np.max(self.positions[:, :, 1]))) / 2
+        Delta_max_x = np.max(self.positions[:, :, 0].magnitude) - np.min(self.positions[:, :, 0].magnitude)
+        mean_x = (np.min(self.positions[:, :, 0].magnitude) + np.max(self.positions[:, :, 0].magnitude)) / 2
+        delta_max_y = np.max(self.positions[:, :, 1].magnitude) - np.min(self.positions[:, :, 1].magnitude)
+        mean_y = (np.min(self.positions[:, :, 1].magnitude) + np.max(self.positions[:, :, 1].magnitude)) / 2
         max_region = max(Delta_max_x, delta_max_y) * 1.2
-        self.x_0 = mean_x.magnitude - max_region.magnitude / 2
-        self.x_1 = mean_x.magnitude + max_region.magnitude / 2
-        self.y_0 = mean_y.magnitude - max_region.magnitude / 2
-        self.y_1 = mean_y.magnitude + max_region.magnitude / 2
+        self.x_0 = mean_x - max_region / 2
+        self.x_1 = mean_x + max_region / 2
+        self.y_0 = mean_y - max_region / 2
+        self.y_1 = mean_y + max_region / 2
         self.ax.set_xlim(self.x_0, self.x_1)
         self.ax.set_ylim(self.y_0, self.y_1)
         l = self.positions.units
@@ -111,6 +122,7 @@ class Animations:
         cfade = colors.to_rgb(self.color_names[4]) + (0.0,)
         self.schmellcolor = colors.LinearSegmentedColormap.from_list('my', [cfade, self.color_names[4]])
 
+
         #prepare vision cones
         if self.nCones < 1: #default =1
             print(
@@ -119,14 +131,49 @@ class Animations:
             self.nCones = 1
         self.cone = [0] * (self.nCones * len(self.ids))
 
-        if self.vision_cone_boolean!=[False] * len(self.ids) and self.vision_cone_data == None:
-            print("You set haven't self.vision_cone_boolean[i] !=0 for some i, i.e. you want vision cones but no self.vision_cone_data in the options are provided. Then default is created")
-            self.vision_cone_data = [[[ 0.2  for _ in range(self.nCones)] for _ in range(len(self.ids))] for _ in range(len(self.times)) ]
 
-        if self.vision_cone_boolean!=[False] * len(self.ids) and self.vision_cone_data != None :
+
+
+
+        if self.vision_cone_boolean != [False] * len(self.ids) and self.vision_cone_data == None:
+            print("You haven't set self.vision_cone_boolean[i] !=0 for some i, i.e. you want vision cones but no self.vision_cone_data in the options are provided. Then default is created")
+            self.vision_cone_data = [[ [id] + [ 0.2  for _ in range(self.nCones)] for id in range(len(self.ids))] for _ in range(len(self.times)) ]
+
+        if self.vision_cone_boolean != [False] * len(self.ids) and self.vision_cone_data != None:
             if len(self.vision_cone_data) != len(self.times):
                 raise Exception("vision_cone_data is " + str(len(self.vision_cone_data)) + " long and self.times is " + str(
                     len(self.times)))
+            if len(self.vision_cone_data[0]) >= len(self.ids):
+                raise Exception(
+                    "vision_cone_data[0] is " + str(len(self.vision_cone_data[0])) + " long and the number of colloids is " + str(
+                        len(self.ids)))
+            if len(self.vision_cone_data[0][0]) != 2:
+                raise Exception(
+                    "vision_cone_data[0][0] is " + str(
+                        len(self.vision_cone_data[0][0])) + " long and  it should be 2 containing the colloid.id and the vision data per frame, per colloid in a np.array of all types visible." )
+            if len(self.vision_cone_data[0][0][1]) != self.nCones:
+                raise Exception(
+                    "vision_cone_data[0][0][1] is " + str(
+                        len(self.vision_cone_data[0][0][1])) + " long and the number of colloids is " + str(self.nCones))
+
+        # expand vision cone data
+        if self.vision_cone_boolean != [False] * len(self.ids):
+            self.vision_cone_data_frame = [[[0 for _ in range(self.nCones)] for _ in range(len(self.ids))] for _ in
+                          range(len(self.times))]
+            maximum=0
+            for frame in range(len(self.times)):  # not correct for self.ids with holes,...
+                for c_id in range(len(self.ids)):
+                    for given_c_id in range(len(self.vision_cone_data[frame])):
+                        if c_id == self.vision_cone_data[frame][given_c_id][0]:
+                            if maximum< max(self.vision_cone_data[frame][given_c_id][1][:,1]):
+                                maximum
+                            self.vision_cone_data_frame[frame][c_id] = self.vision_cone_data[frame][given_c_id][1][:,1] # change the alst 1 to 0 will select the vision of particles of type 0
+            if np.max(self.vision_cone_data_frame) !=0:
+                self.vision_cone_data_frame /= 2*np.max(self.vision_cone_data_frame) #color adjustment
+                self.vision_cone_data_frame += 0.1
+
+
+
 
         partN = len(self.ids)
         for i in range(partN):
@@ -197,6 +244,58 @@ class Animations:
                                                  zorder=partN * 3 + partN * self.nCones)
         self.written_info[0] = self.ax.annotate(f"",xy=(.70, .60),xycoords='axes fraction')
 
+    def animation_maze_setup(self, folder, filename):
+        maze_file = open(folder + filename, 'rb')
+        self.maze_points = pickle.load(maze_file)
+        self.wall_thickness = pickle.load(maze_file)
+        self.maze_walls = pickle.load(maze_file)
+        self.maze=[0] * len(self.maze_walls)
+
+        # update the limits of the plot
+
+        xmin = 1000
+        xmax = 0
+        ymin = 1000
+        ymax = 0
+        for wall in self.maze_walls:
+            if wall[0] < xmin:
+                xmin = wall[0]
+            if wall[0] > xmax:
+                xmax = wall[0]
+            if wall[1] < ymin:
+                ymin = wall[1]
+            if wall[1] > ymax:
+                ymax = wall[1]
+            if wall[2] < xmin:
+                xmin = wall[2]
+            if wall[2] > xmax:
+                xmax = wall[2]
+            if wall[3] < ymin:
+                ymin = wall[3]
+            if wall[3] > ymax:
+                ymax = wall[3]
+        Delta_max_x = max(np.max(self.positions[:, :, 0].magnitude),xmax)- min(np.min(self.positions[:, :, 0].magnitude),xmin)
+        mean_x = (min(np.min(self.positions[:, :, 0].magnitude),xmin) + max(np.max(self.positions[:, :, 0].magnitude),xmax)) / 2
+        Delta_max_y = max(np.max(self.positions[:, :, 1].magnitude),ymax) - min(np.min(self.positions[:, :, 1].magnitude),ymin)
+        mean_y = (min(np.min(self.positions[:, :, 1].magnitude),ymin) + max(np.max(self.positions[:, :, 1].magnitude),ymax)) / 2
+        max_region = max(Delta_max_x, Delta_max_y) * 1.2
+        self.x_0 = mean_x - max_region / 2
+        self.x_1 = mean_x + max_region / 2
+        self.y_0 = mean_y - max_region/ 2
+        self.y_1 = mean_y + max_region / 2
+        #self.ax.set_xlim(self.x_0, self.x_1)
+        #self.ax.set_ylim(self.y_0, self.y_1)
+        self.ax.set_xlim(495,515)
+        self.ax.set_ylim(570,595)
+
+        for i, wall in enumerate(self.maze_walls):
+            vec_along_wall = [wall[2] - wall[0], wall[3] - wall[1]]
+            wall_length = np.linalg.norm(vec_along_wall)
+            shift = [vec_along_wall[1] * self.wall_thickness / (2 * wall_length), -vec_along_wall[0] * self.wall_thickness / (
+                        2 * wall_length)]  # turning around corner yields misplaced walls, ->small cosmetic shift for thin walls,
+            self.maze[i]=self.ax.add_patch(patches.Rectangle((wall[0] + shift[0], wall[1] + shift[1]), wall_length, self.wall_thickness,
+                                     angle=180 / np.pi * angle_from_vector(vec_along_wall),color="black",alpha=0.5))
+
     def animation_plt_update(self, frame):
         t = round(self.times[frame], 0)
         self.time_annotate[0].set(text=f"time in ${t:g~L}$")
@@ -232,7 +331,7 @@ class Animations:
                     self.cone[i*self.nCones+j].set(theta1=(directors_angle + theta1) * 180 / np.pi,
                                                     theta2=(directors_angle + theta2) * 180 / np.pi)
                     if self.vision_cone_data != None:
-                        self.cone[i*self.nCones+j].set(alpha=self.vision_cone_data[frame][i][j])
+                        self.cone[i*self.nCones+j].set(alpha=self.vision_cone_data_frame[frame][i][j])
             if self.eyes_boolean[i]:
                 lefteye_x = self.radius_col[i] * 0.9 * np.cos(directors_angle + np.pi / 4)
                 lefteye_y = self.radius_col[i] * 0.9 * np.sin(directors_angle + np.pi / 4)
@@ -246,9 +345,13 @@ class Animations:
                 self.schmellmagnitude_shape += self.schmell_magnitude.reshape((self.schmell_N, self.schmell_N))
         if self.schmell_boolean != [False] * len(self.ids):
             self.schmell[0].set_array(self.schmellmagnitude_shape)
+        if self.maze_boolean:
+            return tuple(
+                self.trace + self.cone + self.part_body + self.part_lefteye + self.part_righteye + self.time_annotate + self.schmell + self.written_info + self.maze)
+        else:
+            return tuple(
+                self.trace + self.cone + self.part_body + self.part_lefteye + self.part_righteye + self.time_annotate + self.schmell + self.written_info)
 
-        return tuple(
-            self.trace + self.cone + self.part_body + self.part_lefteye + self.part_righteye + self.time_annotate + self.schmell + self.written_info )
 
 def set_gif_options(ani_instance, parameters, ureg):
     # Adjust in for loop what you want (default is False) and place parameters that you have
@@ -256,7 +359,7 @@ def set_gif_options(ani_instance, parameters, ureg):
     for i in range(len(ani_instance.ids)):
         if ani_instance.types[i] == possible_types[0]:  # type=0 correspond to normal colloids
             # print(possible_types[0])
-            ani_instance.vision_cone_boolean[i] = True
+            ani_instance.vision_cone_boolean[i] = False
             ani_instance.cone_radius[i] = parameters['detectionRadiusPosition'].to(ureg.micrometer).magnitude
             ani_instance.nCones = parameters['nCones'] #  different Cone numbers for different particles is not yet supported
             ani_instance.cone_angle[i] = parameters['visionHalfAngle'].magnitude
@@ -274,15 +377,15 @@ def set_gif_options(ani_instance, parameters, ureg):
             if int(ani_instance.ids[i]) in parameters[
                 'rodBorderpartsId']:  # those ids correspond to chemical emitting colloids
                 ani_instance.schmell_boolean[i] = False
-        elif ani_instance.types[i] == possible_types[2]:  # type=2 correspond to ??? colloids
-            # print(possible_types[2])
-            ani_instance.vision_cone_boolean[i] = False
-            ani_instance.trace_boolean[i] = False
-            ani_instance.trace_fade_boolean[i] = False
-            ani_instance.eyes_boolean[i] = False
-            ani_instance.radius_col[i] = 0
+        elif ani_instance.types[i] == possible_types[2]:  # type=3 correspond to whatever colloids
+             #print(possible_types[2])
+             ani_instance.vision_cone_boolean[i] = False
+             ani_instance.trace_boolean[i] = False
+             ani_instance.trace_fade_boolean[i] = False
+             ani_instance.eyes_boolean[i] = False
         else:
             raise Exception("unknown colloid type in visualisation")
+        ani_instance.maze_boolean = True  #type=2 corresponds to wall particles
 
 def load_extra_data_to_gif(ani_instance, parameters):
     if "title_data" in parameters.keys() and parameters["title_data"]!= None :
@@ -306,12 +409,15 @@ def gifvisualization(positions, directors, times, ids, types, parameters, gif_fi
     set_gif_options(ani_instance, parameters, ureg)
 
     ani_instance.animation_plt_init()
-    # set start and end of visualization
-    ani = FuncAnimation(fig, ani_instance.animation_plt_update, frames=len(times[:]), blit=True, interval=1)
+
+    ani_instance.animation_maze_setup(parameters["mazeFolder"], parameters["mazeFileName"])
+    # set start and end of visualization and set the interval of between frames
+    ani = FuncAnimation(fig, ani_instance.animation_plt_update, frames=range(2350,len(times[:])), blit=True, interval=100)
 
     plt.show()
-    # outcomment this to build a gif file (might take a while )
-    # ani.save(f'{fold_struct_names["analysis_outfolder"]}/animation.gif', fps=60)
+    #outcomment this to build a gif file (might take a while) insert name of gif-file (with path if needed)
+    ani.save(gif_file_names, fps=60)
+
 
 
 
@@ -331,6 +437,9 @@ def slidervisualization(positions, directors, times, ids, types, parameters):
     set_gif_options(ani_instance, parameters, ureg)
 
     ani_instance.animation_plt_init()
+
+    ani_instance.animation_maze_setup(parameters["mazeFolder"], parameters["mazeFileName"])
+
     ax_slider = plt.axes([0.25, 0.1, 0.65, 0.03], facecolor='gray')
     time_interval = parameters['writeInterval'].to(ureg.second).magnitude
 
