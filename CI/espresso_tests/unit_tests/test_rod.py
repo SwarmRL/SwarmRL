@@ -68,7 +68,7 @@ class RodTest(ut.TestCase):
             cutoff = wca_params["sigma"] * 2 ** (1 / 6)
             np.testing.assert_allclose(
                 cutoff,
-                coll_rad.m_as("sim_length") + rod_thickness.m_as("sim_length"),
+                coll_rad.m_as("sim_length") + rod_thickness.m_as("sim_length") / 2,
             )
 
 
