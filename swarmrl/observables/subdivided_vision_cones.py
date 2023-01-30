@@ -113,17 +113,13 @@ class SubdividedVisionCones(Observable, ABC, Task):
             # put vision_range sufficiently high if no upper limit is wished
             if dist_norm == 0 or not in_range:
                 continue
-            # calc peceived angle deviation ( sign of angle is missing )
-            print(my_director)
-            print("dist", dist)
-            print("dist_norm", dist_norm)
+            # calc perceived angle deviation ( sign of angle is missing )
+
             angle = np.arccos(np.dot(dist / dist_norm, my_director))
             # use the director in orthogonal direction to determine sign
             orthogonal_dot = np.dot(dist / dist_norm, [-my_director[1], my_director[0]])
             angle *= np.sign(orthogonal_dot)
-            print("angle", angle)
             for cone in range(self.n_cones):
-                print("ich war hier")
                 in_left_rim = (
                     -self.vision_half_angle
                     + cone * self.vision_half_angle * 2 / self.n_cones
@@ -136,7 +132,6 @@ class SubdividedVisionCones(Observable, ABC, Task):
                 )
                 # sort the perceived colloid c by their vision cone and type
                 if in_left_rim and in_right_rim:
-                    print("np.where", np.where(self.types == c.type))
                     type_num = np.where(self.types == c.type)[0][0]
                     vision_val_out[cone, type_num] += np.min(
                         [1, 2 * self.radii[c.id] / dist_norm]

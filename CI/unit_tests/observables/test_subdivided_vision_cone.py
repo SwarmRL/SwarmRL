@@ -39,4 +39,9 @@ class TestSubdividedVisionCones:
         col4 = Colloid(np.array([1, 1, 0]), np.array([0.0, 1.0, 0]), 0, 4)
         colloids = [col0, col1, col2, col3, col4]
         observable = self.vc.compute_observable(col0, colloids)
-        assert observable == np.array([[1.0, 0.0], [0.8, 0.75], [0.0, 0.0]])
+        assert observable[0, 0] == 1.0
+        assert observable[1, 0] == 0.8
+        assert observable[2, 0] == 0.0
+        assert observable[0, 1] == 0.0
+        assert observable[1, 1] == 0.75
+        assert observable[2, 1] == 0.0
