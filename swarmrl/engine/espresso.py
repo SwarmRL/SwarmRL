@@ -343,7 +343,7 @@ class EspressoMD(Engine):
         fric_rot = friction_rot.m_as(
             "sim_force * sim_length *  sim_time"
         )  # [M / omega]
-        partcl_radius = rod_thickness.m_as("sim_length")
+        partcl_radius = rod_thickness.m_as("sim_length") / 2
 
         # place the real particle
         center_part = self.system.part.add(

@@ -142,8 +142,8 @@ class Gym:
         model restoration.
         """
         for item, val in self.rl_protocols.items():
-            val.actor.export_model(f"{directory}/Actor_{item}")
-            val.critic.export_model(f"{directory}/Critic_{item}")
+            val.actor.export_model(filename=f"ActorModel_{item}", directory=directory)
+            val.critic.export_model(filename=f"CriticModel_{item}", directory=directory)
 
     def restore_models(self, directory: str = "Models"):
         """
@@ -159,8 +159,12 @@ class Gym:
         Loads the actor and critic from the specific directory.
         """
         for item, val in self.rl_protocols.items():
-            val.actor.restore_model_state(f"./{directory}/Actor_{item}")
-            val.critic.restore_model_state(f"./{directory}/Critic_{item}")
+            val.actor.restore_model_state(
+                filename=f"ActorModel_{item}", directory=directory
+            )
+            val.critic.restore_model_state(
+                filename=f"CriticModel_{item}", directory=directory
+            )
 
     def perform_rl_training(
         self,
