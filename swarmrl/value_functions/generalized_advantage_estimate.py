@@ -74,5 +74,5 @@ class GAE:
         expected_returns : np.ndarray (n_time_steps, n_particles)
                 Expected returns for the rewards.
         """
-        returns = advantages + values
+        returns = advantages + values[:-1]
         return returns
