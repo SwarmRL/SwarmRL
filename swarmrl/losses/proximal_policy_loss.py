@@ -175,7 +175,7 @@ class ProximalPolicyLoss(Loss, ABC):
                 self.storage["ratio"].append(ratio.primal)
                 self.storage["actor_loss"].append(actor_loss)
                 self.storage["advantage"].append(advantages)
-            return actor_loss + self.entropy_coefficient * entropy.primal
+            return actor_loss + self.entropy_coefficient * entropy
 
         except AttributeError:
             if self.record_training:
@@ -219,7 +219,7 @@ class ProximalPolicyLoss(Loss, ABC):
         for _ in range(self.n_epochs):
 
             # compute the advantages and returns (true_values) for that epoch
-            predicted_values = np.squeeze(critic(feature_data))
+            predicted_values = np.array(np.squeeze(critic(feature_data)))
             advantages = self.value_function(rewards=reward_data,
                                              values=predicted_values)
             returns = self.value_function.returns(advantages=advantages,
