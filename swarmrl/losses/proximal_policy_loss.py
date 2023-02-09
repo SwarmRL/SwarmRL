@@ -220,10 +220,12 @@ class ProximalPolicyLoss(Loss, ABC):
 
             # compute the advantages and returns (true_values) for that epoch
             predicted_values = np.array(np.squeeze(critic(feature_data)))
-            advantages = self.value_function(rewards=reward_data,
-                                             values=predicted_values)
-            returns = self.value_function.returns(advantages=advantages,
-                                                  values=predicted_values)
+            returns, advantages = self.value_function(
+                rewards=np.array(reward_data),
+                values=predicted_values
+            )
+            # returns = self.value_function.returns(advantages=advantages,
+            #                                       values=predicted_values)
 
             actor_grad_fn = jax.value_and_grad(self.compute_actor_loss)
             actor_loss, actor_grad = actor_grad_fn(

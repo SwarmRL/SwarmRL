@@ -4,26 +4,16 @@ import numpy as onp
 import jax
 
 
-def test_gae():
-    """
-    Test GAE.
-    """
-    # Create test data
-    rewards = onp.random.uniform(size=(18, 10))
-    values = onp.random.uniform(size=(18, 10))
+class TestGAE:
+    def test_gae(self):
+        gae = GAE(gamma=0.95, lambda_=0.95)
+        rewards = np.array([1, 2, 3, 4, 5])
+        values = np.array([1, 1, 1, 1, 1])
 
-    # Create an instance of the GAE class
-    gae = GAE()
+        expected_returns = [9.006775, 7.05697, 5.221145, 3.48829, 1.857385]
+        expected_advantages = [7.05697, 4.15004, 2.17116, 0.538415, -0.857385]
 
-    # Test the __call__ method
-    advantages = gae(rewards, values)
-    # expected_advantages = np.array([-1, -1, -1, -1, -1])
-    # assert np.array_equal(
-    #     advantages, expected_advantages
-    # ), f"Expected {expected_advantages}, but got {advantages}"
-    # #
-    # # # Test the returns method
-    # expected_returns = np.array([4, 3, 2, 1, 0])
-    # returns = gae.returns(advantages, values)
-    # assert np.array_equal(returns,
-    #                       expected_returns), f"Expected {expected_returns}, but got {returns}"
+        returns, advantages = gae(rewards, values)
+
+        onp.testing.assert_allclose(returns, expected_returns, rtol=1e-4, atol=1e-4)
+        onp.testing.assert_allclose(advantages, expected_advantages, rtol=1e-4, atol=1e-4)
