@@ -598,10 +598,8 @@ class Animations:
         self.x_1 = mean_x + max_region / 2
         self.y_0 = mean_y - max_region / 2
         self.y_1 = mean_y + max_region / 2
-        # self.ax.set_xlim(self.x_0, self.x_1)
-        # self.ax.set_ylim(self.y_0, self.y_1)
-        self.ax.set_xlim(495, 515)
-        self.ax.set_ylim(570, 595)
+        self.ax.set_xlim(self.x_0, self.x_1)
+        self.ax.set_ylim(self.y_0, self.y_1)
 
         for i, wall in enumerate(self.maze_walls):
             vec_along_wall = [wall[2] - wall[0], wall[3] - wall[1]]
