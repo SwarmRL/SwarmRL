@@ -369,7 +369,6 @@ class EspressoMD(Engine):
                 "(both in simulation units)"
             )
 
-
         director = _vector_from_angles(np.pi / 2, rod_start_angle)
 
         for k in range(n_particles - 1):
@@ -429,23 +428,31 @@ class EspressoMD(Engine):
         # the wall itself has no radius, only the particle radius counts
         self.colloid_radius_register.update({wall_type: 0.0})
 
-    def add_maze(self, maze_walls: list, maze_type: int):
-        z_offset=-100
-        wallthickness=10
+    def add_maze(self, maze_walls: list, maze_type: int, wall_thickness: float):
+        z_offset = -100
         maze_shapes = []
 
         for wall in maze_walls:
-            a=[wall[2]-wall[0],wall[3]-wall[1],0] # direction along lengthy wall
-            norm = np.linalg.norm(a) # is also the norm of b
-            b=[a[1]*wallthickness/(2*norm),-a[0]*wallthickness/(2*norm),0] #wall thickness of lengthy wall
-            corner = [wall[0]-b[0]/2, wall[1]-b[1]/2, z_offset] #anchor point of wall shifted by wallthickness*1/2
-            c= [0,0,-z_offset*2]
-            maze_shapes.append(espressomd.shapes.Rhomboid(corner=corner,a=a,b=b,c=c,direction=1))
-            #print("corner",corner)
-            #print("a",a)
-            #print("b",b)
-            #print("c",c)
-            #maze_shapes.append(espressomd.shapes.Rhomboid(corner=[0,0,0],a=[1,0,0],b=[0,1,0],c=[0,0,1],direction=1))
+            a = [
+                wall[2] - wall[0],
+                wall[3] - wall[1],
+                0,
+            ]  # direction along lengthy wall
+            norm = np.linalg.norm(a)  # is also the norm of b
+            b = [
+                a[1] * wall_thickness / (2 * norm),
+                -a[0] * wall_thickness / (2 * norm),
+                0,
+            ]  # direction along wall_thickness of lengthy wall
+            corner = [
+                wall[0] - b[0] / 2,
+                wall[1] - b[1] / 2,
+                z_offset,
+            ]  # anchor point of wall shifted by wall_thickness*1/2
+            c = [0, 0, -z_offset * 2]  # direction along third axis of 2D simulation
+            maze_shapes.append(
+                espressomd.shapes.Rhomboid(corner=corner, a=a, b=b, c=c, direction=1)
+            )
 
         for maze_shape in maze_shapes:
             constr = espressomd.constraints.ShapeBasedConstraint(
@@ -455,7 +462,6 @@ class EspressoMD(Engine):
 
         # the maze wall itself has no radius, only the particle radius counts
         self.colloid_radius_register.update({maze_type: 0.0})
-
 
     def _setup_interactions(self):
         for type_0, rad_0 in self.colloid_radius_register.items():
