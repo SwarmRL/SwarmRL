@@ -210,6 +210,41 @@ class Animations:
 
         self.maze_boolean = maze_boolean  # type=2 corresponds to wall particles
 
+    def init_schmell_field(self):
+        if self.schmell_boolean != [False] * len(self.ids):
+            self.X, self.Y = np.mgrid[
+                self.x_0 : self.x_1 : complex(0, self.schmell_N),
+                self.y_0 : self.y_1 : complex(0, self.schmell_N),
+            ]
+            self.testpos = np.stack([self.X.flatten(), self.Y.flatten()], axis=-1)
+            self.schmell_magnitude_shape = np.zeros((self.schmell_N, self.schmell_N))
+            n_parts = len(self.ids)
+            for i in range(n_parts):
+                if self.schmell_boolean[i]:
+                    pos = self.positions[0, i, :].magnitude
+                    self.schmell_magnitude, _ = calc_chemical_potential(
+                        pos, self.testpos
+                    )
+                    self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
+                        (self.schmell_N, self.schmell_N)
+                    )
+                    self.schmell_maximum, _ = calc_chemical_potential(
+                        np.array([500, 500]),
+                        np.array([500, 500 + self.radius_col[i] / 5]),
+                    )  # the 5 is for aesthetics
+            self.schmell[0] = self.ax.pcolormesh(
+                self.X,
+                self.Y,
+                self.schmell_magnitude_shape,
+                vmin=np.min(self.schmell_magnitude_shape),
+                vmax=self.schmell_maximum,
+                cmap=self.schmellcolor,
+                shading="nearest",
+                zorder=0,
+            )
+        else:
+            (self.schmell[0],) = self.ax.plot([], [], zorder=0, alpha=0)
+
     def animation_plt_init(self):
         # calc figure limits
         delta_max_x = np.max(self.positions[:, :, 0].magnitude) - np.min(
@@ -401,38 +436,7 @@ class Animations:
                             )
                         )
 
-        if self.schmell_boolean != [False] * len(self.ids):
-            self.X, self.Y = np.mgrid[
-                self.x_0 : self.x_1 : complex(0, self.schmell_N),
-                self.y_0 : self.y_1 : complex(0, self.schmell_N),
-            ]
-            self.testpos = np.stack([self.X.flatten(), self.Y.flatten()], axis=-1)
-            self.schmell_magnitude_shape = np.zeros((self.schmell_N, self.schmell_N))
-            for i in range(n_parts):
-                if self.schmell_boolean[i]:
-                    pos = self.positions[0, i, :].magnitude
-                    self.schmell_magnitude, _ = calc_chemical_potential(
-                        pos, self.testpos
-                    )
-                    self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
-                        (self.schmell_N, self.schmell_N)
-                    )
-                    self.schmell_maximum, _ = calc_chemical_potential(
-                        np.array([500, 500]),
-                        np.array([500, 500 + self.radius_col[i] / 5]),
-                    )  # the 5 is for aesthetics
-            self.schmell[0] = self.ax.pcolormesh(
-                self.X,
-                self.Y,
-                self.schmell_magnitude_shape,
-                vmin=np.min(self.schmell_magnitude_shape),
-                vmax=self.schmell_maximum,
-                cmap=self.schmellcolor,
-                shading="nearest",
-                zorder=0,
-            )
-        else:
-            (self.schmell[0],) = self.ax.plot([], [], zorder=0, alpha=0)
+        self.init_schmell_field()
 
         t = round(self.times[1], 0)
         self.time_annotate[0] = self.ax.annotate(
@@ -468,7 +472,7 @@ class Animations:
                 " want vision cones but no self.vision_cone_data in the options are"
                 " provided. Then default is created"
             )
-            each_type = [0.2 for _ in range(self.n_types)]
+            each_type = [0.05 for _ in range(self.n_types)]
             each_cone = np.array(
                 [each_type] * self.n_cones
             )  # len(type) is probably 6 instead of supposed 2
@@ -519,7 +523,10 @@ class Animations:
                 )
 
         # expand vision cone data
-        if self.vision_cone_boolean != [False] * len(self.ids):
+        if (
+            self.vision_cone_boolean != [False] * len(self.ids)
+            and self.vision_cone_data is not None
+        ):
             self.vision_cone_data_frame = np.zeros(
                 (len(self.times), len(self.ids), self.n_cones, self.n_types)
             )
@@ -532,21 +539,22 @@ class Animations:
                             self.vision_cone_data_frame[
                                 frame, c_id
                             ] = self.vision_cone_data[frame][given_c_id][1]
+
             # color adjustment for each color separately
             for detected_type in range(self.n_types):
                 if np.max(self.vision_cone_data_frame[:, :, :, detected_type]) != 0:
                     norm_vals = self.vision_cone_data_frame[
                         :, :, :, detected_type
-                    ] * np.mean(self.vision_cone_data_frame[:, :, :, detected_type])
+                    ] / np.mean(self.vision_cone_data_frame[:, :, :, detected_type])
                     self.vision_cone_data_frame[:, :, :, detected_type] = (
                         np.arctan(norm_vals) * 1 / np.pi
                     )
-                    self.vision_cone_data_frame[:, :, :, detected_type] += 0.1
+                    self.vision_cone_data_frame[:, :, :, detected_type] += 0.05
 
     def animation_maze_setup(self, folder, filename):
         maze_file = open(folder + filename, "rb")
-        self.maze_points = pickle.load(maze_file)
-        self.wall_thickness = pickle.load(maze_file)
+        self.maze_dic = pickle.load(maze_file)
+        self.wall_thickness = self.maze_dic["wall_thickness"]
         self.maze_walls = pickle.load(maze_file)
         self.maze = [0] * len(self.maze_walls)
 
@@ -594,6 +602,10 @@ class Animations:
         self.y_1 = mean_y + max_region / 2
         self.ax.set_xlim(self.x_0, self.x_1)
         self.ax.set_ylim(self.y_0, self.y_1)
+
+        # the ax limits have changed now we need to init it again
+        self.schmell[0].set_alpha(0)
+        self.init_schmell_field()
 
         for i, wall in enumerate(self.maze_walls):
             vec_along_wall = [wall[2] - wall[0], wall[3] - wall[1]]
