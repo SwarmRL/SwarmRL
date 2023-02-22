@@ -5,7 +5,7 @@ from typing import List
 
 import jax.numpy as jnp
 import numpy as np
-from jax import vmap
+from jax import jit, vmap
 
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.observable import Observable
@@ -52,6 +52,7 @@ class SubdividedVisionCones(Observable):
         self.n_cones = n_cones
         self.radii = radii
         self.detected_types = detected_types
+        self.angle_fn = jit(calc_signed_angle_between_directors)
 
     def _detect_all_things_to_see(self, colloids: List[Colloid]):
         """
@@ -73,7 +74,7 @@ class SubdividedVisionCones(Observable):
                 all_types.append(c.type)
         self.detected_types = np.array(np.sort(all_types))
 
-    def _calculate_director(self, colloid):
+    def _calculate_director(self, colloid: Colloid):
         """
         Calculates the normalised director of the colloids.
 
@@ -94,8 +95,33 @@ class SubdividedVisionCones(Observable):
         return my_pos, my_director
 
     def _calculate_cones_single_object(
-        self, my_pos, my_director, c_type, c_pos, radius
+        self,
+        my_pos: np.ndarray,
+        my_director: np.ndarray,
+        c_type: int,
+        c_pos: np.ndarray,
+        radius: float,
     ):
+        """
+        Compute the vision cones of one colloid from one colloid.
+
+        Parameters
+        ----------
+        my_pos : np.ndarray
+                the 2D position of the colloid that has vision
+        my_director : np.ndarray
+                the 2D orientation of the colloid that has vision
+        c_type : int
+                The type of the colloid that is seen
+        c_pos : np.ndarray
+                The position of the colloid that is seen
+        radius : float
+                The radius of the colloid that has vision
+        Returns
+        np.ndarray of shape (n_cones, num_of_detected_types) containing
+        the vision values for each cone and for each particle type that
+        can be visible. At most one value is unequal to zero.
+        """
         # generate a blue print of the output values
         vision_val_out = jnp.ones((self.n_cones, len(self.detected_types)))
 
@@ -122,10 +148,10 @@ class SubdividedVisionCones(Observable):
         vision_val_out *= correct_type_mask
 
         # compare to the direction of view with
-        # the direction in which the other colloid is
-        # get the singed angle between them
-
-        angle = calc_signed_angle_between_directors(my_director, dist / dist_norm)
+        # the direction in which the other colloid is.
+        # Get the singed angle between them
+        # call the jax.jit version of calc_signed_angle_between_directors()
+        angle = self.angle_fn(my_director, dist / dist_norm)
 
         # get masks with True if the colloid is in the specific vision cone
         rims = (
