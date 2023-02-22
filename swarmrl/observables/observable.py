@@ -2,8 +2,10 @@
 Parent class for the observable.
 """
 from typing import List
-
-from swarmrl.models.interaction_model import Colloid
+import sys
+sys.path.append('swarmrl/observables')
+sys.path.append('swarmrl/models')
+from interaction_model import Colloid
 
 
 class Observable:
