@@ -271,3 +271,40 @@ def record_training(training_dict: dict):
         training_data,
         allow_pickle=True,
     )
+
+def calc_signed_angle_between_directors(my_director,other_director):
+    """
+    In 2D compare two different normalized 
+    directors to determine the angle between them
+
+    Parameters
+    ----------
+
+    my_director : np.ndarray
+            Normalised director in 3D.
+    other_director : np.ndarray
+            Normalised director in 3D.
+    Returns
+    singed float which represents the signed angle of my_director to otherdirector
+    with the mathematical sign convention.
+    """
+
+    # Assert if the directors were really normalized
+    np.testing.assert_almost_equal(np.linalg.norm(my_director), 1, decimal=6)
+    np.testing.assert_almost_equal(np.linalg.norm(other_director), 1, decimal=6)
+
+
+    # calculate the angle in which the my_colloid is looking
+    angle = jnp.arccos(np.dot(other_director, my_director))
+    # use the director in orthogonal direction to determine sign
+    orthogonal_dot = np.dot(
+        dist / dist_norm,
+        np.array([-my_director[1], my_director[0], my_director[2]]),
+    )
+    angle *= np.sign(orthogonal_dot)
+
+    return angle
+
+
+
+

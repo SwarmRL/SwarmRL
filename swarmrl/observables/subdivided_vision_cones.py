@@ -9,6 +9,7 @@ from jax import vmap
 
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.observable import Observable
+from swarmrl.observables.utils import calc_signed_angle_between_directors
 
 
 class SubdividedVisionCones(Observable):
@@ -92,6 +93,9 @@ class SubdividedVisionCones(Observable):
         assert abs(colloid.director[2]) < 10e-6
         return my_pos, my_director
 
+    def jit_calc_signed_angle_between_directors():
+        return  jax.jit(calc_signed_angle_between_directors)
+
     def _calculate_cones_single_object(
         self, my_pos, my_director, c_id, c_type, c_pos, radius
     ):
@@ -120,14 +124,10 @@ class SubdividedVisionCones(Observable):
         # Apply the mask on the output values
         vision_val_out *= correct_type_mask
 
-        # calculate the angle in which the my_colloid is looking
-        angle = jnp.arccos(jnp.dot(dist / dist_norm, my_director))
-        # use the director in orthogonal direction to determine sign
-        orthogonal_dot = jnp.dot(
-            dist / dist_norm,
-            jnp.array([-my_director[1], my_director[0], my_director[2]]),
-        )
-        angle *= jnp.sign(orthogonal_dot)
+        # compare to the direction of view with the direction  in which the other colloid is
+        # get the singed angle betwenn them
+
+        angle = jit_calc_signed_angle_between_directors(my_director, dist / dist_norm).block_until_ready()
 
         # get masks with True if the colloid is in the specific vision cone
         rims = (
