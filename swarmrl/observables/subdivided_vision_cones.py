@@ -9,7 +9,7 @@ from jax import vmap
 
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.observable import Observable
-from swarmrl.observables.utils import calc_signed_angle_between_directors
+from swarmrl.utils.utils import calc_signed_angle_between_directors
 
 
 class SubdividedVisionCones(Observable):
@@ -93,11 +93,8 @@ class SubdividedVisionCones(Observable):
         assert abs(colloid.director[2]) < 10e-6
         return my_pos, my_director
 
-    def jit_calc_signed_angle_between_directors():
-        return  jax.jit(calc_signed_angle_between_directors)
-
     def _calculate_cones_single_object(
-        self, my_pos, my_director, c_id, c_type, c_pos, radius
+        self, my_pos, my_director, c_type, c_pos, radius
     ):
         # generate a blue print of the output values
         vision_val_out = jnp.ones((self.n_cones, len(self.detected_types)))
@@ -124,10 +121,11 @@ class SubdividedVisionCones(Observable):
         # Apply the mask on the output values
         vision_val_out *= correct_type_mask
 
-        # compare to the direction of view with the direction  in which the other colloid is
-        # get the singed angle betwenn them
+        # compare to the direction of view with
+        # the direction in which the other colloid is
+        # get the singed angle between them
 
-        angle = jit_calc_signed_angle_between_directors(my_director, dist / dist_norm).block_until_ready()
+        angle = calc_signed_angle_between_directors(my_director, dist / dist_norm)
 
         # get masks with True if the colloid is in the specific vision cone
         rims = (
@@ -176,14 +174,14 @@ class SubdividedVisionCones(Observable):
         # make it parallelizable at the cost of calculating with sparse arrays
         calculate_cones = vmap(
             self._calculate_cones_single_object,
-            in_axes=(None, None, 0, 0, 0, 0),
+            in_axes=(None, None, 0, 0, 0),
             out_axes=0,
         )
+
         # executing the vectorized function
         vision_val_out_expanded = calculate_cones(
             my_pos,
             my_director,
-            other_colloids_id,
             other_colloids_types,
             other_colloids_pos,
             np.array(self.radii),
