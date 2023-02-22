@@ -23,7 +23,7 @@ class SubdividedVisionCones(Observable):
         vision_range: float,
         vision_half_angle: float,
         n_cones: int,
-        radii=[],
+        radii: List[float],
         detected_types=None,
     ):
         """
@@ -52,15 +52,7 @@ class SubdividedVisionCones(Observable):
         self.radii = radii
         self.detected_types = detected_types
 
-    def initialize(self, colloids: List[Colloid]):
-        """
-        This method is not needed for the vision_cone because the initialization
-        currently only initialises general features for all colloids while the vision
-        cone needs to be calculated for each cone separately.
-        """
-        pass
-
-    def detect_all_things_to_see(self, colloids: List[Colloid]):
+    def _detect_all_things_to_see(self, colloids: List[Colloid]):
         """
         Determines what types of colloids are present in the simulation
 
@@ -92,53 +84,64 @@ class SubdividedVisionCones(Observable):
         Returns
         Colloid position and vision cone director.
         """
-        my_pos = np.copy(colloid.pos[:2])
-        my_director = np.copy(colloid.director[:2])
+        my_pos = np.copy(colloid.pos)
+        my_director = np.copy(colloid.director)
         # TODO: Add 3D support
         my_director = my_director / np.linalg.norm(my_director)
+        assert abs(colloid.pos[2]) < 10e-6
+        assert abs(colloid.director[2]) < 10e-6
         return my_pos, my_director
 
     def _calculate_cones_single_object(
-        self, my_pos, my_director,c_id,c_type,c_pos,radius
+        self, my_pos, my_director, c_id, c_type, c_pos, radius
     ):
-
         # generate a blue print of the output values
         vision_val_out = jnp.ones((self.n_cones, len(self.detected_types)))
 
         dist = c_pos - my_pos
         dist_norm = jnp.linalg.norm(dist)
         in_range = dist_norm < self.vision_range
-        # check if output values will correspond with 
+        # check if output values will correspond with
         # no visible colloid at all because to far away
-        vision_val_out*=in_range
-        # calculation could stop here but is carried on with zeros due to parallelization
+        vision_val_out *= in_range
+        # calculation could stop here but is carried
+        # on with zeros due to parallelization
         # keep on calculating even if there are only zeros
 
-        #adjust the amplitude of the vision to the correct value
-        vision_val_out*=jnp.min(jnp.array([1, 2 * radius / dist_norm]))
+        # adjust the amplitude of the vision to the correct value
+        vision_val_out *= jnp.min(jnp.array([1, 2 * radius / dist_norm]))
 
         # generate a mask that is only true for the 2D array entries with the right type
-        type_mask = jnp.ones((self.n_cones, len(self.detected_types))) * np.array(self.detected_types)[np.newaxis,:]
-        correct_type_mask=jnp.where(type_mask==c_type,True,False)
-        # Apply the mask on the output values 
-        vision_val_out*=correct_type_mask
+        type_mask = (
+            jnp.ones((self.n_cones, len(self.detected_types)))
+            * np.array(self.detected_types)[np.newaxis, :]
+        )
+        correct_type_mask = jnp.where(type_mask == c_type, True, False)
+        # Apply the mask on the output values
+        vision_val_out *= correct_type_mask
 
-
-        #calculate the angle in which the my_colloid is looking
+        # calculate the angle in which the my_colloid is looking
         angle = jnp.arccos(jnp.dot(dist / dist_norm, my_director))
         # use the director in orthogonal direction to determine sign
-        orthogonal_dot = jnp.dot(dist / dist_norm, jnp.array([-my_director[1], my_director[0]]))
+        orthogonal_dot = jnp.dot(
+            dist / dist_norm,
+            jnp.array([-my_director[1], my_director[0], my_director[2]]),
+        )
         angle *= jnp.sign(orthogonal_dot)
 
-        #get masks with True if the colloid is in the specific vision cone
-        rims=-self.vision_half_angle + jnp.arange(self.n_cones+1) * self.vision_half_angle * 2 / self.n_cones
-        in_left_rim=jnp.where(rims[:-1]<angle,True,False)
-        in_right_rim=jnp.where(rims[1:]>angle,True,False)
-        in_a_cone=in_left_rim*in_right_rim
+        # get masks with True if the colloid is in the specific vision cone
+        rims = (
+            -self.vision_half_angle
+            + jnp.arange(self.n_cones + 1) * self.vision_half_angle * 2 / self.n_cones
+        )
+        in_left_rim = jnp.where(rims[:-1] < angle, True, False)
+        in_right_rim = jnp.where(rims[1:] > angle, True, False)
+        in_a_cone = in_left_rim * in_right_rim
         # apply mask to the output_values
-        vision_val_out*=in_a_cone[:,np.newaxis]
+        vision_val_out *= in_a_cone[:, np.newaxis]
 
-        # 2D array with right vision amplitude for right type and cone only if distance < cut off radius
+        # 2D array with right vision amplitude for
+        # right type and cone only if distance < cut off radius
         return vision_val_out
 
     def _calculate_cones(self, my_pos, my_director, other_colloids: List[Colloid]):
@@ -158,26 +161,32 @@ class SubdividedVisionCones(Observable):
         for each cone and for each particle type that can be visible.
         """
 
-        #prepare traceable colloid data for vectorized vision cone evaluation
-        other_colloids_id=np.zeros((len(other_colloids)))
-        other_colloids_pos=np.zeros((len(other_colloids),2))
-        other_colloids_types=np.zeros((len(other_colloids)))
-        for index,c in enumerate(other_colloids):
-            other_colloids_id[index]=c.id
-            other_colloids_types[index]=c.type
-            other_colloids_pos[index,:]=c.pos[:2]
+        # prepare traceable colloid data for vectorized vision cone evaluation
+        other_colloids_id = np.zeros((len(other_colloids)))
+        other_colloids_pos = np.zeros((len(other_colloids), 3))
+        other_colloids_types = np.zeros((len(other_colloids)))
+        for index, c in enumerate(other_colloids):
+            other_colloids_id[index] = c.id
+            other_colloids_types[index] = c.type
+            other_colloids_pos[index, :] = c.pos
 
-        # wrap jax.vmap around the vision cone evaluation concerning a single other colloid 
+        # wrap jax.vmap around the vision cone
+        # evaluation concerning a single other colloid
         # therefore spare out a for loop over all colloid to be seen
         # make it parallelizable at the cost of calculating with sparse arrays
         calculate_cones = vmap(
             self._calculate_cones_single_object,
-            in_axes=(None, None,0,0,0,0),
+            in_axes=(None, None, 0, 0, 0, 0),
             out_axes=0,
         )
-        #executing the vectorized function
+        # executing the vectorized function
         vision_val_out_expanded = calculate_cones(
-            my_pos, my_director,other_colloids_id, other_colloids_types, other_colloids_pos, np.array(self.radii)
+            my_pos,
+            my_director,
+            other_colloids_id,
+            other_colloids_types,
+            other_colloids_pos,
+            np.array(self.radii),
         )
         # collapsing the data of every individual other_colloid and returning the result
         return np.sum(vision_val_out_expanded, axis=0)
@@ -199,11 +208,13 @@ class SubdividedVisionCones(Observable):
         for each cone and for each particle type that can be visible.
         """
         if self.detected_types is None:
-            self.detect_all_things_to_see(colloids)
+            self._detect_all_things_to_see(colloids)
 
         my_pos, my_director = self._calculate_director(colloid)
 
-        of_others=[[c,self.radii[i]] for i,c in enumerate(colloids) if c is not colloid]
+        of_others = [
+            [c, self.radii[i]] for i, c in enumerate(colloids) if c is not colloid
+        ]
         other_colloids = [of_others[i][0] for i in range(len(of_others))]
         self.radii = [of_others[i][1] for i in range(len(of_others))]
 
