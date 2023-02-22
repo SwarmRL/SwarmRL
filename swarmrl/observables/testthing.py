@@ -3,10 +3,7 @@ Unit test for the subdivided vision cones.
 """
 
 import numpy as np
-import sys
-sys.path.append('swarmrl/models')
-sys.path.append('swarmrl/observables')
-from subdivided_vision_cones import SubdividedVisionCones
+from swarmrl.observables.subdivided_vision_cones import SubdividedVisionCones
 
 vision_class = SubdividedVisionCones(
     vision_range=10, vision_half_angle=np.pi / 2, n_cones=3, radii=[1, 2, 3, 4, 1]
