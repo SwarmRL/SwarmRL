@@ -2,6 +2,7 @@
 Parent class for the observable.
 """
 from typing import List
+
 from swarmrl.models.interaction_model import Colloid
 
 
