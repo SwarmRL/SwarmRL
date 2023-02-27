@@ -4,7 +4,10 @@ Test the utils module.
 import jax.numpy as np
 from numpy.testing import assert_array_equal
 
-from swarmrl.utils.utils import gather_n_dim_indices
+from swarmrl.utils.utils import (
+    calc_signed_angle_between_directors,
+    gather_n_dim_indices,
+)
 
 
 class TestUtils:
@@ -68,3 +71,45 @@ class TestUtils:
         )
         test_selection = gather_n_dim_indices(data, indices)
         assert_array_equal(test_selection, true_selection)
+
+    def test_calc_signed_angle_between_directors(self):
+        """
+        Test the calc_signed_angle_between_directors
+        for positiv and negativ angles in 2D
+        """
+
+        my_director1 = np.array([1, 0, 0])
+        my_director2 = np.array([-1 / np.sqrt(2), -1 / np.sqrt(2), 0])
+
+        other_director1 = np.array([1, 0, 0])
+        other_director2 = np.array([0, 1, 0])
+        other_director3 = np.array([1 / 2, np.sqrt(3) / 2, 0])
+
+        # test parallel and antiparallel case
+        angle1 = calc_signed_angle_between_directors(my_director1, other_director1)
+        angle9 = calc_signed_angle_between_directors(my_director1, -1 * other_director1)
+
+        # test the sign of the angle
+        angle2 = calc_signed_angle_between_directors(my_director1, other_director2)
+        angle3 = calc_signed_angle_between_directors(my_director1, other_director3)
+        angle4 = calc_signed_angle_between_directors(my_director2, other_director1)
+        angle5 = calc_signed_angle_between_directors(my_director2, other_director2)
+        angle6 = calc_signed_angle_between_directors(my_director2, other_director3)
+
+        # test the normalization
+        angle7 = calc_signed_angle_between_directors(
+            my_director1, other_director3 * 4.5
+        )
+        angle8 = calc_signed_angle_between_directors(
+            my_director2 * 1.5, other_director3
+        )
+
+        assert angle1 == 0
+        assert angle2 == np.pi / 2
+        assert angle3 == np.pi / 3
+        assert angle4 == np.pi * 3 / 4
+        assert angle5 == -np.pi * 3 / 4
+        assert abs(angle6 + np.pi * 11 / 12) < 10e-6
+        assert abs(angle7 - angle3) < 10e-6
+        assert abs(angle8 - angle6) < 10e-6
+        assert angle9 == np.pi
