@@ -745,16 +745,17 @@ class Animations:
             )
 
 
-def load_extra_data_to_gif(ani_instance, parameters):
-    if "title_data" in parameters.keys() and parameters["title_data"] is not None:
-        ani_instance.written_info_data = parameters["title_data"]
+def load_extra_data_to_visualization(ani_instance, folder_name):
+    files = os.listdir(folder_name)
+    if "written_info_data.pick" in files:
+        with open(folder_name + "/written_info_data.pick", "rb") as f:
+            ani_instance.written_info_data = pickle.load(f)
     else:
         ani_instance.written_info_data = None
-    if (
-        "vision_cone_data" in parameters.keys()
-        and parameters["vision_cone_data"] is not None
-    ):
-        ani_instance.vision_cone_data = parameters["vision_cone_data"]
+
+    if "vision_cone_data.pick" in files:
+        with open(folder_name + "/vision_cone_data.pick", "rb") as f:
+            ani_instance.vision_cone_data = pickle.load(f)
     else:
         ani_instance.vision_cone_data = None
 
@@ -801,8 +802,8 @@ def visualization(
             )
 
     fig, ax = plt.subplots(figsize=(7, 7))
-    # setup the units for automatic ax_labeling
 
+    # setup the units for automatic ax_labeling
     positions.ito(ureg.micrometer)
     times.ito(ureg.second)
 
@@ -814,6 +815,7 @@ def visualization(
         times,
         ids,
         types,
+        # set True/False for each existing colloid type
         vision_cone_boolean=[True, False, False],
         cone_radius=parameters["detection_radius_position"]
         .to(ureg.micrometer)
@@ -822,7 +824,9 @@ def visualization(
         cone_half_angle=parameters["vision_half_angle"].magnitude,
         trace_boolean=[True, True, True],
         trace_fade_boolean=[True, True, True],
+        # the cute, sweet way I think of the colloids
         eyes_boolean=[False, False, False],
+        # the official way to draw the colloids
         arrow_boolean=[True, False, False],
         radius_col=[
             parameters["radius_colloid"].to(ureg.micrometer).magnitude,
@@ -830,11 +834,18 @@ def visualization(
             0,
         ],
         schmell_boolean=False,
+        # particle id which is the chemical potential source
         schmell_ids=parameters["rod_border_parts_id"],
         maze_boolean=False,
     )
 
-    load_extra_data_to_gif(ani_instance, parameters)
+    if folder_name is not None:
+        load_extra_data_to_visualization(ani_instance, folder_name)
+    else:
+        raise Exception(
+            "You need to specify where your extradata for visualization is located. It"
+            " is assumed that it lies where the trajectory.hdf5 file is located."
+        )
 
     ani_instance.animation_plt_init()
 
@@ -842,7 +853,11 @@ def visualization(
         ani_instance.animation_maze_setup(
             parameters["maze_folder"], parameters["maze_file_name"]
         )
+
+    # Here is some space to add regular matplotlib functions for customization
+    #####################
     ani_instance.ax.grid(True)
+    #####################
 
     if vis_mode == "GIF":
         # set start and end of visualization and set the interval of between frames
@@ -853,7 +868,7 @@ def visualization(
             ani_instance.animation_plt_update,
             frames=range(begin_frame, end_frame),
             blit=True,
-            interval=100,
+            interval=10,
         )
     elif vis_mode == "SLIDER":
         ax_slider = plt.axes([0.25, 0.1, 0.65, 0.03], facecolor="gray")
