@@ -64,6 +64,7 @@ class SubdividedVisionCones(Observable):
                 Colloids with all possible different types.
 
         Returns
+        -------
         One dimensional np.array with all possible types
         in the corresponding index in which
         they will also later be found when the observable is calculated.
@@ -84,6 +85,7 @@ class SubdividedVisionCones(Observable):
                 Colloid for which the observable should be computed.
 
         Returns
+        -------
         Colloid position and vision cone director.
         """
         my_pos = np.copy(colloid.pos)
@@ -118,6 +120,7 @@ class SubdividedVisionCones(Observable):
         radius : float
                 The radius of the colloid that has vision
         Returns
+        -------
         np.ndarray of shape (n_cones, num_of_detected_types) containing
         the vision values for each cone and for each particle type that
         can be visible. At most one value is unequal to zero.
@@ -181,6 +184,7 @@ class SubdividedVisionCones(Observable):
         other_colloids : List[Colloid]
                 all the colloids besides the one with my_pos and my_director
         Returns
+        -------
         np.array of shape (n_cones, num_of_types) containing the vision values
         for each cone and for each particle type that can be visible.
         """
@@ -215,7 +219,9 @@ class SubdividedVisionCones(Observable):
         # collapsing the data of every individual other_colloid and returning the result
         return np.sum(vision_val_out_expanded, axis=0)
 
-    def compute_observable(self, colloid: Colloid, colloids: List[Colloid]):
+    def compute_observable(
+            self, colloid: Colloid, colloids: List[Colloid]
+    ) -> np.ndarray:
         """
         Compute the vision cones of the colloid.
 
@@ -225,9 +231,8 @@ class SubdividedVisionCones(Observable):
                 Colloid for which the observable should be computed.
         colloids
                 colloids in the system.
-        vision_angle : int
-                Total angle of view in degrees
         Returns
+        -------
         np.array of shape (n_cones, num_of_detected_types) containing the vision values
         for each cone and for each particle type that can be visible.
         """
