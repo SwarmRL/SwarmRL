@@ -449,7 +449,7 @@ class Animations:
         )
         self.written_info[0] = self.ax.annotate(
             "",
-            xy=(0.70, 0.60),
+            xy=(0.05, 0.05),
             xycoords="axes fraction",
             zorder=n_parts * 4 + n_parts * self.n_cones + 1,
         )
