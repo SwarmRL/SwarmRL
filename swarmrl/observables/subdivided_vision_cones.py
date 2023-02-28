@@ -220,7 +220,7 @@ class SubdividedVisionCones(Observable):
         return np.sum(vision_val_out_expanded, axis=0)
 
     def compute_observable(
-            self, colloid: Colloid, colloids: List[Colloid]
+        self, colloid: Colloid, colloids: List[Colloid]
     ) -> np.ndarray:
         """
         Compute the vision cones of the colloid.
