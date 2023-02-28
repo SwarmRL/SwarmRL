@@ -30,16 +30,19 @@ class Observable:
         """
         raise NotImplementedError("Implemented in child class.")
 
-    def compute_observable(self, colloid: object, other_colloids: list):
+    def compute_observable(self, colloids: List[Colloid]):
         """
         Compute the current state observable.
 
         Parameters
         ----------
-        colloid : object
-                Colloid for which the observable should be computed.
-        other_colloids
-                Other colloids in the system.
+        colloids : List[Colloid] (n_colloids, )
+                List of all colloids in the system.
+
+        Returns
+        -------
+        observables : List[np.ndarray] (n_colloids, dimension)
+                List of observables, one for each colloid.
 
         """
         raise NotImplementedError("Implemented in child class.")
