@@ -1,9 +1,9 @@
 """
 Module for the different possible observables.
 """
+from swarmrl.observables.director import Director
 from swarmrl.observables.observable import Observable
 from swarmrl.observables.position import PositionObservable
-from swarmrl.observables.director import Director
 from swarmrl.observables.subdivided_vision_cones import SubdividedVisionCones
 
 __all__ = [

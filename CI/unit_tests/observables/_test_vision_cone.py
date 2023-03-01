@@ -2,11 +2,12 @@
 Unit test for the vision cone.
 """
 
+from dataclasses import dataclass
+
 import numpy as np
 
 from swarmrl.observables._vision_cone import VisionCone
 
-from dataclasses import dataclass
 
 @dataclass
 class Colloid:

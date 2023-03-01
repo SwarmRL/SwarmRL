@@ -5,14 +5,15 @@ Unit test for the position-angle observable.
 import numpy as np
 from numpy.testing import assert_array_equal
 
-from swarmrl.observables.director import Director
 from swarmrl.models.interaction_model import Colloid
+from swarmrl.observables.director import Director
 
 
 class TestAngleObservable:
     """
     Test suite for the position angle observable.
     """
+
     @classmethod
     def setup_class(cls):
         """

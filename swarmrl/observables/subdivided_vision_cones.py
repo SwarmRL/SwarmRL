@@ -255,7 +255,7 @@ class SubdividedVisionCones(Observable):
         observable = self._calculate_cones(my_pos, my_director, other_colloids)
 
         return observable
-    
+
     def compute_observable(self, colloids: List[Colloid]):
         """
         Compute the vision cones of the colloids.
@@ -266,9 +266,11 @@ class SubdividedVisionCones(Observable):
                 colloids in the system.
         Returns
         -------
-        np.array of shape (n_colloids, n_cones, num_of_detected_types) 
+        np.array of shape (n_colloids, n_cones, num_of_detected_types)
         containing the vision values
         """
         reference_ids = self.get_colloid_indices(colloids)
 
-        return [self.compute_single_observable(index, colloids) for index in reference_ids]
+        return [
+            self.compute_single_observable(index, colloids) for index in reference_ids
+        ]

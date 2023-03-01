@@ -34,10 +34,8 @@ class Observable:
         Updates the class state.
         """
         raise NotImplementedError("Implemented in child class.")
-    
-    def get_colloid_indices(
-            self, colloids: List[Colloid], p_type: int = None
-        ):
+
+    def get_colloid_indices(self, colloids: List[Colloid], p_type: int = None):
         """
         Get the indices of the colloids in the observable of a specific type.
 
@@ -48,7 +46,7 @@ class Observable:
         p_type : int (default=None)
                 Type of the colloids to get the indices for. If None, the
                 particle_type attribute of the class is used.
-        
+
 
         Returns
         -------
@@ -63,7 +61,7 @@ class Observable:
             if colloid.type == p_type:
                 indices.append(i)
 
-        return indices      
+        return indices
 
     def compute_observable(self, colloids: List[Colloid]) -> List:
         """

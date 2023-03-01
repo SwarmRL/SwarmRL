@@ -2,14 +2,12 @@
 Give position and angle.
 """
 from abc import ABC
+from typing import List
 
-import jax.numpy as np
 import numpy as onp
 
-from swarmrl.observables.observable import Observable
-
-from typing import List
 from swarmrl.models.interaction_model import Colloid
+from swarmrl.observables.observable import Observable
 
 
 class Director(Observable, ABC):
@@ -40,11 +38,11 @@ class Director(Observable, ABC):
                 Other colloids in the system.
         """
         colloid = colloids[index]
-        
+
         director = onp.copy(colloid.director)
 
         return director
-    
+
     def compute_observable(self, colloids: List[Colloid]):
         """
         Compute the current state observable for all colloids.

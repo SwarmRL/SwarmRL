@@ -19,7 +19,7 @@ class TestSubdividedVisionCones:
             vision_half_angle=np.pi / 2,
             n_cones=3,
             radii=[1, 2, 3, 4, 1],
-            particle_type=0
+            particle_type=0,
         )
 
     def test_call(self):

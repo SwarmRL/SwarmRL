@@ -5,14 +5,15 @@ Unit test for the position observable.
 import numpy as np
 from numpy.testing import assert_array_equal
 
-from swarmrl.observables.position import PositionObservable
 from swarmrl.models.interaction_model import Colloid
+from swarmrl.observables.position import PositionObservable
 
 
 class TestPositionObservable:
     """
     Test suite for position observable.
     """
+
     @classmethod
     def setup_class(cls):
         """

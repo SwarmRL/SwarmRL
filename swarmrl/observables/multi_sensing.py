@@ -67,9 +67,7 @@ class MultiSensing(Observable, ABC):
         # Get the observables for each colloid.
         unshaped_observable = []
         for item in self.observables:
-            unshaped_observable.append(
-                item.compute_observable(colloids)
-            )
+            unshaped_observable.append(item.compute_observable(colloids))
 
         # Reshape the observables to be (n_colloids, n_observables, ...)
         observable = []

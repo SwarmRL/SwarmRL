@@ -10,7 +10,6 @@ from abc import ABC
 from typing import List
 
 import jax.numpy as np
-import jax
 import numpy as onp
 
 from swarmrl.models.interaction_model import Colloid
@@ -31,13 +30,13 @@ class ConcentrationField(Observable, ABC):
     """
 
     def __init__(
-            self, 
-            source: np.ndarray, 
-            decay_fn: callable, 
-            box_length: np.ndarray,
-            scale_factor: int = 100,
-            particle_type: int = 0,
-        ):
+        self,
+        source: np.ndarray,
+        decay_fn: callable,
+        box_length: np.ndarray,
+        scale_factor: int = 100,
+        particle_type: int = 0,
+    ):
         """
         Constructor for the observable.
 
@@ -80,7 +79,7 @@ class ConcentrationField(Observable, ABC):
             index = onp.copy(item.id)
             position = onp.copy(item.pos) / self.box_length
             self.historic_positions[str(index)] = position
-    
+
     def compute_single_observable(self, index: int, colloids: List[Colloid]) -> float:
         """
         Compute the observable for a single colloid.
@@ -106,7 +105,7 @@ class ConcentrationField(Observable, ABC):
         delta = self.decay_fn(current_distance) - self.decay_fn(historic_distance)
 
         return self.scale_factor * delta
-    
+
     def compute_observable(self, colloids: List[Colloid]):
         """
         Compute the position of the colloid.
@@ -120,7 +119,7 @@ class ConcentrationField(Observable, ABC):
         -------
         observables : List[float] (n_colloids, dimension)
                 List of observables, one for each colloid. In this case,
-                current field value minus to previous field value.                
+                current field value minus to previous field value.
         """
         reference_ids = self.get_colloid_indices(colloids)
 
@@ -130,7 +129,7 @@ class ConcentrationField(Observable, ABC):
                 "initialize attribute of the gym to true and try again."
             )
             raise ValueError(msg)
-        
+
         return [
             self.compute_single_observable(index, colloids) for index in reference_ids
-            ]
+        ]

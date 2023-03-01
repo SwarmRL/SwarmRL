@@ -8,10 +8,12 @@ Notes
 Requires a warm up step.
 """
 from abc import ABC
+from typing import List
 
 import jax.numpy as np
+import numpy as onp
 
-from swarmrl.observables.concentration_field import ConcentrationField
+from swarmrl.models.interaction_model import Colloid
 from swarmrl.tasks.task import Task
 
 
@@ -24,8 +26,9 @@ class GradientSensing(Task, ABC):
         self,
         source: np.ndarray = np.array([0, 0, 0]),
         decay_function: callable = None,
-        box_size: np.ndarray = np.array([1.0, 1.0, 0.0]),
+        box_length: np.ndarray = np.array([1.0, 1.0, 0.0]),
         reward_scale_factor: int = 10,
+        particle_type: int = 0,
     ):
         """
         Constructor for the find origin task.
@@ -38,28 +41,41 @@ class GradientSensing(Task, ABC):
                 A function that describes the decay of the field along one dimension.
                 This cannot be left None. The function should take a distance from the
                 source and return the magnitude of the field at this point.
-        box_size : np.ndarray
+        box_length : np.ndarray
                 Side length of the box.
         reward_scale_factor : int (default=10)
                 The amount the field is scaled by to get the reward.
+        particle_type : int (default=0)
 
         """
-        super(GradientSensing, self).__init__()
+        super().__init__(particle_type=particle_type)
         self.source = source
         self.decay_fn = decay_function
         self.reward_scale_factor = reward_scale_factor
-        self.box_size = box_size
+        self.box_length = box_length
 
-    def init_task(self):
+        # Class only attributes
+        self._historic_positions = {}
+
+    def initialize(self, colloids: List[Colloid]):
         """
         Prepare the task for running.
+
+        Parameters
+        ----------
+        colloids : List[Colloid]
+                List of colloids to be used in the task.
 
         Returns
         -------
         observable :
                 Returns the observable required for the task.
         """
-        return ConcentrationField(self.source, self.decay_fn, self.box_size)
+        for item in colloids:
+            if item.type == self.particle_type:
+                index = onp.copy(item.id)
+                position = onp.copy(item.pos) / self.box_length
+                self._historic_positions[str(index)] = position
 
     def change_source(self, new_source: np.ndarray):
         """
@@ -69,16 +85,45 @@ class GradientSensing(Task, ABC):
         ----------
         new_source : np.ndarray
                 Coordinates of the new source.
+        """
+        self.source = new_source
+
+    def compute_colloid_reward(self, index: int, colloids):
+        """
+        Compute the reward for a single colloid.
+
+        Parameters
+        ----------
+        index : int
+                Index of the colloid to compute the reward for.
 
         Returns
         -------
-        observable :
-                Returns the observable required for the task.
+        reward : float
+                Reward for the colloid.
         """
-        self.source = new_source
-        return ConcentrationField(self.source, self.decay_fn, self.box_size)
+        # Get the current position of the colloid
+        current_position = colloids[index].pos / self.box_length
 
-    def __call__(self, observable: np.ndarray):
+        # Get the old position of the colloid
+        old_position = self._historic_positions[str(index)]
+
+        # Compute the distance from the source
+        current_distance = np.linalg.norm(current_position - self.source)
+        old_distance = np.linalg.norm(old_position - self.source)
+
+        # Compute difference in scaled_distances
+        delta = self.decay_fn(current_distance) - self.decay_fn(old_distance)
+
+        # Compute the reward
+        reward = np.clip(self.reward_scale_factor * delta, 0.0, None)
+
+        # Update the historic position
+        self._historic_positions[str(index)] = current_position
+
+        return reward
+
+    def __call__(self, colloids: List[Colloid]):
         """
         Compute the reward.
 
@@ -88,12 +133,16 @@ class GradientSensing(Task, ABC):
 
         Parameters
         ----------
-        observable : np.ndarray (dim, )
-                Position of the colloid.
+        colloids : List[Colloid] (n_colloids, )
+                List of colloids to be used in the task.
 
         Returns
         -------
-        reward : float
-                Reward for the colloid at the current state.
+        rewards : List[float] (n_colloids, )
+                Rewards for each colloid.
         """
-        return self.reward_scale_factor * np.clip(observable[0], 0, None)
+        colloid_indices = self.get_colloid_indices(colloids)
+
+        return [
+            self.compute_colloid_reward(index, colloids) for index in colloid_indices
+        ]
