@@ -287,6 +287,76 @@ class EspressoMD(Engine):
 
         self.colloid_radius_register.update({type_colloid: radius_simunits})
 
+    def add_colloid_precisely(
+        self,
+        radius_colloid: pint.Quantity,
+        init_position: pint.Quantity,
+        init_3D_direction: np.array = [1, 0, 0],
+        init_2D_angle: float = 0,
+        type_colloid=0,
+    ):
+        """
+        Parameters
+        ----------
+        radius_colloid
+        init_position
+        init_3D_direction
+        init_2D_angle
+        type_colloid
+            The colloids created from this method call will have this type.
+            Multiple calls can be made with the same type_colloid.
+            Interaction models need to be made aware if there are different types
+            of colloids in the system if specific behaviour is desired.
+
+        Returns
+        -------
+
+        """
+
+        self._check_already_initialised()
+
+        radius_simunits = radius_colloid.m_as("sim_length")
+        init_center = init_position.m_as("sim_length")
+        init_3D_direction = init_3D_direction / np.linalg.norm(init_3D_direction)
+
+        (
+            particle_gamma_translation,
+            particle_gamma_rotation,
+        ) = _calc_friction_coefficients(
+            self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius_simunits
+        )
+
+        if self.n_dims == 3:
+            colloid = self.system.part.add(
+                pos=init_center,
+                director=init_3D_direction,
+                rotation=3 * [True],
+                gamma=particle_gamma_translation,
+                gamma_rot=particle_gamma_rotation,
+                fix=3 * [False],
+                type=type_colloid,
+            )
+        else:
+            # initialize with body-frame = lab-frame to set correct rotation flags
+            # allow all rotations to bring the particle to correct state
+            start_angle = np.fmod(init_2D_angle, 2 * np.pi)
+            init_center[2] = 0  # get rid of z-coordinate in 2D coordinates
+            start_pos = init_center
+            colloid = self.system.part.add(
+                pos=start_pos,
+                fix=[False, False, True],
+                rotation=3 * [True],
+                gamma=particle_gamma_translation,
+                gamma_rot=particle_gamma_rotation,
+                quat=[1, 0, 0, 0],
+                type=type_colloid,
+            )
+            self._rotate_colloid_to_2d(colloid, start_angle)
+
+        self.colloids.append(colloid)
+
+        self.colloid_radius_register.update({type_colloid: radius_simunits})
+
     def add_rod(
         self,
         rod_center: pint.Quantity,
