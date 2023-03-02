@@ -5,6 +5,7 @@ import logging
 import os
 import pickle
 from abc import ABC
+from typing import List
 
 import jax
 import jax.numpy as np
@@ -16,8 +17,9 @@ from flax.training.train_state import TrainState
 from optax._src.base import GradientTransformation
 
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
+from swarmrl.models.interaction_model import Colloid
 from swarmrl.networks.network import Network
-from swarmrl.sampling_strategies.sampling_stratgey import SamplingStrategy
+from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -116,28 +118,39 @@ class FlaxModel(Network, ABC):
 
         self.epoch_count += 1
 
-    def compute_action(self, feature_vector: np.ndarray, explore_mode: bool = False):
+    def compute_action(self, observables: List[Colloid], explore_mode: bool = False):
         """
-        Compute the action.
+        Compute and action from the action space.
+
+        This method computes an action on all colloids of the relevent type.
+
+        Parameters
+        ----------
+        observables : List[Colloid]
+                Colloids in the system for which the action should be computed.
+        explore_mode : bool
+                If true, an exploration vs exploitation function is called.
+
+        Returns
+        -------
+        action : int
+                An integer bounded between 0 and the number of output neurons
+                corresponding to the action chosen by the agent.
         """
         # Compute state
         try:
-            model_output = self.apply_fn(
-                {"params": self.model_state.params}, feature_vector
-            )
-        except AttributeError:
-            model_output = self.apply_fn(
-                {"params": self.model_state["params"]}, feature_vector
-            )
-        logger.debug(f"{model_output=}")
+            logits = self.apply_fn({"params": self.model_state.params}, observables)
+        except AttributeError:  # We need this for loaded models.
+            logits = self.apply_fn({"params": self.model_state["params"]}, observables)
+        logger.debug(f"{logits=}")
 
         # Compute the action
-        index = self.sampling_strategy(model_output)
+        index = self.sampling_strategy(logits)
 
         if explore_mode:
-            index = self.exploration_policy(index, len(model_output))
+            index = self.exploration_policy(index, len(logits))
 
-        return index, model_output[index]
+        return index, logits[index]
 
     def export_model(self, filename: str = "model", directory: str = "Models"):
         """

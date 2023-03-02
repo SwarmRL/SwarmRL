@@ -7,7 +7,7 @@ import jax
 import jax.numpy as np
 import numpy as onp
 
-from swarmrl.sampling_strategies.sampling_stratgey import SamplingStrategy
+from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 
 
 class GumbelDistribution(SamplingStrategy, ABC):
@@ -41,8 +41,8 @@ class GumbelDistribution(SamplingStrategy, ABC):
 
         Parameters
         ----------
-        logits : np.ndarray
-                Logits from the model to use in the computation.
+        logits : np.ndarray (n_colloids, n_dimensions)
+                Logits from the model to use in the computation for all colloids.
 
         Returns
         -------

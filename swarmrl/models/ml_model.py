@@ -79,39 +79,43 @@ class MLModel(InteractionModel):
         action_indices = {item: [] for item in self.particle_types}
         logits = {item: [] for item in self.particle_types}
         rewards = {item: [] for item in self.particle_types}
-        feature_vectors = {item: [] for item in self.particle_types}
+        observables = {item: [] for item in self.particle_types}
 
-        for colloid in colloids:
-            other_colloids = [c for c in colloids if c is not colloid]
+        for item in self.particle_types:
+            observables[item] = self.observables[item].compute_observable(colloids)
+            rewards[item] = self.tasks[item](colloids)
 
-            # Compute the action for a specific colloid type.
-            try:
-                feature_vector = self.observables[str(colloid.type)].compute_observable(
-                    colloid, other_colloids
-                )
-                reward = self.tasks[str(colloid.type)](feature_vector)
-                action_index, logit = self.models[str(colloid.type)].compute_action(
-                    feature_vector=feature_vector, explore_mode=explore_mode
-                )
-                actions.append(
-                    self.actions[str(colloid.type)][
-                        list(self.actions[str(colloid.type)])[int(action_index)]
-                    ]
-                )
+        # for colloid in colloids:
+        #     other_colloids = [c for c in colloids if c is not colloid]
 
-                action_indices[str(colloid.type)].append(action_index)
-                feature_vectors[str(colloid.type)].append(feature_vector)
-                logits[str(colloid.type)].append(logit)
-                rewards[str(colloid.type)].append(reward)
-            except KeyError:
-                actions.append(Action())
+        #     # Compute the action for a specific colloid type.
+        #     try:
+        #         feature_vector = self.observables[str(colloid.type)].compute_observable(
+        #             colloid, other_colloids
+        #         )
+        #         reward = self.tasks[str(colloid.type)](feature_vector)
+        #         action_index, logit = self.models[str(colloid.type)].compute_action(
+        #             feature_vector=feature_vector, explore_mode=explore_mode
+        #         )
+        #         actions.append(
+        #             self.actions[str(colloid.type)][
+        #                 list(self.actions[str(colloid.type)])[int(action_index)]
+        #             ]
+        #         )
+
+        #         action_indices[str(colloid.type)].append(action_index)
+        #         feature_vectors[str(colloid.type)].append(feature_vector)
+        #         logits[str(colloid.type)].append(logit)
+        #         rewards[str(colloid.type)].append(reward)
+        #     except KeyError:
+        #         actions.append(Action())
 
         # Record the trajectory if required.
         if self.record_traj:
             for item in self.particle_types:
                 record_trajectory(
                     particle_type=item,
-                    features=np.array(feature_vectors[item]),
+                    features=np.array(observables[item]),
                     actions=np.array(action_indices[item]),
                     logits=np.array(logits[item]),
                     rewards=np.array(rewards[item]),
