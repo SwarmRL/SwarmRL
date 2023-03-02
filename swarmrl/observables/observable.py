@@ -24,6 +24,10 @@ class Observable:
         """
         Initialize the observable with starting positions of the colloids.
 
+        The parent method will just pass. This is because some observables
+        might not need to be initialized. Those that do need to be initialized
+        will override this method.
+
         Parameters
         ----------
         colloids : List[Colloid]
@@ -33,7 +37,7 @@ class Observable:
         -------
         Updates the class state.
         """
-        raise NotImplementedError("Implemented in child class.")
+        pass
 
     def get_colloid_indices(self, colloids: List[Colloid], p_type: int = None):
         """

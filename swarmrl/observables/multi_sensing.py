@@ -4,8 +4,6 @@ Class for an observable which computes several observables.
 from abc import ABC
 from typing import List
 
-import jax.numpy as np
-
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.observable import Observable
 
@@ -65,13 +63,16 @@ class MultiSensing(Observable, ABC):
         at initialization.
         """
         # Get the observables for each colloid.
-        unshaped_observable = []
+        unshaped_observable = []  # shape (n_obs, n_colloids, ...)
         for item in self.observables:
             unshaped_observable.append(item.compute_observable(colloids))
 
-        # Reshape the observables to be (n_colloids, n_observables, ...)
-        observable = []
-        for item in unshaped_observable:
-            observable.append(np.expand_dims(item, axis=1))
+        n_colloids = len(unshaped_observable[0])
+
+        # Reshape the observables to be (n_colloids, n_observables, )
+        observable = [[] for _ in range(n_colloids)]
+        for i, item in enumerate(unshaped_observable):
+            for j, colloid in enumerate(item):
+                observable[j].append(colloid)
 
         return observable
