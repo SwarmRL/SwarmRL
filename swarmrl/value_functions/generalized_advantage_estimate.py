@@ -36,46 +36,28 @@ class GAE:
         # Set by us to stabilize division operations.
         self.eps = np.finfo(np.float32).eps.item()
 
-    # def __call__(self, rewards: np.ndarray, values: np.ndarray):
-    #     """
-    #     Call function for the advantage.
-    #     Parameters
-    #     ----------
-    #     rewards : np.ndarray (n_time_steps, n_particles)
-    #             A numpy array of rewards to use in the calculation.
-    #     values : np.ndarray (n_time_steps, n_particles)
-    #             The prediction of the critic for the episode.
-    #     Returns
-    #     -------
-    #     expected_returns : np.ndarray (n_time_steps, n_particles)
-    #             Expected returns for the rewards.
-    #     """
-    #     gae = 0
-    #     advantages = onp.zeros_like(rewards)
-    #     for t in reversed(range(len(rewards))):
-    #         delta = rewards[t] + self.gamma * values[t + 1] - values[t]
-    #         gae = delta + self.gamma * self.lambda_ * gae
-    #         advantages[t] = gae
-    #
-    #     advantages = ((advantages - np.mean(advantages)) / (np.std(advantages) + self.eps))
-    #
-    #     return advantages
-
-    def __call__(self, rewards, values):
-        n = len(rewards)
-        returns = np.zeros_like(rewards)
-        advantages = np.zeros_like(rewards)
-
-        running_return = 0
-        running_value = values[-1]
-        for i in range(n - 1, -1, -1):
-            delta = rewards[i] + self.gamma * running_value - values[i]
-            running_return = delta + self.gamma * self.lambda_ * running_return
-            running_value = values[i]
-            returns = returns.at[i].set(running_return)
-            advantages = advantages.at[i].set(running_return - values[i])
-
-        return returns, advantages
+    def __call__(self, rewards: np.ndarray, values: np.ndarray):
+        """
+        Call function for the advantage.
+        Parameters
+        ----------
+        rewards : np.ndarray (n_time_steps, n_particles)
+                A numpy array of rewards to use in the calculation.
+        values : np.ndarray (n_time_steps, n_particles)
+                The prediction of the critic for the episode.
+        Returns
+        -------
+        expected_returns : np.ndarray (n_time_steps, n_particles)
+                Expected returns for the rewards.
+        """
+        gae = 0
+        advantages = onp.zeros_like(rewards)
+        for t in reversed(range(len(rewards)-1)):
+            delta = rewards[t] + self.gamma * values[t + 1] - values[t]
+            gae = delta + self.gamma * self.lambda_ * gae
+            advantages[t] = gae
+        advantages = ((advantages - np.mean(advantages)) / (np.std(advantages) + self.eps))
+        return advantages
 
     def returns(self, advantages: np.ndarray, values: np.ndarray):
         """
@@ -91,5 +73,5 @@ class GAE:
         expected_returns : np.ndarray (n_time_steps, n_particles)
                 Expected returns for the rewards.
         """
-        returns = advantages + values[:-1]
+        returns = advantages + values
         return returns
