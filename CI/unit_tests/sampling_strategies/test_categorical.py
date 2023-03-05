@@ -61,3 +61,32 @@ class TestCategorical:
             outcomes[sampler(self.definite_probabilities)] += 1
 
         assert outcomes[1] != 0.0
+
+    def test_multi_colloid(self):
+        """
+        Ensure the sampler works for many colloids.
+        """
+        sampler = CategoricalDistribution()
+
+        logits = np.array([[3.0, 3.0, 3.0, 3.0], [100.0, 0.0, 0.0, 0.0]])
+        probabilities = np.array([[0.25, 0.25, 0.25, 0.25], [1.0, 0.0, 0.0, 0.0]])
+
+        # Collect points for different cases.
+        single_outcomes_0 = onp.array([0.0, 0.0, 0.0, 0.0])
+        single_outcomes_1 = onp.array([0.0, 0.0, 0.0, 0.0])
+        full_outcomes = onp.array([[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
+
+        for _ in range(500):
+            single_outcomes_0[sampler(logits[0])] += 1
+            single_outcomes_1[sampler(logits[1])] += 1
+            full_outcome_data = sampler(logits)
+            full_outcomes[0][full_outcome_data[0]] += 1
+            full_outcomes[1][full_outcome_data[1]] += 1
+
+        assert_array_almost_equal(
+            full_outcomes[0] / 500, single_outcomes_0 / 500, decimal=1
+        )
+        assert_array_almost_equal(
+            full_outcomes[1] / 500, single_outcomes_1 / 500, decimal=1
+        )
+        assert_array_almost_equal(full_outcomes / 500, probabilities, decimal=1)

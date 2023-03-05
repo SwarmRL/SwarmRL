@@ -17,7 +17,6 @@ from flax.training.train_state import TrainState
 from optax._src.base import GradientTransformation
 
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
-from swarmrl.models.interaction_model import Colloid
 from swarmrl.networks.network import Network
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 
@@ -118,22 +117,22 @@ class FlaxModel(Network, ABC):
 
         self.epoch_count += 1
 
-    def compute_action(self, observables: List[Colloid], explore_mode: bool = False):
+    def compute_action(self, observables: List, explore_mode: bool = False):
         """
         Compute and action from the action space.
 
-        This method computes an action on all colloids of the relevent type.
+        This method computes an action on all colloids of the relevant type.
 
         Parameters
         ----------
-        observables : List[Colloid]
-                Colloids in the system for which the action should be computed.
+        observables : List
+                Observable for each colloid for which the action should be computed.
         explore_mode : bool
                 If true, an exploration vs exploitation function is called.
 
         Returns
         -------
-        action : int
+        action : np.ndarray (n_colloids, )
                 An integer bounded between 0 and the number of output neurons
                 corresponding to the action chosen by the agent.
         """
@@ -142,15 +141,18 @@ class FlaxModel(Network, ABC):
             logits = self.apply_fn({"params": self.model_state.params}, observables)
         except AttributeError:  # We need this for loaded models.
             logits = self.apply_fn({"params": self.model_state["params"]}, observables)
-        logger.debug(f"{logits=}")
+        logger.debug(f"{logits=}")  # (n_colloids, n_actions)
 
         # Compute the action
-        index = self.sampling_strategy(logits)
+        indices = self.sampling_strategy(logits)
 
         if explore_mode:
-            index = self.exploration_policy(index, len(logits))
+            indices = self.exploration_policy(indices, len(logits))
 
-        return index, logits[index]
+        return (
+            indices,
+            np.take_along_axis(logits, indices.reshape(-1, 1), axis=1).reshape(-1),
+        )
 
     def export_model(self, filename: str = "model", directory: str = "Models"):
         """
@@ -209,4 +211,7 @@ class FlaxModel(Network, ABC):
                 Observable to be passed through the network on which a decision is made.
         """
 
-        return self.apply_fn({"params": self.model_state.params}, feature_vector)
+        try:
+            return self.apply_fn({"params": self.model_state.params}, feature_vector)
+        except AttributeError:  # We need this for loaded models.
+            return self.apply_fn({"params": self.model_state["params"]}, feature_vector)
