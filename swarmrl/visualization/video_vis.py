@@ -547,8 +547,8 @@ class Animations:
                         :, :, :, detected_type
                     ] / np.mean(self.vision_cone_data_frame[:, :, :, detected_type])
                     self.vision_cone_data_frame[:, :, :, detected_type] = (
-                        np.arctan(norm_vals) * 1 / np.pi
-                    )
+                        np.arctan(norm_vals / 1) * 1 / np.pi
+                    )  # divide norm_vals by ca. 100 to get shaded colors
                     self.vision_cone_data_frame[:, :, :, detected_type] += 0.05
 
     def animation_maze_setup(self, folder, filename):
@@ -628,11 +628,17 @@ class Animations:
 
     def animation_plt_update(self, frame):
         t = round(self.times[frame], 0)
-        self.time_annotate[0].set(text=f"time in ${t:g~L}$")
+        self.time_annotate[0].set(text=f"time: ${t:g~L}$")
 
         # Updating the written Info
         if self.written_info_data is not None:
-            self.written_info[0].set(text=self.written_info_data[frame])
+            if "|" in self.written_info_data[frame]:
+                first_text, sep, second_text = self.written_info_data[frame].partition(
+                    "|"
+                )
+                self.written_info[0].set(text=first_text + "\n" + second_text)
+            else:
+                self.written_info[0].set(text=self.written_info_data[frame])
 
         # Updating the schmell field
         if self.schmell_boolean != [False] * len(self.ids):

@@ -316,6 +316,7 @@ class EspressoMD(Engine):
         self._check_already_initialised()
 
         radius_simunits = radius_colloid.m_as("sim_length")
+
         init_center = init_position.m_as("sim_length")
         init_3D_direction = init_3D_direction / np.linalg.norm(init_3D_direction)
 
