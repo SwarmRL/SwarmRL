@@ -91,9 +91,8 @@ class MLModel(InteractionModel):
                 list(self.actions[item].values()), action_indices[item], axis=-1
             )
             for i, colloid in enumerate(colloids):
-                if colloid.type == item:
+                if str(colloid.type) == item:
                     actions[colloid.id] = chosen_actions[i]
-
         actions = list(actions.values())  # convert to a list.
 
         # Record the trajectory if required.

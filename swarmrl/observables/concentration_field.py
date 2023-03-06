@@ -57,7 +57,7 @@ class ConcentrationField(Observable, ABC):
 
         self.source = source / box_length
         self.decay_fn = decay_fn
-        self.historic_positions = {}
+        self._historic_positions = {}
         self.box_length = box_length
         self.scale_factor = scale_factor
         self._observable_shape = (3,)
@@ -78,7 +78,7 @@ class ConcentrationField(Observable, ABC):
         for item in colloids:
             index = onp.copy(item.id)
             position = onp.copy(item.pos) / self.box_length
-            self.historic_positions[str(index)] = position
+            self._historic_positions[str(index)] = position
 
     def compute_single_observable(self, index: int, colloids: List[Colloid]) -> float:
         """
@@ -94,10 +94,10 @@ class ConcentrationField(Observable, ABC):
         reference_colloid = colloids[index]
         position = onp.copy(reference_colloid.pos) / self.box_length
         index = onp.copy(reference_colloid.id)
-        previous_position = self.historic_positions[str(index)]
+        previous_position = self._historic_positions[str(index)]
 
         # Update historic position.
-        self.historic_positions[str(index)] = position
+        self._historic_positions[str(index)] = position
 
         current_distance = np.linalg.norm((self.source - position))
         historic_distance = np.linalg.norm(self.source - previous_position)
@@ -123,13 +123,15 @@ class ConcentrationField(Observable, ABC):
         """
         reference_ids = self.get_colloid_indices(colloids)
 
-        if self.historic_positions == {}:
+        if self._historic_positions == {}:
             msg = (
                 f"{type(self).__name__} requires initialization. Please set the "
                 "initialize attribute of the gym to true and try again."
             )
             raise ValueError(msg)
 
-        return [
+        observables = [
             self.compute_single_observable(index, colloids) for index in reference_ids
         ]
+
+        return np.array(observables).reshape(-1, 1)
