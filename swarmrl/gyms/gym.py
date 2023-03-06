@@ -200,8 +200,10 @@ class Gym:
         progress = Progress(
             "Episode: {task.fields[Episode]}",
             BarColumn(),
-            "Episode reward: {task.fields[current_reward]} Running Reward:"
-            " {task.fields[running_reward]}",
+            (
+                "Episode reward: {task.fields[current_reward]} Running Reward:"
+                " {task.fields[running_reward]}"
+            ),
             TimeRemainingColumn(),
         )
 
