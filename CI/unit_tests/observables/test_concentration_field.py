@@ -85,7 +85,7 @@ class TestConcentrationField:
         distance_colloid_3 = np.linalg.norm(colloid_3.pos - self.observable.source)
 
         delta_colloid_1 = distance_colloid_1 - np.linalg.norm(
-            self.colloids[0].pos - self.obserable.source
+            self.colloids[0].pos - self.observable.source
         )
         delta_colloid_2 = distance_colloid_2 - np.linalg.norm(
             self.colloids[1].pos - self.observable.source

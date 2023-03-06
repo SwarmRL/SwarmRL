@@ -145,6 +145,10 @@ class TestMLModel:
         assert loaded_data_2 == 5.0
         assert loaded_data_0 == 1.0
 
+        # Clean up files
+        os.remove(".traj_data_0.npy")
+        os.remove(".traj_data_2.npy")
+
     def test_file_saving(self):
         """
         Test that classes are saved correctly.
