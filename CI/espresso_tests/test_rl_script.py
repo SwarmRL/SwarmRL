@@ -148,7 +148,7 @@ class TestRLScript(ut.TestCase):
             source=np.array([500.0, 500.0, 0.0]),
             decay_function=scale_function,
             reward_scale_factor=10,
-            box_size=np.array([1000.0, 1000.0, 1000]),
+            box_length=np.array([1000.0, 1000.0, 1000]),
         )
         observable = task.init_task()
 
