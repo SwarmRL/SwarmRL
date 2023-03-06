@@ -7,7 +7,7 @@ from pathlib import Path
 import flax.linen as nn
 import numpy as np
 import optax
-from numpy.testing import assert_array_almost_equal
+from numpy.testing import assert_array_almost_equal, assert_array_equal
 
 import swarmrl as srl
 from swarmrl.models.interaction_model import Action, Colloid
@@ -135,7 +135,8 @@ class TestMLModel:
         )
 
         # Check that the second action is correct
-        actions[1] == self.action_space["DoNothing"]
+        actions[1].force == 0.0
+        assert_array_equal(actions[0].torque, np.array([0.0, 0.0, 0.0]))
 
         # Check reward data
         loaded_data_0 = np.load(".traj_data_0.npy", allow_pickle=True)

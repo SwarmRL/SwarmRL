@@ -54,16 +54,16 @@ class TestConcentrationField:
         assert self.observable.decay_fn(1) == -1
         assert self.observable.scale_factor == 100.0
         assert_array_equal(
-            list(self.observable.historic_positions.keys()), ["0", "1", "2"]
+            list(self.observable._historic_positions.keys()), ["0", "1", "2"]
         )
         assert_array_equal(
-            self.observable.historic_positions["0"], np.array([0.0, 0.0, 0.0])
+            self.observable._historic_positions["0"], np.array([0.0, 0.0, 0.0])
         )
         assert_array_equal(
-            self.observable.historic_positions["1"], np.array([0.0, 1.0, 0.0])
+            self.observable._historic_positions["1"], np.array([0.0, 1.0, 0.0])
         )
         assert_array_equal(
-            self.observable.historic_positions["2"], np.array([1.0, 1.0, 0.0])
+            self.observable._historic_positions["2"], np.array([1.0, 1.0, 0.0])
         )
 
     def test_compute_observable(self):
@@ -94,10 +94,11 @@ class TestConcentrationField:
             self.colloids[2].pos - self.observable.source
         )
 
-        observables_should_be = [
-            -1 * self.observable.scale_factor * delta_colloid_1,
-            -1 * self.observable.scale_factor * delta_colloid_2,
-            -1 * self.observable.scale_factor * delta_colloid_3,
-        ]
-
-        assert observables == observables_should_be
+        observables_should_be = np.array(
+            [
+                -1 * self.observable.scale_factor * delta_colloid_1,
+                -1 * self.observable.scale_factor * delta_colloid_2,
+                -1 * self.observable.scale_factor * delta_colloid_3,
+            ]
+        ).reshape(-1, 1)
+        assert_array_equal(observables, observables_should_be)

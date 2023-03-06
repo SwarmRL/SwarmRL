@@ -121,7 +121,7 @@ class TestMultiSensing:
         # Check shape of output
         shape_should_be = (3, 3)
         assert np.shape(observable) == shape_should_be
-        assert np.shape(observable[0][0]) == ()
+        assert np.shape(observable[0][0]) == (1,)
         assert np.shape(observable[0][1]) == (3,)
         assert np.shape(observable[0][2]) == (3,)
 
