@@ -77,8 +77,9 @@ class PolicyGradientLoss(Loss):
         loss : float
                 The loss for the episode.
         """
+        actor_apply_fn = jax.vmap(actor.apply_fn, in_axes=(None, 0))
         # (n_timesteps, n_particles, n_possibilities)
-        logits = actor.apply_fn({"params": actor_params}, feature_data)
+        logits = actor_apply_fn({"params": actor_params}, feature_data)
         probabilities = jax.nn.softmax(logits)  # get probabilities
         chosen_probabilities = gather_n_dim_indices(probabilities, action_indices)
         log_probs = np.log(chosen_probabilities)
@@ -87,7 +88,10 @@ class PolicyGradientLoss(Loss):
         value_function_values = self.value_function(rewards)
         logger.debug(f"{value_function_values.shape}")
 
-        critic_values = critic(feature_data)[:, :, 0]  # zero for trivial dimension
+        critic_apply_fn = jax.vmap(critic.__call__, in_axes=(0,))
+        critic_values = critic_apply_fn(feature_data)[
+            :, :, 0
+        ]  # zero for trivial dimension
         logger.debug(f"{critic_values.shape=}")
 
         # (n_timesteps, n_particles)
@@ -125,7 +129,8 @@ class PolicyGradientLoss(Loss):
         loss : float
                 Critic loss for the episode.
         """
-        critic_values = critic.apply_fn({"params": critic_params}, feature_data)[
+        critic_apply_fn = jax.vmap(critic.apply_fn, in_axes=(None, 0))
+        critic_values = critic_apply_fn({"params": critic_params}, feature_data)[
             :, :, 0
         ]
         logger.debug(f"{critic_values.shape=}")

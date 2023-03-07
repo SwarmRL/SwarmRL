@@ -184,15 +184,6 @@ def gather_n_dim_indices(reference_array: np.ndarray, indices: np.ndarray):
     return gathered_array.reshape(reference_shape[0], reference_shape[1])
 
 
-def replace_index_values():
-    """
-    Replace the values of the indices with the values of the array.
-
-    Jax numpy arrays do not allow for `np.put` operations. This function
-    replaces the values of the indices with the values of the array.
-    """
-
-
 def record_trajectory(
     particle_type: str,
     features: np.ndarray,
