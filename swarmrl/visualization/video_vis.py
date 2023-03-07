@@ -440,7 +440,7 @@ class Animations:
 
         t = round(self.times[1], 0)
         self.time_annotate[0] = self.ax.annotate(
-            f"time in ${t:g~L}$",
+            f"time: ${t:g~L}$",
             xy=(0.02, 0.95),
             xycoords="axes fraction",
             zorder=n_parts * 4 + n_parts * self.n_cones + 1,
