@@ -88,7 +88,7 @@ class PolicyGradientLoss(Loss):
         value_function_values = self.value_function(rewards)
         logger.debug(f"{value_function_values.shape}")
 
-        critic_apply_fn = jax.vmap(critic.__call__, in_axes=(0,))
+        critic_apply_fn = jax.vmap(critic.__call__, in_axes=(0))
         critic_values = critic_apply_fn(feature_data)[
             :, :, 0
         ]  # zero for trivial dimension
