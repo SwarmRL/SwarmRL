@@ -80,6 +80,7 @@ class Animations:
         types,
         vision_cone_boolean,
         cone_radius,
+        cone_vision_of_types,
         n_cones,
         cone_half_angle,
         trace_boolean,
@@ -111,6 +112,7 @@ class Animations:
 
         self.vision_cone_boolean = [False] * len(self.ids)
         self.cone_radius = [0] * len(self.ids)
+        self.cone_vision_of_types=cone_vision_of_types
         self.n_cones = 1
         self.cone_half_angle = [0] * len(self.ids)
         self.trace_boolean = [False] * len(self.ids)
@@ -440,7 +442,7 @@ class Animations:
 
         t = round(self.times[1], 0)
         self.time_annotate[0] = self.ax.annotate(
-            f"time: ${t:g~L}$",
+            f"time:",
             xy=(0.02, 0.95),
             xycoords="axes fraction",
             zorder=n_parts * 4 + n_parts * self.n_cones + 1,
@@ -542,7 +544,7 @@ class Animations:
 
             # color adjustment for each color separately
             for detected_type in range(self.n_types):
-                if np.max(self.vision_cone_data_frame[:, :, :, detected_type]) != 0:
+                if np.max(self.vision_cone_data_frame[:, :, :, detected_type]) != 0 and detected_type in self.cone_vision_of_types:
                     norm_vals = self.vision_cone_data_frame[
                         :, :, :, detected_type
                     ] / np.mean(self.vision_cone_data_frame[:, :, :, detected_type])
