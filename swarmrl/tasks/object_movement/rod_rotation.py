@@ -3,6 +3,7 @@ Class for rod rotation task.
 """
 from typing import List
 
+import jax
 import jax.numpy as np
 import numpy as onp
 
@@ -44,6 +45,8 @@ class RotateRod(Task):
 
         # Class only attributes
         self._historic_rod_director = None
+
+        self.decomp_fn = jax.jit(compute_torque_partition_on_rod)
 
     def initialize(self, colloids: List[Colloid]):
         """
@@ -114,7 +117,7 @@ class RotateRod(Task):
         partitioned_reward : np.ndarray (n_colloids, )
                 Partitioned reward for each colloid.
         """
-        colloid_partitions = compute_torque_partition_on_rod(
+        colloid_partitions = self.decomp_fn(
             colloid_positions, rod_positions, rod_directors
         )
         return reward * colloid_partitions
@@ -151,8 +154,9 @@ class RotateRod(Task):
         angular_velocity = self.scale_factor * self._compute_angular_velocity(
             rod_directors[0]
         )
+        reward = angular_velocity
 
         # Compute colloid-wise rewards
         return self.partition_reward(
-            angular_velocity, colloid_positions, rod_positions, rod_directors
+            reward, colloid_positions, rod_positions, rod_directors
         )

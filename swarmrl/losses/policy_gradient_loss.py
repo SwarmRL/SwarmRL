@@ -165,7 +165,7 @@ class PolicyGradientLoss(Loss):
         self.n_time_steps = np.shape(feature_data)[0]
 
         actor_grad_fn = jax.value_and_grad(self._compute_actor_loss)
-        actor_loss, actor_grad = actor_grad_fn(
+        actor_loss, actor_grads = actor_grad_fn(
             actor.model_state.params,
             feature_data,
             reward_data,
@@ -179,6 +179,4 @@ class PolicyGradientLoss(Loss):
             critic.model_state.params, feature_data, reward_data, critic
         )
 
-        # Update the models
-        actor.update_model(actor_grad)
-        critic.update_model(critic_grads)
+        return actor_grads, critic_grads

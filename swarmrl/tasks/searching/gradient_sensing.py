@@ -49,7 +49,7 @@ class GradientSensing(Task, ABC):
 
         """
         super().__init__(particle_type=particle_type)
-        self.source = source
+        self.source = source / box_length
         self.decay_fn = decay_function
         self.reward_scale_factor = reward_scale_factor
         self.box_length = box_length
@@ -102,11 +102,12 @@ class GradientSensing(Task, ABC):
         reward : float
                 Reward for the colloid.
         """
+        colloid_id = onp.copy(colloids[index].id)
         # Get the current position of the colloid
-        current_position = colloids[index].pos / self.box_length
+        current_position = onp.copy(colloids[index].pos) / self.box_length
 
         # Get the old position of the colloid
-        old_position = self._historic_positions[str(index)]
+        old_position = self._historic_positions[str(colloid_id)]
 
         # Compute the distance from the source
         current_distance = np.linalg.norm(current_position - self.source)
@@ -119,7 +120,7 @@ class GradientSensing(Task, ABC):
         reward = np.clip(self.reward_scale_factor * delta, 0.0, None)
 
         # Update the historic position
-        self._historic_positions[str(index)] = current_position
+        self._historic_positions[str(colloid_id)] = current_position
 
         return reward
 
