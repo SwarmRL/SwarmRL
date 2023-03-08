@@ -54,7 +54,7 @@ class TestGradientSensing:
         assert_array_equal(self.task.source, np.array([0.5, 0.5, 0.0]))
         assert_array_equal(self.task.box_length, np.array([1.0, 1.0, 1.0]))
         assert self.task.decay_fn(1) == 0
-        assert self.task.reward_scale_factor == 10.0
+        assert self.task.reward_scale_factor == 1.0
         assert_array_equal(list(self.task._historic_positions.keys()), ["0", "1", "2"])
         assert_array_equal(
             self.task._historic_positions["0"], np.array([0.0, 0.0, 0.0])
