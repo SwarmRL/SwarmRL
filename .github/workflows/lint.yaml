@@ -1,8 +1,7 @@
 name: Check coding style
 
 on:
-  push:
-  pull_request:
+  push: [ "master" ]
 
 jobs:
   black:
