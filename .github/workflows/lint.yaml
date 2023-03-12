@@ -1,7 +1,7 @@
 name: Check coding style
 
 on:
-  push: [ "master" ]
+  push:
 
 jobs:
   black:

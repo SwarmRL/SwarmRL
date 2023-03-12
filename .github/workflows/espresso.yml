@@ -5,7 +5,7 @@ name: Espresso Test
 
 on:
   push:
-    branches: [ "master" ]
+    branches:
 
 jobs:
   build:
