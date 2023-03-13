@@ -302,6 +302,7 @@ class Animations:
         norm = plt.Normalize(0, 1)
         self.color_index = [random.randint(1, 9) for _ in range(len(self.ids))]
         self.mycolor = [0] * len(self.ids)
+        self.bodycolor=['g','g']
 
         for i in range(len(self.ids)):
             cfade = colors.to_rgb(self.color_names[self.color_index[i]]) + (0.0,)
@@ -330,19 +331,20 @@ class Animations:
 
         n_parts = len(self.ids)
         for i in range(n_parts):
+
             self.part_body[i] = self.ax.add_patch(
                 patches.Circle(
-                    xy=(0, 0),
+                    xy=(-27000, -27000),
                     radius=self.radius_col[i],
                     alpha=0.7,
-                    color="g",
+                    color=self.bodycolor[self.types[i]],
                     zorder=n_parts + n_parts * self.n_cones + i,
                 )
             )
             if self.eyes_boolean[i]:
                 self.part_lefteye[i] = self.ax.add_patch(
                     patches.Circle(
-                        xy=(0, 0),
+                        xy=(-27000, -27000),
                         radius=self.radius_col[i] / 5,
                         alpha=0.7,
                         color="k",
@@ -351,7 +353,7 @@ class Animations:
                 )
                 self.part_righteye[i] = self.ax.add_patch(
                     patches.Circle(
-                        xy=(0, 0),
+                        xy=(-27000, -27000),
                         radius=self.radius_col[i] / 5,
                         alpha=0.7,
                         color="k",
@@ -732,6 +734,31 @@ class Animations:
                     dy=start_y - end_y,
                 )
 
+        ############################    
+        '''    
+        delta_max_x = np.max(self.positions[frame + 1, :, 0].magnitude) - np.min(
+            self.positions[frame + 1, :, 0].magnitude
+        )
+        mean_x = (
+            np.min(self.positions[frame + 1, :, 0].magnitude)
+            + np.max(self.positions[frame + 1, :, 0].magnitude)
+        ) / 2
+        delta_max_y = np.max(self.positions[frame + 1, :, 1].magnitude) - np.min(
+            self.positions[frame + 1, :, 1].magnitude
+        )
+        mean_y = (
+            np.min(self.positions[frame + 1, :, 1].magnitude)
+            + np.max(self.positions[frame + 1, :, 1].magnitude)
+        ) / 2
+        max_region = max(delta_max_x, delta_max_y) * 1.2
+        self.x_0 = mean_x - max_region / 2
+        self.x_1 = mean_x + max_region / 2
+        self.y_0 = mean_y - max_region / 2
+        self.y_1 = mean_y + max_region / 2
+        self.ax.set_xlim(self.x_0, self.x_1)
+        self.ax.set_ylim(self.y_0, self.y_1)
+        '''
+        ###########################################
         if self.maze_boolean:
             return tuple(
                 self.trace
