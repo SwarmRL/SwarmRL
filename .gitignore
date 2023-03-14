@@ -158,3 +158,8 @@ mdsuite/cython_extensions/*.c
 *.hdf5
 *.pdf
 /coverage_html_report/
+
+# Test files
+*.npy
+*.pymon
+*.__pycache__/

@@ -5,6 +5,7 @@ import logging
 import os
 import pickle
 from abc import ABC
+from typing import List
 
 import jax
 import jax.numpy as np
@@ -17,7 +18,7 @@ from optax._src.base import GradientTransformation
 
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
 from swarmrl.networks.network import Network
-from swarmrl.sampling_strategies.sampling_stratgey import SamplingStrategy
+from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -116,28 +117,46 @@ class FlaxModel(Network, ABC):
 
         self.epoch_count += 1
 
-    def compute_action(self, feature_vector: np.ndarray, explore_mode: bool = False):
+    def compute_action(self, observables: List, explore_mode: bool = False):
         """
-        Compute the action.
+        Compute and action from the action space.
+
+        This method computes an action on all colloids of the relevant type.
+
+        Parameters
+        ----------
+        observables : List
+                Observable for each colloid for which the action should be computed.
+        explore_mode : bool
+                If true, an exploration vs exploitation function is called.
+
+        Returns
+        -------
+        action : np.ndarray (n_colloids, )
+                An integer bounded between 0 and the number of output neurons
+                corresponding to the action chosen by the agent.
         """
         # Compute state
         try:
-            model_output = self.apply_fn(
-                {"params": self.model_state.params}, feature_vector
+            logits = self.apply_fn(
+                {"params": self.model_state.params}, np.array(observables)
             )
-        except AttributeError:
-            model_output = self.apply_fn(
-                {"params": self.model_state["params"]}, feature_vector
+        except AttributeError:  # We need this for loaded models.
+            logits = self.apply_fn(
+                {"params": self.model_state["params"]}, np.array(observables)
             )
-        logger.debug(f"{model_output=}")
+        logger.debug(f"{logits=}")  # (n_colloids, n_actions)
 
         # Compute the action
-        index = self.sampling_strategy(model_output)
+        indices = self.sampling_strategy(logits)
 
         if explore_mode:
-            index = self.exploration_policy(index, len(model_output))
+            indices = self.exploration_policy(indices, len(logits))
 
-        return index, model_output[index]
+        return (
+            indices,
+            np.take_along_axis(logits, indices.reshape(-1, 1), axis=1).reshape(-1),
+        )
 
     def export_model(self, filename: str = "model", directory: str = "Models"):
         """
@@ -196,4 +215,7 @@ class FlaxModel(Network, ABC):
                 Observable to be passed through the network on which a decision is made.
         """
 
-        return self.apply_fn({"params": self.model_state.params}, feature_vector)
+        try:
+            return self.apply_fn({"params": self.model_state.params}, feature_vector)
+        except AttributeError:  # We need this for loaded models.
+            return self.apply_fn({"params": self.model_state["params"]}, feature_vector)

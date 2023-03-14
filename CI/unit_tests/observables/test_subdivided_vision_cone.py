@@ -19,6 +19,7 @@ class TestSubdividedVisionCones:
             vision_half_angle=np.pi / 2,
             n_cones=3,
             radii=[1, 2, 3, 4, 1],
+            particle_type=0,
         )
 
     def test_call(self):
@@ -32,7 +33,8 @@ class TestSubdividedVisionCones:
         col3 = Colloid(np.array([-7, 8, 0]), np.array([0.0, 1.0, 0]), 3, 1)
         col4 = Colloid(np.array([1, 1, 0]), np.array([0.0, 1.0, 0]), 4, 0)
         colloids = [col0, col1, col2, col3, col4]
-        observable = self.vc.compute_observable(col0, colloids)
+        observables = self.vc.compute_observable(colloids)
+        observable = observables[0]
         assert observable[0, 0] == 1.0
         assert observable[1, 0] == 0.8
         assert observable[2, 0] == 0.0

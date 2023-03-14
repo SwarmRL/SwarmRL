@@ -26,6 +26,7 @@ class SubdividedVisionCones(Observable):
         n_cones: int,
         radii: List[float],
         detected_types=None,
+        particle_type: int = 0,
     ):
         """
         Constructor for the observable.
@@ -44,9 +45,11 @@ class SubdividedVisionCones(Observable):
         detected_types: list
                 list of colloid types to be detected in requested order.
                 For example [0,2] here colloids of type 1 won't be detected.
-                if None then al will be detected.
-
+                if None then all will be detected.
+        particle_type : int (default=0)
+                Particle type to compute the observable for.
         """
+        super().__init__(particle_type=particle_type)
         self.vision_range = vision_range
         self.vision_half_angle = vision_half_angle
         self.n_cones = n_cones
@@ -219,16 +222,16 @@ class SubdividedVisionCones(Observable):
         # collapsing the data of every individual other_colloid and returning the result
         return np.sum(vision_val_out_expanded, axis=0)
 
-    def compute_observable(
-        self, colloid: Colloid, colloids: List[Colloid]
+    def compute_single_observable(
+        self, index: int, colloids: List[Colloid]
     ) -> np.ndarray:
         """
         Compute the vision cones of the colloid.
 
         Parameters
         ----------
-        colloid : object
-                Colloid for which the observable should be computed.
+        index : int
+                Index of colloid for which the observable should be computed.
         colloids
                 colloids in the system.
         Returns
@@ -236,13 +239,15 @@ class SubdividedVisionCones(Observable):
         np.array of shape (n_cones, num_of_detected_types) containing the vision values
         for each cone and for each particle type that can be visible.
         """
+        colloid = colloids[index]
+
         if self.detected_types is None:
             self._detect_all_things_to_see(colloids)
 
         my_pos, my_director = self._calculate_director(colloid)
 
         of_others = [
-            [c, self.radii[i]] for i, c in enumerate(colloids) if c is not colloid
+            [c, self.radii[i]] for i, c in enumerate(colloids) if c is not index
         ]
         other_colloids = [of_others[i][0] for i in range(len(of_others))]
         self.radii = [of_others[i][1] for i in range(len(of_others))]
@@ -250,3 +255,22 @@ class SubdividedVisionCones(Observable):
         observable = self._calculate_cones(my_pos, my_director, other_colloids)
 
         return observable
+
+    def compute_observable(self, colloids: List[Colloid]):
+        """
+        Compute the vision cones of the colloids.
+
+        Parameters
+        ----------
+        colloids
+                colloids in the system.
+        Returns
+        -------
+        np.array of shape (n_colloids, n_cones, num_of_detected_types)
+        containing the vision values
+        """
+        reference_ids = self.get_colloid_indices(colloids)
+
+        return [
+            self.compute_single_observable(index, colloids) for index in reference_ids
+        ]
