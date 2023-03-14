@@ -52,7 +52,7 @@ class GAE:
         """
         gae = 0
         advantages = onp.zeros_like(rewards)
-        for t in reversed(range(len(rewards))):
+        for t in reversed(range(len(rewards)-1)):
             delta = rewards[t] + self.gamma * values[t + 1] - values[t]
             gae = delta + self.gamma * self.lambda_ * gae
             advantages[t] = gae
