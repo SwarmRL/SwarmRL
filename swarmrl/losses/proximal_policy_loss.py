@@ -27,8 +27,8 @@ class ProximalPolicyLoss(Loss, ABC):
 
     def __init__(
         self,
-        value_function: GAE,
-        sampling_strategy: GumbelDistribution,
+        value_function: GAE = GAE,
+        sampling_strategy: GumbelDistribution = GumbelDistribution,
         n_epochs: int = 20,
         epsilon: float = 0.2,
         entropy_coefficient: float = 0.01,
