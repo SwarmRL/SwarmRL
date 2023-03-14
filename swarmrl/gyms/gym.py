@@ -102,11 +102,14 @@ class Gym:
             reward += np.mean(episode_data.item().get("rewards"))
 
             # Compute loss for actor and critic.
-            self.loss.compute_loss(
+            actor_grads, critic_grads = self.loss.compute_loss(
                 actor=val.actor,
                 critic=val.critic,
                 episode_data=episode_data,
             )
+
+            val.actor.update_model(actor_grads)
+            val.critic.update_model(critic_grads)
 
             force_models[item] = val.actor
             observables[item] = val.observable

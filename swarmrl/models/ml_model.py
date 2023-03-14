@@ -75,7 +75,7 @@ class MLModel(InteractionModel):
         action: Action
                 Return the action the colloid should take.
         """
-        actions = {colloid.id: Action() for colloid in colloids}
+        actions = {int(np.copy(colloid.id)): Action() for colloid in colloids}
         action_indices = {item: [] for item in self.particle_types}
         logits = {item: [] for item in self.particle_types}
         rewards = {item: [] for item in self.particle_types}
