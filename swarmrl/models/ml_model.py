@@ -75,45 +75,35 @@ class MLModel(InteractionModel):
         action: Action
                 Return the action the colloid should take.
         """
-        actions = []
+        actions = {int(np.copy(colloid.id)): Action() for colloid in colloids}
         action_indices = {item: [] for item in self.particle_types}
         logits = {item: [] for item in self.particle_types}
         rewards = {item: [] for item in self.particle_types}
-        feature_vectors = {item: [] for item in self.particle_types}
+        observables = {item: [] for item in self.particle_types}
 
-        for colloid in colloids:
-            other_colloids = [c for c in colloids if c is not colloid]
+        for item in self.particle_types:
+            observables[item] = self.observables[item].compute_observable(colloids)
+            rewards[item] = self.tasks[item](colloids)
+            action_indices[item], logits[item] = self.models[item].compute_action(
+                observables=observables[item], explore_mode=explore_mode
+            )
+            chosen_actions = np.take(
+                list(self.actions[item].values()), action_indices[item], axis=-1
+            )
 
-            # Compute the action for a specific colloid type.
-            try:
-                feature_vector = self.observables[str(colloid.type)].compute_observable(
-                    colloid, other_colloids
-                )
-                reward = self.tasks[str(colloid.type)](
-                    feature_vector, colloid, colloids, other_colloids
-                )
-                action_index, logit = self.models[str(colloid.type)].compute_action(
-                    feature_vector=feature_vector, explore_mode=explore_mode
-                )
-                actions.append(
-                    self.actions[str(colloid.type)][
-                        list(self.actions[str(colloid.type)])[int(action_index)]
-                    ]
-                )
-
-                action_indices[str(colloid.type)].append(action_index)
-                feature_vectors[str(colloid.type)].append(feature_vector)
-                logits[str(colloid.type)].append(logit)
-                rewards[str(colloid.type)].append(reward)
-            except KeyError:
-                actions.append(Action())
+            count = 0  # Count the colloids of a specific species.
+            for colloid in colloids:
+                if str(colloid.type) == item:
+                    actions[colloid.id] = chosen_actions[count]
+                    count += 1
+        actions = list(actions.values())  # convert to a list.
 
         # Record the trajectory if required.
         if self.record_traj:
             for item in self.particle_types:
                 record_trajectory(
                     particle_type=item,
-                    features=np.array(feature_vectors[item]),
+                    features=np.array(observables[item]),
                     actions=np.array(action_indices[item]),
                     logits=np.array(logits[item]),
                     rewards=np.array(rewards[item]),

@@ -102,11 +102,14 @@ class Gym:
             reward += np.mean(episode_data.item().get("rewards"))
 
             # Compute loss for actor and critic.
-            self.loss.compute_loss(
+            actor_grads, critic_grads = self.loss.compute_loss(
                 actor=val.actor,
                 critic=val.critic,
                 episode_data=episode_data,
             )
+
+            val.actor.update_model(actor_grads)
+            val.critic.update_model(critic_grads)
 
             force_models[item] = val.actor
             observables[item] = val.observable
@@ -142,8 +145,8 @@ class Gym:
         model restoration.
         """
         for item, val in self.rl_protocols.items():
-            val.actor.export_model(f"{directory}/Actor_{item}")
-            val.critic.export_model(f"{directory}/Critic_{item}")
+            val.actor.export_model(filename=f"ActorModel_{item}", directory=directory)
+            val.critic.export_model(filename=f"CriticModel_{item}", directory=directory)
 
     def restore_models(self, directory: str = "Models"):
         """
@@ -159,8 +162,12 @@ class Gym:
         Loads the actor and critic from the specific directory.
         """
         for item, val in self.rl_protocols.items():
-            val.actor.restore_model_state(f"./{directory}/Actor_{item}")
-            val.critic.restore_model_state(f"./{directory}/Critic_{item}")
+            val.actor.restore_model_state(
+                filename=f"ActorModel_{item}", directory=directory
+            )
+            val.critic.restore_model_state(
+                filename=f"CriticModel_{item}", directory=directory
+            )
 
     def perform_rl_training(
         self,
@@ -196,8 +203,10 @@ class Gym:
         progress = Progress(
             "Episode: {task.fields[Episode]}",
             BarColumn(),
-            "Episode reward: {task.fields[current_reward]} Running Reward:"
-            " {task.fields[running_reward]}",
+            (
+                "Episode reward: {task.fields[current_reward]} Running Reward:"
+                " {task.fields[running_reward]}"
+            ),
             TimeRemainingColumn(),
         )
 

@@ -4,8 +4,6 @@ Class for an observable which computes several observables.
 from abc import ABC
 from typing import List
 
-import jax.numpy as np
-
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.observable import Observable
 
@@ -21,20 +19,21 @@ class MultiSensing(Observable, ABC):
     ):
         """
         Constructor for the observable.
-        IMPORTANT: ALWAYS KEEP ORDER.
-        1. concentration_field
-        2. vision_cone
+
+        In this observables, the order with which the observables are
+        passed to the constructor is the order in which they are
+        concatenated.
 
         Parameters
         ----------
         Observables : List[Observable]
-                List of observables. Their order is extremely important!
+                List of observables.
         """
         self.observables = observables
 
     def initialize(self, colloids: List[Colloid]):
         """
-        Initialize the observables with starting positions of the colloids.
+        Initialize the observables as needed.
 
         Parameters
         ----------
@@ -43,15 +42,14 @@ class MultiSensing(Observable, ABC):
 
         Returns
         -------
-        Initialisation step used to generate historic positions for the concentration
-        field observable to calculate change in gradient.
+        Some of the observables passed to the constructor might need to be
+        initialized with the positions of the colloids. This method does
+        that.
         """
         for item in self.observables:
             item.initialize(colloids)
 
-    def compute_observable(
-        self, colloid: Colloid, other_colloids: List[Colloid]
-    ) -> List[Observable]:
+    def compute_observable(self, colloids: List[Colloid]) -> List:
         """
         Computes all observables and returns them in a concatenated list.
 
@@ -64,10 +62,17 @@ class MultiSensing(Observable, ABC):
         List of observables, computed in the order that they were given
         at initialization.
         """
-        observable = []
+        # Get the observables for each colloid.
+        unshaped_observable = []  # shape (n_obs, n_colloids, ...)
         for item in self.observables:
-            observable.append(
-                item.compute_observable(colloid=colloid, other_colloids=other_colloids)
-            )
+            unshaped_observable.append(item.compute_observable(colloids))
 
-        return np.concatenate(observable, axis=-1)
+        n_colloids = len(unshaped_observable[0])
+
+        # Reshape the observables to be (n_colloids, n_observables, )
+        observable = [[] for _ in range(n_colloids)]
+        for i, item in enumerate(unshaped_observable):
+            for j, colloid in enumerate(item):
+                observable[j].append(colloid)
+
+        return observable
