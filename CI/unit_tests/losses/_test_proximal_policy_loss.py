@@ -1,4 +1,5 @@
-import numpy as np
+import jax.numpy as np
+import jax
 import numpy.testing as tst
 
 from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
@@ -46,7 +47,9 @@ class TestProximalPolicyLoss:
             value_function=value_function,
             sampling_strategy=sampling_strategy,
             entropy_coefficient=entropy_coefficient,
+            record_training=False
         )
+
 
         actor = DummyActor()
         actor_params = 10
@@ -56,75 +59,58 @@ class TestProximalPolicyLoss:
 
         actions = np.ones((n_time_steps, n_particles), dtype=int)
 
-        # Get dummy old_log_probs that cover all cases of the ratio.
-        # cases are r=1, r>1+epsilon, r<1+epsilon
-
         # all log_probs are 2 such that the ratio is 1
-        # for both positive and negative advantage the loss should be -1 and +1
-        old_log_probs_1 = 2 * np.ones((n_time_steps, n_particles))
-
+        old_log_probs_0 = 2 * np.ones((n_time_steps, n_particles))
         # all log_probs are 0 such that the ratio is e^2 > 1 + epsilon
-        # for positive advantage the loss should take the clipped version  L = -1.2
-        # for negative advantage the loss should take e^2: L = e^2
-        old_log_probs_2 = 0 * np.ones((n_time_steps, n_particles))
-
+        old_log_probs_1 = 0 * np.ones((n_time_steps, n_particles))
         # all log_probs are 3 such that the ratio is e^-2 < 1 - epsilon
-        # for positive advantage the loss should take the clipped version: L = - e^-2
-        # for negative advantage the loss should take e^-2: L = 0.8
-        old_log_probs_3 = 3 * np.ones((n_time_steps, n_particles))
+        old_log_probs_2 = 3 * np.ones((n_time_steps, n_particles))
 
-        old_log_probs_list = [old_log_probs_1, old_log_probs_2, old_log_probs_3]
-        # True values
+        # all advantages are 1
+        advantages = np.ones((n_time_steps, n_particles))
+        # all advantages are -1
+        advantages2 = -np.ones((n_time_steps, n_particles))
 
-        # Get some dummy true values such that the A = 1 > 0 and A = -1 < 0
-        true_values_1 = 0 * np.ones((n_time_steps, n_particles))  #
-        true_values_2 = 2.0 * np.ones((n_time_steps, n_particles))
+        old_log_probs_list = [old_log_probs_0, old_log_probs_1, old_log_probs_2]
+        advantages_list = [advantages, advantages2]
 
-        true_value_list = [true_values_1, true_values_2]
         results = []
+
         for probs in old_log_probs_list:
-            for values in true_value_list:
+            for advantages in advantages_list:
                 results.append(
                     loss.compute_actor_loss(
-                        actor=actor,
                         actor_params=actor_params,
-                        critic=critic,
+                        actor=actor,
                         features=features,
                         actions=actions,
                         old_log_probs=probs,
-                        true_values=values,
+                        advantages=advantages
                     )
                 )
 
         def ratio(new_log_props, old_log_probs):
             return np.exp(new_log_props - old_log_probs)
 
-        def advantage(pred_val, true_val):
-            return true_val - pred_val
-
-        predicted_value = np.squeeze(critic(features=features))
 
         # the dummy_actor will return just 2
-        new_log_probs_all = actor.apply_fn(actor_params, features)
+        new_log_probs_all = np.log(jax.nn.softmax(actor.apply_fn(actor_params, features)))
         new_log_probs = gather_n_dim_indices(new_log_probs_all, actions)
         # calculate the entropy of the new_log_probs
-        entropy = np.mean(sampling_strategy.compute_entropy(new_log_probs_all))
+        entropy = np.sum(sampling_strategy.compute_entropy(np.exp(new_log_probs_all)))
+
         # These results were compared to by hand computed values.
         true_results = []
         for probs in old_log_probs_list:
-            for values in true_value_list:
+            for advantages in advantages_list:
                 ratios = ratio(new_log_probs, probs)
-
-                advantages = advantage(predicted_value, values)
-                # advantages = (advantages - np.mean(advantages)) / (
-                #            np.std(advantages) + 1e-10)
 
                 clipped_loss = -1 * np.minimum(
                     ratios * advantages,
                     np.clip(ratios, 1 - epsilon, 1 + epsilon) * advantages,
                 )
-                loss = np.mean(clipped_loss, 0)
-                loss = np.mean(loss) + entropy_coefficient * entropy
+                loss = np.sum(clipped_loss, 0)
+                loss = np.sum(loss) + entropy_coefficient * entropy
                 true_results.append(loss)
 
         for i, loss in enumerate(results):

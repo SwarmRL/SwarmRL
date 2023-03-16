@@ -27,6 +27,25 @@ class Task:
         """
         self.particle_type = particle_type
 
+    def initialize(self, colloids: List[Colloid]):
+        """
+        Initialize the task with starting positions of the colloids.
+
+        The parent method will just pass. This is because some observables
+        might not need to be initialized. Those that do need to be initialized
+        will override this method.
+
+        Parameters
+        ----------
+        colloids : List[Colloid]
+                List of colloids with which to initialize the observable.
+
+        Returns
+        -------
+        Updates the class state.
+        """
+        pass
+
     def get_colloid_indices(self, colloids: List[Colloid], p_type: int = None):
         """
         Get the indices of the colloids in the observable of a specific type.

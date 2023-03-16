@@ -188,7 +188,7 @@ def record_trajectory(
     particle_type: str,
     features: np.ndarray,
     actions: np.ndarray,
-    logits: np.ndarray,
+    log_probs: np.ndarray,
     rewards: np.ndarray,
 ):
     """
@@ -200,8 +200,8 @@ def record_trajectory(
             Type of the particle saved. Important for the multi-species training.
     rewards : np.ndarray (n_timesteps, n_particles, 1)
             Rewards collected during the simulation to be used in training.
-    logits : np.ndarray (n_timesteps, n_particles, 1)
-            Logits used for debugging.
+    log_probs : np.ndarray (n_timesteps, n_particles, 1)
+            log_probs used for debugging.
     features : np.ndarray (n_timesteps, n_particles, n_dimensions)
             Features to store in the array.
     actions : np.ndarray (n_timesteps, n_particles, 1)
@@ -215,12 +215,12 @@ def record_trajectory(
         data = np.load(f".traj_data_{particle_type}.npy", allow_pickle=True)
         feature_data = data.item().get("features")
         action_data = data.item().get("actions")
-        logits_data = data.item().get("logits")
+        log_probs_data = data.item().get("log_probs")
         reward_data = data.item().get("rewards")
 
         feature_data = np.append(feature_data, np.array([features]), axis=0)
         action_data = np.append(action_data, np.array([actions]), axis=0)
-        logits_data = np.append(logits_data, np.array([logits]), axis=0)
+        log_probs_data = np.append(log_probs_data, np.array([log_probs]), axis=0)
         reward_data = np.append(reward_data, np.array([rewards]), axis=0)
 
         os.remove(f".traj_data_{particle_type}.npy")
@@ -228,7 +228,7 @@ def record_trajectory(
     except FileNotFoundError:
         feature_data = np.array([features])
         action_data = np.array([actions])
-        logits_data = np.array([logits])
+        log_probs_data = np.array([log_probs])
         reward_data = np.array([rewards])
 
     np.save(
@@ -236,7 +236,7 @@ def record_trajectory(
         {
             "features": feature_data,
             "actions": action_data,
-            "logits": logits_data,
+            "log_probs": log_probs_data,
             "rewards": reward_data,
         },
         allow_pickle=True,

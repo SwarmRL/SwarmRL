@@ -132,9 +132,11 @@ class FlaxModel(Network, ABC):
 
         Returns
         -------
-        action : np.ndarray (n_colloids, )
-                An integer bounded between 0 and the number of output neurons
-                corresponding to the action chosen by the agent.
+        touple : (np.ndarray, np.ndarray)
+                The first element is an array of indices corresponding to the action taken
+                by the agent. The value is bounded between 0 and the number of output neurons.
+                The second element is an array of the corresponding log_probs (i.e. the output of the network put
+                through a softmax).
         """
         # Compute state
         try:
@@ -149,13 +151,12 @@ class FlaxModel(Network, ABC):
 
         # Compute the action
         indices = self.sampling_strategy(logits)
-
+        log_probs = np.log(jax.nn.softmax(logits) + 1e-8)
         if explore_mode:
             indices = self.exploration_policy(indices, len(logits))
-
         return (
             indices,
-            np.take_along_axis(logits, indices.reshape(-1, 1), axis=1).reshape(-1),
+            np.take_along_axis(log_probs, indices.reshape(-1, 1), axis=1).reshape(-1),
         )
 
     def export_model(self, filename: str = "model", directory: str = "Models"):
@@ -213,6 +214,11 @@ class FlaxModel(Network, ABC):
         ----------
         feature_vector : np.ndarray
                 Observable to be passed through the network on which a decision is made.
+
+        Returns
+        -------
+        logits : np.ndarray
+                Output of the network.
         """
 
         try:

@@ -77,14 +77,14 @@ class MLModel(InteractionModel):
         """
         actions = {int(np.copy(colloid.id)): Action() for colloid in colloids}
         action_indices = {item: [] for item in self.particle_types}
-        logits = {item: [] for item in self.particle_types}
+        log_probs = {item: [] for item in self.particle_types}
         rewards = {item: [] for item in self.particle_types}
         observables = {item: [] for item in self.particle_types}
 
         for item in self.particle_types:
             observables[item] = self.observables[item].compute_observable(colloids)
             rewards[item] = self.tasks[item](colloids)
-            action_indices[item], logits[item] = self.models[item].compute_action(
+            action_indices[item], log_probs[item] = self.models[item].compute_action(
                 observables=observables[item], explore_mode=explore_mode
             )
             chosen_actions = np.take(
@@ -105,7 +105,7 @@ class MLModel(InteractionModel):
                     particle_type=item,
                     features=np.array(observables[item]),
                     actions=np.array(action_indices[item]),
-                    logits=np.array(logits[item]),
+                    log_probs=np.array(log_probs[item]),
                     rewards=np.array(rewards[item]),
                 )
 

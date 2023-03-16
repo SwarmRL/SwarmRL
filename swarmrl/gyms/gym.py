@@ -102,14 +102,11 @@ class Gym:
             reward += np.mean(episode_data.item().get("rewards"))
 
             # Compute loss for actor and critic.
-            actor_grads, critic_grads = self.loss.compute_loss(
+            self.loss.compute_loss(
                 actor=val.actor,
                 critic=val.critic,
                 episode_data=episode_data,
             )
-
-            val.actor.update_model(actor_grads)
-            val.critic.update_model(critic_grads)
 
             force_models[item] = val.actor
             observables[item] = val.observable
@@ -174,7 +171,6 @@ class Gym:
         system_runner: Engine,
         n_episodes: int,
         episode_length: int,
-        initialize: bool = False,
     ):
         """
         Perform the RL training.
@@ -187,18 +183,16 @@ class Gym:
                 Number of episodes to use in the training.
         episode_length : int
                 Number of time steps in one episode.
-        initialize : bool (default=False)
-                If true, call the initial colloid positions to initialize a task or
-                observable.
         """
         rewards = [0.0]
         current_reward = 0.0
         episode = 0
         force_fn = self.initialize_training()
 
-        if initialize:
-            for item, val in self.rl_protocols.items():
-                val.observable.initialize(system_runner.colloids)
+        # Initialize the tasks and observables.
+        for item, val in self.rl_protocols.items():
+            val.observable.initialize(system_runner.colloids)
+            val.task.initialize(system_runner.colloids)
 
         progress = Progress(
             "Episode: {task.fields[Episode]}",
