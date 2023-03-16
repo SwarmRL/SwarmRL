@@ -99,7 +99,7 @@ class ConcentrationField(Observable, ABC):
         # Update historic position.
         self._historic_positions[str(index)] = position
 
-        current_distance = np.linalg.norm((self.source - position))
+        current_distance = np.linalg.norm(self.source - position)
         historic_distance = np.linalg.norm(self.source - previous_position)
 
         delta = self.decay_fn(current_distance) - self.decay_fn(historic_distance)
