@@ -169,6 +169,14 @@ class Gym:
                 filename=f"CriticModel_{item}", directory=directory
             )
 
+    def initialize_models(self):
+        """
+        Initialize all of the models in the gym.
+        """
+        for item, val in self.rl_protocols.items():
+            val.actor.reinitialize_network()
+            val.critic.reinitialize_network()
+
     def perform_rl_training(
         self,
         system_runner: Engine,

@@ -100,6 +100,15 @@ class FlaxModel(Network, ABC):
         return TrainState.create(
             apply_fn=self.apply_fn, params=params, tx=self.optimizer
         )
+    
+    def reinitialize_network(self):
+        """
+        Initialize the neural network.
+        """
+        rng_key = onp.random.randint(0, 1027465782564)
+        init_rng = jax.random.PRNGKey(rng_key)
+        _, subkey = jax.random.split(init_rng)
+        self.model_state = self._create_train_state(subkey)
 
     def update_model(
         self,
