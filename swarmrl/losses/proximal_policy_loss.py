@@ -16,7 +16,7 @@ from flax.core.frozen_dict import FrozenDict
 from swarmrl.losses.loss import Loss
 from swarmrl.networks.flax_network import FlaxModel
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
-from swarmrl.utils.utils import gather_n_dim_indices
+from swarmrl.utils.utils import gather_n_dim_indices, save_memory
 from swarmrl.value_functions.generalized_advantage_estimate import GAE
 
 
@@ -254,32 +254,6 @@ class ProximalPolicyLoss(Loss, ABC):
             self.memory["old_log_probs"] = old_log_probs_data
             self.memory["action_indices"] = action_data
             self.memory["rewards"] = reward_data
-            self.memory = data_saver(self.memory)
+            self.memory = save_memory(self.memory)
 
-def data_saver(data: dict):
-    empty_memory = {"feature_data": [],
-                    "rewards": [],
-                    "action_indices:": [],
-                    "old_log_probs": [],
-                    "advantages": [],
-                    "returns": [],
-                    "critic_vals": [],
-                    "new_logits": [],
-                    "entropy": [],
-                    "chosen_log_probs": [],
-                    "ratio": [],
-                    "actor_loss": [],
-                    "critic_loss": []
-                    }
 
-    try:
-        reloaded_dict = np.load("dummy_data.npy", allow_pickle=True).item()
-        for key, item in reloaded_dict.items():
-            reloaded_dict[key].append(data[key])
-        np.save("dummy_data.npy", reloaded_dict, allow_pickle=True)
-    except FileNotFoundError:
-        for key, item in empty_memory.items():
-            empty_memory[key].append(data[key])
-        np.save("dummy_data.npy", empty_memory, allow_pickle=True)
-
-    return empty_memory

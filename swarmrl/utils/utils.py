@@ -243,35 +243,33 @@ def record_trajectory(
     )
 
 
-def record_training(training_dict: dict):
+def save_memory(memory: dict):
     """
     Records the training data if required.
 
     Parameters:
     ----------
-    training_dict : a dictionary containing the critic_loss, new_log_probs, entropy,
-            ratio, advantage and actor_loss from the PPO algorithm.
+    memory : a dictionary containing the data from the method where it is called from.
+        The data is specified in the method.
+        It has to contain a key "file_name" which is the name of the file to be saved.
+        To handle multiple particle types: one can specify the file name in the initialisation of the method.
 
     Returns
     -------
     Dumps a  file to disc to evaluate training.
     """
-
+    empty_memory = {val: [] for val in memory.keys()}
+    empty_memory["file_name"] = memory["file_name"]
     try:
-        training_data = np.load("training_records.npy", allow_pickle=True)
-        for key in training_dict:
-            training_data.item()[key] = np.vstack(
-                (training_data.item()[key], training_dict[key])
-            )
-
+        reloaded_dict = np.load(memory["file_name"], allow_pickle=True).item()
+        for key, item in reloaded_dict.items():
+            reloaded_dict[key].append(memory[key])
+        np.save(memory["file_name"], reloaded_dict, allow_pickle=True)
     except FileNotFoundError:
-        training_data = training_dict
-
-    np.save(
-        "training_records.npy",
-        training_data,
-        allow_pickle=True,
-    )
+        for key, item in empty_memory.items():
+            empty_memory[key].append(memory[key])
+        np.save(memory["file_name"], empty_memory, allow_pickle=True)
+    return empty_memory
 
 
 def calc_signed_angle_between_directors(
