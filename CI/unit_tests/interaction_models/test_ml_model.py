@@ -51,10 +51,10 @@ class DummyTask:
     """
 
     def __call__(self, data):
-            """
-            Dummy call method.
-            """
-            return [1.0 for item in data if item.type == 1]
+        """
+        Dummy call method.
+        """
+        return [1.0 for item in data if item.type == 1]
 
 
 class SecondDummyTask:
