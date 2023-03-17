@@ -32,7 +32,7 @@ class ProximalPolicyLoss(Loss, ABC):
         n_epochs: int = 20,
         epsilon: float = 0.2,
         entropy_coefficient: float = 0.01,
-        record_training=True,
+        record_training=False,
     ):
         """
         Constructor for the PPO class.
