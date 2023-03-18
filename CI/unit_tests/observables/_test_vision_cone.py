@@ -2,9 +2,17 @@
 Unit test for the vision cone.
 """
 
+from dataclasses import dataclass
+
 import numpy as np
 
-from swarmrl.observables.vision_cone import VisionCone
+from swarmrl.observables._vision_cone import VisionCone
+
+
+@dataclass
+class Colloid:
+    pos: np.ndarray
+    director: np.ndarray
 
 
 class TestVisionCone:
@@ -27,12 +35,6 @@ class TestVisionCone:
         """
         Tests if the computation of the observable is still correct.
         """
-
-        class Colloid:
-            def __init__(self, position, director):
-                self.pos = position
-                self.director = director
-
         col = Colloid(np.array([0.5, 0.5, 0]), np.array([0.0, 1.0, 0]))
         col2 = Colloid(np.array([0.5, 0.8, 0]), np.array([0.0, 1.0, 0]))
         col3 = Colloid(np.array([0.5, 0.4, 0]), np.array([0.0, 1.0, 0]))

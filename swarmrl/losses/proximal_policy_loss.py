@@ -16,7 +16,7 @@ from flax.core.frozen_dict import FrozenDict
 from swarmrl.losses.loss import Loss
 from swarmrl.networks.flax_network import FlaxModel
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
-from swarmrl.utils.utils import gather_n_dim_indices
+from swarmrl.utils.utils import gather_n_dim_indices, save_memory
 from swarmrl.value_functions.generalized_advantage_estimate import GAE
 
 
@@ -32,7 +32,7 @@ class ProximalPolicyLoss(Loss, ABC):
         n_epochs: int = 20,
         epsilon: float = 0.2,
         entropy_coefficient: float = 0.01,
-        record_training=True,
+        record_training=False,
     ):
         """
         Constructor for the PPO class.
@@ -102,7 +102,7 @@ class ProximalPolicyLoss(Loss, ABC):
 
         value_loss = optax.huber_loss(predicted_values, true_values)
 
-        particle_loss = jnp.mean(value_loss, 1)
+        particle_loss = jnp.sum(value_loss, 1)
         critic_loss = jnp.sum(particle_loss)
 
         if self.record_training:
@@ -116,7 +116,7 @@ class ProximalPolicyLoss(Loss, ABC):
         actor: FlaxModel,
         features,
         actions,
-        old_probs,
+        old_log_probs,
         advantages,
     ) -> jnp.array:
         """
@@ -135,8 +135,8 @@ class ProximalPolicyLoss(Loss, ABC):
             Observable data for each time step and particle within the episode.
         actions : np.ndarray (n_time_steps, n_particles)
             The actions taken during the episode at each time steps and by each agent.
-        old_probs : np.ndarray (n_time_steps, n_particles)
-            The probs of the taken action during the episode at each time steps and
+        old_log_probs : np.ndarray (n_time_steps, n_particles)
+            The log_probs of the taken action during the episode at each time steps and
             by each agent.
         true_values : np.ndarray (n_time_steps, n_particles)
             The state value computed using the rewards received during the episode. To
@@ -160,7 +160,7 @@ class ProximalPolicyLoss(Loss, ABC):
         chosen_log_probs = jnp.log(gather_n_dim_indices(new_probabilities, actions)+self.eps)
 
         # compute the ratio between old and new probs
-        ratio = jnp.exp(chosen_log_probs - jnp.log(old_probs+self.eps))
+        ratio = jnp.exp(chosen_log_probs - old_log_probs)
 
         # compute the clipped loss
         clipped_loss = -1 * jnp.minimum(
@@ -177,7 +177,7 @@ class ProximalPolicyLoss(Loss, ABC):
         if self.record_training:
             self.memory["new_logits"].append(new_logits.primal)
             self.memory["entropy"].append(entropy.primal)
-            self.memory["chosen_probs"].append(chosen_log_probs.primal)
+            self.memory["chosen_log_probs"].append(chosen_log_probs.primal)
             self.memory["ratio"].append(ratio.primal)
             self.memory["actor_loss"].append(clipped_loss.primal)
 
@@ -202,7 +202,7 @@ class ProximalPolicyLoss(Loss, ABC):
             The updated actor and critic network.
         """
         feature_data = episode_data.item().get("features")
-        old_probs_data = episode_data.item().get("logits")
+        old_log_probs_data = episode_data.item().get("log_probs")
         action_data = episode_data.item().get("actions")
         # will return the reward per particle.
         reward_data = episode_data.item().get("rewards")
@@ -229,7 +229,7 @@ class ProximalPolicyLoss(Loss, ABC):
                 actor=actor,
                 features=feature_data,
                 actions=action_data,
-                old_probs=old_probs_data,
+                old_log_probs=old_log_probs_data,
                 advantages=advantages
             )
             critic_grad_fn = jax.grad(self.compute_critic_loss)
@@ -242,6 +242,7 @@ class ProximalPolicyLoss(Loss, ABC):
 
             actor.update_model(actor_grad)
             critic.update_model(critic_grad)
+
             if self.record_training:
                 self.memory["returns"].append(returns)
                 self.memory["advantages"].append(advantages)
@@ -250,36 +251,9 @@ class ProximalPolicyLoss(Loss, ABC):
 
         if self.record_training:
             self.memory["feature_data"] = feature_data
-            self.memory["old_probs"] = old_probs_data
+            self.memory["old_log_probs"] = old_log_probs_data
             self.memory["action_indices"] = action_data
             self.memory["rewards"] = reward_data
-            self.memory = data_saver(self.memory)
+            self.memory = save_memory(self.memory)
 
-def data_saver(data: dict):
-    empty_memory = {"feature_data": [],
-                    "rewards": [],
-                    "action_indices:": [],
-                    "old_probs": [],
-                    "advantages": [],
-                    "returns": [],
-                    "critic_vals": [],
-                    "new_logits": [],
-                    "entropy": [],
-                    "chosen_log_probs": [],
-                    "ratio": [],
-                    "actor_loss": [],
-                    "critic_loss": []
-                    }
 
-    try:
-        reloaded_dict = np.load("dummy_data.npy", allow_pickle=True).item()
-        for key, item in reloaded_dict.items():
-            reloaded_dict[key].append(data[key])
-        np.save("dummy_data.npy", reloaded_dict, allow_pickle=True)
-    except FileNotFoundError:
-        print('new_one')
-        for key, item in empty_memory.items():
-            empty_memory[key].append(data[key])
-        np.save("dummy_data.npy", empty_memory, allow_pickle=True)
-
-    return empty_memory

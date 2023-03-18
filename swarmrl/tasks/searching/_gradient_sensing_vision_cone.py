@@ -13,9 +13,9 @@ from abc import ABC
 
 import jax.numpy as np
 
+from swarmrl.observables._vision_cone import VisionCone
 from swarmrl.observables.concentration_field import ConcentrationField
 from swarmrl.observables.multi_sensing import MultiSensing
-from swarmrl.observables.vision_cone import VisionCone
 from swarmrl.tasks.task import Task
 
 

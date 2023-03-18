@@ -2,23 +2,23 @@
 Jax model for reinforcement learning.
 """
 import logging
+import os
+import pickle
 from abc import ABC
+from typing import List
 
 import jax
 import jax.numpy as np
 import numpy as onp
 from flax import linen as nn
-from flax.training import checkpoints
+
+# from flax.training import checkpoints
 from flax.training.train_state import TrainState
-import optax
 from optax._src.base import GradientTransformation
 
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
-from swarmrl.exploration_policies.random_exploration import RandomExploration
-
 from swarmrl.networks.network import Network
-from swarmrl.sampling_strategies.sampling_stratgey import SamplingStrategy
-from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
+from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +37,9 @@ class FlaxModel(Network, ABC):
         self,
         flax_model: nn.Module,
         input_shape: tuple,
-        optimizer: GradientTransformation = optax.adam(learning_rate=0.001),
-        exploration_policy: ExplorationPolicy = RandomExploration,
-        sampling_strategy: SamplingStrategy = GumbelDistribution,
+        optimizer: GradientTransformation = None,
+        exploration_policy: ExplorationPolicy = None,
+        sampling_strategy: SamplingStrategy = None,
         rng_key: int = None,
         deployment_mode: bool = False,
     ):
@@ -117,62 +117,94 @@ class FlaxModel(Network, ABC):
 
         self.epoch_count += 1
 
-    def compute_action(self, feature_vector: np.ndarray, explore_mode: bool = False):
+    def compute_action(self, observables: List, explore_mode: bool = False):
         """
-        Compute the action.
+        Compute and action from the action space.
+
+        This method computes an action on all colloids of the relevant type.
+
+        Parameters
+        ----------
+        observables : List
+                Observable for each colloid for which the action should be computed.
+        explore_mode : bool
+                If true, an exploration vs exploitation function is called.
+
+        Returns
+        -------
+        tuple : (np.ndarray, np.ndarray)
+                The first element is an array of indices corresponding to the action taken
+                by the agent. The value is bounded between 0 and the number of output neurons.
+                The second element is an array of the corresponding log_probs (i.e. the output of the network put
+                through a softmax).
         """
         # Compute state
         try:
-            model_output = self.apply_fn(
-                {"params": self.model_state.params}, feature_vector
+            logits = self.apply_fn(
+                {"params": self.model_state.params}, np.array(observables)
             )
-        except AttributeError:
-            model_output = self.apply_fn(
-                {"params": self.model_state["params"]}, feature_vector
+        except AttributeError:  # We need this for loaded models.
+            logits = self.apply_fn(
+                {"params": self.model_state["params"]}, np.array(observables)
             )
-        logger.debug(f"{model_output=}")
+        logger.debug(f"{logits=}")  # (n_colloids, n_actions)
 
         # Compute the action
-        index = self.sampling_strategy(model_output)
-
+        indices = self.sampling_strategy(logits)
+        log_probs = np.log(jax.nn.softmax(logits) + 1e-8)
         if explore_mode:
-            index = self.exploration_policy(index, len(model_output))
-        return index, jax.nn.softmax(model_output)[index]
+            indices = self.exploration_policy(indices, len(logits))
+        return (
+            indices,
+            np.take_along_axis(log_probs, indices.reshape(-1, 1), axis=1).reshape(-1),
+        )
 
-    def export_model(self, directory: str = "Models"):
+    def export_model(self, filename: str = "model", directory: str = "Models"):
         """
         Export the model state to a directory.
 
         Parameters
         ----------
+        filename : str (default=models)
+                Name of the file the models are saved in.
         directory : str (default=Models)
                 Directory in which to save the models. If the directory is not
                 in the currently directory, it will be created.
 
         """
-        checkpoints.save_checkpoint(
-            ckpt_dir=directory,
-            target=self.model_state,
-            step=self.epoch_count,
-            overwrite=True,
-        )
+        model_params = self.model_state.params
+        opt_state = self.model_state.opt_state
+        opt_step = self.model_state.step
+        epoch = self.epoch_count
 
-    def restore_model_state(self, directory):
+        os.makedirs(directory, exist_ok=True)
+
+        with open(directory + "/" + filename + ".pkl", "wb") as f:
+            pickle.dump((model_params, opt_state, opt_step, epoch), f)
+
+    def restore_model_state(self, filename, directory):
         """
         Restore the model state from a file.
 
         Parameters
         ----------
+        filename : str
+                Name of the model state file
         directory : str
-                Path to the model state.
+                Path to the model state file.
 
         Returns
         -------
         Updates the model state.
         """
-        self.model_state = checkpoints.restore_checkpoint(
-            ckpt_dir=directory, target=self.model_state
+
+        with open(directory + "/" + filename + ".pkl", "rb") as f:
+            model_params, opt_state, opt_step, epoch = pickle.load(f)
+
+        self.model_state = self.model_state.replace(
+            params=model_params, opt_state=opt_state, step=opt_step
         )
+        self.epoch_count = epoch
 
     def __call__(self, feature_vector: np.ndarray):
         """
@@ -182,6 +214,14 @@ class FlaxModel(Network, ABC):
         ----------
         feature_vector : np.ndarray
                 Observable to be passed through the network on which a decision is made.
+
+        Returns
+        -------
+        logits : np.ndarray
+                Output of the network.
         """
 
-        return self.apply_fn({"params": self.model_state.params}, feature_vector)
+        try:
+            return self.apply_fn({"params": self.model_state.params}, feature_vector)
+        except AttributeError:  # We need this for loaded models.
+            return self.apply_fn({"params": self.model_state["params"]}, feature_vector)

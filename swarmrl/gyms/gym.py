@@ -143,8 +143,8 @@ class Gym:
         model restoration.
         """
         for item, val in self.rl_protocols.items():
-            val.actor.export_model(f"{directory}/Actor_{item}")
-            val.critic.export_model(f"{directory}/Critic_{item}")
+            val.actor.export_model(filename=f"ActorModel_{item}", directory=directory)
+            val.critic.export_model(filename=f"CriticModel_{item}", directory=directory)
 
     def restore_models(self, directory: str = "Models"):
         """
@@ -160,15 +160,18 @@ class Gym:
         Loads the actor and critic from the specific directory.
         """
         for item, val in self.rl_protocols.items():
-            val.actor.restore_model_state(f"./{directory}/Actor_{item}")
-            val.critic.restore_model_state(f"./{directory}/Critic_{item}")
+            val.actor.restore_model_state(
+                filename=f"ActorModel_{item}", directory=directory
+            )
+            val.critic.restore_model_state(
+                filename=f"CriticModel_{item}", directory=directory
+            )
 
     def perform_rl_training(
         self,
         system_runner: Engine,
         n_episodes: int,
         episode_length: int,
-        initialize: bool = False,
     ):
         """
         Perform the RL training.
@@ -181,24 +184,24 @@ class Gym:
                 Number of episodes to use in the training.
         episode_length : int
                 Number of time steps in one episode.
-        initialize : bool (default=False)
-                If true, call the initial colloid positions to initialize a task or
-                observable.
         """
         rewards = [0.0]
         current_reward = 0.0
         episode = 0
         force_fn = self.initialize_training()
 
-        if initialize:
-            for item, val in self.rl_protocols.items():
-                val.observable.initialize(system_runner.colloids)
+        # Initialize the tasks and observables.
+        for item, val in self.rl_protocols.items():
+            val.observable.initialize(system_runner.colloids)
+            val.task.initialize(system_runner.colloids)
 
         progress = Progress(
             "Episode: {task.fields[Episode]}",
             BarColumn(),
-            "Episode reward: {task.fields[current_reward]} Running Reward:"
-            " {task.fields[running_reward]}",
+            (
+                "Episode reward: {task.fields[current_reward]} Running Reward:"
+                " {task.fields[running_reward]}"
+            ),
             TimeRemainingColumn(),
         )
 

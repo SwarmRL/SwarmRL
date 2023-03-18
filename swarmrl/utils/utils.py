@@ -7,6 +7,7 @@ import pickle
 import shutil
 import typing
 
+import jax.numpy as jnp
 import numpy as np
 
 import swarmrl
@@ -187,7 +188,7 @@ def record_trajectory(
     particle_type: str,
     features: np.ndarray,
     actions: np.ndarray,
-    logits: np.ndarray,
+    log_probs: np.ndarray,
     rewards: np.ndarray,
 ):
     """
@@ -199,8 +200,8 @@ def record_trajectory(
             Type of the particle saved. Important for the multi-species training.
     rewards : np.ndarray (n_timesteps, n_particles, 1)
             Rewards collected during the simulation to be used in training.
-    logits : np.ndarray (n_timesteps, n_particles, 1)
-            Logits used for debugging.
+    log_probs : np.ndarray (n_timesteps, n_particles, 1)
+            log_probs used for debugging.
     features : np.ndarray (n_timesteps, n_particles, n_dimensions)
             Features to store in the array.
     actions : np.ndarray (n_timesteps, n_particles, 1)
@@ -214,12 +215,12 @@ def record_trajectory(
         data = np.load(f".traj_data_{particle_type}.npy", allow_pickle=True)
         feature_data = data.item().get("features")
         action_data = data.item().get("actions")
-        logits_data = data.item().get("logits")
+        log_probs_data = data.item().get("log_probs")
         reward_data = data.item().get("rewards")
 
         feature_data = np.append(feature_data, np.array([features]), axis=0)
         action_data = np.append(action_data, np.array([actions]), axis=0)
-        logits_data = np.append(logits_data, np.array([logits]), axis=0)
+        log_probs_data = np.append(log_probs_data, np.array([log_probs]), axis=0)
         reward_data = np.append(reward_data, np.array([rewards]), axis=0)
 
         os.remove(f".traj_data_{particle_type}.npy")
@@ -227,7 +228,7 @@ def record_trajectory(
     except FileNotFoundError:
         feature_data = np.array([features])
         action_data = np.array([actions])
-        logits_data = np.array([logits])
+        log_probs_data = np.array([log_probs])
         reward_data = np.array([rewards])
 
     np.save(
@@ -235,70 +236,75 @@ def record_trajectory(
         {
             "features": feature_data,
             "actions": action_data,
-            "logits": logits_data,
+            "log_probs": log_probs_data,
             "rewards": reward_data,
         },
         allow_pickle=True,
     )
 
 
-def record_training(training_dict: dict):
+def save_memory(memory: dict):
     """
     Records the training data if required.
 
     Parameters:
     ----------
-    training_dict : a dictionary containing the critic_loss, new_log_probs, entropy,
-            ratio, advantage and actor_loss from the PPO algorithm.
+    memory : a dictionary containing the data from the method where it is called from.
+        The data is specified in the method.
+        It has to contain a key "file_name" which is the name of the file to be saved.
+        To handle multiple particle types: one can specify the file name in the initialisation of the method.
 
     Returns
     -------
     Dumps a  file to disc to evaluate training.
     """
-
+    empty_memory = {key: [] for key in memory.keys()}
+    empty_memory["file_name"] = memory["file_name"]
     try:
-        training_data = np.load("training_records.npy", allow_pickle=True)
-        for key in training_dict:
-            training_data.item()[key] = np.vstack(
-                (training_data.item()[key], training_dict[key])
-            )
-
+        reloaded_dict = np.load(memory["file_name"], allow_pickle=True).item()
+        for key, _ in reloaded_dict.items():
+            reloaded_dict[key].append(memory[key])
+        np.save(memory["file_name"], reloaded_dict, allow_pickle=True)
     except FileNotFoundError:
-        training_data = training_dict
+        for key, _ in empty_memory.items():
+            empty_memory[key].append(memory[key])
+        np.save(memory["file_name"], empty_memory, allow_pickle=True)
+    return empty_memory
 
-    np.save(
-        "training_records.npy",
-        training_data,
-        allow_pickle=True,
+
+def calc_signed_angle_between_directors(
+    my_director: np.ndarray, other_director: np.ndarray
+) -> float:
+    """
+    In 2D compare two different normalized
+    directors to determine the angle between them
+
+    Parameters
+    ----------
+    my_director : np.ndarray
+            Normalized director in 3D.
+    other_director : np.ndarray
+            Normalized director in 3D.
+    Returns
+    ----------
+    signed_angle : float
+        signed float which represents the signed angle of my_director to other_director
+        with the mathematical sign convention.
+    """
+
+    # Assert if the directors were really normalized
+    my_director /= jnp.linalg.norm(my_director)
+    other_director /= jnp.linalg.norm(other_director)
+
+    # calculate the angle in which the my_colloid is looking
+    angle = jnp.arccos(jnp.dot(other_director, my_director))
+    # use the director in orthogonal direction to determine sign
+    orthogonal_dot = jnp.dot(
+        other_director,
+        jnp.array([-my_director[1], my_director[0], my_director[2]]),
     )
+    # don't use np.sign instead use np.where because
+    # np.sign(0) => 0 is not what we want
+    angle *= jnp.where(orthogonal_dot >= 0, 1, -1)
 
-
-def record_rewards(particle_type, new_rewards):
-    rewards = []
-    try:
-        reward_data = np.load(f"reward_records_{particle_type}.npy", allow_pickle=True)
-        num_partial_rewards = len(reward_data.item())
-        for i, key in enumerate(reward_data.item()):
-            reward = reward_data.item().get(key)
-            if num_partial_rewards > 1:
-                rewards.append(np.append(reward, np.array(new_rewards[:, i])))
-            else:
-                rewards.append(np.append(reward, np.array(new_rewards)))
-
-    except FileNotFoundError:
-        num_partial_rewards = np.shape(new_rewards)[1]
-        if num_partial_rewards > 1:
-            for i in range(num_partial_rewards):
-                rewards.append(new_rewards[:, i])
-        else:
-            rewards.append(new_rewards)
-
-    reward_data = {}
-
-    for i in range(num_partial_rewards):
-        reward_data[f"reward{i + 1}"] = rewards[i]
-    np.save(
-        f"reward_records_{particle_type}.npy",
-        reward_data,
-        allow_pickle=True,
-    )
+    return angle
