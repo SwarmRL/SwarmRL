@@ -258,15 +258,15 @@ def save_memory(memory: dict):
     -------
     Dumps a  file to disc to evaluate training.
     """
-    empty_memory = {val: [] for val in memory.keys()}
+    empty_memory = {key: [] for key in memory.keys()}
     empty_memory["file_name"] = memory["file_name"]
     try:
         reloaded_dict = np.load(memory["file_name"], allow_pickle=True).item()
-        for key, item in reloaded_dict.items():
+        for key, _ in reloaded_dict.items():
             reloaded_dict[key].append(memory[key])
         np.save(memory["file_name"], reloaded_dict, allow_pickle=True)
     except FileNotFoundError:
-        for key, item in empty_memory.items():
+        for key, _ in empty_memory.items():
             empty_memory[key].append(memory[key])
         np.save(memory["file_name"], empty_memory, allow_pickle=True)
     return empty_memory
