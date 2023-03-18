@@ -136,7 +136,7 @@ class ProximalPolicyLoss(Loss, ABC):
         actions : np.ndarray (n_time_steps, n_particles)
             The actions taken during the episode at each time steps and by each agent.
         old_log_probs : np.ndarray (n_time_steps, n_particles)
-            The probs of the taken action during the episode at each time steps and
+            The log_probs of the taken action during the episode at each time steps and
             by each agent.
         true_values : np.ndarray (n_time_steps, n_particles)
             The state value computed using the rewards received during the episode. To
