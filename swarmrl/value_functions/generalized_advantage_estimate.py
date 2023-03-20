@@ -47,7 +47,7 @@ class GAE:
                 The prediction of the critic for the episode.
         Returns
         -------
-        expected_returns : np.ndarray (n_time_steps, n_particles)
+        advantages : np.ndarray (n_time_steps, n_particles)
                 Expected returns for the rewards.
         """
         gae = 0

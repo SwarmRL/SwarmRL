@@ -43,6 +43,7 @@ class TestProximalPolicyLoss:
         entropy_coefficient = 0.01
         sampling_strategy = GumbelDistribution()
 
+        # Create loss function
         loss = ProximalPolicyLoss(
             value_function=value_function,
             sampling_strategy=sampling_strategy,
@@ -74,6 +75,7 @@ class TestProximalPolicyLoss:
 
         results = []
 
+        # use the PPO loss function to compute the loss.
         for probs in old_log_probs_list:
             for advantages in advantages_list:
                 results.append(
@@ -87,6 +89,7 @@ class TestProximalPolicyLoss:
                     )
                 )
 
+        # now compute the loss by hand.
         def ratio(new_log_props, old_log_probs):
             return np.exp(new_log_props - old_log_probs)
 
@@ -98,7 +101,7 @@ class TestProximalPolicyLoss:
         # calculate the entropy of the new_log_probs
         entropy = np.sum(sampling_strategy.compute_entropy(np.exp(new_log_probs_all)))
 
-        # These results were compared to by hand computed values.
+        # These results will be compared to the results of the PPO loss function
         true_results = []
         for probs in old_log_probs_list:
             for advantages in advantages_list:
@@ -112,5 +115,6 @@ class TestProximalPolicyLoss:
                 loss = np.sum(loss) + entropy_coefficient * entropy
                 true_results.append(loss)
 
-        for i, loss in enumerate(results):
-            tst.assert_almost_equal(loss, true_results[i], decimal=3)
+        # compare the results of the PPO loss function with the results computed by hand
+        for i, ppo_loss in enumerate(results):
+            tst.assert_almost_equal(ppo_loss, true_results[i], decimal=3)
