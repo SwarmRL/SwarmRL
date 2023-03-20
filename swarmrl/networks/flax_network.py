@@ -151,7 +151,10 @@ class FlaxModel(Network, ABC):
 
         # Compute the action
         indices = self.sampling_strategy(logits)
-        log_probs = np.log(jax.nn.softmax(logits) + 1e-8)
+
+        # Add a small value to the log_probs to avoid log(0) errors.
+        eps = 1e-8
+        log_probs = np.log(jax.nn.softmax(logits) + eps)
         if explore_mode:
             indices = self.exploration_policy(indices, len(logits))
         return (
