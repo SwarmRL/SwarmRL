@@ -252,7 +252,8 @@ def save_memory(memory: dict):
     memory : a dictionary containing the data from the method where it is called from.
         The data is specified in the method.
         It has to contain a key "file_name" which is the name of the file to be saved.
-        To handle multiple particle types: one can specify the file name in the initialisation of the method.
+        To handle multiple particle types: one can specify the file name in the
+        initialisation of the method.
 
     Returns
     -------

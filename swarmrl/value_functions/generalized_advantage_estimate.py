@@ -53,7 +53,7 @@ class GAE:
         gae = 0
         advantages = onp.zeros_like(rewards)
         for t in reversed(range(len(rewards))):
-            if t != len(rewards)-1:
+            if t != len(rewards) - 1:
                 delta = rewards[t] + self.gamma * values[t + 1] - values[t]
             else:
                 delta = rewards[t] - values[t]
@@ -61,7 +61,9 @@ class GAE:
             gae = delta + self.gamma * self.lambda_ * gae
 
             advantages[t] = gae
-        advantages = ((advantages - np.mean(advantages)) / (np.std(advantages) + self.eps))
+        advantages = (advantages - np.mean(advantages)) / (
+            np.std(advantages) + self.eps
+        )
         return advantages
 
     def returns(self, advantages: np.ndarray, values: np.ndarray):

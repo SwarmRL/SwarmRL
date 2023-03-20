@@ -181,5 +181,3 @@ class PolicyGradientLoss(Loss):
 
         actor.update_model(actor_grads)
         critic.update_model(critic_grads)
-
-

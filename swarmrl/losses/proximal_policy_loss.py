@@ -58,20 +58,21 @@ class ProximalPolicyLoss(Loss, ABC):
         self.entropy_coefficient = entropy_coefficient
         self.eps = 1e-8
         self.record_training = record_training
-        self.memory = {"feature_data": [],
-                        "rewards": [],
-                        "action_indices:": [],
-                        "old_probs": [],
-                        "advantages": [],
-                        "returns": [],
-                        "critic_vals": [],
-                        "new_logits": [],
-                        "entropy": [],
-                        "chosen_log_probs": [],
-                        "ratio": [],
-                        "actor_loss": [],
-                        "critic_loss": []
-                        }
+        self.memory = {
+            "feature_data": [],
+            "rewards": [],
+            "action_indices:": [],
+            "old_probs": [],
+            "advantages": [],
+            "returns": [],
+            "critic_vals": [],
+            "new_logits": [],
+            "entropy": [],
+            "chosen_log_probs": [],
+            "ratio": [],
+            "actor_loss": [],
+            "critic_loss": [],
+        }
 
     def compute_critic_loss(
         self, critic_params: FrozenDict, critic: FlaxModel, features, true_values
@@ -157,7 +158,9 @@ class ProximalPolicyLoss(Loss, ABC):
 
         # compute the entropy of the whole distribution
         entropy = jnp.sum(self.sampling_strategy.compute_entropy(new_probabilities))
-        chosen_log_probs = jnp.log(gather_n_dim_indices(new_probabilities, actions)+self.eps)
+        chosen_log_probs = jnp.log(
+            gather_n_dim_indices(new_probabilities, actions) + self.eps
+        )
 
         # compute the ratio between old and new probs
         ratio = jnp.exp(chosen_log_probs - old_log_probs)
@@ -207,21 +210,15 @@ class ProximalPolicyLoss(Loss, ABC):
         # will return the reward per particle.
         reward_data = episode_data.item().get("rewards")
 
-        # in case of partial rewards. They are summed up here to give a total reward.
-        try:
-            reward_data = np.sum(reward_data, axis=2)
-        except:
-            pass
-
         for _ in range(self.n_epochs):
-
             # compute the advantages and returns (true_values) for that epoch
             predicted_values = np.squeeze(critic(feature_data))
-            advantages = self.value_function(rewards=reward_data,
-                                              values=predicted_values
-                                              )
-            returns = self.value_function.returns(advantages=advantages,
-                                                  values=predicted_values)
+            advantages = self.value_function(
+                rewards=reward_data, values=predicted_values
+            )
+            returns = self.value_function.returns(
+                advantages=advantages, values=predicted_values
+            )
 
             actor_grad_fn = jax.value_and_grad(self.compute_actor_loss)
             actor_loss, actor_grad = actor_grad_fn(
@@ -230,7 +227,7 @@ class ProximalPolicyLoss(Loss, ABC):
                 features=feature_data,
                 actions=action_data,
                 old_log_probs=old_log_probs_data,
-                advantages=advantages
+                advantages=advantages,
             )
             critic_grad_fn = jax.grad(self.compute_critic_loss)
             critic_grad = critic_grad_fn(
@@ -255,5 +252,3 @@ class ProximalPolicyLoss(Loss, ABC):
             self.memory["action_indices"] = action_data
             self.memory["rewards"] = reward_data
             self.memory = save_memory(self.memory)
-
-

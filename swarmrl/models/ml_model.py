@@ -11,8 +11,7 @@ from swarmrl.models.interaction_model import Action, Colloid, InteractionModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-from swarmrl.utils.utils import record_trajectory, record_rewards
-
+from swarmrl.utils.utils import record_rewards, record_trajectory
 
 
 class MLModel(InteractionModel):

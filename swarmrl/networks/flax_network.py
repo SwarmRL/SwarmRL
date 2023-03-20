@@ -133,10 +133,10 @@ class FlaxModel(Network, ABC):
         Returns
         -------
         tuple : (np.ndarray, np.ndarray)
-                The first element is an array of indices corresponding to the action taken
-                by the agent. The value is bounded between 0 and the number of output neurons.
-                The second element is an array of the corresponding log_probs (i.e. the output of the network put
-                through a softmax).
+                The first element is an array of indices corresponding to the action
+                taken by the agent. The value is bounded between 0 and the number of
+                output neurons. The second element is an array of the corresponding
+                log_probs (i.e. the output of the network put through a softmax).
         """
         # Compute state
         try:

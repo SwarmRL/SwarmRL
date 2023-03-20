@@ -1,5 +1,5 @@
-import jax.numpy as np
 import jax
+import jax.numpy as np
 import numpy.testing as tst
 
 from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
@@ -47,13 +47,11 @@ class TestProximalPolicyLoss:
             value_function=value_function,
             sampling_strategy=sampling_strategy,
             entropy_coefficient=entropy_coefficient,
-            record_training=False
+            record_training=False,
         )
-
 
         actor = DummyActor()
         actor_params = 10
-        critic = DummyCritic()
 
         features = np.ones((n_time_steps, n_particles, observable_dimension))
 
@@ -85,16 +83,17 @@ class TestProximalPolicyLoss:
                         features=features,
                         actions=actions,
                         old_log_probs=probs,
-                        advantages=advantages
+                        advantages=advantages,
                     )
                 )
 
         def ratio(new_log_props, old_log_probs):
             return np.exp(new_log_props - old_log_probs)
 
-
         # the dummy_actor will return just 2
-        new_log_probs_all = np.log(jax.nn.softmax(actor.apply_fn(actor_params, features)))
+        new_log_probs_all = np.log(
+            jax.nn.softmax(actor.apply_fn(actor_params, features))
+        )
         new_log_probs = gather_n_dim_indices(new_log_probs_all, actions)
         # calculate the entropy of the new_log_probs
         entropy = np.sum(sampling_strategy.compute_entropy(np.exp(new_log_probs_all)))
