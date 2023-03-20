@@ -11,7 +11,7 @@ from swarmrl.models.interaction_model import Action, Colloid, InteractionModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-from swarmrl.utils.utils import record_rewards, record_trajectory
+from swarmrl.utils.utils import record_trajectory
 
 
 class MLModel(InteractionModel):
@@ -109,7 +109,4 @@ class MLModel(InteractionModel):
                     log_probs=np.array(log_probs[item]),
                     rewards=np.array(rewards[item]),
                 )
-        for item in self.particle_types:
-            record_rewards(particle_type=item, new_rewards=np.array(rewards[item]))
-
         return actions
