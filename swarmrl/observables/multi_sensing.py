@@ -7,6 +7,8 @@ from typing import List
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.observable import Observable
 
+import jax.numpy as np
+
 
 class MultiSensing(Observable, ABC):
     """
@@ -75,4 +77,4 @@ class MultiSensing(Observable, ABC):
             for j, colloid in enumerate(item):
                 observable[j].append(colloid)
 
-        return observable
+        return np.array(observable)
