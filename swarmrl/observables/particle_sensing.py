@@ -120,7 +120,7 @@ class ParticleSensing(Observable):
                 Value of the observable.
         """
         distances = np.linalg.norm(
-            (test_positions - reference_position) / self.box_length, axis=0
+            (test_positions - reference_position) / self.box_length, axis=-1
             )
         field_value = self.decay_fn(distances).sum()
 
