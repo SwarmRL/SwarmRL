@@ -112,7 +112,7 @@ class Animations:
 
         self.vision_cone_boolean = [False] * len(self.ids)
         self.cone_radius = [0] * len(self.ids)
-        self.cone_vision_of_types=cone_vision_of_types
+        self.cone_vision_of_types = cone_vision_of_types
         self.n_cones = 1
         self.cone_half_angle = [0] * len(self.ids)
         self.trace_boolean = [False] * len(self.ids)
@@ -302,7 +302,7 @@ class Animations:
         norm = plt.Normalize(0, 1)
         self.color_index = [random.randint(1, 9) for _ in range(len(self.ids))]
         self.mycolor = [0] * len(self.ids)
-        self.bodycolor=['g','g']
+        self.bodycolor = ["g", "g"]
 
         for i in range(len(self.ids)):
             cfade = colors.to_rgb(self.color_names[self.color_index[i]]) + (0.0,)
@@ -331,7 +331,6 @@ class Animations:
 
         n_parts = len(self.ids)
         for i in range(n_parts):
-
             self.part_body[i] = self.ax.add_patch(
                 patches.Circle(
                     xy=(-27000, -27000),
@@ -442,10 +441,9 @@ class Animations:
 
         self.init_schmell_field()
 
-        t = round(self.times[1], 0)
         self.time_annotate[0] = self.ax.annotate(
-            f"time:",
-            xy=(0.02, 0.95),
+            "time:",
+            xy=(0.02, 0.93),
             xycoords="axes fraction",
             zorder=n_parts * 4 + n_parts * self.n_cones + 1,
         )
@@ -546,7 +544,10 @@ class Animations:
 
             # color adjustment for each color separately
             for detected_type in range(self.n_types):
-                if np.max(self.vision_cone_data_frame[:, :, :, detected_type]) != 0 and detected_type in self.cone_vision_of_types:
+                if (
+                    np.max(self.vision_cone_data_frame[:, :, :, detected_type]) != 0
+                    and detected_type in self.cone_vision_of_types
+                ):
                     norm_vals = self.vision_cone_data_frame[
                         :, :, :, detected_type
                     ] / np.mean(self.vision_cone_data_frame[:, :, :, detected_type])
@@ -631,6 +632,14 @@ class Animations:
             )
 
     def animation_plt_update(self, frame):
+        if len(self.times) <= frame:
+            raise Exception(
+                " There are "
+                + len(self.times[frame])
+                + "frame available.You try to access the frame: "
+                + str(frame)
+                + " which is to high"
+            )
         t = round(self.times[frame], 0)
         self.time_annotate[0].set(text=f"time: ${t:g~L}$")
 
