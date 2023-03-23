@@ -99,7 +99,7 @@ class RotateRod(Task):
         velocity_change = angular_velocity - self._historic_velocity
         self._historic_velocity = angular_velocity
 
-        return self.angular_velocity_scale * np.clip(velocity_change, 0, None) + angular_velocity
+        return self.angular_velocity_scale * np.clip(velocity_change, 0, None) #+ angular_velocity
 
     def partition_reward(
         self,
