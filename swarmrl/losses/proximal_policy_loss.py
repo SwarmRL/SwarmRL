@@ -27,8 +27,8 @@ class ProximalPolicyLoss(Loss, ABC):
 
     def __init__(
         self,
-        value_function: GAE = GAE,
-        sampling_strategy: GumbelDistribution = GumbelDistribution,
+        value_function: GAE = GAE(),
+        sampling_strategy: GumbelDistribution = GumbelDistribution(),
         n_epochs: int = 20,
         epsilon: float = 0.2,
         entropy_coefficient: float = 0.01,
@@ -213,11 +213,8 @@ class ProximalPolicyLoss(Loss, ABC):
         for _ in range(self.n_epochs):
             # compute the advantages and returns (true_values) for that epoch
             predicted_values = np.squeeze(critic(feature_data))
-            advantages = self.value_function(
+            advantages, returns = self.value_function(
                 rewards=reward_data, values=predicted_values
-            )
-            returns = self.value_function.returns(
-                advantages=advantages, values=predicted_values
             )
 
             actor_grad_fn = jax.value_and_grad(self.compute_actor_loss)

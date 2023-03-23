@@ -31,7 +31,7 @@ class PolicyGradientLoss(Loss):
     -----
     """
 
-    def __init__(self, value_function: ExpectedReturns):
+    def __init__(self, value_function: ExpectedReturns = ExpectedReturns()):
         """
         Constructor for the reward class.
 
