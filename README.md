@@ -22,9 +22,6 @@ directory.
    pip install .
 ```
 
-This will install the package with a reference to the current directory.
-This means that if you change the code, you will not need to re-install it.
-
 ## Getting Started
 
 We are working on up-to-date documentation and examples and they will be made available
