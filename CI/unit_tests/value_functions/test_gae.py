@@ -16,8 +16,7 @@ class TestGAE:
         )
         expected_returns = expected_advantages + values
 
-        advantages = gae(rewards, values)
-        returns = gae.returns(advantages, values)
+        advantages, returns = gae(rewards, values)
 
         onp.testing.assert_allclose(
             advantages, expected_advantages, rtol=1e-4, atol=1e-4
