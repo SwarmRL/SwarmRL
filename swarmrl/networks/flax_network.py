@@ -100,7 +100,7 @@ class FlaxModel(Network, ABC):
         return TrainState.create(
             apply_fn=self.apply_fn, params=params, tx=self.optimizer
         )
-    
+
     def reinitialize_network(self):
         """
         Initialize the neural network.

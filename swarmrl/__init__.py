@@ -13,8 +13,8 @@ from swarmrl import (
     rl_protocols,
     sampling_strategies,
     tasks,
+    training_routines,
     value_functions,
-    training_routines
 )
 from swarmrl.engine import espresso
 from swarmrl.utils import utils

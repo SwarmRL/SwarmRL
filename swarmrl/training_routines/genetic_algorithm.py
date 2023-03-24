@@ -2,17 +2,14 @@
 Class for the genertic algorithm training routine.
 """
 import os
+from copy import deepcopy
 from pathlib import Path
 
-from dask.distributed import Client, wait
-
-from swarmrl.rl_protocols.rl_protocol import RLProtocol
-from swarmrl.gyms.gym import Gym
-from swarmrl.losses.loss import Loss
 import jax.numpy as np
 import numpy as onp
-import jax
-from copy import deepcopy
+from dask.distributed import Client, wait
+
+from swarmrl.gyms.gym import Gym
 
 
 class GeneticTraining:
@@ -69,7 +66,7 @@ class GeneticTraining:
             processes=False, threads_per_worker=5, n_workers=number_of_simulations
         )
         self.identifiers = range(population_size)
-        
+
         lazy_splits = np.array_split(np.ones(population_size), number_of_parents)
         self.split_lengths = [len(split) for split in lazy_splits]
 
@@ -84,11 +81,14 @@ class GeneticTraining:
         # Create the output directory
         os.mkdir(Path(self.output_directory))
 
+    @staticmethod
     def _train_network(
-            self, 
-            name: Path,
-            load_directory: str = None
-            ) -> tuple:
+        name: Path,
+        load_directory: str = None,
+        gym: Gym = None,
+        runner_generator: callable = None,
+        select_fn: callable = None,
+    ) -> tuple:
         """
         Train the network.
 
@@ -97,9 +97,9 @@ class GeneticTraining:
         name : Path
             Name of the network and where to save the data.
         load_directory : str (default: None)
-            Directory to load the model from. If None, a new model will be created.        self.base_protocol = base_protocol
+            Directory to load the model from. If None, a new model will be created.
         self.loss_fn = loss
-        
+
         Returns
         -------
         reduced_rewards : float
@@ -107,30 +107,31 @@ class GeneticTraining:
         model_id : str
             The id of the model.
         """
-        gym = self._get_gym()
-        model_id = name.split("_")[-1]
-        os.mkdir(name)
+        model_id = name.as_posix().split("_")[-1]
+        os.makedirs(name)
         os.chdir(name)
 
-        system_runner = self.simulation_runner_generator()  # get the runner
+        system_runner = runner_generator()  # get the runner
 
-        if load_directory == None:
+        if load_directory is None:
             gym.initialize_models()
         else:
             gym.restore_models(load_directory)
-        
+
         rewards = gym.perform_rl_training(system_runner)
         gym.export_models()
 
-        return (self._select_fn(rewards), model_id)
-    
+        return (select_fn(rewards), model_id)
+
     def _get_gym(self):
         """
         Helper function to get the gym.
         """
         return deepcopy(self.gym)
 
-    def _run_generation(self, generation: int, seed: bool = False, parent_ids: list = None):
+    def _run_generation(
+        self, generation: int, seed: bool = False, parent_ids: list = None
+    ):
         """
         Run a generation of the training.
 
@@ -146,15 +147,19 @@ class GeneticTraining:
         """
         # Create the children directories
         children_names = [
-            self.output_directory / f"_generation_{generation}" / f"_child_{i}" for i in self.identifiers
-            ]
-        
+            self.output_directory / f"_generation_{generation}" / f"_child_{i}"
+            for i in self.identifiers
+        ]
+        print(children_names)
         # deploy the jobs
         if seed:
             generation_outputs = self.client.map(
                 self._train_network,
                 children_names,
                 [None] * self.population_size,
+                [deepcopy(self.gym)] * self.population_size,
+                [self.simulation_runner_generator] * self.population_size,
+                [self._select_fn] * self.population_size,
             )
 
         else:
@@ -162,14 +167,19 @@ class GeneticTraining:
             load_paths = []
             for i, index in enumerate(parent_ids):
                 load_paths += [
-                    self.output_directory / f"_generation_{generation - 1}" / f"_child_{index}" 
-                    ] * self.split_lengths[i]
-    
+                    self.output_directory
+                    / f"_generation_{generation - 1}"
+                    / f"_child_{index}"
+                ] * self.split_lengths[i]
+
             generation_outputs = self.client.map(
                 self._train_network,
                 children_names,
                 [deepcopy(self.gym)] * self.population_size,
                 load_paths,
+                [deepcopy(self.gym)] * self.population_size,
+                [self.simulation_runner_generator] * self.population_size,
+                [self._select_fn] * self.population_size,
             )
 
         # Wait for results and load them from devices.
@@ -179,7 +189,7 @@ class GeneticTraining:
         # Restart and wait for workers
         self.client.restart(wait_for_workers=False)
         self.client.wait_for_workers(self.number_of_simulations)
-        
+
         return generation_outputs
 
     def _select_parents(self, generation_outputs: np.ndarray) -> list:
@@ -216,7 +226,7 @@ class GeneticTraining:
         """
         Train the model.
         """
-        generation= 0
+        generation = 0
         # Seed genetic process
         seed_outputs = self._run_generation(generation=generation, seed=True)
         parents = self._select_parents(seed_outputs)
@@ -226,7 +236,7 @@ class GeneticTraining:
             generation += 1  # Update the generation
             generation_outputs = self._run_generation(
                 generation=generation, parent_ids=parents
-                )
+            )
             parents = self._select_parents(generation_outputs)
 
-        return self.output_directory / f"_generation_{generation}" / f"_child_{i}"
+        return self.output_directory / f"_generation_{generation}" / "_child_0"
