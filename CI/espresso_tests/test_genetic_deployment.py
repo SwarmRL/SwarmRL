@@ -2,6 +2,7 @@
 Integration test for the genetic algorithm training.
 """
 import shutil
+import unittest as ut
 
 import flax.linen as nn
 import numpy as np
@@ -10,8 +11,6 @@ import pint
 
 import swarmrl as srl
 from swarmrl.models.interaction_model import Action
-
-import unittest as ut
 
 
 # Helper definitions.
@@ -184,6 +183,7 @@ class TestGeneticTraining(ut.TestCase):
         Clean up after running.
         """
         shutil.rmtree("genetic_algorithm")
+
 
 if __name__ == "__main__":
     ut.main()
