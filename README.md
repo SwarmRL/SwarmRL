@@ -1,4 +1,4 @@
-![PyTest](https://github.com/SwarmRL/SwarmRL/blob/master/.github/workflows/pytest.yml/badge.svg)
+![PyTest](https://github.com/SwarmRL/SwarmRL/actions/workflows/pytest.yml/badge.svg)
 [![code-style](https://img.shields.io/badge/code%20style-black-black)](https://github.com/psf/black/)
 
 # SwarmRL
