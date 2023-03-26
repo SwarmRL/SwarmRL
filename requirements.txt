@@ -14,3 +14,4 @@ optax~=0.1.2
 rich
 dataclasses~=0.6
 dask
+distributed
