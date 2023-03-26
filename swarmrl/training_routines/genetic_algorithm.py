@@ -4,6 +4,7 @@ Class for the genertic algorithm training routine.
 import os
 from copy import deepcopy
 from pathlib import Path
+from typing import List
 
 import jax.numpy as np
 import numpy as onp
@@ -26,7 +27,6 @@ class GeneticTraining:
         number_of_generations: int = 10,
         population_size: int = 10,
         number_of_parents: int = 2,
-        number_of_simulations: int = 10,
         parent_selection_method: str = "sum",
         output_directory: str = ".",
         routine_name: str = "genetic_algorithm",
@@ -41,6 +41,18 @@ class GeneticTraining:
         simulation_runner_generator : callable
             A function that will returimport numpy as onp
             esults to.
+        n_episodes : int
+            Number of episodes in each lifespan
+        number_of_generations : int (default: 10)
+            Number of generations to run
+        population_size : int (default: 10)
+            Number of individuals in the population
+        number_of_parents : int (default: 2)
+            Number of parents to select for each generation
+        parent_selection_method : str
+            How to reduce the life reward. Either sum or mean.
+        output_directory : str (default: ".")
+            Output directory of the run.
         routine_name : str (default: "genetic_algorithm")
             Name of the training routine.
 
@@ -58,12 +70,11 @@ class GeneticTraining:
         self.number_of_generations = number_of_generations
         self.population_size = population_size
         self.number_of_parents = number_of_parents
-        self.number_of_simulations = number_of_simulations
         self.output_directory = Path(f"{output_directory}/{routine_name}")
 
         # TODO: Make this a parameter
         self.client = Client(
-            processes=False, threads_per_worker=5, n_workers=number_of_simulations
+            processes=True, threads_per_worker=5, n_workers=population_size
         )
         self.identifiers = range(population_size)
 
@@ -88,6 +99,8 @@ class GeneticTraining:
         gym: Gym = None,
         runner_generator: callable = None,
         select_fn: callable = None,
+        episode_length: int = None,
+        n_episodes: int = None,
     ) -> tuple:
         """
         Train the network.
@@ -98,7 +111,17 @@ class GeneticTraining:
             Name of the network and where to save the data.
         load_directory : str (default: None)
             Directory to load the model from. If None, a new model will be created.
-        self.loss_fn = loss
+        gym : Gym
+                Gym to use for training.
+        runner_generator : callable
+                Function that returns a system_runner.
+        select_fn : callable
+                Function for reducing training rewards to a single
+                number.
+        episode_length : int
+                Length of one episode.
+        n_episodes : int
+                Number of episodes in the lifespan of the child.
 
         Returns
         -------
@@ -118,7 +141,12 @@ class GeneticTraining:
         else:
             gym.restore_models(load_directory)
 
-        rewards = gym.perform_rl_training(system_runner)
+        rewards = gym.perform_rl_training(
+            system_runner,
+            episode_length=episode_length,
+            n_episodes=n_episodes,
+            initialize=True,
+        )
         gym.export_models()
 
         return (select_fn(rewards), model_id)
@@ -131,7 +159,7 @@ class GeneticTraining:
 
     def _run_generation(
         self, generation: int, seed: bool = False, parent_ids: list = None
-    ):
+    ) -> List:
         """
         Run a generation of the training.
 
@@ -144,13 +172,17 @@ class GeneticTraining:
         parent_ids : list (default: None)
             The ids of the parents to use for the generation. If None, it should
             be seeded.
+
+        Returns
+        -------
+        generation_outputs : list
+                A list of rewards values form which parents will be chosen.
         """
         # Create the children directories
         children_names = [
             self.output_directory / f"_generation_{generation}" / f"_child_{i}"
             for i in self.identifiers
         ]
-        print(children_names)
         # deploy the jobs
         if seed:
             generation_outputs = self.client.map(
@@ -160,6 +192,8 @@ class GeneticTraining:
                 [deepcopy(self.gym)] * self.population_size,
                 [self.simulation_runner_generator] * self.population_size,
                 [self._select_fn] * self.population_size,
+                [self.episode_length] * self.population_size,
+                [self.n_episodes] * self.population_size,
             )
 
         else:
@@ -170,16 +204,20 @@ class GeneticTraining:
                     self.output_directory
                     / f"_generation_{generation - 1}"
                     / f"_child_{index}"
+                    / "Models"
                 ] * self.split_lengths[i]
+
+            load_paths = [item.resolve().as_posix() for item in load_paths]
 
             generation_outputs = self.client.map(
                 self._train_network,
                 children_names,
-                [deepcopy(self.gym)] * self.population_size,
                 load_paths,
                 [deepcopy(self.gym)] * self.population_size,
                 [self.simulation_runner_generator] * self.population_size,
                 [self._select_fn] * self.population_size,
+                [self.episode_length] * self.population_size,
+                [self.n_episodes] * self.population_size,
             )
 
         # Wait for results and load them from devices.
@@ -188,7 +226,7 @@ class GeneticTraining:
 
         # Restart and wait for workers
         self.client.restart(wait_for_workers=False)
-        self.client.wait_for_workers(self.number_of_simulations)
+        self.client.wait_for_workers(self.population_size)
 
         return generation_outputs
 
@@ -210,7 +248,7 @@ class GeneticTraining:
         ids = [item[1] for item in generation_outputs]
 
         # First get best parent
-        max_reward_index = np.argmax(rewards)
+        max_reward_index = np.argmax(np.array(rewards))
         chosen_id = ids[max_reward_index]
 
         # Pick mutations

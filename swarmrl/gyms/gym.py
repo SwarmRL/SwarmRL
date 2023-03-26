@@ -207,6 +207,7 @@ class Gym:
         if initialize:
             for item, val in self.rl_protocols.items():
                 val.observable.initialize(system_runner.colloids)
+                val.task.initialize(system_runner.colloids)
 
         progress = Progress(
             "Episode: {task.fields[Episode]}",
@@ -247,3 +248,5 @@ class Gym:
                 os.remove(f".traj_data_{item}.npy")
             except FileNotFoundError:
                 pass
+
+        return np.array(rewards)
