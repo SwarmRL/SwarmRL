@@ -55,6 +55,27 @@ class TestFlaxNetwork:
         cls.actor_network = ActorNet()
         cls.critic_network = CriticNet()
 
+    def test_compute_action(self):
+        """
+        Test that the compute action method works.
+        """
+        model = FlaxModel(
+            flax_model=self.actor_network,
+            optimizer=optax.adam(learning_rate=0.001),
+            input_shape=(2,),
+            sampling_strategy=self.sampling_strategy,
+            exploration_policy=self.exploration_policy,
+        )
+        input_data = np.array([[1.0, 2.0], [4.0, 5.0]])
+
+        data_from_call = model(input_data)
+        action_indices, action_logits = model.compute_action(input_data)
+
+        # Check shapes
+        assert data_from_call.shape == (2, 4)
+        assert action_indices.shape == (2,)
+        assert action_logits.shape == (2,)
+
     def test_saving_and_reloading(self):
         """
         Test that one can save and reload the model.

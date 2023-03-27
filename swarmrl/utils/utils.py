@@ -7,6 +7,7 @@ import pickle
 import shutil
 import typing
 
+import jax.numpy as jnp
 import numpy as np
 
 import swarmrl
@@ -271,3 +272,41 @@ def record_training(training_dict: dict):
         training_data,
         allow_pickle=True,
     )
+
+
+def calc_signed_angle_between_directors(
+    my_director: np.ndarray, other_director: np.ndarray
+) -> float:
+    """
+    In 2D compare two different normalized
+    directors to determine the angle between them
+
+    Parameters
+    ----------
+    my_director : np.ndarray
+            Normalized director in 3D.
+    other_director : np.ndarray
+            Normalized director in 3D.
+    Returns
+    ----------
+    signed_angle : float
+        signed float which represents the signed angle of my_director to other_director
+        with the mathematical sign convention.
+    """
+
+    # Assert if the directors were really normalized
+    my_director /= jnp.linalg.norm(my_director)
+    other_director /= jnp.linalg.norm(other_director)
+
+    # calculate the angle in which the my_colloid is looking
+    angle = jnp.arccos(jnp.dot(other_director, my_director))
+    # use the director in orthogonal direction to determine sign
+    orthogonal_dot = jnp.dot(
+        other_director,
+        jnp.array([-my_director[1], my_director[0], my_director[2]]),
+    )
+    # don't use np.sign instead use np.where because
+    # np.sign(0) => 0 is not what we want
+    angle *= jnp.where(orthogonal_dot >= 0, 1, -1)
+
+    return angle
