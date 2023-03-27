@@ -141,7 +141,7 @@ class Gym:
 
         Notes
         -----
-        This is super lazy. We should add this to the rl protocol I guess. Same with the
+        This is super lazy. We should add this to the rl protocol. Same with the
         model restoration.
         """
         for item, val in self.rl_protocols.items():
@@ -183,6 +183,7 @@ class Gym:
         n_episodes: int,
         episode_length: int,
         initialize: bool = False,
+        load_bar: bool = True,
     ):
         """
         Perform the RL training.
@@ -198,6 +199,8 @@ class Gym:
         initialize : bool (default=False)
                 If true, call the initial colloid positions to initialize a task or
                 observable.
+        load_bar : bool (default=True)
+                If true, show a progress bar.
         """
         rewards = [0.0]
         current_reward = 0.0
@@ -226,6 +229,7 @@ class Gym:
                 Episode=episode,
                 current_reward=current_reward,
                 running_reward=np.mean(rewards),
+                visible=load_bar,
             )
             for _ in range(n_episodes):
                 system_runner.integrate(episode_length, force_fn)

@@ -1,5 +1,5 @@
 """
-Integration test for the genetic algorithm training.
+Test that ensembled deployment runs.
 """
 import shutil
 import unittest as ut
@@ -162,27 +162,25 @@ class TestGeneticTraining(ut.TestCase):
             [protocol],
             loss,
         )
-        self.training_routine = srl.training_routines.GeneticTraining(
+        self.training_routine = srl.training_routines.EnsembleTraining(
             rl_trainer,
             get_simulation_runner,
             n_episodes=5,
             episode_length=10,
-            number_of_generations=3,
-            population_size=3,
-            number_of_parents=3,
+            n_parallel_jobs=2,
         )
 
     def test_run(self):
         """
         Test that the code runs correctly.
         """
-        self.training_routine.train_model()
+        self.training_routine.train_ensemble()
 
     def tearDown(self):
         """
         Clean up after running.
         """
-        shutil.rmtree("genetic_algorithm")
+        shutil.rmtree("ensembled_training")
 
 
 if __name__ == "__main__":
