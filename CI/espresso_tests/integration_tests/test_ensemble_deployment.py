@@ -165,10 +165,9 @@ class TestGeneticTraining(ut.TestCase):
         self.training_routine = srl.training_routines.EnsembleTraining(
             rl_trainer,
             get_simulation_runner,
-            5,
-            n_episodes=5,
-            episode_length=10,
-            n_parallel_jobs=2,
+            number_of_ensembles=20,
+            n_episodes=50,
+            episode_length=20,
         )
 
     def test_run(self):
@@ -181,7 +180,7 @@ class TestGeneticTraining(ut.TestCase):
         """
         Clean up after running.
         """
-        shutil.rmtree("ensembled_training")
+        shutil.rmtree("ensembled-training")
 
 
 if __name__ == "__main__":

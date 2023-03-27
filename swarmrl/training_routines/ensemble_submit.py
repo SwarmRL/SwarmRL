@@ -73,12 +73,12 @@ class EnsembleTraining:
         # Use default local cluster if None is given.
         if cluster is None:
             cluster = LocalCluster(
-                processes=True, threads_per_worker=5, silence_logs=logging.ERROR
+                processes=True, threads_per_worker=10, silence_logs=logging.ERROR
             )
         self.cluster = cluster
         self.client = Client(cluster)
 
-        self.cluster.scale(n=self.parallel_jobs)
+        self.cluster.scale(n=self.n_parallel_jobs)
         webbrowser.open(self.client.dashboard_link)
 
         # Create the output directory if needed.
@@ -146,12 +146,12 @@ class EnsembleTraining:
         """
         futures = []
         names = [
-            (self.output_dir / f"ensemble_{i}" for i in range(self.number_of_ensembles))
-            .resolve()
-            .as_posix()
+            (self.output_dir / f"ensemble_{i}").resolve().as_posix()
+            for i in range(self.number_of_ensembles)
         ]
+
         for i in range(self.number_of_ensembles // self.n_parallel_jobs):
-            _ = block = self.client.map(
+            block = self.client.map(
                 self._train_model,
                 names[i * self.n_parallel_jobs : (i + 1) * self.n_parallel_jobs],
                 [self.gym] * self.n_parallel_jobs,
@@ -164,5 +164,9 @@ class EnsembleTraining:
         futures += self.client.gather(block)
         _ = self.client.restart(wait_for_workers=False)
         _ = self.client.wait_for_workers(self.n_parallel_jobs)
+
+        # shut down the cluster
+        self.cluster.close()
+        self.client.close()
 
         return {model_id: rewards for rewards, model_id in futures}

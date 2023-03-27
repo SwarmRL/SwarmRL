@@ -165,12 +165,12 @@ class TestGeneticTraining(ut.TestCase):
         self.training_routine = srl.training_routines.GeneticTraining(
             rl_trainer,
             get_simulation_runner,
-            n_episodes=5,
-            episode_length=10,
+            n_episodes=50,
+            episode_length=20,
             number_of_generations=3,
-            population_size=5,
+            population_size=10,
             number_of_parents=3,
-            parallel_jobs=2,
+            parallel_jobs=10,
         )
 
     def test_run(self):

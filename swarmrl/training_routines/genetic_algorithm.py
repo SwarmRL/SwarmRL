@@ -343,4 +343,8 @@ class GeneticTraining:
         print(f"Best Model: {best_model_path.as_posix()}")
         print(f"Best Reward: {reward:.2f}")
 
+        # Shutdown the cluster
+        self.cluster.close()
+        self.client.close()
+
         return best_model_path
