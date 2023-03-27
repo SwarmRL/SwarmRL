@@ -26,22 +26,16 @@ def calc_chemical_potential(chemical_pos, measure_pos):
     with an additional decay term. Because of and constant source in the origin
     a decay of the density is needed to yield a steady state in the
     diffusion equation. The solution is the modified bessel function of second kind.
-
-
     Parameters
     ----------
     chemical_pos : np.array (2)
             x and y coordinate of chemical source
-
     col_pos : np.array (n_position , 2)
             x and y coordinate of measure point. Simultaneously evalute n_positions.
-
-
     Returns
     -------
     chemical_magnitude : np.array (n_position , 1)
             magnitude of the chemical potential
-
     chemical_gradient : np.array (n_position , 2)
             gradient of the chemical potential in length units defined by input values
     """
@@ -86,6 +80,7 @@ class Animations:
         types,
         vision_cone_boolean,
         cone_radius,
+        cone_vision_of_types,
         n_cones,
         cone_half_angle,
         trace_boolean,
@@ -117,6 +112,7 @@ class Animations:
 
         self.vision_cone_boolean = [False] * len(self.ids)
         self.cone_radius = [0] * len(self.ids)
+        self.cone_vision_of_types = cone_vision_of_types
         self.n_cones = 1
         self.cone_half_angle = [0] * len(self.ids)
         self.trace_boolean = [False] * len(self.ids)
@@ -216,6 +212,41 @@ class Animations:
 
         self.maze_boolean = maze_boolean  # type=2 corresponds to wall particles
 
+    def init_schmell_field(self):
+        if self.schmell_boolean != [False] * len(self.ids):
+            self.X, self.Y = np.mgrid[
+                self.x_0 : self.x_1 : complex(0, self.schmell_N),
+                self.y_0 : self.y_1 : complex(0, self.schmell_N),
+            ]
+            self.testpos = np.stack([self.X.flatten(), self.Y.flatten()], axis=-1)
+            self.schmell_magnitude_shape = np.zeros((self.schmell_N, self.schmell_N))
+            n_parts = len(self.ids)
+            for i in range(n_parts):
+                if self.schmell_boolean[i]:
+                    pos = self.positions[0, i, :].magnitude
+                    self.schmell_magnitude, _ = calc_chemical_potential(
+                        pos, self.testpos
+                    )
+                    self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
+                        (self.schmell_N, self.schmell_N)
+                    )
+                    self.schmell_maximum, _ = calc_chemical_potential(
+                        np.array([500, 500]),
+                        np.array([500, 500 + self.radius_col[i] / 5]),
+                    )  # the 5 is for aesthetics
+            self.schmell[0] = self.ax.pcolormesh(
+                self.X,
+                self.Y,
+                self.schmell_magnitude_shape,
+                vmin=np.min(self.schmell_magnitude_shape),
+                vmax=self.schmell_maximum,
+                cmap=self.schmellcolor,
+                shading="nearest",
+                zorder=0,
+            )
+        else:
+            (self.schmell[0],) = self.ax.plot([], [], zorder=0, alpha=0)
+
     def animation_plt_init(self):
         # calc figure limits
         delta_max_x = np.max(self.positions[:, :, 0].magnitude) - np.min(
@@ -271,6 +302,7 @@ class Animations:
         norm = plt.Normalize(0, 1)
         self.color_index = [random.randint(1, 9) for _ in range(len(self.ids))]
         self.mycolor = [0] * len(self.ids)
+        self.bodycolor = ["g", "g"]
 
         for i in range(len(self.ids)):
             cfade = colors.to_rgb(self.color_names[self.color_index[i]]) + (0.0,)
@@ -301,17 +333,17 @@ class Animations:
         for i in range(n_parts):
             self.part_body[i] = self.ax.add_patch(
                 patches.Circle(
-                    xy=(0, 0),
+                    xy=(-27000, -27000),
                     radius=self.radius_col[i],
                     alpha=0.7,
-                    color="g",
+                    color=self.bodycolor[self.types[i]],
                     zorder=n_parts + n_parts * self.n_cones + i,
                 )
             )
             if self.eyes_boolean[i]:
                 self.part_lefteye[i] = self.ax.add_patch(
                     patches.Circle(
-                        xy=(0, 0),
+                        xy=(-27000, -27000),
                         radius=self.radius_col[i] / 5,
                         alpha=0.7,
                         color="k",
@@ -320,7 +352,7 @@ class Animations:
                 )
                 self.part_righteye[i] = self.ax.add_patch(
                     patches.Circle(
-                        xy=(0, 0),
+                        xy=(-27000, -27000),
                         radius=self.radius_col[i] / 5,
                         alpha=0.7,
                         color="k",
@@ -407,43 +439,11 @@ class Animations:
                             )
                         )
 
-        if self.schmell_boolean != [False] * len(self.ids):
-            self.X, self.Y = np.mgrid[
-                self.x_0 : self.x_1 : complex(0, self.schmell_N),
-                self.y_0 : self.y_1 : complex(0, self.schmell_N),
-            ]
-            self.testpos = np.stack([self.X.flatten(), self.Y.flatten()], axis=-1)
-            self.schmell_magnitude_shape = np.zeros((self.schmell_N, self.schmell_N))
-            for i in range(n_parts):
-                if self.schmell_boolean[i]:
-                    pos = self.positions[0, i, :].magnitude
-                    self.schmell_magnitude, _ = calc_chemical_potential(
-                        pos, self.testpos
-                    )
-                    self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
-                        (self.schmell_N, self.schmell_N)
-                    )
-                    self.schmell_maximum, _ = calc_chemical_potential(
-                        np.array([500, 500]),
-                        np.array([500, 500 + self.radius_col[i] / 5]),
-                    )  # the 5 is for aesthetics
-            self.schmell[0] = self.ax.pcolormesh(
-                self.X,
-                self.Y,
-                self.schmell_magnitude_shape,
-                vmin=np.min(self.schmell_magnitude_shape),
-                vmax=self.schmell_maximum,
-                cmap=self.schmellcolor,
-                shading="nearest",
-                zorder=0,
-            )
-        else:
-            (self.schmell[0],) = self.ax.plot([], [], zorder=0, alpha=0)
+        self.init_schmell_field()
 
-        t = round(self.times[1], 0)
         self.time_annotate[0] = self.ax.annotate(
-            f"time in ${t:g~L}$",
-            xy=(0.02, 0.95),
+            "time:",
+            xy=(0.02, 0.93),
             xycoords="axes fraction",
             zorder=n_parts * 4 + n_parts * self.n_cones + 1,
         )
@@ -474,7 +474,7 @@ class Animations:
                 " want vision cones but no self.vision_cone_data in the options are"
                 " provided. Then default is created"
             )
-            each_type = [0.2 for _ in range(self.n_types)]
+            each_type = [0.05 for _ in range(self.n_types)]
             each_cone = np.array(
                 [each_type] * self.n_cones
             )  # len(type) is probably 6 instead of supposed 2
@@ -525,7 +525,10 @@ class Animations:
                 )
 
         # expand vision cone data
-        if self.vision_cone_boolean != [False] * len(self.ids):
+        if (
+            self.vision_cone_boolean != [False] * len(self.ids)
+            and self.vision_cone_data is not None
+        ):
             self.vision_cone_data_frame = np.zeros(
                 (len(self.times), len(self.ids), self.n_cones, self.n_types)
             )
@@ -538,21 +541,25 @@ class Animations:
                             self.vision_cone_data_frame[
                                 frame, c_id
                             ] = self.vision_cone_data[frame][given_c_id][1]
+
             # color adjustment for each color separately
             for detected_type in range(self.n_types):
-                if np.max(self.vision_cone_data_frame[:, :, :, detected_type]) != 0:
+                if (
+                    np.max(self.vision_cone_data_frame[:, :, :, detected_type]) != 0
+                    and detected_type in self.cone_vision_of_types
+                ):
                     norm_vals = self.vision_cone_data_frame[
                         :, :, :, detected_type
-                    ] * np.mean(self.vision_cone_data_frame[:, :, :, detected_type])
+                    ] / np.mean(self.vision_cone_data_frame[:, :, :, detected_type])
                     self.vision_cone_data_frame[:, :, :, detected_type] = (
-                        np.arctan(norm_vals) * 1 / np.pi
-                    )
-                    self.vision_cone_data_frame[:, :, :, detected_type] += 0.1
+                        np.arctan(norm_vals / 1) * 1 / np.pi
+                    )  # divide norm_vals by ca. 100 to get shaded colors
+                    self.vision_cone_data_frame[:, :, :, detected_type] += 0.05
 
     def animation_maze_setup(self, folder, filename):
         maze_file = open(folder + filename, "rb")
-        self.maze_points = pickle.load(maze_file)
-        self.wall_thickness = pickle.load(maze_file)
+        self.maze_dic = pickle.load(maze_file)
+        self.wall_thickness = self.maze_dic["wall_thickness"]
         self.maze_walls = pickle.load(maze_file)
         self.maze = [0] * len(self.maze_walls)
 
@@ -601,6 +608,10 @@ class Animations:
         self.ax.set_xlim(self.x_0, self.x_1)
         self.ax.set_ylim(self.y_0, self.y_1)
 
+        # the ax limits have changed now we need to init it again
+        self.schmell[0].set_alpha(0)
+        self.init_schmell_field()
+
         for i, wall in enumerate(self.maze_walls):
             vec_along_wall = [wall[2] - wall[0], wall[3] - wall[1]]
             wall_length = np.linalg.norm(vec_along_wall)
@@ -621,12 +632,26 @@ class Animations:
             )
 
     def animation_plt_update(self, frame):
+        if len(self.times) <= frame:
+            raise Exception(
+                " There are "
+                + len(self.times[frame])
+                + "frame available.You try to access the frame: "
+                + str(frame)
+                + " which is to high"
+            )
         t = round(self.times[frame], 0)
-        self.time_annotate[0].set(text=f"time in ${t:g~L}$")
+        self.time_annotate[0].set(text=f"time: ${t:g~L}$")
 
         # Updating the written Info
         if self.written_info_data is not None:
-            self.written_info[0].set(text=self.written_info_data[frame])
+            if "|" in self.written_info_data[frame]:
+                first_text, sep, second_text = self.written_info_data[frame].partition(
+                    "|"
+                )
+                self.written_info[0].set(text=first_text + "\n" + second_text)
+            else:
+                self.written_info[0].set(text=self.written_info_data[frame])
 
         # Updating the schmell field
         if self.schmell_boolean != [False] * len(self.ids):
@@ -745,17 +770,16 @@ class Animations:
             )
 
 
-def load_extra_data_to_visualization(ani_instance, folder_name):
-    files = os.listdir(folder_name)
-    if "written_info_data.pick" in files:
-        with open(folder_name + "/written_info_data.pick", "rb") as f:
-            ani_instance.written_info_data = pickle.load(f)
+def load_extra_data_to_gif(ani_instance, parameters):
+    if "title_data" in parameters.keys() and parameters["title_data"] is not None:
+        ani_instance.written_info_data = parameters["title_data"]
     else:
         ani_instance.written_info_data = None
-
-    if "vision_cone_data.pick" in files:
-        with open(folder_name + "/vision_cone_data.pick", "rb") as f:
-            ani_instance.vision_cone_data = pickle.load(f)
+    if (
+        "vision_cone_data" in parameters.keys()
+        and parameters["vision_cone_data"] is not None
+    ):
+        ani_instance.vision_cone_data = parameters["vision_cone_data"]
     else:
         ani_instance.vision_cone_data = None
 
@@ -802,8 +826,8 @@ def visualization(
             )
 
     fig, ax = plt.subplots(figsize=(7, 7))
-
     # setup the units for automatic ax_labeling
+
     positions.ito(ureg.micrometer)
     times.ito(ureg.second)
 
@@ -815,7 +839,6 @@ def visualization(
         times,
         ids,
         types,
-        # set True/False for each existing colloid type
         vision_cone_boolean=[True, False, False],
         cone_radius=parameters["detection_radius_position"]
         .to(ureg.micrometer)
@@ -824,9 +847,7 @@ def visualization(
         cone_half_angle=parameters["vision_half_angle"].magnitude,
         trace_boolean=[True, True, True],
         trace_fade_boolean=[True, True, True],
-        # the cute, sweet way I think of the colloids
         eyes_boolean=[False, False, False],
-        # the official way to draw the colloids
         arrow_boolean=[True, False, False],
         radius_col=[
             parameters["radius_colloid"].to(ureg.micrometer).magnitude,
@@ -834,18 +855,11 @@ def visualization(
             0,
         ],
         schmell_boolean=False,
-        # particle id which is the chemical potential source
         schmell_ids=parameters["rod_border_parts_id"],
         maze_boolean=False,
     )
 
-    if folder_name is not None:
-        load_extra_data_to_visualization(ani_instance, folder_name)
-    else:
-        raise Exception(
-            "You need to specify where your extradata for visualization is located. It"
-            " is assumed that it lies where the trajectory.hdf5 file is located."
-        )
+    load_extra_data_to_gif(ani_instance, parameters)
 
     ani_instance.animation_plt_init()
 
@@ -853,11 +867,7 @@ def visualization(
         ani_instance.animation_maze_setup(
             parameters["maze_folder"], parameters["maze_file_name"]
         )
-
-    # Here is some space to add regular matplotlib functions for customization
-    #####################
     ani_instance.ax.grid(True)
-    #####################
 
     if vis_mode == "GIF":
         # set start and end of visualization and set the interval of between frames
@@ -868,7 +878,7 @@ def visualization(
             ani_instance.animation_plt_update,
             frames=range(begin_frame, end_frame),
             blit=True,
-            interval=10,
+            interval=100,
         )
     elif vis_mode == "SLIDER":
         ax_slider = plt.axes([0.25, 0.1, 0.65, 0.03], facecolor="gray")

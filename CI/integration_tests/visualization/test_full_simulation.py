@@ -58,6 +58,23 @@ class TestFullSim(ut.TestCase):
             "seed": self.seed,
         }
 
+
+        rod_params_type = {
+            "rod_center": ureg.Quantity([500,500] "micrometer"),
+            "rod_length": ureg.Quantity(100, "micrometer"),
+            "rod_thickness": ureg.Quantity(100/59, "micrometer"),
+            "rod_start_angle": 0,
+            "n_particles": 59,
+            "friction_trans": friction_trans,
+            "friction_rot": friction_rot,
+            "rod_particle_type": args.rod_particle_type,
+            "rod_fixed": args.rod_fixed,
+            "rod_center_part_id": 42,  # gets calculated
+            "rod_border_parts_id": [42, 42],  # gets calculated
+            "rod_break_ang_vel": args.rod_break_ang_vel,
+            "rod_break": args.rod_break
+        }
+
         # from now on, no new parameters are introduced
 
         system_runner = espresso.EspressoMD(
@@ -76,6 +93,19 @@ class TestFullSim(ut.TestCase):
             ureg.Quantity(60, "micrometer"),
             type_colloid=coll_type,
         )
+
+        system_runner.add_rod(
+                self.rod_params_type["rod_center"],
+                self.rod_params_type["rod_length"],
+                self.rod_params_type["rod_thickness"],
+                self.rod_params_type["rod_start_angle"],
+                self.rod_params_type["n_particles"],
+                ftrans,
+                froteq,
+                self.rod_params_type["rod_particle_type"],
+                self.rod_params_type["rod_fixed"]
+            )
+
         gamma, gamma_rot = system_runner.get_friction_coefficients(coll_type)
         target_vel = model_params["target_vel_SI"].m_as("sim_velocity")
         act_force = target_vel * gamma
@@ -126,31 +156,10 @@ class TestFullSim(ut.TestCase):
         system_runner.finalize()
         logger.info("Simulation completed successfully")
 
-    def load_results(self, outfolder):
-        param_fname = f"{outfolder}/params_{self.simulation_name}.pick"
-        traj_fname = f"{outfolder}/trajectory.hdf5"
 
-        with open(param_fname, "rb") as param_file:
-            params = pickle.load(param_file)
-        with h5py.File(traj_fname) as traj_file:
-            positions = np.array(traj_file["colloids/Unwrapped_Positions"][:, :, :2])
-            directors = np.array(traj_file["colloids/Directors"][:, :, :2])
-            times = np.array(traj_file["colloids/Times"][:, 0, 0])
 
-        return params, positions, directors, times
-
-    def test_full_sim(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
-            self.simulate_model(outfolder)
-            params, positions, directors, times = self.load_results(outfolder)
-
-            # just for illustration purposes let's access some data
-
-            n_colloids = params["run_params"]["n_colloids"]
-            box_length = params["md_params"].box_length.m_as("micrometer")
-
-            n_timesteps = len(times)
+    def test(self):
+        
             self.assertEqual(n_timesteps, np.shape(positions)[0])
             self.assertEqual(n_timesteps, np.shape(directors)[0])
             self.assertEqual(n_colloids, np.shape(positions)[1])
