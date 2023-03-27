@@ -556,12 +556,13 @@ class Animations:
                     )  # divide norm_vals by ca. 100 to get shaded colors
                     self.vision_cone_data_frame[:, :, :, detected_type] += 0.05
 
-    def animation_maze_setup(self, folder, filename):
-        maze_file = open(folder + filename, "rb")
-        self.maze_dic = pickle.load(maze_file)
-        self.wall_thickness = self.maze_dic["wall_thickness"]
-        self.maze_walls = pickle.load(maze_file)
-        self.maze = [0] * len(self.maze_walls)
+    def animation_maze_setup(self, folder, filename, maze_dic, maze_walls):
+        if filename != None:
+            maze_file = open(folder + filename, "rb")
+            self.maze_dic = pickle.load(maze_file)
+            self.wall_thickness = self.maze_dic["wall_thickness"]
+            self.maze_walls = pickle.load(maze_file)
+            self.maze = [0] * len(self.maze_walls)
 
         # update the limits of the plot
 
@@ -735,7 +736,7 @@ class Animations:
                 end_y = self.radius_col[i] * 0.4 * np.sin(directors_angle + np.pi)
                 start_x = self.radius_col[i] * np.cos(directors_angle)
                 start_y = self.radius_col[i] * np.sin(directors_angle)
-                # set_data is available here at least for matplotlib 3.6.4
+                # set_data is available here at least for matplotlib 3.6.4 and 3.7.1
                 self.part_arrow[i].set_data(
                     x=xdata[frame] + end_x,
                     y=ydata[frame] + end_y,
@@ -770,16 +771,17 @@ class Animations:
             )
 
 
-def load_extra_data_to_gif(ani_instance, parameters):
-    if "title_data" in parameters.keys() and parameters["title_data"] is not None:
-        ani_instance.written_info_data = parameters["title_data"]
+def load_extra_data_to_visualization(ani_instance, folder_name):
+    files = os.listdir(folder_name)
+    if "written_info_data.pick" in files:
+        with open(folder_name + "/written_info_data.pick",'rb') as f:
+            ani_instance.written_info_data = pickle.load(f)
     else:
         ani_instance.written_info_data = None
-    if (
-        "vision_cone_data" in parameters.keys()
-        and parameters["vision_cone_data"] is not None
-    ):
-        ani_instance.vision_cone_data = parameters["vision_cone_data"]
+
+    if "vision_cone_data.pick" in files:
+        with open(folder_name + "/vision_cone_data.pick", 'rb') as f:
+            ani_instance.vision_cone_data = pickle.load(f)
     else:
         ani_instance.vision_cone_data = None
 
@@ -845,6 +847,7 @@ def visualization(
         .magnitude,
         n_cones=parameters["n_cones"],
         cone_half_angle=parameters["vision_half_angle"].magnitude,
+        cone_vision_of_types=[],
         trace_boolean=[True, True, True],
         trace_fade_boolean=[True, True, True],
         eyes_boolean=[False, False, False],
@@ -859,14 +862,20 @@ def visualization(
         maze_boolean=False,
     )
 
-    load_extra_data_to_gif(ani_instance, parameters)
+    if folder_name is not None:
+        load_extra_data_to_visualization(ani_instance, folder_name)
+    else:
+        raise Exception("You need to specify where your extradata for visualization is located. It is assumed that it lies where the trajectory.hdf5 file is located.")
+
 
     ani_instance.animation_plt_init()
 
     if parameters["maze_file_name"] != "None":
         ani_instance.animation_maze_setup(
-            parameters["maze_folder"], parameters["maze_file_name"]
+            parameters["maze_folder"], parameters["maze_file_name"], 
         )
+        ani_instance.ax.plot(parameters["destination"][0],parameters["destination"][1],'xr')
+
     ani_instance.ax.grid(True)
 
     if vis_mode == "GIF":
@@ -881,7 +890,8 @@ def visualization(
             interval=100,
         )
     elif vis_mode == "SLIDER":
-        ax_slider = plt.axes([0.25, 0.1, 0.65, 0.03], facecolor="gray")
+        fig.subplots_adjust(bottom=0.15,left=0.125,right=0.875)
+        ax_slider = fig.add_axes([0.18, 0.05, 0.65, 0.03], facecolor="gray")
         time_interval = parameters["write_interval"].to(ureg.second).magnitude
         t = times.units
         slider_frame = Slider(

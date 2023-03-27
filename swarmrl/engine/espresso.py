@@ -286,6 +286,74 @@ class EspressoMD(Engine):
             self.colloids.append(colloid)
 
         self.colloid_radius_register.update({type_colloid: radius_simunits})
+        
+    def add_colloid_precisely(
+        self,
+        radius_colloid: pint.Quantity,
+        init_position: pint.Quantity,
+        init_3D_direction: np.array = [1, 0, 0],
+        init_2D_angle: float = 0,
+        type_colloid=0,
+    ):
+        """
+        Parameters
+        ----------
+        radius_colloid
+        init_position
+        init_3D_direction
+        init_2D_angle
+        type_colloid
+            The colloids created from this method call will have this type.
+            Multiple calls can be made with the same type_colloid.
+            Interaction models need to be made aware if there are different types
+            of colloids in the system if specific behaviour is desired.
+        Returns
+        -------
+        """
+
+        self._check_already_initialised()
+
+        radius_simunits = radius_colloid.m_as("sim_length")
+        init_center = init_position.m_as("sim_length")
+        init_3D_direction = init_3D_direction / np.linalg.norm(init_3D_direction)
+
+        (
+            particle_gamma_translation,
+            particle_gamma_rotation,
+        ) = _calc_friction_coefficients(
+            self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius_simunits
+        )
+
+        if self.n_dims == 3:
+            colloid = self.system.part.add(
+                pos=init_center,
+                director=init_3D_direction,
+                rotation=3 * [True],
+                gamma=particle_gamma_translation,
+                gamma_rot=particle_gamma_rotation,
+                fix=3 * [False],
+                type=type_colloid,
+            )
+        else:
+            # initialize with body-frame = lab-frame to set correct rotation flags
+            # allow all rotations to bring the particle to correct state
+            start_angle = np.fmod(init_2D_angle, 2 * np.pi)
+            init_center[2] = 0  # get rid of z-coordinate in 2D coordinates
+            start_pos = init_center
+            colloid = self.system.part.add(
+                pos=start_pos,
+                fix=[False, False, True],
+                rotation=3 * [True],
+                gamma=particle_gamma_translation,
+                gamma_rot=particle_gamma_rotation,
+                quat=[1, 0, 0, 0],
+                type=type_colloid,
+            )
+            self._rotate_colloid_to_2d(colloid, start_angle)
+
+        self.colloids.append(colloid)
+
+        self.colloid_radius_register.update({type_colloid: radius_simunits})
 
     def add_rod(
         self,
@@ -427,6 +495,53 @@ class EspressoMD(Engine):
 
         # the wall itself has no radius, only the particle radius counts
         self.colloid_radius_register.update({wall_type: 0.0})
+
+
+    def add_maze(self, maze_walls: list, maze_type: int, wall_thickness: float):
+        z_offset = -100
+        maze_shapes = []
+
+        for wall in maze_walls:
+            a = [
+                wall[2] - wall[0],
+                wall[3] - wall[1],
+                0,
+            ]  # direction along lengthy wall
+            norm = np.linalg.norm(a)  # is also the norm of b
+            b = [
+                a[1] * wall_thickness / (2 * norm),
+                -a[0] * wall_thickness / (2 * norm),
+                0,
+            ]  # direction along wall_thickness of lengthy wall
+            corner = [
+                wall[0] - b[0] / 2,
+                wall[1] - b[1] / 2,
+                z_offset,
+            ]  # anchor point of wall shifted by wall_thickness*1/2
+            c = [0, 0, -z_offset * 2]  # direction along third axis of 2D simulation
+            maze_shapes.append(
+                espressomd.shapes.Rhomboid(corner=corner, a=a, b=b, c=c, direction=1)
+            )
+
+        for maze_shape in maze_shapes:
+            constr = espressomd.constraints.ShapeBasedConstraint(
+                shape=maze_shape, particle_type=maze_type, penetrable=False
+            )
+            self.system.constraints.add(constr)
+
+        # the maze wall itself has no radius, only the particle radius counts
+        self.colloid_radius_register.update({maze_type: 0.0})
+
+    def _setup_interactions(self):
+        for type_0, rad_0 in self.colloid_radius_register.items():
+            for type_1, rad_1 in self.colloid_radius_register.items():
+                if type_0 > type_1:
+                    continue
+                self.system.non_bonded_inter[type_0, type_1].wca.set_params(
+                    sigma=(rad_0 + rad_1) * 2 ** (-1 / 6),
+                    epsilon=self.params.WCA_epsilon.m_as("sim_energy"),
+                )
+
 
     def _setup_interactions(self):
         for type_0, rad_0 in self.colloid_radius_register.items():
