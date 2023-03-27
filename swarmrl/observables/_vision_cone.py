@@ -28,6 +28,7 @@ class VisionCone(Observable, ABC, Task):
         source: jnp.ndarray,
         box_size: np.ndarray,
         detect_source: bool = True,
+        particle_type: int = 0,
     ):
         """
         Constructor for the observable.
@@ -51,6 +52,8 @@ class VisionCone(Observable, ABC, Task):
         detect_source : bool
                 If True, the function returns [0.01] if the source is within the vision
                 cone to get a large reward.
+        particle_type : int (default: 0)
+                Type of the particle. If the particle type is not 0.
         """
         self.vision_angle = vision_angle
         self.vision_range = vision_range

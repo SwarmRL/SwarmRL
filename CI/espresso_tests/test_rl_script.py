@@ -148,9 +148,18 @@ class TestRLScript(ut.TestCase):
             source=np.array([500.0, 500.0, 0.0]),
             decay_function=scale_function,
             reward_scale_factor=10,
-            box_size=np.array([1000.0, 1000.0, 1000]),
+            box_length=np.array([1000.0, 1000.0, 1000]),
         )
-        observable = task.init_task()
+        task.initialize(system_runner.colloids)
+
+        observable = srl.observables.ConcentrationField(
+            source=np.array([500.0, 500.0, 0.0]),
+            decay_fn=scale_function,
+            scale_factor=10000,
+            box_length=np.array([1000.0, 1000.0, 1000]),
+            particle_type=0,
+        )
+        observable.initialize(system_runner.colloids)
 
         # Define the loss model
         loss = srl.losses.PolicyGradientLoss(value_function=value_function)

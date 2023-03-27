@@ -1,7 +1,11 @@
 """
 Parent class for the networks.
 """
+from typing import List
+
 import jax.numpy as np
+
+from swarmrl.models.interaction_model import Colloid
 
 
 class Network:
@@ -9,17 +13,16 @@ class Network:
     A parent class for the networks that will be used.
     """
 
-    def compute_action(self, feature_vector: np.ndarray, explore_mode: bool = False):
+    def compute_action(self, observables: List[Colloid], explore_mode: bool = False):
         """
         Compute and action from the action space.
 
-        This method will compute and action for an agent and will include the
-        exploration vs exploitation strategy.
+        This method computes an action on all colloids of the relevent type.
 
         Parameters
         ----------
-        feature_vector : np.ndarray
-                Feature vector to be used in the network.
+        observables : List[Colloid]
+                Colloids in the system for which the action should be computed.
         explore_mode : bool
                 If true, an exploration vs exploitation function is called.
 

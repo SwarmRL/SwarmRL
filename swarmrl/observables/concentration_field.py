@@ -29,7 +29,14 @@ class ConcentrationField(Observable, ABC):
             computation.
     """
 
-    def __init__(self, source: np.ndarray, decay_fn: callable, box_length: np.ndarray):
+    def __init__(
+        self,
+        source: np.ndarray,
+        decay_fn: callable,
+        box_length: np.ndarray,
+        scale_factor: int = 100,
+        particle_type: int = 0,
+    ):
         """
         Constructor for the observable.
 
@@ -41,11 +48,18 @@ class ConcentrationField(Observable, ABC):
                 Decay function of the field.
         box_size : np.ndarray
                 Array for scaling of the distances.
+        scale_factor : int (default=100)
+                Scaling factor for the observable.
+        particle_type : int (default=0)
+                Particle type to compute the observable for.
         """
+        super().__init__(particle_type=particle_type)
+
         self.source = source / box_length
         self.decay_fn = decay_fn
-        self.historic_positions = {}
+        self._historic_positions = {}
         self.box_length = box_length
+        self.scale_factor = scale_factor
         self._observable_shape = (3,)
 
     def initialize(self, colloids: List[Colloid]):
@@ -64,41 +78,60 @@ class ConcentrationField(Observable, ABC):
         for item in colloids:
             index = onp.copy(item.id)
             position = onp.copy(item.pos) / self.box_length
-            self.historic_positions[str(index)] = position
+            self._historic_positions[str(index)] = position
 
-    def compute_observable(self, colloid: Colloid, other_colloids: List[Colloid]):
+    def compute_single_observable(self, index: int, colloids: List[Colloid]) -> float:
+        """
+        Compute the observable for a single colloid.
+
+        Parameters
+        ----------
+        index : int
+                Index of the colloid to compute the observable for.
+        colloids : List[Colloid]
+                List of colloids in the system.
+        """
+        reference_colloid = colloids[index]
+        position = onp.copy(reference_colloid.pos) / self.box_length
+        index = onp.copy(reference_colloid.id)
+        previous_position = self._historic_positions[str(index)]
+
+        # Update historic position.
+        self._historic_positions[str(index)] = position
+
+        current_distance = np.linalg.norm(self.source - position)
+        historic_distance = np.linalg.norm(self.source - previous_position)
+
+        delta = self.decay_fn(current_distance) - self.decay_fn(historic_distance)
+
+        return self.scale_factor * delta
+
+    def compute_observable(self, colloids: List[Colloid]):
         """
         Compute the position of the colloid.
 
         Parameters
         ----------
-        colloid : object
-                Colloid for which the observable should be computed.
-        other_colloids
-                Other colloids in the system.
+        colloids : List[Colloid] (n_colloids, )
+                List of all colloids in the system.
 
         Returns
         -------
-        delta_field : float
-                Current field value minus to previous field value.
+        observables : List[float] (n_colloids, dimension)
+                List of observables, one for each colloid. In this case,
+                current field value minus to previous field value.
         """
-        if self.historic_positions == {}:
+        reference_ids = self.get_colloid_indices(colloids)
+
+        if self._historic_positions == {}:
             msg = (
                 f"{type(self).__name__} requires initialization. Please set the "
                 "initialize attribute of the gym to true and try again."
             )
             raise ValueError(msg)
-        position = onp.copy(colloid.pos) / self.box_length
-        index = onp.copy(colloid.id)
-        previous_position = self.historic_positions[str(index)]
 
-        # Update historic position.
-        self.historic_positions[str(index)] = position
+        observables = [
+            self.compute_single_observable(index, colloids) for index in reference_ids
+        ]
 
-        current_distance = np.linalg.norm((self.source - position))
-        historic_distance = np.linalg.norm(self.source - previous_position)
-
-        # TODO: make this a real thing and not some arbitrary parameter.
-        return 10000 * np.array(
-            [self.decay_fn(current_distance) - self.decay_fn(historic_distance)]
-        )
+        return np.array(observables).reshape(-1, 1)

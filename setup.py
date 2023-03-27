@@ -3,7 +3,7 @@ Configuration file for the package.
 """
 import setuptools
 
-with open("README.rst", "r") as fh:
+with open("README.md", "r") as fh:
     long_description = fh.read()
 
 with open("requirements.txt") as f:
