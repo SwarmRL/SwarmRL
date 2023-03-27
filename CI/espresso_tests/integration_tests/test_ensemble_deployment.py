@@ -165,6 +165,7 @@ class TestGeneticTraining(ut.TestCase):
         self.training_routine = srl.training_routines.EnsembleTraining(
             rl_trainer,
             get_simulation_runner,
+            5,
             n_episodes=5,
             episode_length=10,
             n_parallel_jobs=2,
