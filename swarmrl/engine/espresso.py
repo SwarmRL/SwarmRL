@@ -448,6 +448,12 @@ class EspressoMD(Engine):
         Returns
         -------
         """
+        self._check_already_initialised()
+        if maze_type in self.colloid_radius_register.keys():
+            raise ValueError(
+                f"wall type {maze_type} is already taken "
+                "by other system component. Choose a new one"
+            )
 
         z_offset = -100
         maze_shapes = []
