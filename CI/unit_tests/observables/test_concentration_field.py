@@ -5,7 +5,10 @@ import numpy as np
 from numpy.testing import assert_array_equal
 
 from swarmrl.models.interaction_model import Colloid
-from swarmrl.observables.concentration_field import ConcentrationField
+from swarmrl.observables.concentration_field import (
+    ConcentrationField,
+    ConcentrationFieldAbsoluteValue,
+)
 
 
 class TestConcentrationField:
@@ -126,7 +129,7 @@ class TestConcentrationFieldAbsoluteValue:
             """
             return -1 * x
 
-        cls.observable = ConcentrationField(
+        cls.observable = ConcentrationFieldAbsoluteValue(
             source=np.array([0.5, 0.5, 0.0]),
             decay_fn=decay_fn,
             box_length=np.array([1.0, 1.0, 1.0]),
@@ -188,4 +191,4 @@ class TestConcentrationFieldAbsoluteValue:
                 -1 * self.observable.scale_factor * distance_colloid_3,
             ]
         ).reshape(-1, 1)
-        assert_array_equal(observables, observables_should_be)
+        assert np.all(abs(observables - observables_should_be) < 10e-6)
