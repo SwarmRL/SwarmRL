@@ -694,13 +694,12 @@ class TestFullSim(ut.TestCase):
             # dummy assert
             self.assertEqual("dummy assert", "dummy assert")
 
-    """
     def test_multiple_types(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
             self.simulate_model(outfolder, "multiple_types")
 
-            ######## visualization ############
+            # visualization #
             param_fname = f"{outfolder}/params_{self.simulation_name}.pick"
             with open(param_fname, "rb") as param_file:
                 parameters = pickle.load(param_file)
@@ -730,8 +729,8 @@ class TestFullSim(ut.TestCase):
                 vision_cone_boolean=[True, False, False],
                 cone_radius=10,
                 n_cones=5,
-                cone_half_angle=np.pi/2,
-                cone_vision_of_types=[parameters["col_params"]["col_particle_type"],1],
+                cone_half_angle=np.pi / 2,
+                cone_vision_of_types=[parameters["col_params"]["col_particle_type"], 1],
                 trace_boolean=[True, True, True],
                 trace_fade_boolean=[False, True, True],
                 eyes_boolean=[True, False, False],
@@ -749,15 +748,15 @@ class TestFullSim(ut.TestCase):
             if outfolder is not None:
                 load_extra_data_to_visualization(ani_instance, outfolder)
             else:
-                raise Exception("You need to specify where your extradata for "
-                " visualization is located. It is assumed that it lies where the "
-                " trajectory.hdf5 file is located.")
-
+                raise Exception(
+                    "You need to specify where your extradata for "
+                    " visualization is located. It is assumed that it lies where the "
+                    " trajectory.hdf5 file is located."
+                )
 
             ani_instance.animation_plt_init()
 
             ani_instance.ax.grid(True)
-
 
             # set start and end of visualization and set the interval of between frames
             begin_frame = 1
@@ -770,18 +769,16 @@ class TestFullSim(ut.TestCase):
                 interval=10,
             )
             plt.show()
+            ani.save("animation.mp4", fps=60)
+            # dummy assert
+            self.assertEqual("dummy assert", "dummy assert")
 
-            #dummy assert
-            self.assertEqual("dummy assert","dummy assert")
-    """
-
-    """
     def test_rod(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
             self.simulate_model(outfolder, "rod")
 
-            ######## visualization ############
+            # visualization #
             param_fname = f"{outfolder}/params_{self.simulation_name}.pick"
             with open(param_fname, "rb") as param_file:
                 parameters = pickle.load(param_file)
@@ -810,8 +807,11 @@ class TestFullSim(ut.TestCase):
                 vision_cone_boolean=[True, False, False],
                 cone_radius=10,
                 n_cones=5,
-                cone_half_angle=np.pi/2,
-                cone_vision_of_types=[parameters["col_params"]["col_particle_type"],parameters["rod_params"]["rod_particle_type"]],
+                cone_half_angle=np.pi / 2,
+                cone_vision_of_types=[
+                    parameters["col_params"]["col_particle_type"],
+                    parameters["rod_params"]["rod_particle_type"],
+                ],
                 trace_boolean=[True, True, True],
                 trace_fade_boolean=[True, True, True],
                 eyes_boolean=[True, False, False],
@@ -829,15 +829,15 @@ class TestFullSim(ut.TestCase):
             if outfolder is not None:
                 load_extra_data_to_visualization(ani_instance, outfolder)
             else:
-                raise Exception("You need to specify where your extradata for "
-                " visualization is located. It is assumed that it lies where the "
-                " trajectory.hdf5 file is located.")
-
+                raise Exception(
+                    "You need to specify where your extradata for "
+                    " visualization is located. It is assumed that it lies where the "
+                    " trajectory.hdf5 file is located."
+                )
 
             ani_instance.animation_plt_init()
 
             ani_instance.ax.grid(True)
-
 
             # set start and end of visualization and set the interval of between frames
             begin_frame = 1
@@ -850,17 +850,15 @@ class TestFullSim(ut.TestCase):
                 interval=10,
             )
             plt.show()
+            ani.save("animation.mp4", fps=60)
+            # dummy assert
+            self.assertEqual("dummy assert", "dummy assert")
 
-            #dummy assert
-            self.assertEqual("dummy assert","dummy assert")
-    """
-
-    """
     def test_maze(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
             self.simulate_model(outfolder, "maze")
-            ######## visualization ############
+            # visualization #
             param_fname = f"{outfolder}/params_{self.simulation_name}.pick"
             with open(param_fname, "rb") as param_file:
                 parameters = pickle.load(param_file)
@@ -889,7 +887,7 @@ class TestFullSim(ut.TestCase):
                 vision_cone_boolean=[True, False, False],
                 cone_radius=5,
                 n_cones=5,
-                cone_half_angle=np.pi/2,
+                cone_half_angle=np.pi / 2,
                 cone_vision_of_types=[parameters["col_params"]["col_particle_type"]],
                 trace_boolean=[True, True, True],
                 trace_fade_boolean=[True, True, True],
@@ -908,22 +906,25 @@ class TestFullSim(ut.TestCase):
             if outfolder is not None:
                 load_extra_data_to_visualization(ani_instance, outfolder)
             else:
-                raise Exception("You need to specify where your extradata for "
-                " visualization is located. It is assumed that it lies where the "
-                " trajectory.hdf5 file is located.")
+                raise Exception(
+                    "You need to specify where your extradata for "
+                    " visualization is located. It is assumed that it lies where the "
+                    " trajectory.hdf5 file is located."
+                )
 
             ani_instance.animation_plt_init()
-            maze_folder=None
-            maze_file_name=None
+            maze_folder = None
+            maze_file_name = None
             ani_instance.animation_maze_setup(
                 maze_folder,
                 maze_file_name,
                 parameters["maze_params"]["maze_dic"],
-                parameters["maze_params"]["maze_walls"]
+                parameters["maze_params"]["maze_walls"],
             )
             ani_instance.ax.plot(
-                    parameters["maze_params"]["maze_dic"]["destination"][0],
-                    parameters["maze_params"]["maze_dic"]["destination"][1],'xr'
+                parameters["maze_params"]["maze_dic"]["destination"][0],
+                parameters["maze_params"]["maze_dic"]["destination"][1],
+                "xr",
             )
             ani_instance.ax.grid(True)
             # set start and end of visualization and set the interval of between frames
@@ -937,10 +938,9 @@ class TestFullSim(ut.TestCase):
                 interval=10,
             )
             plt.show()
-
-            #dummy assert
-            self.assertEqual("dummy assert","dummy assert")
-    """
+            ani.save("animation.mp4", fps=60)
+            # dummy assert
+            self.assertEqual("dummy assert", "dummy assert")
 
 
 if __name__ == "__main__":
