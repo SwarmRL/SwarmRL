@@ -26,12 +26,12 @@ class TestSamplingStrategy:
         probabilities = np.array([0.25, 0.25, 0.25, 0.25])
         entropy_should_be = -1 * np.log(1 / 4)
         entropy = self.strategy.compute_entropy(probabilities)
-        assert entropy == entropy_should_be
+        np.testing.assert_almost_equal(entropy, entropy_should_be)
 
         probabilities = np.array([0.85, 0.1, 0.025, 0.025])
         entropy_should_be = -1 * (probabilities * np.log(probabilities)).sum()
         entropy = self.strategy.compute_entropy(probabilities)
-        assert entropy == entropy_should_be
+        np.testing.assert_almost_equal(entropy, entropy_should_be)
 
         # Test real world shapes
         probabilities = np.array([[0.25, 0.25, 0.25, 0.25], [0.85, 0.1, 0.025, 0.025]])
