@@ -22,8 +22,7 @@ class RotateRod(Task):
         partition: bool = True,
         rod_type: int = 1,
         particle_type: int = 0,
-        rod_scale: int = 1000,
-        angular_velocity_scale: int = 10,
+        angular_velocity_scale: int = 1,
     ):
         """
         Constructor for the find origin task.
@@ -42,7 +41,6 @@ class RotateRod(Task):
         super().__init__(particle_type=particle_type)
         self.partition = partition
         self.rod_type = rod_type
-        self.rod_scale = rod_scale
         self.angular_velocity_scale = angular_velocity_scale
 
         # Class only attributes
@@ -97,9 +95,7 @@ class RotateRod(Task):
         velocity_change = angular_velocity - self._historic_velocity
         self._historic_velocity = angular_velocity
 
-        return self.angular_velocity_scale * np.clip(
-            velocity_change, 0, None
-        )  # + angular_velocity
+        return self.angular_velocity_scale * np.clip(velocity_change, 0, None)
 
     def partition_reward(
         self,
