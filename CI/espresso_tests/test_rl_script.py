@@ -210,7 +210,6 @@ class TestRLScript(ut.TestCase):
             system_runner=system_runner,
             n_episodes=n_episodes,
             episode_length=episode_length,
-            initialize=True,
         )
 
     def test_full_sim(self):
