@@ -173,7 +173,6 @@ class PolicyGradientLoss(Loss):
             actor,
             critic,
         )
-        
 
         critic_grad_fn = jax.value_and_grad(self._compute_critic_loss)
         critic_loss, critic_grads = critic_grad_fn(

@@ -2,11 +2,10 @@
 Test suite for the species search.
 """
 import numpy as np
-from numpy.testing import assert_array_equal
-from swarmrl.models.interaction_model import Colloid
-
 import pytest
+from numpy.testing import assert_array_equal
 
+from swarmrl.models.interaction_model import Colloid
 from swarmrl.tasks.searching.species_search import SpeciesSearch
 
 
@@ -55,9 +54,7 @@ class TestSpeciesSearch:
         assert self.task.scale_factor == 100.0
         assert self.task.sensing_type == 0
 
-        assert_array_equal(
-            list(self.task.historical_field.keys()), ["0", "1", "2"]
-        )
+        assert_array_equal(list(self.task.historical_field.keys()), ["0", "1", "2"])
 
         straight_distance = -2.0
         triangular_distance = -np.sqrt(2) - 1.0

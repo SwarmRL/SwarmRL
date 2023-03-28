@@ -73,24 +73,6 @@ class Task:
                 indices.append(i)
 
         return indices
-    def initialize(self, colloids: List[Colloid]):
-            """
-            Initialize the observable with starting positions of the colloids.
-
-            The parent method will just pass. This is because some observables
-            might not need to be initialized. Those that do need to be initialized
-            will override this method.
-
-            Parameters
-            ----------
-            colloids : List[Colloid]
-                    List of colloids with which to initialize the observable.
-
-            Returns
-            -------
-            Updates the class state.
-            """
-            pass
 
     def __call__(self, colloids: List[Colloid]) -> float:
         """

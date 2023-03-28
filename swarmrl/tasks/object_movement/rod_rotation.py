@@ -9,9 +9,7 @@ import numpy as onp
 
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.tasks.task import Task
-from swarmrl.utils.colloid_utils import compute_torque_partition_on_rod, compute_distance_matrix
-
-import math
+from swarmrl.utils.colloid_utils import compute_torque_partition_on_rod
 
 
 class RotateRod(Task):
@@ -99,7 +97,9 @@ class RotateRod(Task):
         velocity_change = angular_velocity - self._historic_velocity
         self._historic_velocity = angular_velocity
 
-        return self.angular_velocity_scale * np.clip(velocity_change, 0, None) #+ angular_velocity
+        return self.angular_velocity_scale * np.clip(
+            velocity_change, 0, None
+        )  # + angular_velocity
 
     def partition_reward(
         self,
@@ -132,15 +132,18 @@ class RotateRod(Task):
                 colloid_positions, rod_positions, rod_directors
             )
         else:
-            colloid_partitions = np.ones(
-                colloid_positions.shape[0]
-                ) / colloid_positions.shape[0]
-        
+            colloid_partitions = (
+                np.ones(colloid_positions.shape[0]) / colloid_positions.shape[0]
+            )
+
         return reward * colloid_partitions
-    
+
     def _compute_angular_velocity_reward(
-            self, rod_directors: np.ndarray, rod_positions: np.ndarray, colloid_positions: np.ndarray
-            ):
+        self,
+        rod_directors: np.ndarray,
+        rod_positions: np.ndarray,
+        colloid_positions: np.ndarray,
+    ):
         """
         Compute the angular velocity reward.
 
@@ -159,9 +162,7 @@ class RotateRod(Task):
                 Angular velocity reward.
         """
         # Compute angular velocity
-        angular_velocity = self._compute_angular_velocity(
-            rod_directors[0]
-        )
+        angular_velocity = self._compute_angular_velocity(rod_directors[0])
         # Compute colloid-wise rewards
         return self.partition_reward(
             angular_velocity, colloid_positions, rod_positions, rod_directors
@@ -200,4 +201,4 @@ class RotateRod(Task):
             rod_directors, rod_positions, colloid_positions
         )
 
-        return  angular_velocity_term
+        return angular_velocity_term

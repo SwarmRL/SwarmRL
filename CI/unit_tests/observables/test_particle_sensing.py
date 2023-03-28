@@ -2,12 +2,11 @@
 Unit test for the particle sensing observable.
 """
 import numpy as np
+import pytest
 from numpy.testing import assert_array_equal
 
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.particle_sensing import ParticleSensing
-
-import pytest
 
 
 class TestParticleSensing:
@@ -63,8 +62,12 @@ class TestParticleSensing:
         triangular_distance = -np.sqrt(2) - 1.0
 
         assert self.observable.historical_field["0"] == straight_distance
-        assert self.observable.historical_field["1"] == pytest.approx(triangular_distance)
-        assert self.observable.historical_field["2"] == pytest.approx(triangular_distance)
+        assert self.observable.historical_field["1"] == pytest.approx(
+            triangular_distance
+        )
+        assert self.observable.historical_field["2"] == pytest.approx(
+            triangular_distance
+        )
 
     def test_closer_approach(self):
         """

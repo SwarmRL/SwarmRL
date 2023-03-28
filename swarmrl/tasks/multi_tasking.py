@@ -1,16 +1,19 @@
 """
 Class for multi-tasking.
 """
-from swarmrl.tasks.task import Task
 from typing import List
-from swarmrl.models.interaction_model import Colloid
+
 import jax.numpy as np
+
+from swarmrl.models.interaction_model import Colloid
+from swarmrl.tasks.task import Task
 
 
 class MultiTasking(Task):
     """
     Class for handling multiple tasks.
     """
+
     def __init__(self, particle_type: int = 0, tasks: List[Task] = []):
         """
         Constructor for multi-tasking.

@@ -1,15 +1,15 @@
 """
 Class for the species search task.
 """
-from swarmrl.tasks.task import Task
 import logging
 from typing import List
 
-import jax.numpy as np
 import jax
+import jax.numpy as np
 import numpy as onp
 
 from swarmrl.models.interaction_model import Colloid
+from swarmrl.tasks.task import Task
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +20,14 @@ class SpeciesSearch(Task):
     """
 
     def __init__(
-            self, 
-            decay_fn: callable, 
-            box_length: np.ndarray,
-            sensing_type: int = 0,
-            avoid: bool = False,
-            scale_factor: int = 100,
-            particle_type: int = 0
-        ):
+        self,
+        decay_fn: callable,
+        box_length: np.ndarray,
+        sensing_type: int = 0,
+        avoid: bool = False,
+        scale_factor: int = 100,
+        particle_type: int = 0,
+    ):
         """
         Constructor for the observable.
 
@@ -58,8 +58,7 @@ class SpeciesSearch(Task):
 
         self.observable_fn = jax.vmap(
             self.compute_single_observable, in_axes=(0, 0, None, 0)
-            )
-
+        )
 
     def initialize(self, colloids: List[Colloid]):
         """
@@ -82,25 +81,25 @@ class SpeciesSearch(Task):
         for index in reference_ids:
             indices.append(colloids[index].id)
             positions.append(colloids[index].pos)
-       
+
         test_points = np.array(
             [colloid.pos for colloid in colloids if colloid.type == self.sensing_type]
         )
 
         out_indices, field_values = self.observable_fn(
             np.array(indices), np.array(positions), test_points, historic_values
-            )
-        
+        )
+
         for index, value in zip(out_indices, onp.array(field_values)):
             self.historical_field[str(index)] = value
 
     def compute_single_observable(
-            self, 
-            index: int,
-            reference_position: np.ndarray, 
-            test_positions: np.ndarray, 
-            historic_value: float
-        ) -> tuple:
+        self,
+        index: int,
+        reference_position: np.ndarray,
+        test_positions: np.ndarray,
+        historic_value: float,
+    ) -> tuple:
         """
         Compute the observable for a single colloid.
 
@@ -125,11 +124,11 @@ class SpeciesSearch(Task):
         """
         distances = np.linalg.norm(
             (test_positions - reference_position) / self.box_length, axis=-1
-            )
+        )
         field_value = self.decay_fn(distances).sum()
 
         return index, field_value - historic_value
-    
+
     def __call__(self, colloids: List[Colloid]):
         """
         Compute the reward on the colloids.
@@ -150,7 +149,7 @@ class SpeciesSearch(Task):
                 "initialize attribute of the gym to true and try again."
             )
             raise ValueError(msg)
-        
+
         reference_ids = self.get_colloid_indices(colloids)
         positions = []
         indices = []
@@ -159,15 +158,18 @@ class SpeciesSearch(Task):
             indices.append(colloids[index].id)
             positions.append(colloids[index].pos)
             historic_values.append(self.historical_field[str(colloids[index].id)])
-       
+
         test_points = np.array(
             [colloid.pos for colloid in colloids if colloid.type == self.sensing_type]
         )
 
         out_indices, field_values = self.observable_fn(
-            np.array(indices), np.array(positions), test_points, np.array(historic_values)
-            )
-       
+            np.array(indices),
+            np.array(positions),
+            test_points,
+            np.array(historic_values),
+        )
+
         for index, value in zip(out_indices, onp.array(field_values)):
             self.historical_field[str(index)] = value
 

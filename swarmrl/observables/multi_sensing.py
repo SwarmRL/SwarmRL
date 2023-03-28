@@ -4,10 +4,10 @@ Class for an observable which computes several observables.
 from abc import ABC
 from typing import List
 
+import jax.numpy as np
+
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.observable import Observable
-
-import jax.numpy as np
 
 
 class MultiSensing(Observable, ABC):
