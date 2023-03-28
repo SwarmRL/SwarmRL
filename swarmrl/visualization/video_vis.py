@@ -538,9 +538,9 @@ class Animations:
                 for c_id in range(len(self.ids)):
                     for given_c_id in range(len(self.vision_cone_data[frame])):
                         if c_id == self.vision_cone_data[frame][given_c_id][0]:
-                            self.vision_cone_data_frame[
-                                frame, c_id
-                            ] = self.vision_cone_data[frame][given_c_id][1]
+                            self.vision_cone_data_frame[frame, c_id] = (
+                                self.vision_cone_data[frame][given_c_id][1]
+                            )
 
             # color adjustment for each color separately
             for detected_type in range(self.n_types):
@@ -557,7 +557,7 @@ class Animations:
                     self.vision_cone_data_frame[:, :, :, detected_type] += 0.05
 
     def animation_maze_setup(self, folder, filename, maze_dic, maze_walls):
-        if filename != None:
+        if filename is not None:
             maze_file = open(folder + filename, "rb")
             self.maze_dic = pickle.load(maze_file)
             self.wall_thickness = self.maze_dic["wall_thickness"]
@@ -774,13 +774,13 @@ class Animations:
 def load_extra_data_to_visualization(ani_instance, folder_name):
     files = os.listdir(folder_name)
     if "written_info_data.pick" in files:
-        with open(folder_name + "/written_info_data.pick",'rb') as f:
+        with open(folder_name + "/written_info_data.pick", "rb") as f:
             ani_instance.written_info_data = pickle.load(f)
     else:
         ani_instance.written_info_data = None
 
     if "vision_cone_data.pick" in files:
-        with open(folder_name + "/vision_cone_data.pick", 'rb') as f:
+        with open(folder_name + "/vision_cone_data.pick", "rb") as f:
             ani_instance.vision_cone_data = pickle.load(f)
     else:
         ani_instance.vision_cone_data = None
@@ -804,7 +804,6 @@ def load_traj_vis(folder_name, ureg):
         raise Exception(
             "Reading the positions, directors or times of the simulation failed"
         )
-
     return positions, directors, times, ids, types, ureg
 
 
@@ -865,16 +864,21 @@ def visualization(
     if folder_name is not None:
         load_extra_data_to_visualization(ani_instance, folder_name)
     else:
-        raise Exception("You need to specify where your extradata for visualization is located. It is assumed that it lies where the trajectory.hdf5 file is located.")
-
+        raise Exception(
+            "You need to specify where your extradata for visualization is located. It"
+            " is assumed that it lies where the trajectory.hdf5 file is located."
+        )
 
     ani_instance.animation_plt_init()
 
     if parameters["maze_file_name"] != "None":
         ani_instance.animation_maze_setup(
-            parameters["maze_folder"], parameters["maze_file_name"], 
+            parameters["maze_folder"],
+            parameters["maze_file_name"],
         )
-        ani_instance.ax.plot(parameters["destination"][0],parameters["destination"][1],'xr')
+        ani_instance.ax.plot(
+            parameters["destination"][0], parameters["destination"][1], "xr"
+        )
 
     ani_instance.ax.grid(True)
 
@@ -890,7 +894,7 @@ def visualization(
             interval=100,
         )
     elif vis_mode == "SLIDER":
-        fig.subplots_adjust(bottom=0.15,left=0.125,right=0.875)
+        fig.subplots_adjust(bottom=0.15, left=0.125, right=0.875)
         ax_slider = fig.add_axes([0.18, 0.05, 0.65, 0.03], facecolor="gray")
         time_interval = parameters["write_interval"].to(ureg.second).magnitude
         t = times.units
