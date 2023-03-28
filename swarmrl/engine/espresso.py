@@ -431,15 +431,15 @@ class EspressoMD(Engine):
     def add_maze(self, maze_walls: list, maze_type: int, wall_thickness: float):
         """
         User definied walls will interact with particles through WCA.
-        Is NOT communicated to the interaction models, though. 
+        Is NOT communicated to the interaction models, though.
         The walls are 200 high and are in the plane z=0 therefore usefull as 2D-walls.
-        The shape of the constrain is a square. 
-
+        The shape of the constrain is a square.
 
         Parameters
         ----------
         maze_walls :
-            list of lists (len()=4) with wall coordinates [x_begin, y_begin, x_end, y_end]
+            list of lists (len()=4) with wall coordinates
+             [x_begin, y_begin, x_end, y_end]
         maze_type : int
             Wall interacts with particles, so it needs its own type.
         wall_thickness : float
@@ -487,7 +487,7 @@ class EspressoMD(Engine):
             self.system.constraints.add(constr)
 
         # the maze wall itself has no radius, only the particle radius counts
-        self.colloid_radius_register.update({maze_type: 0.0})       
+        self.colloid_radius_register.update({maze_type: 0.0})
 
     def _setup_interactions(self):
         for type_0, rad_0 in self.colloid_radius_register.items():
