@@ -9,7 +9,7 @@ from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
 from swarmrl.engine.engine import Engine
 from swarmrl.losses.loss import Loss
-from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
+from swarmrl.losses.policy_gradient_loss import PolicyGradientLoss
 from swarmrl.models.ml_model import MLModel
 from swarmrl.rl_protocols.actor_critic import ActorCritic
 
@@ -31,7 +31,7 @@ class Gym:
     def __init__(
         self,
         rl_protocols: List[ActorCritic],
-        loss: Loss = ProximalPolicyLoss,
+        loss: Loss = PolicyGradientLoss(),
     ):
         """
         Constructor for the MLP RL.
