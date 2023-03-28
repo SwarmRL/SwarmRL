@@ -58,6 +58,12 @@ def _vector_from_angles(theta, phi):
         [np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)]
     )
 
+def _angles_from_vector(director):
+    director/=np.linalg.norm(director)
+    theta=np.arccos(director[2])
+    phi=np.arctan2(director[1],director[0])
+    return theta , phi
+
 
 def _get_random_start_pos(
     init_radius: float, init_center: np.array, dim: int, rng: np.random.Generator
@@ -214,6 +220,88 @@ class EspressoMD(Engine):
                 "after the first call to integrate()"
             )
 
+
+    def add_colloid_on_point(
+        self,
+        radius_colloid: pint.Quantity,
+        init_position: pint.Quantity,
+        init_direction: np.array = [1, 0, 0],
+        type_colloid=0,
+    ):
+        """
+        Parameters
+        ----------
+        radius_colloid
+        init_position
+        init_direction
+        type_colloid
+            The colloids created from this method call will have this type.
+            Multiple calls can be made with the same type_colloid.
+            Interaction models need to be made aware if there are different types
+            of colloids in the system if specific behaviour is desired.
+
+        Returns
+        -------
+        colloid
+
+        """
+
+        self._check_already_initialised()
+
+        if type_colloid in self.colloid_radius_register.keys() and self.colloid_radius_register[type_colloid]!= radius_colloid.m_as("sim_length"):
+            raise ValueError(
+                f"The chosen type {type_colloid} is already taken "
+                f"and used with a different radius {self.colloid_radius_register[type_colloid]} . Choose a new combination"
+            )
+        radius_simunits = radius_colloid.m_as("sim_length")
+        init_center = init_position.m_as("sim_length")
+        init_direction = init_direction / np.linalg.norm(init_direction)
+
+        (
+            particle_gamma_translation,
+            particle_gamma_rotation,
+        ) = _calc_friction_coefficients(
+            self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius_simunits
+        )
+
+        if self.n_dims == 3:
+            colloid = self.system.part.add(
+                pos=init_center,
+                director=init_direction,
+                rotation=3 * [True],
+                gamma=particle_gamma_translation,
+                gamma_rot=particle_gamma_rotation,
+                fix=3 * [False],
+                type=type_colloid,
+            )
+        else:
+            # initialize with body-frame = lab-frame to set correct rotation flags
+            # allow all rotations to bring the particle to correct state
+            init_center[2] = 0  # get rid of z-coordinate in 2D coordinates
+            start_pos = init_center
+            colloid = self.system.part.add(
+                pos=start_pos,
+                fix=[False, False, True],
+                rotation=3 * [True],
+                gamma=particle_gamma_translation,
+                gamma_rot=particle_gamma_rotation,
+                quat=[1, 0, 0, 0],
+                type=type_colloid,
+            )
+            theta,phi=_angles_from_vector(init_direction)
+            if abs(theta -np.pi/2)>10e-6:
+                raise ValueError("It seem like you want to have a 2D simulation"
+                " with colloids that point some amount in Z-direction."
+                " Change something in your colloid setup.")
+            self._rotate_colloid_to_2d(colloid, phi)
+
+        self.colloids.append(colloid)
+
+        self.colloid_radius_register.update({type_colloid: radius_simunits})
+
+        return colloid
+
+
     def add_colloids(
         self,
         n_colloids: int,
@@ -242,120 +330,33 @@ class EspressoMD(Engine):
 
         self._check_already_initialised()
 
-        radius_simunits = radius_colloid.m_as("sim_length")
         init_center = random_placement_center.m_as("sim_length")
         init_rad = random_placement_radius.m_as("sim_length")
 
-        (
-            particle_gamma_translation,
-            particle_gamma_rotation,
-        ) = _calc_friction_coefficients(
-            self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius_simunits
-        )
 
         for i in range(n_colloids):
             start_pos = _get_random_start_pos(
                 init_rad, init_center, self.n_dims, self.rng
-            )
+            ) * self.ureg.sim_length
 
             if self.n_dims == 3:
-                colloid = self.system.part.add(
-                    pos=start_pos,
-                    director=_vector_from_angles(*_get_random_angles(self.rng)),
-                    rotation=3 * [True],
-                    gamma=particle_gamma_translation,
-                    gamma_rot=particle_gamma_rotation,
-                    fix=3 * [False],
-                    type=type_colloid,
+                director=_vector_from_angles(*_get_random_angles(self.rng))
+                colloid = self.add_colloid_on_point(radius_colloid=radius_colloid,
+                                                init_position= start_pos,
+                                                init_direction= director,
+                                                type_colloid=type_colloid
                 )
             else:
                 # initialize with body-frame = lab-frame to set correct rotation flags
                 # allow all rotations to bring the particle to correct state
                 start_angle = 2 * np.pi * self.rng.random()
-                colloid = self.system.part.add(
-                    pos=start_pos,
-                    fix=[False, False, True],
-                    rotation=3 * [True],
-                    gamma=particle_gamma_translation,
-                    gamma_rot=particle_gamma_rotation,
-                    quat=[1, 0, 0, 0],
-                    type=type_colloid,
+                init_direction= _vector_from_angles(np.pi/2,start_angle)
+                colloid = self.add_colloid_on_point(radius_colloid=radius_colloid,
+                                                init_position= start_pos,
+                                                init_direction= init_direction,
+                                                type_colloid=type_colloid
                 )
-                self._rotate_colloid_to_2d(colloid, start_angle)
 
-            self.colloids.append(colloid)
-
-        self.colloid_radius_register.update({type_colloid: radius_simunits})
-
-    def add_colloid_precisely(
-        self,
-        radius_colloid: pint.Quantity,
-        init_position: pint.Quantity,
-        init_3D_direction: np.array = [1, 0, 0],
-        init_2D_angle: float = 0,
-        type_colloid=0,
-    ):
-        """
-        Parameters
-        ----------
-        radius_colloid
-        init_position
-        init_3D_direction
-        init_2D_angle
-        type_colloid
-            The colloids created from this method call will have this type.
-            Multiple calls can be made with the same type_colloid.
-            Interaction models need to be made aware if there are different types
-            of colloids in the system if specific behaviour is desired.
-
-        Returns
-        -------
-
-        """
-
-        self._check_already_initialised()
-
-        radius_simunits = radius_colloid.m_as("sim_length")
-        init_center = init_position.m_as("sim_length")
-        init_3D_direction = init_3D_direction / np.linalg.norm(init_3D_direction)
-
-        (
-            particle_gamma_translation,
-            particle_gamma_rotation,
-        ) = _calc_friction_coefficients(
-            self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius_simunits
-        )
-
-        if self.n_dims == 3:
-            colloid = self.system.part.add(
-                pos=init_center,
-                director=init_3D_direction,
-                rotation=3 * [True],
-                gamma=particle_gamma_translation,
-                gamma_rot=particle_gamma_rotation,
-                fix=3 * [False],
-                type=type_colloid,
-            )
-        else:
-            # initialize with body-frame = lab-frame to set correct rotation flags
-            # allow all rotations to bring the particle to correct state
-            start_angle = np.fmod(init_2D_angle, 2 * np.pi)
-            init_center[2] = 0  # get rid of z-coordinate in 2D coordinates
-            start_pos = init_center
-            colloid = self.system.part.add(
-                pos=start_pos,
-                fix=[False, False, True],
-                rotation=3 * [True],
-                gamma=particle_gamma_translation,
-                gamma_rot=particle_gamma_rotation,
-                quat=[1, 0, 0, 0],
-                type=type_colloid,
-            )
-            self._rotate_colloid_to_2d(colloid, start_angle)
-
-        self.colloids.append(colloid)
-
-        self.colloid_radius_register.update({type_colloid: radius_simunits})
 
     def add_rod(
         self,
