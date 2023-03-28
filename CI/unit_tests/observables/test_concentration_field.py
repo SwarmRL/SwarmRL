@@ -103,6 +103,7 @@ class TestConcentrationField:
         ).reshape(-1, 1)
         assert_array_equal(observables, observables_should_be)
 
+
 class TestConcentrationFieldAbsoluteValue:
     """
     Test suite for the gradient sensing observable.
@@ -139,7 +140,7 @@ class TestConcentrationFieldAbsoluteValue:
 
     def test_init(self):
         """
-        Test if the observable is initialized correctly. For the absolute value no 
+        Test if the observable is initialized correctly. For the absolute value no
         initialization is needed, but still doing it makes the code more swapable.
         So it is also tested
         """
@@ -176,12 +177,10 @@ class TestConcentrationFieldAbsoluteValue:
         new_colloids = [colloid_1, colloid_2, colloid_3]
 
         observables = self.observable.compute_observable(colloids=new_colloids)
-
         distance_colloid_1 = np.linalg.norm(colloid_1.pos - self.observable.source)
         distance_colloid_2 = np.linalg.norm(colloid_2.pos - self.observable.source)
         distance_colloid_3 = np.linalg.norm(colloid_3.pos - self.observable.source)
 
-        
         observables_should_be = np.array(
             [
                 -1 * self.observable.scale_factor * distance_colloid_1,
@@ -190,7 +189,3 @@ class TestConcentrationFieldAbsoluteValue:
             ]
         ).reshape(-1, 1)
         assert_array_equal(observables, observables_should_be)
-
-
-
-

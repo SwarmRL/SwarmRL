@@ -136,9 +136,10 @@ class ConcentrationField(Observable, ABC):
 
         return np.array(observables).reshape(-1, 1)
 
+
 class ConcentrationFieldAbsoluteValue(ConcentrationField, Observable, ABC):
     """
-    Position in box observable. For the absolute value no 
+    Position in box observable. For the absolute value no
     initialization and no historic_positions are needed,
     but still doing it this way makes the code more swapable
     from relative to absolute values.
@@ -149,6 +150,7 @@ class ConcentrationFieldAbsoluteValue(ConcentrationField, Observable, ABC):
             A dictionary of past positions of the colloid to be used in the gradient
             computation.
     """
+
     def compute_single_observable(self, index: int, colloids: List[Colloid]) -> float:
         """
         Compute the observable for a single colloid.
@@ -164,7 +166,6 @@ class ConcentrationFieldAbsoluteValue(ConcentrationField, Observable, ABC):
         position = onp.copy(reference_colloid.pos) / self.box_length
 
         current_distance = np.linalg.norm(self.source - position)
-        
-        delta = self.decay_fn(current_distance) 
+        delta = self.decay_fn(current_distance)
 
         return self.scale_factor * delta
