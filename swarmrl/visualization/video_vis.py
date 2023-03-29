@@ -51,7 +51,7 @@ def calc_chemical_potential(chemical_pos, measure_pos):
 
     # const = -2 * np.pi * diffusion_coefficient * radius
     # * rescale_fac * kvp(0, rescale_fac * radius )
-    # reuse already calculated value
+    # reuse already calculated value for efficiency
     const = 4182.925639571625
     # amount_per_second_from_source =const * amplitude
     # the const sums over the chemics that flow throw an imaginary boundary at radius
@@ -203,14 +203,14 @@ class Animations:
                 self.eyes_boolean[i] = eyes_boolean[self.types[i]]
                 self.arrow_boolean[i] = arrow_boolean[self.types[i]]
             else:
-                raise Exception("unknown colloid type in visualisation")
+                raise Exception("unknown colloid type in visualization")
 
             for i in range(len(self.ids)):
                 if int(self.ids[i]) in schmell_ids:
                     # those ids correspond to chemical emitting colloids
                     self.schmell_boolean[i] = schmell_boolean
 
-        self.maze_boolean = maze_boolean  # type=2 corresponds to wall particles
+        self.maze_boolean = maze_boolean
 
     def init_schmell_field(self):
         if self.schmell_boolean != [False] * len(self.ids):
@@ -832,8 +832,8 @@ def visualization(
             )
 
     fig, ax = plt.subplots(figsize=(7, 7))
-    # setup the units for automatic ax_labeling
 
+    # setup the units for automatic ax_labeling
     positions.ito(ureg.micrometer)
     times.ito(ureg.second)
 

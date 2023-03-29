@@ -1,9 +1,11 @@
 import copy
+import multiprocessing
 import os
 import pickle
 import tempfile
-import typing
 import time
+import traceback
+import typing
 import unittest as ut
 
 import matplotlib.pyplot as plt
@@ -22,13 +24,11 @@ from swarmrl.visualization.video_vis import (
     load_extra_data_to_visualization,
     load_traj_vis,
 )
-import multiprocessing
-import traceback
 
 
 class Process(multiprocessing.Process):
     """
-    Process class for use in ZnVis testing.
+    Process class for use in multi simulation testing.
     """
 
     def __init__(self, *args, **kwargs):
@@ -325,18 +325,18 @@ class extra_data_model(InteractionModel):
 
 
 class Simulation:
-    def __init__(self,
+    def __init__(
+        self,
         outfolder,
         simulation_name,
         loglevel_terminal,
         seed,
         mode,
     ):
-
-        self.outfolder=outfolder
-        self.simulation_name=simulation_name
-        self.loglevel_terminal=loglevel_terminal
-        self.seed=seed
+        self.outfolder = outfolder
+        self.simulation_name = simulation_name
+        self.loglevel_terminal = loglevel_terminal
+        self.seed = seed
         self.mode = mode
 
     def simulate_model(self):
@@ -658,11 +658,6 @@ class Simulation:
             " from the simulation to the files finished."
         )
 
-    def calc_something(self):
-        return 1+1
-
-
-
 
 class TestFullSimVisualization(ut.TestCase):
     """
@@ -670,26 +665,25 @@ class TestFullSimVisualization(ut.TestCase):
     """
 
     # Parameters usually provided as commandline input
-
     loglevel_terminal = "info"
     seed = 42
 
-    
-      
     def test_minimum(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             self.simulation_name = "test_minimum"
             self.outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
-            self.mode="minimum"
-            # each simulation needs its own process 
-            sim = Simulation(self.outfolder,
+            self.mode = "minimum"
+            # each simulation needs its own process
+            sim = Simulation(
+                self.outfolder,
                 self.simulation_name,
                 self.loglevel_terminal,
                 self.seed,
-                self.mode)
+                self.mode,
+            )
             process = Process(target=sim.simulate_model)
             process.start()
-            time.sleep(30) 
+            time.sleep(30)
             process.terminate()
             if process.exception:
                 error, traceback = process.exception
@@ -764,22 +758,24 @@ class TestFullSimVisualization(ut.TestCase):
                 blit=True,
                 interval=10,
             )
-            #plt.show()
+            # plt.show()
             ani.save("animation.mp4", fps=60)
             # dummy assert
             self.assertEqual("dummy assert", "dummy assert")
-    
+
     def test_multiple_types(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             self.simulation_name = "test_multiple_types"
             self.outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
-            self.mode= "multiple_types"
-            # each simulation needs its own process 
-            sim = Simulation(self.outfolder,
+            self.mode = "multiple_types"
+            # each simulation needs its own process
+            sim = Simulation(
+                self.outfolder,
                 self.simulation_name,
                 self.loglevel_terminal,
                 self.seed,
-                self.mode)
+                self.mode,
+            )
             process = Process(target=sim.simulate_model)
             process.start()
             time.sleep(360)
@@ -788,7 +784,6 @@ class TestFullSimVisualization(ut.TestCase):
                 error, traceback = process.exception
                 print(traceback)
             self.assertEqual(process.exception, None)
-            
 
             # visualization #
             param_fname = f"{self.outfolder}/params_{self.simulation_name}.pick"
@@ -859,22 +854,24 @@ class TestFullSimVisualization(ut.TestCase):
                 blit=True,
                 interval=10,
             )
-            #plt.show()
+            # plt.show()
             ani.save("animation.mp4", fps=60)
             # dummy assert
             self.assertEqual("dummy assert", "dummy assert")
-    
+
     def test_rod(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             self.simulation_name = "test_rod"
             self.outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
             self.mode = "rod"
-            # each simulation needs its own process 
-            sim = Simulation(self.outfolder,
+            # each simulation needs its own process
+            sim = Simulation(
+                self.outfolder,
                 self.simulation_name,
                 self.loglevel_terminal,
                 self.seed,
-                self.mode)
+                self.mode,
+            )
             process = Process(target=sim.simulate_model)
             process.start()
             time.sleep(450)
@@ -883,7 +880,6 @@ class TestFullSimVisualization(ut.TestCase):
                 error, traceback = process.exception
                 print(traceback)
             self.assertEqual(process.exception, None)
-
 
             # visualization #
             param_fname = f"{self.outfolder}/params_{self.simulation_name}.pick"
@@ -956,22 +952,24 @@ class TestFullSimVisualization(ut.TestCase):
                 blit=True,
                 interval=10,
             )
-            #plt.show()
+            # plt.show()
             ani.save("animation.mp4", fps=60)
             # dummy assert
             self.assertEqual("dummy assert", "dummy assert")
-    
+
     def test_maze(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             self.simulation_name = "test_maze"
             self.outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
             self.mode = "maze"
-            # each simulation needs its own process 
-            sim = Simulation(self.outfolder,
+            # each simulation needs its own process
+            sim = Simulation(
+                self.outfolder,
                 self.simulation_name,
                 self.loglevel_terminal,
                 self.seed,
-                self.mode)
+                self.mode,
+            )
             process = Process(target=sim.simulate_model)
             process.start()
             time.sleep(30)
@@ -980,8 +978,7 @@ class TestFullSimVisualization(ut.TestCase):
                 error, traceback = process.exception
                 print(traceback)
             self.assertEqual(process.exception, None)
-            
-            
+
             # visualization #
             param_fname = f"{self.outfolder}/params_{self.simulation_name}.pick"
             with open(param_fname, "rb") as param_file:
@@ -1061,11 +1058,11 @@ class TestFullSimVisualization(ut.TestCase):
                 blit=True,
                 interval=10,
             )
-            #plt.show()
+            # plt.show()
             ani.save("animation.mp4", fps=60)
             # dummy assert
             self.assertEqual("dummy assert", "dummy assert")
-    
+
 
 if __name__ == "__main__":
     ut.main()
