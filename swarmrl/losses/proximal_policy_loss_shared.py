@@ -9,7 +9,6 @@ from abc import ABC
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 import optax
 from flax.core.frozen_dict import FrozenDict
 
@@ -20,7 +19,7 @@ from swarmrl.utils.utils import gather_n_dim_indices, save_memory
 from swarmrl.value_functions.generalized_advantage_estimate import GAE
 
 
-class ProximalPolicyLoss(Loss, ABC):
+class SharedProximalPolicyLoss(Loss, ABC):
     """
     Class to implement the proximal policy loss.
     """
@@ -75,23 +74,33 @@ class ProximalPolicyLoss(Loss, ABC):
             "critic_loss": [],
         }
 
-    def compute_critic_loss(
-        self, critic_params: FrozenDict, critic: FlaxModel, features, true_values
+    def calculate_loss(
+        self,
+        network_params: FrozenDict,
+        network: FlaxModel,
+        features,
+        actions,
+        old_log_probs,
+        rewards,
     ) -> jnp.array:
         """
         A function that computes the critic loss.
 
         Parameters
         ----------
-        critic : FlaxModel
-            The critic network that approximates the state value function.
-        critic_params : FrozenDict
-            Parameters of the critic model used.
+        network_params : FrozenDict
+            Parameters of the network used.
+        network : FlaxModel
+            The network used. Output of the network is a tuple of logits and values.
         features : np.ndarray (n_time_steps, n_particles, feature_dimension)
             Observable data for each time step and particle within the episode.
-        true_values : np.ndarray (n_time_steps, n_particles)
-            The state value computed for all time steps and particles during one episode
-            using the value_function given to the class.
+        actions : np.ndarray (n_time_steps, n_particles)
+            The actions taken by each particle at each time step.
+        old_log_probs : np.ndarray (n_time_steps, n_particles)
+            The log probabilities of the actions taken by each particle at each time
+            step.
+        rewards : np.ndarray (n_time_steps, n_particles)
+            The rewards received by each particle at each time step.
 
         Returns
         -------
@@ -99,62 +108,19 @@ class ProximalPolicyLoss(Loss, ABC):
             Critic loss of an episode, summed over all time steps and meaned over
             all particles.
         """
-        predicted_values = critic.apply_fn({"params": critic_params}, features)
+
+        # compute the logits and values of the new policy
+        new_logits, predicted_values = network.apply_fn(
+            {"params": network_params}, features
+        )
         predicted_values = jnp.squeeze(predicted_values)
 
-        value_loss = optax.huber_loss(predicted_values, true_values)
-
-        particle_loss = jnp.sum(value_loss, 1)
-        critic_loss = jnp.sum(particle_loss)
-
-        if self.record_training:
-            self.memory["critic_loss"].append(critic_loss.primal)
-
-        return critic_loss
-
-    def compute_actor_loss(
-        self,
-        actor_params: FrozenDict,
-        actor: FlaxModel,
-        features,
-        actions,
-        old_log_probs,
-        advantages,
-    ) -> jnp.array:
-        """
-        A function that computes the actor loss.
-
-        Parameters
-        ----------
-        actor : FlaxModel
-            The actor network that computes the log probs of the possible actions for a
-            given observable vector
-        actor_params : FrozenDict
-            Parameters of the actor model used.
-        critic : FlaxModel
-            The critic network that approximates the state value function.
-        features : np.ndarray (n_time_steps, n_particles, feature_dimension)
-            Observable data for each time step and particle within the episode.
-        actions : np.ndarray (n_time_steps, n_particles)
-            The actions taken during the episode at each time steps and by each agent.
-        old_log_probs : np.ndarray (n_time_steps, n_particles)
-            The log_probs of the taken action during the episode at each time steps and
-            by each agent.
-        true_values : np.ndarray (n_time_steps, n_particles)
-            The state value computed using the rewards received during the episode. To
-            compute them one uses the value function given to the class.
-        entropies : np.ndarray (n_time_steps, n_particles)
-            The Shannon entropy of the distribution
-
-        Returns
-        -------
-        actor_loss: float
-            The actor loss of an episode, summed over all time steps and meaned over
-            all particles.
-        """
+        # compute the advantages and returns
+        advantages, returns = self.value_function(
+            rewards=rewards, values=predicted_values
+        )
 
         # compute the probabilities of the old actions under the new policy
-        new_logits = actor.apply_fn({"params": actor_params}, features)
         new_probabilities = jax.nn.softmax(new_logits)
 
         # compute the entropy of the whole distribution
@@ -172,31 +138,37 @@ class ProximalPolicyLoss(Loss, ABC):
             jnp.clip(ratio, 1 - self.epsilon, 1 + self.epsilon) * advantages,
         )
 
-        # mean over the time steps
-        particle_loss = jnp.sum(clipped_loss, axis=0)
+        # sum over the time steps
+        particle_actor_loss = jnp.sum(clipped_loss, axis=0)
 
-        # mean over the particle losses
-        actor_loss = jnp.sum(particle_loss)
+        # sum over the particle losses
+        actor_loss = jnp.sum(particle_actor_loss)
+        value_loss = optax.huber_loss(predicted_values, returns)
+
+        particle_critic_loss = jnp.sum(value_loss, 1)
+        critic_loss = jnp.sum(particle_critic_loss)
 
         if self.record_training:
+            self.memory["returns"].append(returns)
+            self.memory["advantages"].append(advantages)
+            self.memory["critic_vals"].append(predicted_values)
             self.memory["new_logits"].append(new_logits.primal)
             self.memory["entropy"].append(entropy.primal)
             self.memory["chosen_log_probs"].append(chosen_log_probs.primal)
             self.memory["ratio"].append(ratio.primal)
             self.memory["actor_loss"].append(clipped_loss.primal)
 
-        return actor_loss + self.entropy_coefficient * entropy
+        return actor_loss + self.entropy_coefficient * entropy + 0.5 * critic_loss
 
-    def compute_loss(self, actor: FlaxModel, critic: FlaxModel, episode_data):
+    def compute_loss(self, network: FlaxModel, episode_data):
         """
         Compute the loss and update the actor and critic.
         Parameters
         ----------
-        actor : FlaxModel
-            The actor network that computes the log probs of the possible actions for a
-            given observable vector.
-        critic : FlaxModel
-            The critic network that approximates the state value function.
+        network : FlaxModel
+            The actor and critic network. The actor is used to compute the policy
+            gradient and the critic is used to compute the value function.
+            The output of the network is a tuple of the actor and critic.
         episode_data : dict
             A dictionary containing the features, log_probs, actions and rewards of the
             previous episode at each time step for each colloid.
@@ -212,37 +184,17 @@ class ProximalPolicyLoss(Loss, ABC):
         reward_data = episode_data.item().get("rewards")
 
         for _ in range(self.n_epochs):
-            # compute the advantages and returns (true_values) for that epoch
-            predicted_values = np.squeeze(critic(feature_data))
-            advantages, returns = self.value_function(
-                rewards=reward_data, values=predicted_values
-            )
-
-            actor_grad_fn = jax.value_and_grad(self.compute_actor_loss)
-            actor_loss, actor_grad = actor_grad_fn(
-                actor.model_state.params,
-                actor=actor,
+            network_grad_fn = jax.value_and_grad(self.calculate_loss)
+            network_loss, network_grad = network_grad_fn(
+                network.model_state.params,
+                network=network,
                 features=feature_data,
                 actions=action_data,
                 old_log_probs=old_log_probs_data,
-                advantages=advantages,
-            )
-            critic_grad_fn = jax.grad(self.compute_critic_loss)
-            critic_grad = critic_grad_fn(
-                critic.model_state.params,
-                critic=critic,
-                features=feature_data,
-                true_values=returns,
+                rewards=reward_data,
             )
 
-            actor.update_model(actor_grad)
-            critic.update_model(critic_grad)
-
-            if self.record_training:
-                self.memory["returns"].append(returns)
-                self.memory["advantages"].append(advantages)
-                self.memory["critic_vals"].append(predicted_values)
-            # write training specs to disc
+            network.update_model(network_grad)
 
         if self.record_training:
             self.memory["feature_data"] = feature_data

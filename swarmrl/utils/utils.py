@@ -260,17 +260,25 @@ def save_memory(memory: dict):
     Dumps a  file to disc to evaluate training.
     """
     empty_memory = {key: [] for key in memory.keys()}
+    return_memory = {key: [] for key in memory.keys()}
     empty_memory["file_name"] = memory["file_name"]
+    return_memory["file_name"] = memory["file_name"]
     try:
         reloaded_dict = np.load(memory["file_name"], allow_pickle=True).item()
         for key, _ in reloaded_dict.items():
-            reloaded_dict[key].append(memory[key])
+            if key != "file_name":
+                reloaded_dict[key].append(memory[key])
+            else:
+                pass
         np.save(memory["file_name"], reloaded_dict, allow_pickle=True)
     except FileNotFoundError:
         for key, _ in empty_memory.items():
-            empty_memory[key].append(memory[key])
-        np.save(memory["file_name"], empty_memory, allow_pickle=True)
-    return empty_memory
+            if key != "file_name":
+                empty_memory[key].append(memory[key])
+            else:
+                pass
+        np.save(empty_memory["file_name"], empty_memory, allow_pickle=True)
+    return return_memory
 
 
 def calc_signed_angle_between_directors(
