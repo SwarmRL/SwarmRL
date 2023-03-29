@@ -563,6 +563,11 @@ class Animations:
             self.wall_thickness = self.maze_dic["wall_thickness"]
             self.maze_walls = pickle.load(maze_file)
             self.maze = [0] * len(self.maze_walls)
+        else:
+            self.maze_dic = maze_dic
+            self.wall_thickness = self.maze_dic["wall_thickness"]
+            self.maze_walls = maze_walls
+            self.maze = [0] * len(self.maze_walls)
 
         # update the limits of the plot
 

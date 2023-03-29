@@ -3,6 +3,7 @@ import os
 import pickle
 import tempfile
 import typing
+import time
 import unittest as ut
 
 import matplotlib.pyplot as plt
@@ -21,6 +22,42 @@ from swarmrl.visualization.video_vis import (
     load_extra_data_to_visualization,
     load_traj_vis,
 )
+import multiprocessing
+import traceback
+
+
+class Process(multiprocessing.Process):
+    """
+    Process class for use in ZnVis testing.
+    """
+
+    def __init__(self, *args, **kwargs):
+        """
+        Multiprocessing class constructor.
+        """
+        multiprocessing.Process.__init__(self, *args, **kwargs)
+        self._pconn, self._cconn = multiprocessing.Pipe()
+        self._exception = None
+
+    def run(self):
+        """
+        Run the process and catch exceptions.
+        """
+        try:
+            multiprocessing.Process.run(self)
+            self._cconn.send(None)
+        except Exception as e:
+            tb = traceback.format_exc()
+            self._cconn.send((e, tb))
+
+    @property
+    def exception(self):
+        """
+        Exception property to be stored by the process.
+        """
+        if self._pconn.poll():
+            self._exception = self._pconn.recv()
+        return self._exception
 
 
 def calc_schmell(
@@ -287,19 +324,24 @@ class extra_data_model(InteractionModel):
         return actions
 
 
-class TestFullSim(ut.TestCase):
-    """
-    Functional test, also to be used as an example for simulation scripts
-    """
+class Simulation:
+    def __init__(self,
+        outfolder,
+        simulation_name,
+        loglevel_terminal,
+        seed,
+        mode,
+    ):
 
-    # Parameters usually provided as commandline input
-    simulation_name = "example_simulation"
-    loglevel_terminal = "info"
-    seed = 42
+        self.outfolder=outfolder
+        self.simulation_name=simulation_name
+        self.loglevel_terminal=loglevel_terminal
+        self.seed=seed
+        self.mode = mode
 
-    def simulate_model(self, outfolder, mode):
+    def simulate_model(self):
         logger = utils.setup_swarmrl_logger(
-            f"{outfolder}/{self.simulation_name}.log",
+            f"{self.outfolder}/{self.simulation_name}.log",
             loglevel_terminal=self.loglevel_terminal,
         )
         logger.info("Starting simulation setup")
@@ -422,11 +464,11 @@ class TestFullSim(ut.TestCase):
             md_params=md_params,
             n_dims=2,
             seed=run_params["seed"],
-            out_folder=outfolder,
+            out_folder=self.outfolder,
             write_chunk_size=1000,
         )
 
-        if mode in ["minimum", "rod"]:
+        if self.mode in ["minimum", "rod"]:
             logger.info(
                 "Add " + str(run_params["n_colloids"]) + " colloids to simulation"
             )
@@ -439,7 +481,7 @@ class TestFullSim(ut.TestCase):
                 type_colloid=coll_type,
             )
 
-        if mode == "multiple_types":
+        if self.mode == "multiple_types":
             logger.info(
                 "Add "
                 + str(run_params["n_colloids"])
@@ -462,7 +504,7 @@ class TestFullSim(ut.TestCase):
                 type_colloid=1,
             )
 
-        if mode == "rod":
+        if self.mode == "rod":
             logger.info("Add rod to simulation")
             system_runner.add_rod(
                 rod_params["rod_center"],
@@ -476,7 +518,7 @@ class TestFullSim(ut.TestCase):
                 rod_params["rod_fixed"],
             )
 
-        if mode == "maze":
+        if self.mode == "maze":
             coll_type = 0
             maze_dic = maze_params["maze_dic"]
             logger.info("Add colloids in maze to simulation")
@@ -503,7 +545,7 @@ class TestFullSim(ut.TestCase):
         target_ang_vel = col_params["target_ang_vel_SI"].m_as("1 / sim_time")
         act_torque = target_ang_vel * gamma_rot
 
-        if mode == "minimum":
+        if self.mode == "minimum":
             force_model = minimum_model(
                 act_force=act_force,
                 act_torque=act_torque,
@@ -511,7 +553,7 @@ class TestFullSim(ut.TestCase):
                 center_point=[500, 500],
                 phase_len=[4, 4],
             )
-        if mode == "multiple_types":
+        if self.mode == "multiple_types":
             force_model = extra_data_model(
                 act_force=act_force,
                 act_torque=act_torque,
@@ -519,18 +561,18 @@ class TestFullSim(ut.TestCase):
                 center_point=[500, 500],
                 phase_len=[4, 4],
                 acts_on_types=[0, 1],
-                data_folder=outfolder,
+                data_folder=self.outfolder,
             )
-        if mode == "rod":
+        if self.mode == "rod":
             force_model = extra_data_model(
                 act_force=act_force,
                 act_torque=act_torque,
                 n_type=[run_params["n_colloids"], rod_params["n_particles"]],
                 center_point=rod_params["rod_center"].magnitude,
                 phase_len=[4, 4],
-                data_folder=outfolder,
+                data_folder=self.outfolder,
             )
-        if mode == "maze":
+        if self.mode == "maze":
             force_model = minimum_model(
                 act_force=act_force,
                 act_torque=act_torque,
@@ -559,15 +601,15 @@ class TestFullSim(ut.TestCase):
                 " Maybe there is nothing to close so maybe you don't want this data?"
             )
 
-        files = os.listdir(outfolder)
+        files = os.listdir(self.outfolder)
         if "written_info_data.txt" in files:
-            with open(outfolder + "/written_info_data.txt", "r") as f:
+            with open(self.outfolder + "/written_info_data.txt", "r") as f:
                 data = []
                 for line in f:
                     data.append(line.strip())
             written_info_data = data[:: run_params["write_interval_fac"]]
-            os.remove(outfolder + "/written_info_data.txt")
-            with open(outfolder + "/written_info_data.pick", "wb") as f:
+            os.remove(self.outfolder + "/written_info_data.txt")
+            with open(self.outfolder + "/written_info_data.pick", "wb") as f:
                 pickle.dump(written_info_data, f)
 
         try:
@@ -578,9 +620,9 @@ class TestFullSim(ut.TestCase):
                 " Maybe there is nothing to close so maybe you don't want this data?"
             )
 
-        files = os.listdir(outfolder)
+        files = os.listdir(self.outfolder)
         if "vision_cone_data.pick" in files:
-            with open(outfolder + "/vision_cone_data.pick", "rb") as f:
+            with open(self.outfolder + "/vision_cone_data.pick", "rb") as f:
                 data = []
                 while True:
                     try:
@@ -589,8 +631,8 @@ class TestFullSim(ut.TestCase):
                     except EOFError:
                         break
             vision_cone_data = data[:: run_params["write_interval_fac"]]
-            os.remove(outfolder + "/vision_cone_data.pick")
-            with open(outfolder + "/vision_cone_data.pick", "wb") as f:
+            os.remove(self.outfolder + "/vision_cone_data.pick")
+            with open(self.outfolder + "/vision_cone_data.pick", "wb") as f:
                 pickle.dump(vision_cone_data, f)
 
         # ureg can sadly not be saved by pickle
@@ -606,7 +648,7 @@ class TestFullSim(ut.TestCase):
         }
 
         utils.write_params(
-            outfolder,
+            self.outfolder,
             self.simulation_name,
             params_to_write,
             write_espresso_version=True,
@@ -616,21 +658,54 @@ class TestFullSim(ut.TestCase):
             " from the simulation to the files finished."
         )
 
+    def calc_something(self):
+        return 1+1
+
+
+
+
+class TestFullSimVisualization(ut.TestCase):
+    """
+    Functional test, also to be used as an example for simulation scripts
+    """
+
+    # Parameters usually provided as commandline input
+
+    loglevel_terminal = "info"
+    seed = 42
+
+    
+      
     def test_minimum(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
-            self.simulate_model(outfolder, "minimum")
+            self.simulation_name = "test_minimum"
+            self.outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
+            self.mode="minimum"
+            # each simulation needs its own process 
+            sim = Simulation(self.outfolder,
+                self.simulation_name,
+                self.loglevel_terminal,
+                self.seed,
+                self.mode)
+            process = Process(target=sim.simulate_model)
+            process.start()
+            time.sleep(30) 
+            process.terminate()
+            if process.exception:
+                error, traceback = process.exception
+                print(traceback)
+            self.assertEqual(process.exception, None)
 
-            # visualization
-            param_fname = f"{outfolder}/params_{self.simulation_name}.pick"
+            # visualization #
+            param_fname = f"{self.outfolder}/params_{self.simulation_name}.pick"
             with open(param_fname, "rb") as param_file:
                 parameters = pickle.load(param_file)
             ureg = pint.UnitRegistry()
 
-            files = os.listdir(outfolder)
+            files = os.listdir(self.outfolder)
             if "trajectory.hdf5" in files:
                 positions, directors, times, ids, types, ureg = load_traj_vis(
-                    outfolder, ureg
+                    self.outfolder, ureg
                 )
 
             fig, ax = plt.subplots(figsize=(7, 7))
@@ -666,8 +741,8 @@ class TestFullSim(ut.TestCase):
                 maze_boolean=False,
             )
 
-            if outfolder is not None:
-                load_extra_data_to_visualization(ani_instance, outfolder)
+            if self.outfolder is not None:
+                load_extra_data_to_visualization(ani_instance, self.outfolder)
             else:
                 raise Exception(
                     "You need to specify where your extradata for visualization is"
@@ -689,27 +764,43 @@ class TestFullSim(ut.TestCase):
                 blit=True,
                 interval=10,
             )
-            plt.show()
+            #plt.show()
             ani.save("animation.mp4", fps=60)
             # dummy assert
             self.assertEqual("dummy assert", "dummy assert")
-
+    
     def test_multiple_types(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
-            self.simulate_model(outfolder, "multiple_types")
+            self.simulation_name = "test_multiple_types"
+            self.outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
+            self.mode= "multiple_types"
+            # each simulation needs its own process 
+            sim = Simulation(self.outfolder,
+                self.simulation_name,
+                self.loglevel_terminal,
+                self.seed,
+                self.mode)
+            process = Process(target=sim.simulate_model)
+            process.start()
+            time.sleep(360)
+            process.terminate()
+            if process.exception:
+                error, traceback = process.exception
+                print(traceback)
+            self.assertEqual(process.exception, None)
+            
 
             # visualization #
-            param_fname = f"{outfolder}/params_{self.simulation_name}.pick"
+            param_fname = f"{self.outfolder}/params_{self.simulation_name}.pick"
             with open(param_fname, "rb") as param_file:
                 parameters = pickle.load(param_file)
 
             ureg = pint.UnitRegistry()
 
-            files = os.listdir(outfolder)
+            files = os.listdir(self.outfolder)
             if "trajectory.hdf5" in files:
                 positions, directors, times, ids, types, ureg = load_traj_vis(
-                    outfolder, ureg
+                    self.outfolder, ureg
                 )
 
             fig, ax = plt.subplots(figsize=(7, 7))
@@ -745,8 +836,8 @@ class TestFullSim(ut.TestCase):
                 maze_boolean=False,
             )
 
-            if outfolder is not None:
-                load_extra_data_to_visualization(ani_instance, outfolder)
+            if self.outfolder is not None:
+                load_extra_data_to_visualization(ani_instance, self.outfolder)
             else:
                 raise Exception(
                     "You need to specify where your extradata for "
@@ -768,26 +859,42 @@ class TestFullSim(ut.TestCase):
                 blit=True,
                 interval=10,
             )
-            plt.show()
+            #plt.show()
             ani.save("animation.mp4", fps=60)
             # dummy assert
             self.assertEqual("dummy assert", "dummy assert")
-
+    
     def test_rod(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
-            self.simulate_model(outfolder, "rod")
+            self.simulation_name = "test_rod"
+            self.outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
+            self.mode = "rod"
+            # each simulation needs its own process 
+            sim = Simulation(self.outfolder,
+                self.simulation_name,
+                self.loglevel_terminal,
+                self.seed,
+                self.mode)
+            process = Process(target=sim.simulate_model)
+            process.start()
+            time.sleep(450)
+            process.terminate()
+            if process.exception:
+                error, traceback = process.exception
+                print(traceback)
+            self.assertEqual(process.exception, None)
+
 
             # visualization #
-            param_fname = f"{outfolder}/params_{self.simulation_name}.pick"
+            param_fname = f"{self.outfolder}/params_{self.simulation_name}.pick"
             with open(param_fname, "rb") as param_file:
                 parameters = pickle.load(param_file)
             ureg = pint.UnitRegistry()
 
-            files = os.listdir(outfolder)
+            files = os.listdir(self.outfolder)
             if "trajectory.hdf5" in files:
                 positions, directors, times, ids, types, ureg = load_traj_vis(
-                    outfolder, ureg
+                    self.outfolder, ureg
                 )
 
             fig, ax = plt.subplots(figsize=(7, 7))
@@ -826,8 +933,8 @@ class TestFullSim(ut.TestCase):
                 maze_boolean=False,
             )
 
-            if outfolder is not None:
-                load_extra_data_to_visualization(ani_instance, outfolder)
+            if self.outfolder is not None:
+                load_extra_data_to_visualization(ani_instance, self.outfolder)
             else:
                 raise Exception(
                     "You need to specify where your extradata for "
@@ -849,25 +956,42 @@ class TestFullSim(ut.TestCase):
                 blit=True,
                 interval=10,
             )
-            plt.show()
+            #plt.show()
             ani.save("animation.mp4", fps=60)
             # dummy assert
             self.assertEqual("dummy assert", "dummy assert")
-
+    
     def test_maze(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
-            self.simulate_model(outfolder, "maze")
+            self.simulation_name = "test_maze"
+            self.outfolder = utils.setup_sim_folder(temp_dir, self.simulation_name)
+            self.mode = "maze"
+            # each simulation needs its own process 
+            sim = Simulation(self.outfolder,
+                self.simulation_name,
+                self.loglevel_terminal,
+                self.seed,
+                self.mode)
+            process = Process(target=sim.simulate_model)
+            process.start()
+            time.sleep(30)
+            process.terminate()
+            if process.exception:
+                error, traceback = process.exception
+                print(traceback)
+            self.assertEqual(process.exception, None)
+            
+            
             # visualization #
-            param_fname = f"{outfolder}/params_{self.simulation_name}.pick"
+            param_fname = f"{self.outfolder}/params_{self.simulation_name}.pick"
             with open(param_fname, "rb") as param_file:
                 parameters = pickle.load(param_file)
             ureg = pint.UnitRegistry()
 
-            files = os.listdir(outfolder)
+            files = os.listdir(self.outfolder)
             if "trajectory.hdf5" in files:
                 positions, directors, times, ids, types, ureg = load_traj_vis(
-                    outfolder, ureg
+                    self.outfolder, ureg
                 )
 
             fig, ax = plt.subplots(figsize=(7, 7))
@@ -903,8 +1027,8 @@ class TestFullSim(ut.TestCase):
                 maze_boolean=True,
             )
 
-            if outfolder is not None:
-                load_extra_data_to_visualization(ani_instance, outfolder)
+            if self.outfolder is not None:
+                load_extra_data_to_visualization(ani_instance, self.outfolder)
             else:
                 raise Exception(
                     "You need to specify where your extradata for "
@@ -937,11 +1061,11 @@ class TestFullSim(ut.TestCase):
                 blit=True,
                 interval=10,
             )
-            plt.show()
+            #plt.show()
             ani.save("animation.mp4", fps=60)
             # dummy assert
             self.assertEqual("dummy assert", "dummy assert")
-
+    
 
 if __name__ == "__main__":
     ut.main()
