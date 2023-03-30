@@ -252,7 +252,6 @@ class EspressoMD(Engine):
         ) = _calc_friction_coefficients(
             self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius_simunits
         )
-
         for i in range(n_colloids):
             start_pos = _get_random_start_pos(
                 init_rad, init_center, self.n_dims, self.rng
@@ -428,10 +427,12 @@ class EspressoMD(Engine):
         # the wall itself has no radius, only the particle radius counts
         self.colloid_radius_register.update({wall_type: 0.0})
 
-    def add_maze(self, maze_walls: pint.Quantity, maze_type: int, wall_thickness: pint.Quantity):
+    def add_maze(
+        self, maze_walls: pint.Quantity, maze_type: int, wall_thickness: pint.Quantity
+    ):
         """
         User defined walls will interact with particles through WCA.
-        Is NOT communicated to the interaction models, though. 
+        Is NOT communicated to the interaction models, though.
         The walls have a large height resulting in 2D-walls in a 2D-simulation.
         The actual height adapts to the chosen box size.
         The shape of the underlying constraint is a square.
@@ -456,8 +457,7 @@ class EspressoMD(Engine):
         self._check_already_initialised()
         if (
             maze_type in self.colloid_radius_register.keys()
-            and self.colloid_radius_register[maze_type] 
-            != 0.0
+            and self.colloid_radius_register[maze_type] != 0.0
         ):
             raise ValueError(
                 f" The chosen type {maze_type} is already taken and used with a"
@@ -474,17 +474,19 @@ class EspressoMD(Engine):
                 wall[3] - wall[1],
                 0,
             ]  # direction along lengthy wall
-            c = [0, 0, z_height ]  # direction along third axis of 2D simulation
+            c = [0, 0, z_height]  # direction along third axis of 2D simulation
             norm_a = np.linalg.norm(a)  # is also the norm of b
             norm_c = np.linalg.norm(c)
-            b=np.cross(a/norm_a, c/norm_c) * wall_thickness # direction along second axis
+            b = (
+                np.cross(a / norm_a, c / norm_c) * wall_thickness
+            )  # direction along second axis
             # i.e along wall_thickness of lengthy wall
             corner = [
                 wall[0] - b[0] / 2,
                 wall[1] - b[1] / 2,
                 0,
             ]  # anchor point of wall shifted by wall_thickness*1/2
-            
+
             maze_shapes.append(
                 espressomd.shapes.Rhomboid(corner=corner, a=a, b=b, c=c, direction=1)
             )
