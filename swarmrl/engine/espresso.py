@@ -11,6 +11,7 @@ import numpy as np
 import pint
 
 import swarmrl.models.interaction_model
+import swarmrl.utils.utils as utils
 
 from .engine import Engine
 
@@ -48,24 +49,6 @@ class MDParams:
     write_interval: pint.Quantity
 
 
-def _get_random_angles(rng: np.random.Generator):
-    # https://mathworld.wolfram.com/SpherePointPicking.html
-    return np.arccos(2.0 * rng.random() - 1), 2.0 * np.pi * rng.random()
-
-
-def _vector_from_angles(theta, phi):
-    return np.array(
-        [np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)]
-    )
-
-
-def _angles_from_vector(director):
-    director /= np.linalg.norm(director)
-    theta = np.arccos(director[2])
-    phi = np.arctan2(director[1], director[0])
-    return theta, phi
-
-
 def _get_random_start_pos(
     init_radius: float, init_center: np.array, dim: int, rng: np.random.Generator
 ):
@@ -76,7 +59,7 @@ def _get_random_start_pos(
         assert init_center[2] == 0.0
     elif dim == 3:
         r = init_radius * np.cbrt(rng.random())
-        pos = r * _vector_from_angles(*_get_random_angles(rng))
+        pos = r * utils.vector_from_angles(*utils.get_random_angles(rng))
     else:
         raise ValueError("Random position finder only implemented for 2d and 3d")
 
@@ -293,7 +276,7 @@ class EspressoMD(Engine):
                 quat=[1, 0, 0, 0],
                 type=type_colloid,
             )
-            theta, phi = _angles_from_vector(init_direction)
+            theta, phi = utils.angles_from_vector(init_direction)
             if abs(theta - np.pi / 2) > 10e-6:
                 raise ValueError(
                     "It seem like you want to have a 2D simulation"
@@ -346,7 +329,7 @@ class EspressoMD(Engine):
             )
 
             if self.n_dims == 3:
-                director = _vector_from_angles(*_get_random_angles(self.rng))
+                director = utils.vector_from_angles(*utils.get_random_angles(self.rng))
                 self.add_colloid_on_point(
                     radius_colloid=radius_colloid,
                     init_position=start_pos,
@@ -357,7 +340,7 @@ class EspressoMD(Engine):
                 # initialize with body-frame = lab-frame to set correct rotation flags
                 # allow all rotations to bring the particle to correct state
                 start_angle = 2 * np.pi * self.rng.random()
-                init_direction = _vector_from_angles(np.pi / 2, start_angle)
+                init_direction = utils.vector_from_angles(np.pi / 2, start_angle)
                 self.add_colloid_on_point(
                     radius_colloid=radius_colloid,
                     init_position=start_pos,
@@ -447,7 +430,7 @@ class EspressoMD(Engine):
                 "(both in simulation units)"
             )
 
-        director = _vector_from_angles(np.pi / 2, rod_start_angle)
+        director = utils.vector_from_angles(np.pi / 2, rod_start_angle)
 
         for k in range(n_particles - 1):
             dist_to_center = (-1) ** k * (k // 2 + 1) * point_dist
