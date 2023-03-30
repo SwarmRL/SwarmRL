@@ -36,10 +36,11 @@ class AddMaze(ut.TestCase):
                 random_placement_radius=ureg.Quantity(4, "micrometer"),
                 type_colloid=coll_type,
             )
-            maze_walls=[[40,40,40,60],[40,40,60,40],[60,60,40,60],[60,60,60,40]]
+            maze_walls=ureg.Quantity([[40,40,40,60],[40,40,60,40],[60,60,40,60],[60,60,60,40]],"micrometer")
+            wall_thickness= ureg.Quantity(2,"micrometer")
             with self.assertRaises(ValueError):
-                runner.add_maze(maze_walls=maze_walls,maze_type=coll_type, wall_thickness= 2)
-            runner.add_maze(maze_walls=maze_walls,maze_type=coll_type + 1,wall_thickness= 2)
+                runner.add_maze(maze_walls=maze_walls,maze_type=coll_type, wall_thickness= wall_thickness)
+            runner.add_maze(maze_walls=maze_walls,maze_type=coll_type + 1,wall_thickness= wall_thickness)
             assert len(runner.system.constraints) == 4
 
             const_force = dummy_models.ConstForce(force=10)

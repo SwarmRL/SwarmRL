@@ -428,34 +428,44 @@ class EspressoMD(Engine):
         # the wall itself has no radius, only the particle radius counts
         self.colloid_radius_register.update({wall_type: 0.0})
 
-    def add_maze(self, maze_walls: list, maze_type: int, wall_thickness: float):
+    def add_maze(self, maze_walls: pint.Quantity, maze_type: int, wall_thickness: pint.Quantity):
         """
-        User definied walls will interact with particles through WCA.
+        User defined walls will interact with particles through WCA.
         Is NOT communicated to the interaction models, though. 
-        The walls are 200 high and are in the plane z=0 therefore usefull as 2D-walls.
-        The shape of the constrain is a square. 
+        The walls have a large height resulting in 2D-walls in a 2D-simulation.
+        The actual height adapts to the chosen box size.
+        The shape of the underlying constraint is a square. 
 
 
         Parameters
         ----------
-        maze_walls :
+        maze_walls: pint.Quantity
             list of lists (len()=4) with wall coordinates [x_begin, y_begin, x_end, y_end]
-        maze_type : int
+        maze_type: int
             Wall interacts with particles, so it needs its own type.
-        wall_thickness : float
+        wall_thickness: pint.Quantity
             wall thickness in micrometer
 
         Returns
         -------
         """
+
+        maze_walls = maze_walls.m_as("sim_length")
+        wall_thickness = wall_thickness.m_as("sim_length")
+
         self._check_already_initialised()
-        if maze_type in self.colloid_radius_register.keys():
+        if (
+            maze_type in self.colloid_radius_register.keys()
+            and self.colloid_radius_register[maze_type] 
+            != 0.0
+        ):
             raise ValueError(
-                f"wall type {maze_type} is already taken "
-                "by other system component. Choose a new one"
+                f" The chosen type {maze_type} is already taken and used with a"
+                f"different radius {self.colloid_radius_register[maze_type]} ."
+                " Choose a new combination"
             )
 
-        z_offset = -100
+        z_height = self.system.box_l[2]
         maze_shapes = []
 
         for wall in maze_walls:
@@ -464,18 +474,17 @@ class EspressoMD(Engine):
                 wall[3] - wall[1],
                 0,
             ]  # direction along lengthy wall
-            norm = np.linalg.norm(a)  # is also the norm of b
-            b = [
-                a[1] * wall_thickness / (2 * norm),
-                -a[0] * wall_thickness / (2 * norm),
-                0,
-            ]  # direction along wall_thickness of lengthy wall
+            c = [0, 0, z_height ]  # direction along third axis of 2D simulation
+            norm_a = np.linalg.norm(a)  # is also the norm of b
+            norm_c = np.linalg.norm(c)
+            b=np.cross(a/norm_a, c/norm_c) * wall_thickness # direction along second axis
+            # i.e along wall_thickness of lengthy wall
             corner = [
                 wall[0] - b[0] / 2,
                 wall[1] - b[1] / 2,
-                z_offset,
+                0,
             ]  # anchor point of wall shifted by wall_thickness*1/2
-            c = [0, 0, -z_offset * 2]  # direction along third axis of 2D simulation
+            
             maze_shapes.append(
                 espressomd.shapes.Rhomboid(corner=corner, a=a, b=b, c=c, direction=1)
             )
