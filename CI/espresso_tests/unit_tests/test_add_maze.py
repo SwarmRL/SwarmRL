@@ -31,16 +31,26 @@ class AddMaze(ut.TestCase):
                 5,
                 radius_colloid=ureg.Quantity(1.0, "micrometer"),
                 random_placement_center=ureg.Quantity(
-                    np.array([50,50,0]), "micrometer"
+                    np.array([50, 50, 0]), "micrometer"
                 ),
                 random_placement_radius=ureg.Quantity(4, "micrometer"),
                 type_colloid=coll_type,
             )
-            maze_walls=ureg.Quantity([[40,40,40,60],[40,40,60,40],[60,60,40,60],[60,60,60,40]],"micrometer")
+            maze_walls = ureg.Quantity([
+                [40, 40, 40, 60],
+                [40, 40, 60, 40],
+                [60, 60, 40, 60],
+                [60, 60, 60, 40],
+            ],"micrometer")
             wall_thickness= ureg.Quantity(2,"micrometer")
             with self.assertRaises(ValueError):
-                runner.add_maze(maze_walls=maze_walls,maze_type=coll_type, wall_thickness= wall_thickness)
-            runner.add_maze(maze_walls=maze_walls,maze_type=coll_type + 1,wall_thickness= wall_thickness)
+                runner.add_maze(
+                    maze_walls=maze_walls, maze_type=coll_type, wall_thickness=wall_thickness
+                )
+            runner.add_maze(
+                maze_walls=maze_walls, maze_type=coll_type + 1, wall_thickness=wall_thickness
+            )
+
             assert len(runner.system.constraints) == 4
 
             const_force = dummy_models.ConstForce(force=10)
@@ -48,9 +58,9 @@ class AddMaze(ut.TestCase):
 
             # without walls, the colloids would leave the primary box
             poss = runner.get_particle_data()["Unwrapped_Positions"]
-            poss =np.array(poss)
-            assert np.all(poss[:,:2] < 60)
-            assert np.all(poss[:,:2] > 40)
+            poss = np.array(poss)
+            assert np.all(poss[:, :2] < 60)
+            assert np.all(poss[:, :2] > 40)
 
 
 if __name__ == "__main__":

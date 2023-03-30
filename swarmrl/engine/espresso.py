@@ -434,14 +434,14 @@ class EspressoMD(Engine):
         Is NOT communicated to the interaction models, though. 
         The walls have a large height resulting in 2D-walls in a 2D-simulation.
         The actual height adapts to the chosen box size.
-        The shape of the underlying constraint is a square. 
-
+        The shape of the underlying constraint is a square.
 
         Parameters
         ----------
-        maze_walls: pint.Quantity
-            list of lists (len()=4) with wall coordinates [x_begin, y_begin, x_end, y_end]
-        maze_type: int
+        maze_walls : pint.Quantity
+            list of lists (len()=4) with wall coordinates
+             [x_begin, y_begin, x_end, y_end]
+        maze_type : int
             Wall interacts with particles, so it needs its own type.
         wall_thickness: pint.Quantity
             wall thickness in micrometer
@@ -496,7 +496,7 @@ class EspressoMD(Engine):
             self.system.constraints.add(constr)
 
         # the maze wall itself has no radius, only the particle radius counts
-        self.colloid_radius_register.update({maze_type: 0.0})       
+        self.colloid_radius_register.update({maze_type: 0.0})
 
     def _setup_interactions(self):
         for type_0, rad_0 in self.colloid_radius_register.items():
