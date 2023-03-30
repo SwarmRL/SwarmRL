@@ -428,7 +428,11 @@ class EspressoMD(Engine):
         self.colloid_radius_register.update({wall_type: 0.0})
 
     def add_maze(
-        self, maze_walls: pint.Quantity, maze_type: int, wall_thickness: pint.Quantity
+        self,
+        maze_wall_start_point: pint.Quantity,
+        maze_wall_end_point: pint.Quantity,
+        maze_type: int,
+        wall_thickness: pint.Quantity,
     ):
         """
         User defined walls will interact with particles through WCA.
@@ -450,9 +454,16 @@ class EspressoMD(Engine):
         Returns
         -------
         """
-
-        maze_walls = maze_walls.m_as("sim_length")
+        maze_wall_start_point = maze_wall_start_point.m_as("sim_length")
+        maze_wall_end_point = maze_wall_end_point.m_as("sim_length")
         wall_thickness = wall_thickness.m_as("sim_length")
+
+        if len(maze_wall_start_point) != len(maze_wall_end_point):
+            raise ValueError(
+                " Please double check your maze walls. There are more or less "
+                f" starting points {len(maze_wall_start_point)} than "
+                f" end points {len(maze_wall_end_point)}. They should be equal."
+            )
 
         self._check_already_initialised()
         if (
@@ -468,10 +479,12 @@ class EspressoMD(Engine):
         z_height = self.system.box_l[2]
         maze_shapes = []
 
-        for wall in maze_walls:
+        for wall_index in range(len(maze_wall_start_point)):
             a = [
-                wall[2] - wall[0],
-                wall[3] - wall[1],
+                maze_wall_end_point[wall_index][0]
+                - maze_wall_start_point[wall_index][0],
+                maze_wall_end_point[wall_index][1]
+                - maze_wall_start_point[wall_index][1],
                 0,
             ]  # direction along lengthy wall
             c = [0, 0, z_height]  # direction along third axis of 2D simulation
@@ -482,8 +495,8 @@ class EspressoMD(Engine):
             )  # direction along second axis
             # i.e along wall_thickness of lengthy wall
             corner = [
-                wall[0] - b[0] / 2,
-                wall[1] - b[1] / 2,
+                maze_wall_start_point[wall_index][0] - b[0] / 2,
+                maze_wall_start_point[wall_index][1] - b[1] / 2,
                 0,
             ]  # anchor point of wall shifted by wall_thickness*1/2
 
