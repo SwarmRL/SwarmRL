@@ -443,13 +443,16 @@ class EspressoMD(Engine):
 
         Parameters
         ----------
-        maze_walls : pint.Quantity
-            list of lists (len()=4) with wall coordinates
-             [x_begin, y_begin, x_end, y_end]
+        maze_wall_start_point : pint.Quantity
+        list of lists (len()=2) with wall coordinates
+             [x_begin, y_begin]
+        maze_wall_end_point : pint.Quantity
+        list of lists (len()=2) with wall coordinates
+             [x_end, y_end]
         maze_type : int
             Wall interacts with particles, so it needs its own type.
         wall_thickness: pint.Quantity
-            wall thickness in micrometer
+            wall thickness
 
         Returns
         -------
