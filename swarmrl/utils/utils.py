@@ -217,8 +217,7 @@ def record_trajectory(
         action_data = data.item().get("actions")
         log_probs_data = data.item().get("log_probs")
         reward_data = data.item().get("rewards")
-
-        feature_data = np.append(feature_data, np.array([features]), axis=0)
+        feature_data.append(features)
         action_data = np.append(action_data, np.array([actions]), axis=0)
         log_probs_data = np.append(log_probs_data, np.array([log_probs]), axis=0)
         reward_data = np.append(reward_data, np.array([rewards]), axis=0)
@@ -226,7 +225,7 @@ def record_trajectory(
         os.remove(f".traj_data_{particle_type}.npy")
 
     except FileNotFoundError:
-        feature_data = np.array([features])
+        feature_data = [features]
         action_data = np.array([actions])
         log_probs_data = np.array([log_probs])
         reward_data = np.array([rewards])

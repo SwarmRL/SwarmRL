@@ -47,7 +47,6 @@ class ColGraph(Observable):
         positions = np.array([col.pos for col in colloids]) / self.box_size
         directions = np.array([col.director for col in colloids])
         types = np.array([col.type for col in colloids])
-
         # compute the direction between all pais of colloids.
         part_part_vec = positions[:, None] - positions
         distances = np.linalg.norm(part_part_vec, axis=-1)
@@ -67,13 +66,13 @@ class ColGraph(Observable):
                     )
                 )
                 continue
-
+            director = np.copy(col.director)
             relevant_distances = distances[col.id][mask]
             relevant_part_part_vec = part_part_vec[col.id][mask]
             relevant_directions = directions[mask]
             relevant_types = types[mask]
-            pos_angles = self.vangle(col.director, relevant_part_part_vec)
-            sight_angles = self.vangle(col.director, relevant_directions)
+            pos_angles = self.vangle(director, relevant_part_part_vec)
+            sight_angles = self.vangle(director, relevant_directions)
             delta_type = relevant_types - col.type
 
             # stack the features of the nodes.
@@ -95,6 +94,8 @@ class ColGraph(Observable):
                     add_self_edges=False,
                 )
             )
+            graph_obs[-1].senders.astype(np.float32)
+            graph_obs[-1].receivers.astype(np.float32)
             if self.memory:
                 self.memory["colloids"] = colloids
                 self.memory["masks"].append(mask)

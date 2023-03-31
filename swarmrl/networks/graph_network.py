@@ -30,6 +30,15 @@ class EncodeNet(nn.Module):
         return x
 
 
+class CritNet(nn.Module):
+    @nn.compact
+    def __call__(self, x):
+        x = nn.Dense(16)(x)
+        x = nn.relu(x)
+        x = nn.Dense(1)(x)
+        return x
+
+
 class ActNet(nn.Module):
     @nn.compact
     def __call__(self, x):
@@ -54,6 +63,7 @@ class GraphNet(nn.Module):
     encoder: EncodeNet
     actress: ActNet
     influencer: InfluenceNet
+    criticer: CritNet
 
     @nn.compact
     def __call__(self, graph):
@@ -70,7 +80,8 @@ class GraphNet(nn.Module):
         )
         # print(f"graph_representation: {graph_representation}")
         logits = self.actress(graph_representation)
-        return logits, graph_representation, influence
+        value = self.criticer(graph_representation)
+        return logits, value
 
 
 class GraphModel(Network, ABC):
@@ -83,6 +94,7 @@ class GraphModel(Network, ABC):
         encoder: EncodeNet,
         actress: ActNet,
         influencer: InfluenceNet,
+        criticer: CritNet,
         optimizer: GradientTransformation = optax.adam(1e-3),
         exploration_policy: ExplorationPolicy = None,
         sampling_strategy: SamplingStrategy = GumbelDistribution(),
@@ -93,7 +105,9 @@ class GraphModel(Network, ABC):
         if rng_key is None:
             rng_key = onp.random.randint(0, 1027465782564)
         self.sampling_strategy = sampling_strategy
-        self.model = GraphNet(encoder=encoder, actress=actress, influencer=influencer)
+        self.model = GraphNet(
+            encoder=encoder, actress=actress, criticer=criticer, influencer=influencer
+        )
         self.apply_fn = jax.jit(self.model.apply)
         self.model_state = None
 
@@ -174,16 +188,12 @@ class GraphModel(Network, ABC):
         # Compute state
         for obs in observables:
             try:
-                logits, graph_representation, influence = self.apply_fn(
-                    {"params": self.model_state.params}, obs
-                )
+                logits, _ = self.apply_fn({"params": self.model_state.params}, obs)
             except AttributeError:  # We need this for loaded models.
-                logits, graph_representation, influence = self.apply_fn(
-                    {"params": self.model_state["params"]}, obs
-                )
+                logits, _ = self.apply_fn({"params": self.model_state["params"]}, obs)
             logits_list.append(logits)
             # graph_representation_list.append(graph_representation)
-            influence_list.append(influence)
+            # influence_list.append(influence)
 
         # Compute the action
         indices = self.sampling_strategy(np.array(logits_list))

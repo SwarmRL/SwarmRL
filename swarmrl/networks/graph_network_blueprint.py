@@ -279,43 +279,8 @@
 # from jraph._src import utils
 # from optax._src.base import GradientTransformation
 #
-# from .observable import Observable
 #
-#
-# def _angle_and_dist(colloid, colloids):
-#     # angles between the colloid director and line of sight to other colloids
-#     angles = []
-#     # angles between colloid director and director of other colloids
-#     angles2 = []
-#     dists = []
-#     my_director = colloid.director[:2]
-#     for col in colloids:
-#         if col is not colloid:
-#             my_col_vec = col.pos[:2] - colloid.pos[:2]
-#             my_col_dist = np.linalg.norm(my_col_vec)
-#
-#             # compute angle 1
-#             my_col_vec = my_col_vec / my_col_dist
-#             angle = np.arccos(np.dot(my_col_vec, my_director))
-#             orthogonal_dot = np.dot(
-#                 my_col_vec, np.array([-my_director[1], my_director[0]])
-#             )
-#             angle *= np.sign(orthogonal_dot) / np.pi
-#
-#             # compute angle 2
-#             other_director = col.director[:2]
-#             angle2 = np.arccos(np.dot(other_director, my_director))
-#             orthogonal_dot2 = np.dot(
-#                 other_director, np.array([-my_director[1], my_director[0]])
-#             )
-#             angle2 *= np.sign(orthogonal_dot2) / np.pi
-#             angles2.append(angle2)
-#             angles.append(angle)
-#             dists.append(my_col_dist)
-#     return np.array(angles), np.array(angles2), np.array(dists)
-#
-#
-# class GraphObs(Observable, ABC):
+# class GraphNetwork:
 #     """
 #     Implementation of the GraphOps observable.
 #     """
@@ -347,9 +312,11 @@
 #         }
 #         self.states = {"encoder": None, "node_updater": None, "influencer": None}
 #
-#         self.encode_fn, self.update_node_fn, self.influence_eval_fn = (
-#             self._init_models()
-#         )
+#         (
+#             self.encode_fn,
+#             self.update_node_fn,
+#             self.influence_eval_fn,
+#         ) = self._init_models()
 #
 #     def initialize(self, colloids: list):
 #         pass
@@ -396,27 +363,6 @@
 #         # questionable how the grads will come back! Let's see at gradient computation
 #         for key, item in self.states:
 #             self.states[key] = self.states[key].apply_gradients(grads=grads)
-#
-#     def _build_graph(self, colloid, colloids):
-#         nodes = []
-#         angles, angles2, dists = _angle_and_dist(colloid, colloids)
-#         node_index = 0
-#         for i, col in enumerate(colloids):
-#             if col is not colloid:
-#                 r = dists[i]
-#                 if r < self.r_cut:
-#                     node_index += 1
-#                     node = np.hstack(
-#                         ((dists[i] / self.box_size), angles[i], angles2[i], col.type)
-#                     )
-#                     nodes.append(node)
-#         graph = utils.get_fully_connected_graph(
-#             n_node_per_graph=len(nodes),
-#             n_graph=1,
-#             node_features=np.array(nodes),
-#             add_self_edges=False,
-#         )
-#         return graph
 #
 #     def compute_observable(
 #         self, colloid: object, other_colloids: list, return_graph=False
@@ -488,8 +434,8 @@
 #             )
 #
 #
-# def export_model(states: dict, filename: str = "graph_obs",
-# directory: str = "Models"):
+# def export_model(states: dict, filename: str = "graph_obs", directory:
+# str = "Models"):
 #     """
 #     Export the model state to a directory.
 #
