@@ -108,13 +108,24 @@ class SharedProximalPolicyLoss(Loss, ABC):
             Critic loss of an episode, summed over all time steps and meaned over
             all particles.
         """
+        new_logits = []
+        predicted_values = []
+        for i in range(len(features)):
+            new_part_logits = []
+            new_part_values = []
+            for j in range(len(features[i])):
+                new_logits_single, predicted_values_single = network.apply_fn(
+                    {"params": network_params}, features[i][j]
+                )
+                new_part_logits.append(new_logits_single)
+                new_part_values.append(predicted_values_single)
+            new_logits.append(new_part_logits)
+            predicted_values.append(new_part_values)
 
-        # compute the logits and values of the new policy
-        new_logits, predicted_values = network.apply_fn(
-            {"params": network_params}, features
-        )
+        new_logits = jnp.array(new_logits)
+        predicted_values = jnp.array(predicted_values)
+
         predicted_values = jnp.squeeze(predicted_values)
-
         # compute the advantages and returns
         advantages, returns = self.value_function(
             rewards=rewards, values=predicted_values
