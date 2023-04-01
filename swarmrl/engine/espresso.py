@@ -180,6 +180,8 @@ class EspressoMD(Engine):
         # configuration and change forces
         time_slice = self.params.time_slice.m_as("sim_time")
 
+        write_interval = self.params.write_interval.m_as("sim_time")
+
         box_l = np.array(3 * [self.params.box_length.m_as("sim_length")])
 
         # system setup. Skin is a verlet list parameter that has to be set, but only
@@ -187,6 +189,15 @@ class EspressoMD(Engine):
         self.system.box_l = box_l
         self.system.time_step = time_step
         self.system.cell_system.skin = 0.4
+
+        # set writer params
+        steps_per_write_interval = int(round(write_interval / time_step))
+        self.params.steps_per_write_interval = steps_per_write_interval
+        if abs(steps_per_write_interval - write_interval / time_step) > 1e-10:
+            raise ValueError(
+                "inconsistent parameters: time_slice must be integer multiple of"
+                " time_step"
+            )
 
         # set integrator params
         steps_per_slice = int(round(time_slice / time_step))
@@ -595,6 +606,34 @@ class EspressoMD(Engine):
         )
         self.system.integrator.set_brownian_dynamics()
 
+    def manage_forces(self, force_model: swarmrl.models.InteractionModel = None):
+        swarmrl_colloids = []
+        if force_model is not None:
+            for col in self.colloids:
+                swarmrl_colloids.append(
+                    swarmrl.models.interaction_model.Colloid(
+                        pos=col.pos, director=col.director, id=col.id, type=col.type
+                    )
+                )
+            actions = force_model.calc_action(swarmrl_colloids)
+            for action, coll in zip(actions, self.colloids):
+                coll.swimming = {"f_swim": action.force}
+                coll.ext_torque = action.torque
+                new_direction = action.new_direction
+                if new_direction is not None:
+                    if self.n_dims == 3:
+                        coll.director = new_direction
+                    else:
+                        old_direction = coll.director
+                        rotation_angle = np.arccos(np.dot(new_direction, old_direction))
+                        if rotation_angle > 1e-6:
+                            rotation_axis = np.cross(old_direction, new_direction)
+                            rotation_axis /= np.linalg.norm(rotation_axis)
+                            # only values of [0,0,1], [0,0,-1] can come out here,
+                            # plusminus numerical errors
+                            rotation_axis = [0, 0, round(rotation_axis[2])]
+                            coll.rotate(axis=rotation_axis, angle=rotation_angle)
+
     def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel = None):
         """
         Integrate the system for n_slices steps.
@@ -612,15 +651,26 @@ class EspressoMD(Engine):
         """
 
         if not self.integration_initialised:
+            self.slice_idx = 0
+            self.step_idx = 0
             self._setup_interactions()
             self._remove_overlap()
             self._init_h5_output()
+            # print("write_interval", self.params.write_interval.m_as("sim_time") )
+            # print("time_slice", self.params.time_slice.m_as("sim_time") )
+            # print("time_step", self.params.time_step.m_as("sim_time") )
+            # print("write idx, slice idx, step idx",self.write_idx, self.slice_idx,
+            # self.step_idx)
+            # print("n_slices",n_slices)
             self.integration_initialised = True
 
-        for _ in range(n_slices):
+        old_slice_idx = self.slice_idx
+        while self.slice_idx < old_slice_idx + n_slices:
             if (
-                self.system.time
-                >= self.params.write_interval.m_as("sim_time") * self.write_idx
+                self.step_idx * self.params.time_step.m_as("sim_time")
+                >= self.params.write_interval.m_as("sim_time") * self.write_idx - 1e-6
+                #  1e-6 is a bad practice and ensures that the if triggers
+                #  if the numbers are also almost equal
             ):
                 self._update_traj_holder()
                 self.write_idx += 1
@@ -630,36 +680,40 @@ class EspressoMD(Engine):
                     for val in self.traj_holder.values():
                         val.clear()
 
-            swarmrl_colloids = []
-            if force_model is not None:
-                for col in self.colloids:
-                    swarmrl_colloids.append(
-                        swarmrl.models.interaction_model.Colloid(
-                            pos=col.pos, director=col.director, id=col.id, type=col.type
-                        )
-                    )
-                actions = force_model.calc_action(swarmrl_colloids)
-                for action, coll in zip(actions, self.colloids):
-                    coll.swimming = {"f_swim": action.force}
-                    coll.ext_torque = action.torque
-                    new_direction = action.new_direction
-                    if new_direction is not None:
-                        if self.n_dims == 3:
-                            coll.director = new_direction
-                        else:
-                            old_direction = coll.director
-                            rotation_angle = np.arccos(
-                                np.dot(new_direction, old_direction)
-                            )
-                            if rotation_angle > 1e-6:
-                                rotation_axis = np.cross(old_direction, new_direction)
-                                rotation_axis /= np.linalg.norm(rotation_axis)
-                                # only values of [0,0,1], [0,0,-1] can come out here,
-                                # plusminus numerical errors
-                                rotation_axis = [0, 0, round(rotation_axis[2])]
-                                coll.rotate(axis=rotation_axis, angle=rotation_angle)
+            if (
+                self.step_idx * self.params.time_step.m_as("sim_time")
+                >= self.params.time_slice.m_as("sim_time") * self.slice_idx - 1e-6
+            ):
+                self.slice_idx += 1
+                self.manage_forces(force_model)
 
-            self.system.integrator.run(self.params.steps_per_slice)
+            # print("write idx, slice idx, step idx",self.write_idx,
+            # self.slice_idx, self.step_idx)
+            time_to_next_write = (
+                self.params.write_interval.m_as("sim_time") * self.write_idx
+                - self.system.time
+            )
+            time_to_next_slice = (
+                self.params.time_slice.m_as("sim_time") * self.slice_idx
+                - self.system.time
+            )
+            # print("time_to_next_write,time_to_next_slice",
+            # time_to_next_write,time_to_next_slice)
+            steps_to_next = int(
+                round(
+                    min(time_to_next_write, time_to_next_slice)
+                    / self.params.time_step.m_as("sim_time")
+                )
+            )
+            # print("steps_to_next",steps_to_next)
+            self.system.integrator.run(steps_to_next)
+            self.step_idx += steps_to_next
+            # print("zeit jitter",self.system.time-self.step_idx
+            # * self.params.time_step.m_as("sim_time"))
+            # if abs(self.system.time-self.step_idx *
+            # self.params.time_step.m_as("sim_time")) > 1e-6:
+            #    print("something went wrong")
+            # print("old_slice_idx, n_slices",old_slice_idx, n_slices)
 
     def finalize(self):
         """
