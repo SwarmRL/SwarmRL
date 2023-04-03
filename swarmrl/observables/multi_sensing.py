@@ -4,6 +4,8 @@ Class for an observable which computes several observables.
 from abc import ABC
 from typing import List
 
+import numpy as onp
+
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.observable import Observable
 
@@ -82,4 +84,4 @@ class MultiSensing(Observable, ABC):
             for j, colloid in enumerate(item):
                 observable[j].append(colloid)
 
-        return observable
+        return onp.array(observable, dtype=object)
