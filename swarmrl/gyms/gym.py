@@ -79,7 +79,6 @@ class Gym:
             actions=actions,
         )
 
-    @property
     def update_rl(self) -> Tuple[MLModel, np.ndarray]:
         """
         Update the RL algorithm.
@@ -215,7 +214,7 @@ class Gym:
             )
             for _ in range(n_episodes):
                 system_runner.integrate(episode_length, force_fn)
-                force_fn, current_reward = self.update_rl
+                force_fn, current_reward = self.update_rl()
                 rewards.append(current_reward)
                 episode += 1
                 progress.update(
