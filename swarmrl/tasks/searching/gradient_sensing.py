@@ -144,6 +144,6 @@ class GradientSensing(Task, ABC):
         """
         colloid_indices = self.get_colloid_indices(colloids)
 
-        return [
-            self.compute_colloid_reward(index, colloids) for index in colloid_indices
-        ]
+        return np.array(
+            [self.compute_colloid_reward(index, colloids) for index in colloid_indices]
+        )

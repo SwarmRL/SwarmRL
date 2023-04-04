@@ -9,6 +9,7 @@ from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
 from swarmrl.engine.engine import Engine
 from swarmrl.losses.loss import Loss
+from swarmrl.losses.policy_gradient_loss import PolicyGradientLoss
 from swarmrl.models.ml_model import MLModel
 from swarmrl.rl_protocols.actor_critic import ActorCritic
 
@@ -30,7 +31,7 @@ class Gym:
     def __init__(
         self,
         rl_protocols: List[ActorCritic],
-        loss: Loss,
+        loss: Loss = PolicyGradientLoss(),
     ):
         """
         Constructor for the MLP RL.
@@ -78,7 +79,6 @@ class Gym:
             actions=actions,
         )
 
-    @property
     def update_rl(self) -> Tuple[MLModel, np.ndarray]:
         """
         Update the RL algorithm.
@@ -102,14 +102,11 @@ class Gym:
             reward += np.mean(episode_data.item().get("rewards"))
 
             # Compute loss for actor and critic.
-            actor_grads, critic_grads = self.loss.compute_loss(
+            self.loss.compute_loss(
                 actor=val.actor,
                 critic=val.critic,
                 episode_data=episode_data,
             )
-
-            val.actor.update_model(actor_grads)
-            val.critic.update_model(critic_grads)
 
             force_models[item] = val.actor
             observables[item] = val.observable
@@ -182,7 +179,6 @@ class Gym:
         system_runner: Engine,
         n_episodes: int,
         episode_length: int,
-        initialize: bool = False,
         load_bar: bool = True,
     ):
         """
@@ -196,9 +192,6 @@ class Gym:
                 Number of episodes to use in the training.
         episode_length : int
                 Number of time steps in one episode.
-        initialize : bool (default=False)
-                If true, call the initial colloid positions to initialize a task or
-                observable.
         load_bar : bool (default=True)
                 If true, show a progress bar.
         """
@@ -207,10 +200,10 @@ class Gym:
         episode = 0
         force_fn = self.initialize_training()
 
-        if initialize:
-            for item, val in self.rl_protocols.items():
-                val.observable.initialize(system_runner.colloids)
-                val.task.initialize(system_runner.colloids)
+        # Initialize the tasks and observables.
+        for item, val in self.rl_protocols.items():
+            val.observable.initialize(system_runner.colloids)
+            val.task.initialize(system_runner.colloids)
 
         progress = Progress(
             "Episode: {task.fields[Episode]}",
@@ -233,7 +226,7 @@ class Gym:
             )
             for _ in range(n_episodes):
                 system_runner.integrate(episode_length, force_fn)
-                force_fn, current_reward = self.update_rl
+                force_fn, current_reward = self.update_rl()
                 rewards.append(current_reward)
                 episode += 1
                 progress.update(
