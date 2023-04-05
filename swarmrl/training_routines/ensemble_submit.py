@@ -163,10 +163,10 @@ class EnsembleTraining:
                 [self.n_episodes] * self.n_parallel_jobs,
                 resources={"espresso": 1},
             )
-        _ = wait(block)
-        futures += self.client.gather(block)
-        _ = self.client.restart(wait_for_workers=False)
-        _ = self.client.wait_for_workers(self.n_parallel_jobs)
+            _ = wait(block)
+            futures += self.client.gather(block)
+            _ = self.client.restart(wait_for_workers=False)
+            _ = self.client.wait_for_workers(self.n_parallel_jobs)
 
         # shut down the cluster
         self.cluster.close()
