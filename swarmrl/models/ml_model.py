@@ -84,7 +84,6 @@ class MLModel(InteractionModel):
 
         for item in self.particle_types:
             observables[item] = self.observables[item].compute_observable(colloids)
-            np.save("features.npy", observables[item])
             rewards[item] = self.tasks[item](colloids)
             action_indices[item], log_probs[item] = self.models[item].compute_action(
                 observables=observables[item], explore_mode=explore_mode
