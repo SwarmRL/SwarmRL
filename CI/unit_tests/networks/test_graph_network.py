@@ -136,32 +136,25 @@ class TestGraphNetwork:
             graph_reps.append(graph_rep)
             influences.append(influence)
 
-    # def test_batch_deployment(self):
-    #     col_graph = ColGraph(cutoff=0.7, box_size=np.array([1000, 1000, 1000]))
-    #     episode_data = []
-    #
-    #     # create a single graph for initialization.
-    #     cols = build_cols([10])
-    #     graph_obs = col_graph.compute_observable(cols)
-    #     init_graph = graph_obs[0]
-    #
-    #     for i in range(10):
-    #         cols = build_cols([10])
-    #         episode_data.append(col_graph.compute_observable(cols))
-    #     episode_data = onp.array(episode_data, dtype=object)
-    #     assert np.shape(episode_data) == (10, 10, 7)
-    #     episode_data_0 = episode_data[0]
-    #     print(episode_data_0.shape)
-    #     print(episode_data_0[0])
-    #     # encoder = EncodeNet()
-    #     # actress = ActNet()
-    #     # influencer = InfluenceNet()
-    #     # actor = GraphNet(encoder=encoder, actress=actress, influencer=influencer)
-    #
-    #     # rng = jax.random.PRNGKey(10)
-    #     # params = actor.init(rng, init_graph)["params"]
-    #     # vapply = jax.vmap(actor.apply, in_axes=(None, 0))
-    #     # output = vapply({"params": params}, episode_data_0)
+    def test_batch_deployment(self):
+        col_graph = ColGraph(cutoff=0.7, box_size=np.array([1000, 1000, 1000]))
+
+        # create a single graph for initialization.
+        cols = build_cols([10])
+        graph_obs = col_graph.compute_observable(cols)
+        init_graph = graph_obs[0]
+
+        encoder = EncodeNet()
+        actress = ActNet()
+        influencer = InfluenceNet()
+        actor = GraphNet(encoder=encoder, actress=actress, influencer=influencer)
+
+        rng = jax.random.PRNGKey(10)
+        params = actor.init(rng, init_graph)["params"]
+
+        assert params is not None
+        for key in params.keys():
+            assert key in ["encoder", "actress", "influencer"]
 
     # def test_things(self):
     #     graph_obs = ColGraph(cutoff=3.0, box_size=np.array([1000, 1000, 1000]))
