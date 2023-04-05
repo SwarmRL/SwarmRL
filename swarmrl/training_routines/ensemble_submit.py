@@ -73,7 +73,10 @@ class EnsembleTraining:
         # Use default local cluster if None is given.
         if cluster is None:
             cluster = LocalCluster(
-                processes=True, threads_per_worker=10, silence_logs=logging.ERROR
+                processes=True,
+                threads_per_worker=1,
+                silence_logs=logging.ERROR,
+                resources={"espresso": 1},
             )
         self.cluster = cluster
         self.client = Client(cluster)
@@ -127,7 +130,6 @@ class EnsembleTraining:
             system_runner,
             n_episodes=n_episodes,
             episode_length=episode_length,
-            initialize=True,
             load_bar=False,
         )
         gym.export_models()
@@ -159,6 +161,7 @@ class EnsembleTraining:
                 [self.load_path] * self.n_parallel_jobs,
                 [self.episode_length] * self.n_parallel_jobs,
                 [self.n_episodes] * self.n_parallel_jobs,
+                resources={"espresso": 1},
             )
         _ = wait(block)
         futures += self.client.gather(block)

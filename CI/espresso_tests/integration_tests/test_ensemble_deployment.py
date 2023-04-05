@@ -167,6 +167,7 @@ class TestGeneticTraining(ut.TestCase):
             get_simulation_runner,
             number_of_ensembles=20,
             n_episodes=50,
+            n_parallel_jobs=2,
             episode_length=20,
         )
 

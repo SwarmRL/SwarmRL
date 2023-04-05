@@ -41,11 +41,12 @@ class GeneticTraining:
         """
         Constructor for the genetic training routine.
 
-        Parameters
-        ----------
-        gym: Gym
-            Gym to use for the training.
-        simulation_runner_generator : callable
+        Parameters  data,
+                            # first_atom_range=first_atom_range,
+                            # second_atom_range=second_atom_range,
+                            correlation_time=correlation_time,
+                            data_range=data_range,
+                            )able
             A function that will returimport numpy as onp
             esults to.
         n_episodes : int
@@ -92,14 +93,19 @@ class GeneticTraining:
         # Use default local cluster if None is given.
         if cluster is None:
             cluster = LocalCluster(
-                processes=True, threads_per_worker=5, silence_logs=logging.ERROR
+                processes=True,
+                threads_per_worker=1,
+                silence_logs=logging.ERROR,
+                resources={"espresso": 1},
             )
+
         self.cluster = cluster
 
         self.client = Client(cluster)
 
         self.cluster.scale(n=self.parallel_jobs)
         webbrowser.open(self.client.dashboard_link)
+
         # Decide on parent splits
         self.identifiers = range(population_size)
 
@@ -170,7 +176,6 @@ class GeneticTraining:
             system_runner,
             episode_length=episode_length,
             n_episodes=n_episodes,
-            initialize=True,
             load_bar=False,
         )
         gym.export_models()
@@ -208,6 +213,7 @@ class GeneticTraining:
                 [self._select_fn] * self.parallel_jobs,
                 [self.episode_length] * self.parallel_jobs,
                 [self.n_episodes] * self.parallel_jobs,
+                resources={"espresso": 1},
             )
             _ = wait(block)
             futures += self.client.gather(block)

@@ -170,7 +170,7 @@ class TestGeneticTraining(ut.TestCase):
             number_of_generations=3,
             population_size=10,
             number_of_parents=3,
-            parallel_jobs=10,
+            parallel_jobs=2,
         )
 
     def test_run(self):
