@@ -28,7 +28,7 @@ class SharedProximalPolicyLoss(Loss, ABC):
         self,
         value_function: GAE = GAE(),
         sampling_strategy: GumbelDistribution = GumbelDistribution(),
-        n_epochs: int = 20,
+        n_epochs: int = 10,
         epsilon: float = 0.2,
         entropy_coefficient: float = 0.01,
         record_training=False,
@@ -62,7 +62,7 @@ class SharedProximalPolicyLoss(Loss, ABC):
             "feature_data": [],
             "rewards": [],
             "action_indices:": [],
-            "old_probs": [],
+            "old_log_probs": [],
             "advantages": [],
             "returns": [],
             "critic_vals": [],
@@ -114,7 +114,7 @@ class SharedProximalPolicyLoss(Loss, ABC):
             new_part_logits = []
             new_part_values = []
             for j in range(len(features[i])):
-                new_logits_single, predicted_values_single = network.apply_fn(
+                new_logits_single, predicted_values_single, _ = network.apply_fn(
                     {"params": network_params}, features[i][j]
                 )
                 new_part_logits.append(new_logits_single)
@@ -160,14 +160,15 @@ class SharedProximalPolicyLoss(Loss, ABC):
         critic_loss = jnp.sum(particle_critic_loss)
 
         if self.record_training:
-            self.memory["returns"].append(returns)
+            self.memory["returns"].append(returns.primal)
             self.memory["advantages"].append(advantages)
-            self.memory["critic_vals"].append(predicted_values)
+            self.memory["critic_vals"].append(predicted_values.primal)
             self.memory["new_logits"].append(new_logits.primal)
             self.memory["entropy"].append(entropy.primal)
             self.memory["chosen_log_probs"].append(chosen_log_probs.primal)
             self.memory["ratio"].append(ratio.primal)
-            self.memory["actor_loss"].append(clipped_loss.primal)
+            self.memory["actor_loss"].append(actor_loss.primal)
+            self.memory["critic_loss"].append(critic_loss.primal)
 
         return actor_loss + self.entropy_coefficient * entropy + 0.5 * critic_loss
 

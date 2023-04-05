@@ -70,18 +70,18 @@ class GraphNet(nn.Module):
         nodes, edges, receivers, senders, globals_, n_node, n_edge = graph
 
         # Encode the nodes.
-        embedding_vec = self.encoder(nodes)
+        # embedding_vec = self.encoder(nodes)
         influence_scores = self.influencer(nodes)
         eps = 1e-8
         influence = jax.nn.softmax(influence_scores + eps, axis=0)
 
         graph_representation = np.mean(
-            tree.tree_map(lambda n, i: n * i, embedding_vec, influence), axis=0
+            tree.tree_map(lambda n, i: n * i, nodes, influence), axis=0
         )
         # print(f"graph_representation: {graph_representation}")
         logits = self.actress(graph_representation)
         value = self.criticer(graph_representation)
-        return logits, value
+        return logits, value, (graph_representation, influence)
 
 
 class GraphModel(Network, ABC):
@@ -188,12 +188,16 @@ class GraphModel(Network, ABC):
         # Compute state
         for obs in observables:
             try:
-                logits, _ = self.apply_fn({"params": self.model_state.params}, obs)
+                logits, _, (graph_representation, influence) = self.apply_fn(
+                    {"params": self.model_state.params}, obs
+                )
             except AttributeError:  # We need this for loaded models.
-                logits, _ = self.apply_fn({"params": self.model_state["params"]}, obs)
+                logits, _, (graph_representation, influence) = self.apply_fn(
+                    {"params": self.model_state["params"]}, obs
+                )
             logits_list.append(logits)
-            # graph_representation_list.append(graph_representation)
-            # influence_list.append(influence)
+            graph_representation_list.append(graph_representation)
+            influence_list.append(influence)
 
         # Compute the action
         indices = self.sampling_strategy(np.array(logits_list))
@@ -217,7 +221,7 @@ class GraphModel(Network, ABC):
 
         if explore_mode:
             indices = self.exploration_policy(indices, len(logits_list))
-        return (indices, taken_log_probs)
+        return indices, taken_log_probs
 
     def export_model(self, filename: str = "model", directory: str = "Models"):
         """

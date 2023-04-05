@@ -88,10 +88,7 @@ class GraphNet(nn.Module):
 
 class TestGraphNetwork:
     def test_graph_network(self):
-        # build a list of colloids.
-        # build the graphs.
         col_graph = ColGraph(cutoff=0.7, box_size=np.array([1000, 1000, 1000]))
-        # graph_obs = col_graph.compute_observable(cols)
 
         encoder = EncodeNet()
         actress = ActNet()
@@ -102,11 +99,6 @@ class TestGraphNetwork:
             encoder=encoder, actress=actress, influencer=influencer, rng_key=rng_key
         )
         assert graph_actor is not None
-
-        # output_1 = graph_actor(graph_obs[0])
-        # assert output_1[0].shape == (4,)
-        # actions = graph_actor.compute_action(graph_obs)
-        # assert actions[0].shape == (10,)
 
         log_probabs = []
         for i in range(150):
@@ -143,7 +135,71 @@ class TestGraphNetwork:
             probabs.append(probs)
             graph_reps.append(graph_rep)
             influences.append(influence)
-        print(f"Logits: {np.log(np.array(probabs))}")
-        # print(f"Graph Reps: {np.round(np.array(graph_reps), 2)}")
 
-        # print(f"Influences: {influences}")
+    # def test_batch_deployment(self):
+    #     col_graph = ColGraph(cutoff=0.7, box_size=np.array([1000, 1000, 1000]))
+    #     episode_data = []
+    #
+    #     # create a single graph for initialization.
+    #     cols = build_cols([10])
+    #     graph_obs = col_graph.compute_observable(cols)
+    #     init_graph = graph_obs[0]
+    #
+    #     for i in range(10):
+    #         cols = build_cols([10])
+    #         episode_data.append(col_graph.compute_observable(cols))
+    #     episode_data = onp.array(episode_data, dtype=object)
+    #     assert np.shape(episode_data) == (10, 10, 7)
+    #     episode_data_0 = episode_data[0]
+    #     print(episode_data_0.shape)
+    #     print(episode_data_0[0])
+    #     # encoder = EncodeNet()
+    #     # actress = ActNet()
+    #     # influencer = InfluenceNet()
+    #     # actor = GraphNet(encoder=encoder, actress=actress, influencer=influencer)
+    #
+    #     # rng = jax.random.PRNGKey(10)
+    #     # params = actor.init(rng, init_graph)["params"]
+    #     # vapply = jax.vmap(actor.apply, in_axes=(None, 0))
+    #     # output = vapply({"params": params}, episode_data_0)
+
+    # def test_things(self):
+    #     graph_obs = ColGraph(cutoff=3.0, box_size=np.array([1000, 1000, 1000]))
+    #
+    #     # nodes = onp.squeeze(nodes)
+    #     nan_cols = []
+    #
+    #     for m in range(1000):
+    #         colls = build_cols([10])
+    #         graphs = graph_obs.compute_observable(colls)
+    #         nodes = []
+    #         for graph in graphs:
+    #             nodes.append(graph.nodes)
+    #
+    #         nodes = onp.array(nodes)
+    #         # wirte a funciton that finde "nan" in the nodes.
+    #         for i, node in enumerate(nodes):
+    #             for j, n in enumerate(node):
+    #                 for k, obs in enumerate(n):
+    #                     if np.isnan(obs):
+    #                         info_dict = {"colls": colls,
+    #                                      "graph": graphs[i],
+    #                                      "location": (i, j, k)}
+    #                         nan_cols.append(info_dict)
+    #                         break
+    #                     else:
+    #                         pass
+    #     print(f"number of nans: {len(nan_cols)}")
+    #     np.save("nan_cols.npy", nan_cols, allow_pickle=True)
+    #
+    # def test_evaluate(self):
+    #     graph_obs = ColGraph(cutoff=3.0, box_size=np.array([1000, 1000, 1000]))
+    #     test_data = np.load("nan_cols.npy", allow_pickle=True)
+    #     colloids = test_data[0]["colls"]
+    #     graph = test_data[0]["graph"]
+    #     location = test_data[0]["location"]
+    #     colloid_id = location[0]
+    #     new_graphs = graph_obs.compute_observable(colloids)
+    #     print(new_graphs[colloid_id].nodes)
+    #     print(graph.nodes)
+    #     assert new_graphs[colloid_id] == graph

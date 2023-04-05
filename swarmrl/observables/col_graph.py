@@ -26,6 +26,7 @@ class ColGraph(Observable):
         self.box_size = box_size
         self.eps = 10e-8
         self.vangle = vmap(calc_signed_angle_between_directors, in_axes=(None, 0))
+        self.record_memory = record_memory
         self.memory = {
             "file_name": "col_graph.npy",
             "colloids": [],
@@ -35,7 +36,6 @@ class ColGraph(Observable):
             "relevant_part_part_vec_memo": [],
             "relevant_directions_memo": [],
         }
-        self.record_memory = record_memory
 
     def compute_observable(self, colloids: List[Colloid]) -> List[GraphsTuple]:
         """
