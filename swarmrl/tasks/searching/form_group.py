@@ -53,4 +53,5 @@ class FromGroup(Task, ABC):
             # update the historic distances
             self.historic_distances[col.id] = current_distances[i]
         # compute the reward
-        return -1 * self.reward_scale_factor * np.array(diff_dist)
+        rewards = -1 * self.reward_scale_factor * np.array(diff_dist)
+        return rewards

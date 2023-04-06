@@ -246,6 +246,15 @@ class GraphModel(Network, ABC):
         with open(directory + "/" + filename + ".pkl", "wb") as f:
             pickle.dump((model_params, opt_state, opt_step, epoch), f)
 
+    def reinitialize_network(self):
+        """
+        Initialize the neural network.
+        """
+        rng_key = onp.random.randint(0, 1027465782564)
+        init_rng = jax.random.PRNGKey(rng_key)
+        _, subkey = jax.random.split(init_rng)
+        self.model_state = self._create_train_state(subkey)
+
     def restore_model_state(self, filename, directory):
         """
         Restore the model state from a file.

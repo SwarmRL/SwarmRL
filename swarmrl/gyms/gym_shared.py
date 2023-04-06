@@ -168,8 +168,7 @@ class SharedNetworkGym:
         Initialize all of the models in the gym.
         """
         for item, val in self.rl_protocols.items():
-            val.actor.reinitialize_network()
-            val.critic.reinitialize_network()
+            val.network.reinitialize_network()
 
     def perform_rl_training(
         self,
