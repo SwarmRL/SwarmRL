@@ -47,8 +47,10 @@ class GAE:
                 The prediction of the critic for the episode.
         Returns
         -------
-        advantages : np.ndarray (n_time_steps, n_particles)
-                Expected returns for the rewards.
+        (advantages, returns) :     (np.ndarray (n_time_steps, n_particles),
+                                    np.ndarray (n_time_steps, n_particles)
+                                    )
+                The advantage and the expected return for the episode.
         """
         gae = 0
         advantages = onp.zeros_like(rewards)
@@ -64,21 +66,4 @@ class GAE:
         advantages = (advantages - np.mean(advantages)) / (
             np.std(advantages) + self.eps
         )
-        return advantages
-
-    def returns(self, advantages: np.ndarray, values: np.ndarray):
-        """
-        Function to compute the expected return.
-        Parameters
-        ----------
-        advantages : np.ndarray (n_time_steps, n_particles)
-                A numpy array of advantages
-        values : np.ndarray (n_time_steps, n_particles)
-                The prediction of the critic for the episode.
-        Returns
-        -------
-        expected_returns : np.ndarray (n_time_steps, n_particles)
-                Expected returns for the rewards.
-        """
-        returns = advantages + values[:-1]
-        return returns
+        return advantages, advantages + values
