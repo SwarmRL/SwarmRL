@@ -142,7 +142,11 @@ class TestGraphNetwork:
         # create a single graph for initialization.
         cols = build_cols([10])
         graph_obs = col_graph.compute_observable(cols)
-        init_graph = graph_obs[0]
+        init_graph = onp.array(graph_obs[0], dtype=object)
+
+        graph_obs_array = onp.array(graph_obs, dtype=object)
+        # print(onp.array(init_graph, dtype=object))
+        print(np.shape(onp.array(graph_obs, dtype=object)))
 
         encoder = EncodeNet()
         actress = ActNet()
@@ -151,10 +155,10 @@ class TestGraphNetwork:
 
         rng = jax.random.PRNGKey(10)
         params = actor.init(rng, init_graph)["params"]
-
-        assert params is not None
-        for key in params.keys():
-            assert key in ["encoder", "actress", "influencer"]
+        assert actor.apply({"params": params}, init_graph) is not None
+        # actor.apply({"params": params}, graph_obs_array)
+        vapply = jax.vmap(actor.apply, in_axes=(None, 0))
+        vapply({"params": params}, graph_obs_array)
 
     # def test_things(self):
     #     graph_obs = ColGraph(cutoff=3.0, box_size=np.array([1000, 1000, 1000]))
