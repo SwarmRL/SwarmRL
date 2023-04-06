@@ -78,7 +78,6 @@ class Gym:
             actions=actions,
         )
 
-    @property
     def update_rl(self) -> Tuple[MLModel, np.ndarray]:
         """
         Update the RL algorithm.
@@ -138,7 +137,7 @@ class Gym:
 
         Notes
         -----
-        This is super lazy. We should add this to the rl protocol I guess. Same with the
+        This is super lazy. We should add this to the rl protocol. Same with the
         model restoration.
         """
         for item, val in self.rl_protocols.items():
@@ -165,6 +164,14 @@ class Gym:
             val.critic.restore_model_state(
                 filename=f"CriticModel_{item}", directory=directory
             )
+
+    def initialize_models(self):
+        """
+        Initialize all of the models in the gym.
+        """
+        for item, val in self.rl_protocols.items():
+            val.actor.reinitialize_network()
+            val.critic.reinitialize_network()
 
     def perform_rl_training(
         self,
