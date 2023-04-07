@@ -66,3 +66,4 @@ class TestFormGroup:
 
         reward = task(colloids)
         assert len(reward) == 5
+        print(type(reward))
