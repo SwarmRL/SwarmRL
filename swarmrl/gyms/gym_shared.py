@@ -78,7 +78,6 @@ class SharedNetworkGym:
             actions=actions,
         )
 
-    @property
     def update_rl(self) -> Tuple[MLModel, np.ndarray]:
         """
         Update the RL algorithm.
@@ -160,7 +159,7 @@ class SharedNetworkGym:
         """
         for item, val in self.rl_protocols.items():
             val.network.restore_model_state(
-                filename=f"NetworkModel_{item}", directory=directory
+                filename=f"NetworkMode_{item}", directory=directory
             )
 
     def initialize_models(self):
@@ -168,8 +167,7 @@ class SharedNetworkGym:
         Initialize all of the models in the gym.
         """
         for item, val in self.rl_protocols.items():
-            val.actor.reinitialize_network()
-            val.critic.reinitialize_network()
+            val.network.reinitialize_network()
 
     def perform_rl_training(
         self,

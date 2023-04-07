@@ -148,6 +148,15 @@ class GraphModel(Network, ABC):
             apply_fn=self.apply_fn, params=params, tx=self.optimizer
         )
 
+    def reinitialize_network(self):
+        """
+        Initialize the neural network.
+        """
+        rng_key = onp.random.randint(0, 1027465782564)
+        init_rng = jax.random.PRNGKey(rng_key)
+        _, subkey = jax.random.split(init_rng)
+        self.model_state = self._create_train_state(subkey)
+
     def update_model(
         self,
         grads,
@@ -289,11 +298,3 @@ class GraphModel(Network, ABC):
             return self.apply_fn({"params": self.model_state.params}, graph_obs)
         except AttributeError:  # We need this for loaded models.
             return self.apply_fn({"params": self.model_state["params"]}, graph_obs)
-
-
-# TODO:
-# compute_action
-# __call__
-# export_model
-# restore_model_state
-# update_model

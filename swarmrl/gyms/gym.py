@@ -9,6 +9,7 @@ from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
 from swarmrl.engine.engine import Engine
 from swarmrl.losses.loss import Loss
+from swarmrl.losses.policy_gradient_loss import PolicyGradientLoss
 from swarmrl.models.ml_model import MLModel
 from swarmrl.rl_protocols.actor_critic import ActorCritic
 
@@ -30,7 +31,7 @@ class Gym:
     def __init__(
         self,
         rl_protocols: List[ActorCritic],
-        loss: Loss,
+        loss: Loss = PolicyGradientLoss(),
     ):
         """
         Constructor for the MLP RL.
@@ -178,6 +179,7 @@ class Gym:
         system_runner: Engine,
         n_episodes: int,
         episode_length: int,
+        load_bar: bool = True,
     ):
         """
         Perform the RL training.
@@ -190,6 +192,8 @@ class Gym:
                 Number of episodes to use in the training.
         episode_length : int
                 Number of time steps in one episode.
+        load_bar : bool (default=True)
+                If true, show a progress bar.
         """
         rewards = [0.0]
         current_reward = 0.0
@@ -218,10 +222,11 @@ class Gym:
                 Episode=episode,
                 current_reward=current_reward,
                 running_reward=np.mean(rewards),
+                visible=load_bar,
             )
             for _ in range(n_episodes):
                 system_runner.integrate(episode_length, force_fn)
-                force_fn, current_reward = self.update_rl
+                force_fn, current_reward = self.update_rl()
                 rewards.append(current_reward)
                 episode += 1
                 progress.update(
@@ -240,3 +245,5 @@ class Gym:
                 os.remove(f".traj_data_{item}.npy")
             except FileNotFoundError:
                 pass
+
+        return np.array(rewards)

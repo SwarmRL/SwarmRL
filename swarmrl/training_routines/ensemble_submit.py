@@ -78,6 +78,7 @@ class EnsembleTraining:
                 silence_logs=logging.ERROR,
                 resources={"espresso": 1},
             )
+        print("we made it until here 1")
         self.cluster = cluster
         self.client = Client(cluster)
 
@@ -87,6 +88,8 @@ class EnsembleTraining:
         # Create the output directory if needed.
         if not self.output_dir.exists():
             os.makedirs(self.output_dir)
+
+        print("we made it until here 2")
 
     @staticmethod
     def _train_model(
