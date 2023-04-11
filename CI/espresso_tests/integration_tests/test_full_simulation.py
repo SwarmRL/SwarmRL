@@ -85,7 +85,6 @@ class TestFullSim(ut.TestCase):
         act_force = target_vel * gamma
         target_ang_vel = model_params["target_ang_vel_SI"].m_as("1 / sim_time")
         act_torque = target_ang_vel * gamma_rot
-
         detection_radius_pos = model_params["detection_radius_position_SI"].m_as(
             "sim_length"
         )

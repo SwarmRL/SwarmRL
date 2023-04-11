@@ -141,6 +141,9 @@ class EspressoMD(Engine):
         # after the first call to integrate, no more changes to the engine are allowed
         self.integration_initialised = False
 
+        # a check to make sure the hdf5 file is not reinitialized after a reset
+        self.hdf5_initialized = False
+
         espressomd.assert_features(
             ["ROTATION", "EXTERNAL_FORCES", "THERMOSTAT_PER_PARTICLE"]
         )
@@ -214,6 +217,31 @@ class EspressoMD(Engine):
                 "after the first call to integrate()"
             )
 
+    def _reset_system(self):
+        """
+        Reset the system to its initial state.
+        """
+        # save the old register
+        old_register = np.copy(self.colloid_radius_register).item()
+        # clear the system
+        self.colloid_radius_register = {}
+        self.system.part.clear()
+        self.integration_initialised = False
+
+        # add the old colloids back
+        for type_col in old_register.keys():
+            n_colloids = old_register[type_col]["n_colloids"]
+            radius_colloid = old_register[type_col]["radius"]
+            placement_center = old_register[type_col]["center"]
+            placement_radius = old_register[type_col]["init_rad"]
+        self.add_colloids(
+            n_colloids=n_colloids,
+            radius_colloid=radius_colloid,
+            random_placement_center=placement_center,
+            random_placement_radius=placement_radius,
+            type_colloid=type_col,
+        )
+
     def add_colloids(
         self,
         n_colloids: int,
@@ -252,7 +280,6 @@ class EspressoMD(Engine):
         ) = _calc_friction_coefficients(
             self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius_simunits
         )
-
         for i in range(n_colloids):
             start_pos = _get_random_start_pos(
                 init_rad, init_center, self.n_dims, self.rng
@@ -285,7 +312,16 @@ class EspressoMD(Engine):
 
             self.colloids.append(colloid)
 
-        self.colloid_radius_register.update({type_colloid: radius_simunits})
+        self.colloid_radius_register.update(
+            {
+                type_colloid: {
+                    "radius": radius_colloid,
+                    "n_colloids": n_colloids,
+                    "center": random_placement_center,
+                    "init_rad": random_placement_radius,
+                }
+            }
+        )
 
     def add_rod(
         self,
@@ -380,7 +416,9 @@ class EspressoMD(Engine):
             virtual_partcl.vs_auto_relate_to(center_part)
             self.colloids.append(virtual_partcl)
 
-        self.colloid_radius_register.update({rod_particle_type: partcl_radius})
+        self.colloid_radius_register.update(
+            {rod_particle_type: {"radius": partcl_radius, "n_colloids": n_particles}}
+        )
 
         return center_part
 
@@ -429,8 +467,12 @@ class EspressoMD(Engine):
         self.colloid_radius_register.update({wall_type: 0.0})
 
     def _setup_interactions(self):
-        for type_0, rad_0 in self.colloid_radius_register.items():
-            for type_1, rad_1 in self.colloid_radius_register.items():
+        for type_0 in self.colloid_radius_register.keys():
+            rad_0 = self.colloid_radius_register[type_0]["radius"].m_as("sim_length")
+            for type_1 in self.colloid_radius_register.keys():
+                rad_1 = self.colloid_radius_register[type_1]["radius"].m_as(
+                    "sim_length"
+                )
                 if type_0 > type_1:
                     continue
                 self.system.non_bonded_inter[type_0, type_1].wca.set_params(
@@ -462,7 +504,10 @@ class EspressoMD(Engine):
         Returns both the translational and the rotational friction coefficient
         of the desired in simulation units
         """
-        radius = self.colloid_radius_register.get(type, None)
+        radius = self.colloid_radius_register.get(type, None)["radius"].m_as(
+            "sim_length"
+        )
+        print(radius)
         if radius is None:
             raise ValueError(
                 f"cannot get friction coefficient for type {type}. Did you actually add"
@@ -613,8 +658,10 @@ class EspressoMD(Engine):
 
         if not self.integration_initialised:
             self._setup_interactions()
-            self._remove_overlap()
-            self._init_h5_output()
+            if not self.hdf5_initialized:
+                self._init_h5_output()
+                self.hdf5_initialized = True
+            # self._remove_overlap()
             self.integration_initialised = True
 
         for _ in range(n_slices):
@@ -631,6 +678,7 @@ class EspressoMD(Engine):
                         val.clear()
 
             swarmrl_colloids = []
+
             if force_model is not None:
                 for col in self.colloids:
                     swarmrl_colloids.append(
@@ -660,6 +708,7 @@ class EspressoMD(Engine):
                                 coll.rotate(axis=rotation_axis, angle=rotation_angle)
 
             self.system.integrator.run(self.params.steps_per_slice)
+        self._reset_system()
 
     def finalize(self):
         """
