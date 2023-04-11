@@ -30,7 +30,7 @@ class SharedNetworkGym:
     def __init__(
         self,
         rl_protocols: List[SharedActorCritic],
-        loss: SharedProximalPolicyLoss,
+        loss: SharedProximalPolicyLoss = SharedProximalPolicyLoss(),
     ):
         """
         Constructor for the MLP RL.

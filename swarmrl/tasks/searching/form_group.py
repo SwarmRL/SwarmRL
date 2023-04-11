@@ -11,7 +11,7 @@ class FromGroup(Task, ABC):
     def __init__(
         self,
         particle_type: int = 0,
-        box_length: np.ndarray = np.array([1.0, 1.0, 0.0]),
+        box_length=np.array([1.0, 1.0, 0.0]),
         reward_scale_factor: int = 10,
     ):
         super().__init__(particle_type=particle_type)

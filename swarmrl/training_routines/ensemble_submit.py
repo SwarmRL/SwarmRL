@@ -69,7 +69,7 @@ class EnsembleTraining:
         self.gym = gym
         self.number_of_ensembles = number_of_ensembles
         self.n_parallel_jobs = n_parallel_jobs
-
+        print("A")
         # Use default local cluster if None is given.
         if cluster is None:
             cluster = LocalCluster(
@@ -78,18 +78,20 @@ class EnsembleTraining:
                 silence_logs=logging.ERROR,
                 resources={"espresso": 1},
             )
-        print("we made it until here 1")
+        print("B")
         self.cluster = cluster
         self.client = Client(cluster)
+        print("C")
 
         self.cluster.scale(n=self.n_parallel_jobs)
+        print("D")
+
         webbrowser.open(self.client.dashboard_link)
+        print("E")
 
         # Create the output directory if needed.
         if not self.output_dir.exists():
             os.makedirs(self.output_dir)
-
-        print("we made it until here 2")
 
     @staticmethod
     def _train_model(
