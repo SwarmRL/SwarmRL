@@ -72,7 +72,7 @@ class ColGraph(Observable):
             relevant_directions = directions[mask]
             relevant_types = types[mask]
             pos_angles = self.vangle(director, relevant_part_part_vec)
-            sight_angles = self.vangle(director, relevant_directions)
+            # sight_angles = self.vangle(director, relevant_directions)
             delta_type = relevant_types - col.type
 
             # stack the features of the nodes.
@@ -81,7 +81,7 @@ class ColGraph(Observable):
                     (
                         relevant_distances[:, None],
                         pos_angles[:, None],
-                        sight_angles[:, None],
+                        # sight_angles[:, None],
                         delta_type[:, None],
                     )
                 )
