@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     sim_helper = SimulationHelper(colloid_dict=colloid_dict)
 
-    actions = SimulationHelper.get_actions()
+    actions = sim_helper.get_actions()
 
     protocol = SharedActorCritic(
         particle_type=0,
