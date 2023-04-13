@@ -708,6 +708,8 @@ class EspressoMD(Engine):
                                 coll.rotate(axis=rotation_axis, angle=rotation_angle)
 
             self.system.integrator.run(self.params.steps_per_slice)
+        print(f"num_colls: {self.system.part.number_of_particles(type=0)}")
+        print(f"colloid dict:  {self.colloid_radius_register}")
         self._reset_system()
 
     def finalize(self):
