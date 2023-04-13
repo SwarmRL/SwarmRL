@@ -225,7 +225,7 @@ class EspressoMD(Engine):
 
         Returns
         -------
-        colloid
+        colloid.
 
         """
 
