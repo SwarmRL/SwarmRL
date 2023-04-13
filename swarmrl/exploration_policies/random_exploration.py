@@ -15,7 +15,7 @@ class RandomExploration(ExplorationPolicy, ABC):
     Perform exploration by random moves.
     """
 
-    def __init__(self, probability: float):
+    def __init__(self, probability: float = 0.1):
         """
         Constructor for the random exploration module.
 

@@ -18,6 +18,8 @@ class SamplingStrategy:
         probabilities : np.ndarray (n_colloids, n_actions)
                 Probabilities for each colloid to take specific actions.
         """
+        eps = 1e-8
+        probabilities += eps
         return -np.sum(probabilities * np.log(probabilities))
 
     def __call__(self, logits: np.ndarray) -> int:

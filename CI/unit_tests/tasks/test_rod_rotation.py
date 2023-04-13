@@ -70,7 +70,12 @@ class TestRodRotation:
         reference_velocity = np.deg2rad(45)
 
         # Test that the velocity is correct
-        for colloid in self.colloids:
+        for i, colloid in enumerate(self.colloids):
             colloid_list = [colloid]
             velocity = self.task._compute_angular_velocity(colloid_list[0].director)
-            assert velocity == pytest.approx(reference_velocity)
+            # Rod starts to move
+            if i == 0:
+                assert velocity == pytest.approx(reference_velocity)
+            # Now stays at the same velocity
+            else:
+                assert velocity == pytest.approx(0.0)

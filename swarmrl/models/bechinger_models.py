@@ -32,7 +32,6 @@ class Lavergne2019(InteractionModel):
                 actions.append(Action())
                 continue
             other_colloids = [c for c in colloids if c is not colloid]
-
             colls_in_vision = get_colloids_in_vision(
                 colloid, other_colloids, vision_half_angle=self.vision_half_angle
             )
