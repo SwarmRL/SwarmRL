@@ -149,6 +149,7 @@ class TestFullSim(ut.TestCase):
         else:
             for _ in tqdm.tqdm(range(100)):
                 system_runner.integrate(int(np.ceil(n_slices / 100)), force_model)
+                system_runner.reset_system()
 
         system_runner.finalize()
         logger.info("Simulation completed successfully")

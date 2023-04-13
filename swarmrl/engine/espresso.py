@@ -217,7 +217,7 @@ class EspressoMD(Engine):
                 "after the first call to integrate()"
             )
 
-    def _reset_system(self):
+    def reset_system(self):
         """
         Reset the system to its initial state.
         """
@@ -226,6 +226,7 @@ class EspressoMD(Engine):
         # clear the system
         self.colloid_radius_register = {}
         self.system.part.clear()
+        self.colloids = list()
         self.integration_initialised = False
 
         # add the old colloids back
@@ -507,7 +508,7 @@ class EspressoMD(Engine):
         radius = self.colloid_radius_register.get(type, None)["radius"].m_as(
             "sim_length"
         )
-        print(radius)
+
         if radius is None:
             raise ValueError(
                 f"cannot get friction coefficient for type {type}. Did you actually add"
@@ -708,9 +709,6 @@ class EspressoMD(Engine):
                                 coll.rotate(axis=rotation_axis, angle=rotation_angle)
 
             self.system.integrator.run(self.params.steps_per_slice)
-        print(f"num_colls: {self.system.part.number_of_particles(type=0)}")
-        print(f"colloid dict:  {self.colloid_radius_register}")
-        self._reset_system()
 
     def finalize(self):
         """
