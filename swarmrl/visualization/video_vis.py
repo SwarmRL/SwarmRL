@@ -1,6 +1,7 @@
 import os
 import pickle
 import random
+import bottleneck as bn
 
 import h5py
 import matplotlib.colors as colors
@@ -90,6 +91,9 @@ class Animations:
         radius_col,
         schmell_boolean,
         schmell_ids,
+        rod_rotation_chess_board_boolean,
+        rod_length,
+        rod_center_points,
         maze_boolean,
     ):
         self.color_index = None
@@ -122,10 +126,18 @@ class Animations:
         self.radius_col = [0] * len(self.ids)
         # schmell means as much as  chemical potential
         self.schmell_boolean = [False] * len(self.ids)
+
+        self.rod_rotation_chess_board_boolean=[False] * len(self.ids)
+        self.rod_length=rod_length
+        self.rod_center_points=rod_center_points
+
+
         self.maze_boolean = False
         self.maze_points = {}
         self.wall_thickness = 42
         self.maze_walls = []
+
+        self.rod_rotation_chess_board_field = [0] * len(self.ids)
 
         self.trace = [0] * len(self.ids)
 
@@ -150,6 +162,8 @@ class Animations:
             radius_col,
             schmell_boolean,
             schmell_ids,
+            rod_rotation_chess_board_boolean,
+            rod_center_points,
             maze_boolean,
         )
 
@@ -166,6 +180,8 @@ class Animations:
         radius_col,
         schmell_boolean,
         schmell_ids,
+        rod_rotation_chess_board_boolean,
+        rod_center_points,
         maze_boolean,
     ):
         # Adjust in for loop what you want (default is False)
@@ -203,50 +219,22 @@ class Animations:
                 self.eyes_boolean[i] = eyes_boolean[self.types[i]]
                 self.arrow_boolean[i] = arrow_boolean[self.types[i]]
             else:
-                raise Exception("unknown colloid type in visualisation")
+                raise Exception("unknown colloid type in visualization")
 
-            for i in range(len(self.ids)):
-                if int(self.ids[i]) in schmell_ids:
-                    # those ids correspond to chemical emitting colloids
-                    self.schmell_boolean[i] = schmell_boolean
+        for i in range(len(self.ids)):
+            if int(self.ids[i]) in schmell_ids:
+                # those ids correspond to chemical emitting colloids
+                self.schmell_boolean[i] = schmell_boolean
+
+        for i in range(len(self.ids)):
+            if int(self.ids[i]) in rod_center_points:
+                # those ids correspond to base particle of the chess board background
+                self.rod_rotation_chess_board_boolean[i] = rod_rotation_chess_board_boolean
 
         self.maze_boolean = maze_boolean  # type=2 corresponds to wall particles
 
-    def init_schmell_field(self):
-        if self.schmell_boolean != [False] * len(self.ids):
-            self.X, self.Y = np.mgrid[
-                self.x_0 : self.x_1 : complex(0, self.schmell_N),
-                self.y_0 : self.y_1 : complex(0, self.schmell_N),
-            ]
-            self.testpos = np.stack([self.X.flatten(), self.Y.flatten()], axis=-1)
-            self.schmell_magnitude_shape = np.zeros((self.schmell_N, self.schmell_N))
-            n_parts = len(self.ids)
-            for i in range(n_parts):
-                if self.schmell_boolean[i]:
-                    pos = self.positions[0, i, :].magnitude
-                    self.schmell_magnitude, _ = calc_chemical_potential(
-                        pos, self.testpos
-                    )
-                    self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
-                        (self.schmell_N, self.schmell_N)
-                    )
-                    self.schmell_maximum, _ = calc_chemical_potential(
-                        np.array([500, 500]),
-                        np.array([500, 500 + self.radius_col[i] / 5]),
-                    )  # the 5 is for aesthetics
-            self.schmell[0] = self.ax.pcolormesh(
-                self.X,
-                self.Y,
-                self.schmell_magnitude_shape,
-                vmin=np.min(self.schmell_magnitude_shape),
-                vmax=self.schmell_maximum,
-                cmap=self.schmellcolor,
-                shading="nearest",
-                zorder=0,
-            )
-        else:
-            (self.schmell[0],) = self.ax.plot([], [], zorder=0, alpha=0)
 
+    # General initialization runs once and calls extra preparation functions to help
     def animation_plt_init(self):
         # calc figure limits
         delta_max_x = np.max(self.positions[:, :, 0].magnitude) - np.min(
@@ -295,41 +283,85 @@ class Animations:
                     + str(len(self.times))
                 )
 
-        # prepare colors for trace fade and schmell
+        # prepare trace fade (colors)
         self.color_names = []
         for color_name, color in colors.TABLEAU_COLORS.items():
             self.color_names.append(color_name)
         norm = plt.Normalize(0, 1)
+        # different particles should have different colors
+        # so make a small random list here
         self.color_index = [random.randint(1, 9) for _ in range(len(self.ids))]
         self.mycolor = [0] * len(self.ids)
-        self.bodycolor = ["g", "g"]
-
         for i in range(len(self.ids)):
             cfade = colors.to_rgb(self.color_names[self.color_index[i]]) + (0.0,)
             self.mycolor[i] = colors.LinearSegmentedColormap.from_list(
                 "my", [cfade, self.color_names[self.color_index[i]]]
             )
 
-        # prepare  schmell
+        # prepare body color 
+        # extend this part to colorsize the particle depemding on their actions
+        # or on their type 
+        self.bodycolor = ["tab:green", "tab:brown"]
+
+        # prepare  schmell (colors)
         self.schmell_N = 50
         cfade = colors.to_rgb(self.color_names[4]) + (0.0,)
         self.schmellcolor = colors.LinearSegmentedColormap.from_list(
             "my", [cfade, self.color_names[4]]
         )
+        
+        # prepare rod rotation chess board 
+        if self.rod_rotation_chess_board_boolean:
+            self.prepare_rod_rotation_chess_board_data()
 
         # prepare vision cones
-        self.prepare_vision_cone_data()
+        if self.n_cones < 1:  # default =1
+            print(
+                "You have chosen zero vision cones (self.n_cones<1), I made"
+                " self.vision_cone_boolean[i]=False because no vision is what you"
+                " want.  "
+            )
+            self.vision_cone_boolean = [False] * len(self.ids)
+            self.n_cones = 1
+        self.cone = [0] * (self.n_cones * len(self.ids) * self.n_types)
+
+        vision_cone_colors = ["tab:red", "tab:green", "tab:blue", "tab:orange"]
+
+        if self.vision_cone_boolean != [False] * len(self.ids):
+            self.prepare_vision_cone_data()
 
         # Init visual objects / patches
+
         # z_order:
-        # schmell                        =0
-        # trace                          <n_parts
-        # vision cone                    <n_parts + n_parts*n_cones*
-        # part_body                      <2*n_parts + n_parts*n_cones
-        # eyes or  arrow                 <4*n_parts + n_parts*n_cones
-        # writtenInfo and time_info      =4*n_parts + n_parts*n_cones +1
+        # schmell & rod rotation chess board    =0
+        # trace                                 <n_parts
+        # vision cone                           <n_parts + n_parts*n_cones*
+        # part_body                             <2*n_parts + n_parts*n_cones
+        # eyes or  arrow                        <4*n_parts + n_parts*n_cones
+        # writtenInfo and time_info             =4*n_parts + n_parts*n_cones +1
+
+
+        self.init_schmell_field()
+
+        self.init_rod_rotation_chess_board()
 
         n_parts = len(self.ids)
+
+        self.time_annotate[0] = self.ax.annotate(
+            "time:",
+            xy=(0.02, 0.93),
+            xycoords="axes fraction",
+            zorder=n_parts * 4 + n_parts * self.n_cones + 1,
+        )
+        self.written_info[0] = self.ax.annotate(
+            "",
+            xy=(0.05, 0.05),
+            xycoords="axes fraction",
+            zorder=n_parts * 4 + n_parts * self.n_cones + 1,
+        )
+
+        # loop over the particles and init its individual visual effects
+        
         for i in range(n_parts):
             self.part_body[i] = self.ax.add_patch(
                 patches.Circle(
@@ -340,6 +372,8 @@ class Animations:
                     zorder=n_parts + n_parts * self.n_cones + i,
                 )
             )
+
+
             if self.eyes_boolean[i]:
                 self.part_lefteye[i] = self.ax.add_patch(
                     patches.Circle(
@@ -367,6 +401,8 @@ class Animations:
                     patches.Circle(xy=(0, 0), radius=42, visible=False)
                 )
 
+
+
             if self.arrow_boolean[i]:
                 self.part_arrow[i] = self.ax.add_patch(
                     patches.FancyArrow(
@@ -387,6 +423,8 @@ class Animations:
                     patches.FancyArrow(x=0, y=0, dx=0, dy=0, visible=False)
                 )
 
+
+
             if self.trace_boolean[i] and not self.trace_fade_boolean[i]:
                 (self.trace[i],) = self.ax.plot([], [], zorder=i + 1)
             elif self.trace_boolean[i] and self.trace_fade_boolean[i]:
@@ -399,7 +437,8 @@ class Animations:
             else:
                 raise Exception("self.trace_boolean is neither True nor False")
 
-            vision_cone_colors = ["red", "green", "blue", "orange"]
+
+            
             if self.n_types > len(vision_cone_colors):
                 raise Exception(
                     "A foul was not creative enough to set sufficient colors"
@@ -439,36 +478,98 @@ class Animations:
                             )
                         )
 
-        self.init_schmell_field()
 
-        self.time_annotate[0] = self.ax.annotate(
-            "time:",
-            xy=(0.02, 0.93),
-            xycoords="axes fraction",
-            zorder=n_parts * 4 + n_parts * self.n_cones + 1,
-        )
-        self.written_info[0] = self.ax.annotate(
-            "",
-            xy=(0.05, 0.05),
-            xycoords="axes fraction",
-            zorder=n_parts * 4 + n_parts * self.n_cones + 1,
-        )
+        
+
+
+    #Extra preparation that runs once  __ Extra preparation that runs once
+
+    def prepare_rod_rotation_chess_board_data(self):
+        angles = np.ones((len(self.directors[:, 0, 0])+1,len(self.directors[0, :, 0])))
+        # one step more than the self.time is long because after np.diff it will get one shorter
+        # there is some error then in the beginning
+
+        for step in range(len(angles[:, 0])-1):
+            for par in range(len(angles[0, :])):
+                angles[step+1, par] = np.arctan2(self.directors[step, par, 1], self.directors[step, par, 0])
+
+        smooth_rotation_noise= 50
+        if smooth_rotation_noise >=len(self.directors[:, 0, 0]):
+            smooth_rotation_noise = len(self.directors[:, 0, 0]-1)
+
+        #get rid of overflows in the angle Unit rad
+        diff_angles=np.diff(angles,axis=0)
+
+        diff_angles= np.where(diff_angles>1,diff_angles-2*np.pi,diff_angles)
+        diff_angles= np.where(diff_angles<-1,diff_angles+2*np.pi,diff_angles)
+
+
+        # the edge case handling in the bn.move_mean function is better and it is faster than np.convolve
+        diff_angles_smooth = bn.move_mean(diff_angles, window=smooth_rotation_noise, min_count=1, axis=0)
+
+        self.diff_angle_signs = np.where(diff_angles_smooth > 0,0.1,0.4)
+
+
+
+
+
+    def init_rod_rotation_chess_board(self):
+        n_parts = len(self.ids)
+        if self.rod_rotation_chess_board_boolean != [False] * n_parts:
+            for i in range(n_parts):
+                if self.rod_rotation_chess_board_boolean[i]:
+                    self.rod_rotation_chess_board_field[i] = self.ax.add_patch(
+                        patches.Circle(
+                            xy=(-27000, -27000),
+                            radius=self.rod_length/2,
+                            alpha=0.7,
+                            color='k',
+                            zorder=0,
+                        )
+                    )
+                else:
+                    self.rod_rotation_chess_board_field[i] = self.ax.add_patch(
+                        patches.Circle(xy=(0, 0), radius=42, visible=False)
+                    )
+
+
+    def init_schmell_field(self):
+        if self.schmell_boolean != [False] * len(self.ids):
+            self.X, self.Y = np.mgrid[
+                self.x_0 : self.x_1 : complex(0, self.schmell_N),
+                self.y_0 : self.y_1 : complex(0, self.schmell_N),
+            ]
+            self.testpos = np.stack([self.X.flatten(), self.Y.flatten()], axis=-1)
+            self.schmell_magnitude_shape = np.zeros((self.schmell_N, self.schmell_N))
+            n_parts = len(self.ids)
+            for i in range(n_parts):
+                if self.schmell_boolean[i]:
+                    pos = self.positions[0, i, :].magnitude
+                    self.schmell_magnitude, _ = calc_chemical_potential(
+                        pos, self.testpos
+                    )
+                    self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
+                        (self.schmell_N, self.schmell_N)
+                    )
+                    self.schmell_maximum, _ = calc_chemical_potential(
+                        np.array([500, 500]),
+                        np.array([500, 500 + self.radius_col[i] / 5]),
+                    )  # the 5 is for aesthetics
+            self.schmell[0] = self.ax.pcolormesh(
+                self.X,
+                self.Y,
+                self.schmell_magnitude_shape,
+                vmin=np.min(self.schmell_magnitude_shape),
+                vmax=self.schmell_maximum,
+                cmap=self.schmellcolor,
+                shading="nearest",
+                zorder=0,
+            )
+        else:
+            (self.schmell[0],) = self.ax.plot([], [], zorder=0, alpha=0)
 
     def prepare_vision_cone_data(self):
-        if self.n_cones < 1:  # default =1
-            print(
-                "You have choosen zero vision cones (self.n_cones<1), I made"
-                " self.vision_cone_boolean[i]=False because no vision is what you"
-                " want.  "
-            )
-            self.vision_cone_boolean = [False] * len(self.ids)
-            self.n_cones = 1
-        self.cone = [0] * (self.n_cones * len(self.ids) * self.n_types)
-
-        if (
-            self.vision_cone_boolean != [False] * len(self.ids)
-            and self.vision_cone_data is None
-        ):
+        if (self.vision_cone_data is None ):
             print(
                 "You haven't set self.vision_cone_boolean[i] !=0 for some i, i.e. you"
                 " want vision cones but no self.vision_cone_data in the options are"
@@ -483,10 +584,7 @@ class Animations:
                 for _ in range(len(self.times))
             ]
 
-        if (
-            self.vision_cone_boolean != [False] * len(self.ids)
-            and self.vision_cone_data is not None
-        ):
+        if (self.vision_cone_data is not None ):
             if len(self.vision_cone_data) != len(self.times):
                 raise Exception(
                     "vision_cone_data is "
@@ -525,10 +623,7 @@ class Animations:
                 )
 
         # expand vision cone data
-        if (
-            self.vision_cone_boolean != [False] * len(self.ids)
-            and self.vision_cone_data is not None
-        ):
+        if ( self.vision_cone_data is not None):
             self.vision_cone_data_frame = np.zeros(
                 (len(self.times), len(self.ids), self.n_cones, self.n_types)
             )
@@ -555,6 +650,8 @@ class Animations:
                         np.arctan(norm_vals / 1) * 1 / np.pi
                     )  # divide norm_vals by ca. 100 to get shaded colors
                     self.vision_cone_data_frame[:, :, :, detected_type] += 0.05
+
+
 
     def animation_maze_setup(self, folder, filename):
         maze_file = open(folder + filename, "rb")
@@ -626,11 +723,14 @@ class Animations:
                     wall_length,
                     self.wall_thickness,
                     angle=180 / np.pi * angle_from_vector(vec_along_wall),
-                    color="black",
+                    color="k",
                     alpha=0.5,
                 )
             )
 
+    
+
+    # Updates all the elements in the visualization each frame
     def animation_plt_update(self, frame):
         if len(self.times) <= frame:
             raise Exception(
@@ -666,13 +766,24 @@ class Animations:
         if self.schmell_boolean != [False] * len(self.ids):
             self.schmell[0].set_array(self.schmell_magnitude_shape)
 
+
+
         for i in range(len(self.ids)):
             directors_angle = np.arctan2(
                 self.directors[frame, i, 1], self.directors[frame, i, 0]
             )
             xdata = self.positions[: frame + 1, i, 0].magnitude
             ydata = self.positions[: frame + 1, i, 1].magnitude
+
             self.part_body[i].set(center=(xdata[frame], ydata[frame]))
+
+
+            if self.rod_rotation_chess_board_boolean != [False] * len(self.ids):
+                if self.rod_rotation_chess_board_boolean[i]:
+                    self.rod_rotation_chess_board_field[i].set(
+                        center=(xdata[frame], ydata[frame]),
+                        alpha=self.diff_angle_signs[frame,i]
+                    )
 
             if self.trace_boolean[i] and not self.trace_fade_boolean[i]:
                 self.trace[i].set_data(xdata, ydata)
@@ -680,7 +791,7 @@ class Animations:
                 points = np.array([xdata, ydata]).T.reshape(-1, 1, 2)
                 segments = np.concatenate([points[:-1], points[1:]], axis=1)
                 self.trace[i].set_segments(segments)
-                x = np.linspace(0, frame, frame + 1)  # switch to self.time
+                x = np.linspace(0, frame, frame + 1)  # might switch to self.time
                 alphas = 1 / 5 + 4 / 5 * np.exp((-x[-1] + x) / 100)
                 self.trace[i].set_array(alphas)
             else:
@@ -754,6 +865,7 @@ class Animations:
                 + self.time_annotate
                 + self.schmell
                 + self.written_info
+                + self.rod_rotation_chess_board_field
                 + self.maze
             )
         else:
@@ -767,6 +879,7 @@ class Animations:
                 + self.time_annotate
                 + self.schmell
                 + self.written_info
+                + self.rod_rotation_chess_board_field
             )
 
 
