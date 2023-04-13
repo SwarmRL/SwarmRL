@@ -12,6 +12,7 @@ import numpy as np
 
 import swarmrl
 
+
 def get_random_angles(rng: np.random.Generator):
     # https://mathworld.wolfram.com/SpherePointPicking.html
     return np.arccos(2.0 * rng.random() - 1), 2.0 * np.pi * rng.random()
@@ -28,6 +29,7 @@ def angles_from_vector(director):
     theta = np.arccos(director[2])
     phi = np.arctan2(director[1], director[0])
     return theta, phi
+
 
 def write_params(
     folder_name: str,
