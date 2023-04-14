@@ -13,6 +13,24 @@ import numpy as np
 import swarmrl
 
 
+def get_random_angles(rng: np.random.Generator):
+    # https://mathworld.wolfram.com/SpherePointPicking.html
+    return np.arccos(2.0 * rng.random() - 1), 2.0 * np.pi * rng.random()
+
+
+def vector_from_angles(theta, phi):
+    return np.array(
+        [np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)]
+    )
+
+
+def angles_from_vector(director):
+    director /= np.linalg.norm(director)
+    theta = np.arccos(director[2])
+    phi = np.arctan2(director[1], director[0])
+    return theta, phi
+
+
 def write_params(
     folder_name: str,
     sim_name: str,
@@ -188,7 +206,7 @@ def record_trajectory(
     particle_type: str,
     features: np.ndarray,
     actions: np.ndarray,
-    logits: np.ndarray,
+    log_probs: np.ndarray,
     rewards: np.ndarray,
 ):
     """
@@ -200,8 +218,8 @@ def record_trajectory(
             Type of the particle saved. Important for the multi-species training.
     rewards : np.ndarray (n_timesteps, n_particles, 1)
             Rewards collected during the simulation to be used in training.
-    logits : np.ndarray (n_timesteps, n_particles, 1)
-            Logits used for debugging.
+    log_probs : np.ndarray (n_timesteps, n_particles, 1)
+            log_probs used for debugging.
     features : np.ndarray (n_timesteps, n_particles, n_dimensions)
             Features to store in the array.
     actions : np.ndarray (n_timesteps, n_particles, 1)
@@ -215,12 +233,12 @@ def record_trajectory(
         data = np.load(f".traj_data_{particle_type}.npy", allow_pickle=True)
         feature_data = data.item().get("features")
         action_data = data.item().get("actions")
-        logits_data = data.item().get("logits")
+        log_probs_data = data.item().get("log_probs")
         reward_data = data.item().get("rewards")
 
         feature_data = np.append(feature_data, np.array([features]), axis=0)
         action_data = np.append(action_data, np.array([actions]), axis=0)
-        logits_data = np.append(logits_data, np.array([logits]), axis=0)
+        log_probs_data = np.append(log_probs_data, np.array([log_probs]), axis=0)
         reward_data = np.append(reward_data, np.array([rewards]), axis=0)
 
         os.remove(f".traj_data_{particle_type}.npy")
@@ -228,7 +246,7 @@ def record_trajectory(
     except FileNotFoundError:
         feature_data = np.array([features])
         action_data = np.array([actions])
-        logits_data = np.array([logits])
+        log_probs_data = np.array([log_probs])
         reward_data = np.array([rewards])
 
     np.save(
@@ -236,42 +254,41 @@ def record_trajectory(
         {
             "features": feature_data,
             "actions": action_data,
-            "logits": logits_data,
+            "log_probs": log_probs_data,
             "rewards": reward_data,
         },
         allow_pickle=True,
     )
 
 
-def record_training(training_dict: dict):
+def save_memory(memory: dict):
     """
     Records the training data if required.
 
     Parameters:
     ----------
-    training_dict : a dictionary containing the critic_loss, new_log_probs, entropy,
-            ratio, advantage and actor_loss from the PPO algorithm.
+    memory : a dictionary containing the data from the method where it is called from.
+        The data is specified in the method.
+        It has to contain a key "file_name" which is the name of the file to be saved.
+        To handle multiple particle types: one can specify the file name in the
+        initialisation of the method.
 
     Returns
     -------
     Dumps a  file to disc to evaluate training.
     """
-
+    empty_memory = {key: [] for key in memory.keys()}
+    empty_memory["file_name"] = memory["file_name"]
     try:
-        training_data = np.load("training_records.npy", allow_pickle=True)
-        for key in training_dict:
-            training_data.item()[key] = np.vstack(
-                (training_data.item()[key], training_dict[key])
-            )
-
+        reloaded_dict = np.load(memory["file_name"], allow_pickle=True).item()
+        for key, _ in reloaded_dict.items():
+            reloaded_dict[key].append(memory[key])
+        np.save(memory["file_name"], reloaded_dict, allow_pickle=True)
     except FileNotFoundError:
-        training_data = training_dict
-
-    np.save(
-        "training_records.npy",
-        training_data,
-        allow_pickle=True,
-    )
+        for key, _ in empty_memory.items():
+            empty_memory[key].append(memory[key])
+        np.save(memory["file_name"], empty_memory, allow_pickle=True)
+    return empty_memory
 
 
 def calc_signed_angle_between_directors(
