@@ -231,16 +231,15 @@ class EspressoMD(Engine):
 
         self._check_already_initialised()
 
-        if (
-            type_colloid in self.colloid_radius_register.keys()
-            and self.colloid_radius_register[type_colloid]
-            != radius_colloid.m_as("sim_length")
-        ):
-            raise ValueError(
-                f"The chosen type {type_colloid} is already taken and used with a"
-                f" different radius {self.colloid_radius_register[type_colloid]} ."
-                " Choose a new combination"
-            )
+        if type_colloid in self.colloid_radius_register.keys():
+            if self.colloid_radius_register[type_colloid] != radius_colloid.m_as(
+                "sim_length"
+            ):
+                raise ValueError(
+                    f"The chosen type {type_colloid} is already taken and used with a"
+                    f" different radius {self.colloid_radius_register[type_colloid]} ."
+                    " Choose a new combination"
+                )
         radius_simunits = radius_colloid.m_as("sim_length")
         init_center = init_position.m_as("sim_length")
         init_direction = init_direction / np.linalg.norm(init_direction)
@@ -489,11 +488,11 @@ class EspressoMD(Engine):
         # the wall itself has no radius, only the particle radius counts
         self.colloid_radius_register.update({wall_type: 0.0})
 
-    def add_maze(
+    def add_walls(
         self,
-        maze_wall_start_point: pint.Quantity,
-        maze_wall_end_point: pint.Quantity,
-        maze_type: int,
+        wall_start_point: pint.Quantity,
+        wall_end_point: pint.Quantity,
+        wall_type: int,
         wall_thickness: pint.Quantity,
     ):
         """
@@ -505,13 +504,13 @@ class EspressoMD(Engine):
 
         Parameters
         ----------
-        maze_wall_start_point : pint.Quantity
-        list of lists (len()=2) with wall coordinates
+        wall_start_point : pint.Quantity
+        np.array (n,2) with wall coordinates
              [x_begin, y_begin]
-        maze_wall_end_point : pint.Quantity
-        list of lists (len()=2) with wall coordinates
+        wall_end_point : pint.Quantity
+        np.array (n,2) with wall coordinates
              [x_end, y_end]
-        maze_type : int
+        wall_type : int
             Wall interacts with particles, so it needs its own type.
         wall_thickness: pint.Quantity
             wall thickness
@@ -519,37 +518,35 @@ class EspressoMD(Engine):
         Returns
         -------
         """
-        maze_wall_start_point = maze_wall_start_point.m_as("sim_length")
-        maze_wall_end_point = maze_wall_end_point.m_as("sim_length")
+
+        wall_start_point = wall_start_point.m_as("sim_length")
+        wall_end_point = wall_end_point.m_as("sim_length")
         wall_thickness = wall_thickness.m_as("sim_length")
 
-        if len(maze_wall_start_point) != len(maze_wall_end_point):
+        if len(wall_start_point) != len(wall_end_point):
             raise ValueError(
-                " Please double check your maze walls. There are more or less "
-                f" starting points {len(maze_wall_start_point)} than "
-                f" end points {len(maze_wall_end_point)}. They should be equal."
+                " Please double check your walls. There are more or less "
+                f" starting points {len(wall_start_point)} than "
+                f" end points {len(wall_end_point)}. They should be equal."
             )
 
         self._check_already_initialised()
-        if (
-            maze_type in self.colloid_radius_register.keys()
-            and self.colloid_radius_register[maze_type] != 0.0
-        ):
-            raise ValueError(
-                f" The chosen type {maze_type} is already taken and used with a"
-                f"different radius {self.colloid_radius_register[maze_type]} ."
-                " Choose a new combination"
-            )
+        if wall_type in self.colloid_radius_register.keys():
+            if self.colloid_radius_register[wall_type] != 0.0:
+                raise ValueError(
+                    f" The chosen type {wall_type} is already taken"
+                    "and used with a different radius "
+                    f"{self.colloid_radius_register[wall_type]} ."
+                    " Choose a new combination"
+                )
 
         z_height = self.system.box_l[2]
-        maze_shapes = []
+        wall_shapes = []
 
-        for wall_index in range(len(maze_wall_start_point)):
+        for wall_index in range(len(wall_start_point)):
             a = [
-                maze_wall_end_point[wall_index][0]
-                - maze_wall_start_point[wall_index][0],
-                maze_wall_end_point[wall_index][1]
-                - maze_wall_start_point[wall_index][1],
+                wall_end_point[wall_index, 0] - wall_start_point[wall_index, 0],
+                wall_end_point[wall_index, 1] - wall_start_point[wall_index, 1],
                 0,
             ]  # direction along lengthy wall
             c = [0, 0, z_height]  # direction along third axis of 2D simulation
@@ -560,23 +557,23 @@ class EspressoMD(Engine):
             )  # direction along second axis
             # i.e along wall_thickness of lengthy wall
             corner = [
-                maze_wall_start_point[wall_index][0] - b[0] / 2,
-                maze_wall_start_point[wall_index][1] - b[1] / 2,
+                wall_start_point[wall_index, 0] - b[0] / 2,
+                wall_start_point[wall_index, 1] - b[1] / 2,
                 0,
             ]  # anchor point of wall shifted by wall_thickness*1/2
 
-            maze_shapes.append(
+            wall_shapes.append(
                 espressomd.shapes.Rhomboid(corner=corner, a=a, b=b, c=c, direction=1)
             )
 
-        for maze_shape in maze_shapes:
+        for wall_shape in wall_shapes:
             constr = espressomd.constraints.ShapeBasedConstraint(
-                shape=maze_shape, particle_type=maze_type, penetrable=False
+                shape=wall_shape, particle_type=wall_type, penetrable=False
             )
             self.system.constraints.add(constr)
 
-        # the maze wall itself has no radius, only the particle radius counts
-        self.colloid_radius_register.update({maze_type: 0.0})
+        # the wall itself has no radius, only the particle radius counts
+        self.colloid_radius_register.update({wall_type: 0.0})
 
     def _setup_interactions(self):
         for type_0, rad_0 in self.colloid_radius_register.items():

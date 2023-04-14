@@ -8,7 +8,7 @@ from swarmrl.engine import espresso
 from swarmrl.models import dummy_models
 
 
-class AddMaze(ut.TestCase):
+class AddWalls(ut.TestCase):
     def test_class(self):
         ureg = pint.UnitRegistry()
         params = espresso.MDParams(
@@ -36,36 +36,40 @@ class AddMaze(ut.TestCase):
                 random_placement_radius=ureg.Quantity(4, "micrometer"),
                 type_colloid=coll_type,
             )
-            maze_wall_start_point = ureg.Quantity(
-                [
-                    [40, 40],
-                    [40, 40],
-                    [60, 60],
-                    [60, 60],
-                ],
+            wall_start_point = ureg.Quantity(
+                np.array(
+                    [
+                        [40, 40],
+                        [40, 40],
+                        [60, 60],
+                        [60, 60],
+                    ]
+                ),
                 "micrometer",
             )
-            maze_wall_end_point = ureg.Quantity(
-                [
-                    [40, 60],
-                    [60, 40],
-                    [40, 60],
-                    [60, 40],
-                ],
+            wall_end_point = ureg.Quantity(
+                np.array(
+                    [
+                        [40, 60],
+                        [60, 40],
+                        [40, 60],
+                        [60, 40],
+                    ]
+                ),
                 "micrometer",
             )
             wall_thickness = ureg.Quantity(2, "micrometer")
             with self.assertRaises(ValueError):
-                runner.add_maze(
-                    maze_wall_start_point=maze_wall_start_point,
-                    maze_wall_end_point=maze_wall_end_point,
-                    maze_type=coll_type,
+                runner.add_walls(
+                    wall_start_point=wall_start_point,
+                    wall_end_point=wall_end_point,
+                    wall_type=coll_type,
                     wall_thickness=wall_thickness,
                 )
-            runner.add_maze(
-                maze_wall_start_point=maze_wall_start_point,
-                maze_wall_end_point=maze_wall_end_point,
-                maze_type=coll_type + 1,
+            runner.add_walls(
+                wall_start_point=wall_start_point,
+                wall_end_point=wall_end_point,
+                wall_type=coll_type + 1,
                 wall_thickness=wall_thickness,
             )
 
