@@ -232,9 +232,10 @@ class Animations:
         for i in range(len(self.ids)):
             if int(self.ids[i]) in rod_center_points:
                 # those ids correspond to base particle of the chess board background
-                self.rod_rotation_chess_board_boolean[
-                    i
-                ] = rod_rotation_chess_board_boolean
+
+                self.rod_rotation_chess_board_boolean[i] = (
+                    rod_rotation_chess_board_boolean
+                )
 
         self.maze_boolean = maze_boolean  # type=2 corresponds to wall particles
 
@@ -502,6 +503,7 @@ class Animations:
 
         # the edge case handling in the bn.move_mean function
         # is better and it is faster than np.convolve
+
         diff_angles_smooth = bn.move_mean(
             diff_angles, window=smooth_rotation_noise, min_count=1, axis=0
         )
@@ -631,9 +633,9 @@ class Animations:
                 for c_id in range(len(self.ids)):
                     for given_c_id in range(len(self.vision_cone_data[frame])):
                         if c_id == self.vision_cone_data[frame][given_c_id][0]:
-                            self.vision_cone_data_frame[
-                                frame, c_id
-                            ] = self.vision_cone_data[frame][given_c_id][1]
+                            self.vision_cone_data_frame[frame, c_id] = (
+                                self.vision_cone_data[frame][given_c_id][1]
+                            )
 
             # color adjustment for each color separately
             for detected_type in range(self.n_types):
