@@ -136,7 +136,7 @@ class EspressoMD(Engine):
         self.colloids = list()
 
         # register to lookup which type has which radius
-        self.colloid_radius_register = {}
+        self.colloid_radius_register = dict()
 
         # after the first call to integrate, no more changes to the engine are allowed
         self.integration_initialised = False
@@ -224,7 +224,7 @@ class EspressoMD(Engine):
         # save the old register
         old_register = np.copy(self.colloid_radius_register).item()
         # clear the system
-        self.colloid_radius_register = {}
+        self.colloid_radius_register = dict()
         self.system.part.clear()
         self.colloids = list()
         self.integration_initialised = False
@@ -380,7 +380,7 @@ class EspressoMD(Engine):
         fric_rot = friction_rot.m_as(
             "sim_force * sim_length *  sim_time"
         )  # [M / omega]
-        partcl_radius = rod_thickness.m_as("sim_length") / 2
+        particl_radius = rod_thickness.m_as("sim_length") / 2
 
         # place the real particle
         center_part = self.system.part.add(
@@ -396,12 +396,12 @@ class EspressoMD(Engine):
         self.colloids.append(center_part)
 
         # place virtual
-        point_span = rod_length.m_as("sim_length") - 2 * partcl_radius
+        point_span = rod_length.m_as("sim_length") - 2 * particl_radius
         point_dist = point_span / (n_particles - 1)
-        if point_dist > 2 * partcl_radius:
+        if point_dist > 2 * particl_radius:
             logger.warning(
                 "your rod has holes. "
-                f"Particle radius {partcl_radius} "
+                f"Particle radius {particl_radius} "
                 f"particle_distance {point_dist} "
                 "(both in simulation units)"
             )
@@ -418,7 +418,7 @@ class EspressoMD(Engine):
             self.colloids.append(virtual_partcl)
 
         self.colloid_radius_register.update(
-            {rod_particle_type: {"radius": partcl_radius, "n_colloids": n_particles}}
+            {rod_particle_type: {"radius": particl_radius, "n_colloids": n_particles}}
         )
 
         return center_part

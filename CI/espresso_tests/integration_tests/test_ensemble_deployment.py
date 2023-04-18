@@ -113,6 +113,7 @@ class TestGeneticTraining(ut.TestCase):
             reward_scale_factor=10,
             box_length=np.array([1000.0, 1000.0, 1000]),
         )
+
         observable = srl.observables.ConcentrationField(
             source=np.array([500.0, 500.0, 0.0]),
             decay_fn=scale_function,
@@ -162,6 +163,7 @@ class TestGeneticTraining(ut.TestCase):
             [protocol],
             loss,
         )
+
         self.training_routine = srl.training_routines.EnsembleTraining(
             rl_trainer,
             get_simulation_runner,
