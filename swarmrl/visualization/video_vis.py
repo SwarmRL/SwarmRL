@@ -125,7 +125,10 @@ class Animations:
         self.arrow_boolean = [False] * len(self.ids)
         self.radius_col = [0] * len(self.ids)
         # schmell means as much as  chemical potential
-        self.schmell_boolean = [False] * len(self.ids)
+        self.schmell_boolean = [False] * (len(self.ids)+1)
+        # the plus 1 need to be extended to include all point sources of
+        # schmell that are not mounted to colloids
+        self.schmell_source_pos=[460,500]
 
         self.rod_rotation_chess_board_boolean=[False] * len(self.ids)
         self.rod_length=rod_length
@@ -225,6 +228,7 @@ class Animations:
             if int(self.ids[i]) in schmell_ids:
                 # those ids correspond to chemical emitting colloids
                 self.schmell_boolean[i] = schmell_boolean
+        self.schmell_boolean[len(self.ids)] = schmell_boolean
 
         for i in range(len(self.ids)):
             if int(self.ids[i]) in rod_center_points:
@@ -304,7 +308,7 @@ class Animations:
         self.bodycolor = ["tab:green", "tab:brown"]
 
         # prepare  schmell (colors)
-        self.schmell_N = 50
+        self.schmell_N = 100
         cfade = colors.to_rgb(self.color_names[4]) + (0.0,)
         self.schmellcolor = colors.LinearSegmentedColormap.from_list(
             "my", [cfade, self.color_names[4]]
@@ -534,7 +538,7 @@ class Animations:
 
 
     def init_schmell_field(self):
-        if self.schmell_boolean != [False] * len(self.ids):
+        if self.schmell_boolean != [False] * (len(self.ids)+1):
             self.X, self.Y = np.mgrid[
                 self.x_0 : self.x_1 : complex(0, self.schmell_N),
                 self.y_0 : self.y_1 : complex(0, self.schmell_N),
@@ -551,16 +555,18 @@ class Animations:
                     self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
                         (self.schmell_N, self.schmell_N)
                     )
-                    self.schmell_maximum, _ = calc_chemical_potential(
-                        np.array([500, 500]),
-                        np.array([500, 500 + self.radius_col[i] / 5]),
-                    )  # the 5 is for aesthetics
+
+            self.schmell_magnitude, _ = calc_chemical_potential(self.schmell_source_pos, self.testpos)
+            self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
+                (self.schmell_N, self.schmell_N)
+            )
+            
             self.schmell[0] = self.ax.pcolormesh(
                 self.X,
                 self.Y,
-                self.schmell_magnitude_shape,
-                vmin=np.min(self.schmell_magnitude_shape),
-                vmax=self.schmell_maximum,
+                np.arctan(self.schmell_magnitude_shape*2.5),
+                vmin=np.arctan(np.min(self.schmell_magnitude_shape*2.5)),
+                vmax=np.pi/2,
                 cmap=self.schmellcolor,
                 shading="nearest",
                 zorder=0,
@@ -754,17 +760,22 @@ class Animations:
                 self.written_info[0].set(text=self.written_info_data[frame])
 
         # Updating the schmell field
-        if self.schmell_boolean != [False] * len(self.ids):
+        if self.schmell_boolean != [False] * (len(self.ids)+1):
             self.schmell_magnitude_shape = np.zeros((self.schmell_N, self.schmell_N))
-        for i in range(len(self.ids)):
-            if self.schmell_boolean[i]:
-                pos = self.positions[frame, i, :].magnitude
-                self.schmell_magnitude, _ = calc_chemical_potential(pos, self.testpos)
-                self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
-                    (self.schmell_N, self.schmell_N)
+            for i in range(len(self.ids)):
+                if self.schmell_boolean[i]:
+                    pos = self.positions[frame, i, :].magnitude
+                    self.schmell_magnitude, _ = calc_chemical_potential(pos, self.testpos)
+                    self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
+                        (self.schmell_N, self.schmell_N)
                 )
-        if self.schmell_boolean != [False] * len(self.ids):
-            self.schmell[0].set_array(self.schmell_magnitude_shape)
+
+
+            self.schmell_magnitude, _ = calc_chemical_potential(self.schmell_source_pos, self.testpos)
+            self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
+                (self.schmell_N, self.schmell_N)
+            )
+            self.schmell[0].set_array(np.arctan(self.schmell_magnitude_shape*2.5))
 
 
 
