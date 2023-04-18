@@ -1,8 +1,8 @@
 import os
 import pickle
 import random
-import bottleneck as bn
 
+import bottleneck as bn
 import h5py
 import matplotlib.colors as colors
 import matplotlib.patches as patches
@@ -125,15 +125,14 @@ class Animations:
         self.arrow_boolean = [False] * len(self.ids)
         self.radius_col = [0] * len(self.ids)
         # schmell means as much as  chemical potential
-        self.schmell_boolean = [False] * (len(self.ids)+1)
+        self.schmell_boolean = [False] * (len(self.ids) + 1)
         # the plus 1 need to be extended to include all point sources of
         # schmell that are not mounted to colloids
-        self.schmell_source_pos=[460,500]
+        self.schmell_source_pos = [460, 500]
 
-        self.rod_rotation_chess_board_boolean=[False] * len(self.ids)
-        self.rod_length=rod_length
-        self.rod_center_points=rod_center_points
-
+        self.rod_rotation_chess_board_boolean = [False] * len(self.ids)
+        self.rod_length = rod_length
+        self.rod_center_points = rod_center_points
 
         self.maze_boolean = False
         self.maze_points = {}
@@ -233,10 +232,11 @@ class Animations:
         for i in range(len(self.ids)):
             if int(self.ids[i]) in rod_center_points:
                 # those ids correspond to base particle of the chess board background
-                self.rod_rotation_chess_board_boolean[i] = rod_rotation_chess_board_boolean
+                self.rod_rotation_chess_board_boolean[i] = (
+                    rod_rotation_chess_board_boolean
+                )
 
         self.maze_boolean = maze_boolean  # type=2 corresponds to wall particles
-
 
     # General initialization runs once and calls extra preparation functions to help
     def animation_plt_init(self):
@@ -302,9 +302,9 @@ class Animations:
                 "my", [cfade, self.color_names[self.color_index[i]]]
             )
 
-        # prepare body color 
+        # prepare body color
         # extend this part to colorsize the particle depemding on their actions
-        # or on their type 
+        # or on their type
         self.bodycolor = ["tab:green", "tab:brown"]
 
         # prepare  schmell (colors)
@@ -313,8 +313,8 @@ class Animations:
         self.schmellcolor = colors.LinearSegmentedColormap.from_list(
             "my", [cfade, self.color_names[4]]
         )
-        
-        # prepare rod rotation chess board 
+
+        # prepare rod rotation chess board
         if self.rod_rotation_chess_board_boolean:
             self.prepare_rod_rotation_chess_board_data()
 
@@ -344,7 +344,6 @@ class Animations:
         # eyes or  arrow                        <4*n_parts + n_parts*n_cones
         # writtenInfo and time_info             =4*n_parts + n_parts*n_cones +1
 
-
         self.init_schmell_field()
 
         self.init_rod_rotation_chess_board()
@@ -365,7 +364,7 @@ class Animations:
         )
 
         # loop over the particles and init its individual visual effects
-        
+
         for i in range(n_parts):
             self.part_body[i] = self.ax.add_patch(
                 patches.Circle(
@@ -376,7 +375,6 @@ class Animations:
                     zorder=n_parts + n_parts * self.n_cones + i,
                 )
             )
-
 
             if self.eyes_boolean[i]:
                 self.part_lefteye[i] = self.ax.add_patch(
@@ -405,8 +403,6 @@ class Animations:
                     patches.Circle(xy=(0, 0), radius=42, visible=False)
                 )
 
-
-
             if self.arrow_boolean[i]:
                 self.part_arrow[i] = self.ax.add_patch(
                     patches.FancyArrow(
@@ -427,8 +423,6 @@ class Animations:
                     patches.FancyArrow(x=0, y=0, dx=0, dy=0, visible=False)
                 )
 
-
-
             if self.trace_boolean[i] and not self.trace_fade_boolean[i]:
                 (self.trace[i],) = self.ax.plot([], [], zorder=i + 1)
             elif self.trace_boolean[i] and self.trace_fade_boolean[i]:
@@ -441,8 +435,6 @@ class Animations:
             else:
                 raise Exception("self.trace_boolean is neither True nor False")
 
-
-            
             if self.n_types > len(vision_cone_colors):
                 raise Exception(
                     "A foul was not creative enough to set sufficient colors"
@@ -482,40 +474,39 @@ class Animations:
                             )
                         )
 
-
-        
-
-
-    #Extra preparation that runs once  __ Extra preparation that runs once
+    # Extra preparation that runs once  __ Extra preparation that runs once
 
     def prepare_rod_rotation_chess_board_data(self):
-        angles = np.ones((len(self.directors[:, 0, 0])+1,len(self.directors[0, :, 0])))
-        # one step more than the self.time is long because after np.diff it will get one shorter
+        angles = np.ones(
+            (len(self.directors[:, 0, 0]) + 1, len(self.directors[0, :, 0]))
+        )
+        # one step more than the self.time is long because
+        # after np.diff it will get one shorter
         # there is some error then in the beginning
 
-        for step in range(len(angles[:, 0])-1):
+        for step in range(len(angles[:, 0]) - 1):
             for par in range(len(angles[0, :])):
-                angles[step+1, par] = np.arctan2(self.directors[step, par, 1], self.directors[step, par, 0])
+                angles[step + 1, par] = np.arctan2(
+                    self.directors[step, par, 1], self.directors[step, par, 0]
+                )
 
-        smooth_rotation_noise= 50
-        if smooth_rotation_noise >=len(self.directors[:, 0, 0]):
-            smooth_rotation_noise = len(self.directors[:, 0, 0]-1)
+        smooth_rotation_noise = 50
+        if smooth_rotation_noise >= len(self.directors[:, 0, 0]):
+            smooth_rotation_noise = len(self.directors[:, 0, 0] - 1)
 
-        #get rid of overflows in the angle Unit rad
-        diff_angles=np.diff(angles,axis=0)
+        # get rid of overflows in the angle Unit rad
+        diff_angles = np.diff(angles, axis=0)
 
-        diff_angles= np.where(diff_angles>1,diff_angles-2*np.pi,diff_angles)
-        diff_angles= np.where(diff_angles<-1,diff_angles+2*np.pi,diff_angles)
+        diff_angles = np.where(diff_angles > 1, diff_angles - 2 * np.pi, diff_angles)
+        diff_angles = np.where(diff_angles < -1, diff_angles + 2 * np.pi, diff_angles)
 
+        # the edge case handling in the bn.move_mean
+        # function is better and it is faster than np.convolve
+        diff_angles_smooth = bn.move_mean(
+            diff_angles, window=smooth_rotation_noise, min_count=1, axis=0
+        )
 
-        # the edge case handling in the bn.move_mean function is better and it is faster than np.convolve
-        diff_angles_smooth = bn.move_mean(diff_angles, window=smooth_rotation_noise, min_count=1, axis=0)
-
-        self.diff_angle_signs = np.where(diff_angles_smooth > 0,0.1,0.4)
-
-
-
-
+        self.diff_angle_signs = np.where(diff_angles_smooth > 0, 0.1, 0.4)
 
     def init_rod_rotation_chess_board(self):
         n_parts = len(self.ids)
@@ -525,9 +516,9 @@ class Animations:
                     self.rod_rotation_chess_board_field[i] = self.ax.add_patch(
                         patches.Circle(
                             xy=(-27000, -27000),
-                            radius=self.rod_length/2,
+                            radius=self.rod_length / 2,
                             alpha=0.7,
-                            color='k',
+                            color="k",
                             zorder=0,
                         )
                     )
@@ -536,9 +527,8 @@ class Animations:
                         patches.Circle(xy=(0, 0), radius=42, visible=False)
                     )
 
-
     def init_schmell_field(self):
-        if self.schmell_boolean != [False] * (len(self.ids)+1):
+        if self.schmell_boolean != [False] * (len(self.ids) + 1):
             self.X, self.Y = np.mgrid[
                 self.x_0 : self.x_1 : complex(0, self.schmell_N),
                 self.y_0 : self.y_1 : complex(0, self.schmell_N),
@@ -556,17 +546,19 @@ class Animations:
                         (self.schmell_N, self.schmell_N)
                     )
 
-            self.schmell_magnitude, _ = calc_chemical_potential(self.schmell_source_pos, self.testpos)
+            self.schmell_magnitude, _ = calc_chemical_potential(
+                self.schmell_source_pos, self.testpos
+            )
             self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
                 (self.schmell_N, self.schmell_N)
             )
-            
+
             self.schmell[0] = self.ax.pcolormesh(
                 self.X,
                 self.Y,
-                np.arctan(self.schmell_magnitude_shape*2.5),
-                vmin=np.arctan(np.min(self.schmell_magnitude_shape*2.5)),
-                vmax=np.pi/2,
+                np.arctan(self.schmell_magnitude_shape * 2.5),
+                vmin=np.arctan(np.min(self.schmell_magnitude_shape * 2.5)),
+                vmax=np.pi / 2,
                 cmap=self.schmellcolor,
                 shading="nearest",
                 zorder=0,
@@ -575,7 +567,7 @@ class Animations:
             (self.schmell[0],) = self.ax.plot([], [], zorder=0, alpha=0)
 
     def prepare_vision_cone_data(self):
-        if (self.vision_cone_data is None ):
+        if self.vision_cone_data is None:
             print(
                 "You haven't set self.vision_cone_boolean[i] !=0 for some i, i.e. you"
                 " want vision cones but no self.vision_cone_data in the options are"
@@ -590,7 +582,7 @@ class Animations:
                 for _ in range(len(self.times))
             ]
 
-        if (self.vision_cone_data is not None ):
+        if self.vision_cone_data is not None:
             if len(self.vision_cone_data) != len(self.times):
                 raise Exception(
                     "vision_cone_data is "
@@ -629,7 +621,7 @@ class Animations:
                 )
 
         # expand vision cone data
-        if ( self.vision_cone_data is not None):
+        if self.vision_cone_data is not None:
             self.vision_cone_data_frame = np.zeros(
                 (len(self.times), len(self.ids), self.n_cones, self.n_types)
             )
@@ -639,9 +631,9 @@ class Animations:
                 for c_id in range(len(self.ids)):
                     for given_c_id in range(len(self.vision_cone_data[frame])):
                         if c_id == self.vision_cone_data[frame][given_c_id][0]:
-                            self.vision_cone_data_frame[
-                                frame, c_id
-                            ] = self.vision_cone_data[frame][given_c_id][1]
+                            self.vision_cone_data_frame[frame, c_id] = (
+                                self.vision_cone_data[frame][given_c_id][1]
+                            )
 
             # color adjustment for each color separately
             for detected_type in range(self.n_types):
@@ -656,8 +648,6 @@ class Animations:
                         np.arctan(norm_vals / 1) * 1 / np.pi
                     )  # divide norm_vals by ca. 100 to get shaded colors
                     self.vision_cone_data_frame[:, :, :, detected_type] += 0.05
-
-
 
     def animation_maze_setup(self, folder, filename):
         maze_file = open(folder + filename, "rb")
@@ -734,8 +724,6 @@ class Animations:
                 )
             )
 
-    
-
     # Updates all the elements in the visualization each frame
     def animation_plt_update(self, frame):
         if len(self.times) <= frame:
@@ -760,24 +748,25 @@ class Animations:
                 self.written_info[0].set(text=self.written_info_data[frame])
 
         # Updating the schmell field
-        if self.schmell_boolean != [False] * (len(self.ids)+1):
+        if self.schmell_boolean != [False] * (len(self.ids) + 1):
             self.schmell_magnitude_shape = np.zeros((self.schmell_N, self.schmell_N))
             for i in range(len(self.ids)):
                 if self.schmell_boolean[i]:
                     pos = self.positions[frame, i, :].magnitude
-                    self.schmell_magnitude, _ = calc_chemical_potential(pos, self.testpos)
+                    self.schmell_magnitude, _ = calc_chemical_potential(
+                        pos, self.testpos
+                    )
                     self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
                         (self.schmell_N, self.schmell_N)
-                )
+                    )
 
-
-            self.schmell_magnitude, _ = calc_chemical_potential(self.schmell_source_pos, self.testpos)
+            self.schmell_magnitude, _ = calc_chemical_potential(
+                self.schmell_source_pos, self.testpos
+            )
             self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
                 (self.schmell_N, self.schmell_N)
             )
-            self.schmell[0].set_array(np.arctan(self.schmell_magnitude_shape*2.5))
-
-
+            self.schmell[0].set_array(np.arctan(self.schmell_magnitude_shape * 2.5))
 
         for i in range(len(self.ids)):
             directors_angle = np.arctan2(
@@ -788,12 +777,11 @@ class Animations:
 
             self.part_body[i].set(center=(xdata[frame], ydata[frame]))
 
-
             if self.rod_rotation_chess_board_boolean != [False] * len(self.ids):
                 if self.rod_rotation_chess_board_boolean[i]:
                     self.rod_rotation_chess_board_field[i].set(
                         center=(xdata[frame], ydata[frame]),
-                        alpha=self.diff_angle_signs[frame,i]
+                        alpha=self.diff_angle_signs[frame, i],
                     )
 
             if self.trace_boolean[i] and not self.trace_fade_boolean[i]:
