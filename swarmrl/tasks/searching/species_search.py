@@ -86,7 +86,7 @@ class SpeciesSearch(Task):
             [colloid.pos for colloid in colloids if colloid.type == self.sensing_type]
         )
 
-        out_indices, field_values = self.observable_fn(
+        out_indices, _, field_values = self.observable_fn(
             np.array(indices), np.array(positions), test_points, historic_values
         )
 
@@ -126,8 +126,10 @@ class SpeciesSearch(Task):
             (test_positions - reference_position) / self.box_length, axis=-1
         )
         field_value = self.decay_fn(distances).sum()
+        indices = np.asarray(np.nonzero(distances, size=distances.shape[0] - 1))
+        distances = np.take(distances, indices, axis=0)
 
-        return index, field_value - historic_value
+        return index, field_value - historic_value, field_value
 
     def __call__(self, colloids: List[Colloid]):
         """
@@ -163,7 +165,7 @@ class SpeciesSearch(Task):
             [colloid.pos for colloid in colloids if colloid.type == self.sensing_type]
         )
 
-        out_indices, field_values = self.observable_fn(
+        out_indices, delta_values, field_values = self.observable_fn(
             np.array(indices),
             np.array(positions),
             test_points,
@@ -174,8 +176,8 @@ class SpeciesSearch(Task):
             self.historical_field[str(index)] = value
 
         if self.avoid:
-            rewards = np.clip(field_values, None, 0)
+            rewards = np.clip(delta_values, None, 0)
         else:
-            rewards = np.clip(field_values, 0, None)
+            rewards = np.clip(delta_values, 0, None)
 
         return self.scale_factor * rewards
