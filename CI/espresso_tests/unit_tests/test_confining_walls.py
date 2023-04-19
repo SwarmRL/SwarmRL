@@ -8,7 +8,7 @@ from swarmrl.engine import espresso
 from swarmrl.models import dummy_models
 
 
-class RodTest(ut.TestCase):
+class ConfiningWallsTest(ut.TestCase):
     def test_class(self):
         ureg = pint.UnitRegistry()
         params = espresso.MDParams(
