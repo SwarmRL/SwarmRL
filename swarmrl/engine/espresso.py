@@ -656,22 +656,11 @@ class EspressoMD(Engine):
             self._setup_interactions()
             self._remove_overlap()
             self._init_h5_output()
-            # print("write_interval", self.params.write_interval.m_as("sim_time") )
-            # print("time_slice", self.params.time_slice.m_as("sim_time") )
-            # print("time_step", self.params.time_step.m_as("sim_time") )
-            # print("write idx, slice idx, step idx",self.write_idx, self.slice_idx,
-            # self.step_idx)
-            # print("n_slices",n_slices)
             self.integration_initialised = True
 
         old_slice_idx = self.slice_idx
         while self.slice_idx < old_slice_idx + n_slices:
-            if (
-                self.step_idx * self.params.time_step.m_as("sim_time")
-                >= self.params.write_interval.m_as("sim_time") * self.write_idx - 1e-6
-                #  1e-6 is a bad practice and ensures that the if triggers
-                #  if the numbers are also almost equal
-            ):
+            if self.step_idx == self.params.steps_per_write_interval * self.write_idx:
                 self._update_traj_holder()
                 self.write_idx += 1
 
@@ -680,40 +669,20 @@ class EspressoMD(Engine):
                     for val in self.traj_holder.values():
                         val.clear()
 
-            if (
-                self.step_idx * self.params.time_step.m_as("sim_time")
-                >= self.params.time_slice.m_as("sim_time") * self.slice_idx - 1e-6
-            ):
+            if self.step_idx == self.params.steps_per_slice * self.slice_idx:
                 self.slice_idx += 1
                 self.manage_forces(force_model)
 
-            # print("write idx, slice idx, step idx",self.write_idx,
-            # self.slice_idx, self.step_idx)
-            time_to_next_write = (
-                self.params.write_interval.m_as("sim_time") * self.write_idx
-                - self.system.time
+            steps_to_next_write = (
+                self.params.steps_per_write_interval * self.write_idx - self.step_idx
             )
-            time_to_next_slice = (
-                self.params.time_slice.m_as("sim_time") * self.slice_idx
-                - self.system.time
+            steps_to_next_slice = (
+                self.params.steps_per_slice * self.slice_idx - self.step_idx
             )
-            # print("time_to_next_write,time_to_next_slice",
-            # time_to_next_write,time_to_next_slice)
-            steps_to_next = int(
-                round(
-                    min(time_to_next_write, time_to_next_slice)
-                    / self.params.time_step.m_as("sim_time")
-                )
-            )
-            # print("steps_to_next",steps_to_next)
+            steps_to_next = int(round(min(steps_to_next_write, steps_to_next_slice)))
+
             self.system.integrator.run(steps_to_next)
             self.step_idx += steps_to_next
-            # print("zeit jitter",self.system.time-self.step_idx
-            # * self.params.time_step.m_as("sim_time"))
-            # if abs(self.system.time-self.step_idx *
-            # self.params.time_step.m_as("sim_time")) > 1e-6:
-            #    print("something went wrong")
-            # print("old_slice_idx, n_slices",old_slice_idx, n_slices)
 
     def finalize(self):
         """
