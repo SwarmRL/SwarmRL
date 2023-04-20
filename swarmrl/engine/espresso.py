@@ -799,20 +799,23 @@ class EspressoMD(Engine):
         if not self.integration_initialised:
             self.slice_idx = 0
             self.step_idx = 0
-            self.write_idx = 0
             self._setup_interactions()
             self._remove_overlap()
             self._init_h5_output()
             self.integration_initialised = True
-            self.manage_forces(force_model)
 
+            self.manage_forces(force_model)
             self._update_traj_holder()
+
             if len(self.traj_holder["Times"]) >= self.write_chunk_size:
                 self._write_traj_chunk_to_file()
                 for val in self.traj_holder.values():
                     val.clear()
 
         old_slice_idx = self.slice_idx
+        # managing forces hier is only important  in the first call and
+        # if the force_model changes form last integrate call to current call
+        self.manage_forces(force_model)
         while self.slice_idx < old_slice_idx + n_slices:
             steps_to_next_write = (
                 self.params.steps_per_write_interval * (self.write_idx + 1)
