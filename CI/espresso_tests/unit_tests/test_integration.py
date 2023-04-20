@@ -153,7 +153,7 @@ class Simulation:
         system_runner.finalize()
 
 
-class TestFullSimulation(ut.TestCase):
+class TestSimulationIntegration(ut.TestCase):
     """
     Functional test, also to be used as an example for simulation scripts
     """
