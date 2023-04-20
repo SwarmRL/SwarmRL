@@ -4,6 +4,8 @@ Class for an observable which computes several observables.
 from abc import ABC
 from typing import List
 
+import numpy as onp
+
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.observable import Observable
 
@@ -61,6 +63,13 @@ class MultiSensing(Observable, ABC):
         -------
         List of observables, computed in the order that they were given
         at initialization.
+
+        Notes
+        -----
+        This may not work well for observables that return different
+        shapes as they must be lists. We should consider a different
+        return type such as a dict. This however needs to be tested
+        on neural networks so the slower lists will work for now.
         """
         # Get the observables for each colloid.
         unshaped_observable = []  # shape (n_obs, n_colloids, ...)
@@ -75,4 +84,4 @@ class MultiSensing(Observable, ABC):
             for j, colloid in enumerate(item):
                 observable[j].append(colloid)
 
-        return observable
+        return onp.array(observable, dtype=object)

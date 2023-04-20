@@ -21,8 +21,8 @@ class RotateRod(Task):
         self,
         partition: bool = True,
         rod_type: int = 1,
-        scale_factor: float = 100.0,
         particle_type: int = 0,
+        angular_velocity_scale: int = 1,
     ):
         """
         Constructor for the find origin task.
@@ -41,10 +41,11 @@ class RotateRod(Task):
         super().__init__(particle_type=particle_type)
         self.partition = partition
         self.rod_type = rod_type
-        self.scale_factor = scale_factor
+        self.angular_velocity_scale = angular_velocity_scale
 
         # Class only attributes
         self._historic_rod_director = None
+        self._historic_velocity = 0.0
 
         self.decomp_fn = jax.jit(compute_torque_partition_on_rod)
 
@@ -84,12 +85,17 @@ class RotateRod(Task):
                 Angular velocity of the rod
         """
         # Compute the angular velocity
-        angular_velocity = np.arccos(np.dot(self._historic_rod_director, new_director))
+        dot_product = np.clip(
+            np.dot(self._historic_rod_director, new_director), -1.0, 1.0
+        )
+        angular_velocity = np.arccos(dot_product)
 
         # Update the historical rod director
         self._historic_rod_director = new_director
+        velocity_change = angular_velocity - self._historic_velocity
+        self._historic_velocity = angular_velocity
 
-        return angular_velocity
+        return self.angular_velocity_scale * np.clip(velocity_change, 0, None)
 
     def partition_reward(
         self,
@@ -117,10 +123,46 @@ class RotateRod(Task):
         partitioned_reward : np.ndarray (n_colloids, )
                 Partitioned reward for each colloid.
         """
-        colloid_partitions = self.decomp_fn(
-            colloid_positions, rod_positions, rod_directors
-        )
+        if self.partition:
+            colloid_partitions = self.decomp_fn(
+                colloid_positions, rod_positions, rod_directors
+            )
+        else:
+            colloid_partitions = (
+                np.ones(colloid_positions.shape[0]) / colloid_positions.shape[0]
+            )
+
         return reward * colloid_partitions
+
+    def _compute_angular_velocity_reward(
+        self,
+        rod_directors: np.ndarray,
+        rod_positions: np.ndarray,
+        colloid_positions: np.ndarray,
+    ):
+        """
+        Compute the angular velocity reward.
+
+        Parameters
+        ----------
+        rod_directors : np.ndarray (n_rod, 3)
+                Directors of the rod particles.
+        rod_positions : np.ndarray (n_rod, 3)
+                Positions of the rod particles.
+        colloid_positions : np.ndarray (n_colloids, 3)
+                Positions of the colloids.
+
+        Returns
+        -------
+        angular_velocity_reward : float
+                Angular velocity reward.
+        """
+        # Compute angular velocity
+        angular_velocity = self._compute_angular_velocity(rod_directors[0])
+        # Compute colloid-wise rewards
+        return self.partition_reward(
+            angular_velocity, colloid_positions, rod_positions, rod_directors
+        )
 
     def __call__(self, colloids: List[Colloid]):
         """
@@ -150,13 +192,9 @@ class RotateRod(Task):
         ]
         colloid_positions = np.array([colloid.pos for colloid in chosen_colloids])
 
-        # Compute angular velocity
-        angular_velocity = self.scale_factor * self._compute_angular_velocity(
-            rod_directors[0]
+        # Compute the angular velocity reward
+        angular_velocity_term = self._compute_angular_velocity_reward(
+            rod_directors, rod_positions, colloid_positions
         )
-        reward = angular_velocity
 
-        # Compute colloid-wise rewards
-        return self.partition_reward(
-            reward, colloid_positions, rod_positions, rod_directors
-        )
+        return angular_velocity_term
