@@ -11,6 +11,7 @@ import numpy as np
 import pint
 
 import swarmrl.models.interaction_model
+import swarmrl.utils.utils as utils
 
 from .engine import Engine
 
@@ -48,17 +49,6 @@ class MDParams:
     write_interval: pint.Quantity
 
 
-def _get_random_angles(rng: np.random.Generator):
-    # https://mathworld.wolfram.com/SpherePointPicking.html
-    return np.arccos(2.0 * rng.random() - 1), 2.0 * np.pi * rng.random()
-
-
-def _vector_from_angles(theta, phi):
-    return np.array(
-        [np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)]
-    )
-
-
 def _get_random_start_pos(
     init_radius: float, init_center: np.array, dim: int, rng: np.random.Generator
 ):
@@ -69,7 +59,7 @@ def _get_random_start_pos(
         assert init_center[2] == 0.0
     elif dim == 3:
         r = init_radius * np.cbrt(rng.random())
-        pos = r * _vector_from_angles(*_get_random_angles(rng))
+        pos = r * utils.vector_from_angles(*utils.get_random_angles(rng))
     else:
         raise ValueError("Random position finder only implemented for 2d and 3d")
 
@@ -214,6 +204,92 @@ class EspressoMD(Engine):
                 "after the first call to integrate()"
             )
 
+    def add_colloid_on_point(
+        self,
+        radius_colloid: pint.Quantity,
+        init_position: pint.Quantity,
+        init_direction: np.array = [1, 0, 0],
+        type_colloid=0,
+    ):
+        """
+        Parameters
+        ----------
+        radius_colloid
+        init_position
+        init_direction
+        type_colloid
+            The colloids created from this method call will have this type.
+            Multiple calls can be made with the same type_colloid.
+            Interaction models need to be made aware if there are different types
+            of colloids in the system if specific behaviour is desired.
+
+        Returns
+        -------
+        colloid.
+
+        """
+
+        self._check_already_initialised()
+
+        if type_colloid in self.colloid_radius_register.keys():
+            if self.colloid_radius_register[type_colloid] != radius_colloid.m_as(
+                "sim_length"
+            ):
+                raise ValueError(
+                    f"The chosen type {type_colloid} is already taken and used with a"
+                    f" different radius {self.colloid_radius_register[type_colloid]} ."
+                    " Choose a new combination"
+                )
+        radius_simunits = radius_colloid.m_as("sim_length")
+        init_center = init_position.m_as("sim_length")
+        init_direction = init_direction / np.linalg.norm(init_direction)
+
+        (
+            particle_gamma_translation,
+            particle_gamma_rotation,
+        ) = _calc_friction_coefficients(
+            self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius_simunits
+        )
+
+        if self.n_dims == 3:
+            colloid = self.system.part.add(
+                pos=init_center,
+                director=init_direction,
+                rotation=3 * [True],
+                gamma=particle_gamma_translation,
+                gamma_rot=particle_gamma_rotation,
+                fix=3 * [False],
+                type=type_colloid,
+            )
+        else:
+            # initialize with body-frame = lab-frame to set correct rotation flags
+            # allow all rotations to bring the particle to correct state
+            init_center[2] = 0  # get rid of z-coordinate in 2D coordinates
+            start_pos = init_center
+            colloid = self.system.part.add(
+                pos=start_pos,
+                fix=[False, False, True],
+                rotation=3 * [True],
+                gamma=particle_gamma_translation,
+                gamma_rot=particle_gamma_rotation,
+                quat=[1, 0, 0, 0],
+                type=type_colloid,
+            )
+            theta, phi = utils.angles_from_vector(init_direction)
+            if abs(theta - np.pi / 2) > 10e-6:
+                raise ValueError(
+                    "It seem like you want to have a 2D simulation"
+                    " with colloids that point some amount in Z-direction."
+                    " Change something in your colloid setup."
+                )
+            self._rotate_colloid_to_2d(colloid, phi)
+
+        self.colloids.append(colloid)
+
+        self.colloid_radius_register.update({type_colloid: radius_simunits})
+
+        return colloid
+
     def add_colloids(
         self,
         n_colloids: int,
@@ -242,50 +318,34 @@ class EspressoMD(Engine):
 
         self._check_already_initialised()
 
-        radius_simunits = radius_colloid.m_as("sim_length")
         init_center = random_placement_center.m_as("sim_length")
         init_rad = random_placement_radius.m_as("sim_length")
 
-        (
-            particle_gamma_translation,
-            particle_gamma_rotation,
-        ) = _calc_friction_coefficients(
-            self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius_simunits
-        )
-
         for i in range(n_colloids):
-            start_pos = _get_random_start_pos(
-                init_rad, init_center, self.n_dims, self.rng
+            start_pos = (
+                _get_random_start_pos(init_rad, init_center, self.n_dims, self.rng)
+                * self.ureg.sim_length
             )
 
             if self.n_dims == 3:
-                colloid = self.system.part.add(
-                    pos=start_pos,
-                    director=_vector_from_angles(*_get_random_angles(self.rng)),
-                    rotation=3 * [True],
-                    gamma=particle_gamma_translation,
-                    gamma_rot=particle_gamma_rotation,
-                    fix=3 * [False],
-                    type=type_colloid,
+                director = utils.vector_from_angles(*utils.get_random_angles(self.rng))
+                self.add_colloid_on_point(
+                    radius_colloid=radius_colloid,
+                    init_position=start_pos,
+                    init_direction=director,
+                    type_colloid=type_colloid,
                 )
             else:
                 # initialize with body-frame = lab-frame to set correct rotation flags
                 # allow all rotations to bring the particle to correct state
                 start_angle = 2 * np.pi * self.rng.random()
-                colloid = self.system.part.add(
-                    pos=start_pos,
-                    fix=[False, False, True],
-                    rotation=3 * [True],
-                    gamma=particle_gamma_translation,
-                    gamma_rot=particle_gamma_rotation,
-                    quat=[1, 0, 0, 0],
-                    type=type_colloid,
+                init_direction = utils.vector_from_angles(np.pi / 2, start_angle)
+                self.add_colloid_on_point(
+                    radius_colloid=radius_colloid,
+                    init_position=start_pos,
+                    init_direction=init_direction,
+                    type_colloid=type_colloid,
                 )
-                self._rotate_colloid_to_2d(colloid, start_angle)
-
-            self.colloids.append(colloid)
-
-        self.colloid_radius_register.update({type_colloid: radius_simunits})
 
     def add_rod(
         self,
@@ -369,7 +429,7 @@ class EspressoMD(Engine):
                 "(both in simulation units)"
             )
 
-        director = _vector_from_angles(np.pi / 2, rod_start_angle)
+        director = utils.vector_from_angles(np.pi / 2, rod_start_angle)
 
         for k in range(n_particles - 1):
             dist_to_center = (-1) ** k * (k // 2 + 1) * point_dist
@@ -391,7 +451,7 @@ class EspressoMD(Engine):
 
         Parameters
         ----------
-        wall_type
+        wall_type : int
             Wall interacts with particles, so it needs its own type.
 
         Returns
@@ -417,6 +477,93 @@ class EspressoMD(Engine):
             wall_shapes.append(espressomd.shapes.Wall(dist=0, normal=[0, 0, 1]))
             wall_shapes.append(
                 espressomd.shapes.Wall(dist=-self.system.box_l[2], normal=[0, 0, -1])
+            )
+
+        for wall_shape in wall_shapes:
+            constr = espressomd.constraints.ShapeBasedConstraint(
+                shape=wall_shape, particle_type=wall_type, penetrable=False
+            )
+            self.system.constraints.add(constr)
+
+        # the wall itself has no radius, only the particle radius counts
+        self.colloid_radius_register.update({wall_type: 0.0})
+
+    def add_walls(
+        self,
+        wall_start_point: pint.Quantity,
+        wall_end_point: pint.Quantity,
+        wall_type: int,
+        wall_thickness: pint.Quantity,
+    ):
+        """
+        User defined walls will interact with particles through WCA.
+        Is NOT communicated to the interaction models, though.
+        The walls have a large height resulting in 2D-walls in a 2D-simulation.
+        The actual height adapts to the chosen box size.
+        The shape of the underlying constraint is a square.
+
+        Parameters
+        ----------
+        wall_start_point : pint.Quantity
+        np.array (n,2) with wall coordinates
+             [x_begin, y_begin]
+        wall_end_point : pint.Quantity
+        np.array (n,2) with wall coordinates
+             [x_end, y_end]
+        wall_type : int
+            Wall interacts with particles, so it needs its own type.
+        wall_thickness: pint.Quantity
+            wall thickness
+
+        Returns
+        -------
+        """
+
+        wall_start_point = wall_start_point.m_as("sim_length")
+        wall_end_point = wall_end_point.m_as("sim_length")
+        wall_thickness = wall_thickness.m_as("sim_length")
+
+        if len(wall_start_point) != len(wall_end_point):
+            raise ValueError(
+                " Please double check your walls. There are more or less "
+                f" starting points {len(wall_start_point)} than "
+                f" end points {len(wall_end_point)}. They should be equal."
+            )
+
+        self._check_already_initialised()
+        if wall_type in self.colloid_radius_register.keys():
+            if self.colloid_radius_register[wall_type] != 0.0:
+                raise ValueError(
+                    f" The chosen type {wall_type} is already taken"
+                    "and used with a different radius "
+                    f"{self.colloid_radius_register[wall_type]} ."
+                    " Choose a new combination"
+                )
+
+        z_height = self.system.box_l[2]
+        wall_shapes = []
+
+        for wall_index in range(len(wall_start_point)):
+            a = [
+                wall_end_point[wall_index, 0] - wall_start_point[wall_index, 0],
+                wall_end_point[wall_index, 1] - wall_start_point[wall_index, 1],
+                0,
+            ]  # direction along lengthy wall
+            c = [0, 0, z_height]  # direction along third axis of 2D simulation
+            norm_a = np.linalg.norm(a)  # is also the norm of b
+            norm_c = np.linalg.norm(c)
+            b = (
+                np.cross(a / norm_a, c / norm_c) * wall_thickness
+            )  # direction along second axis
+            # i.e along wall_thickness of lengthy wall
+            corner = [
+                wall_start_point[wall_index, 0] - b[0] / 2,
+                wall_start_point[wall_index, 1] - b[1] / 2,
+                0,
+            ]  # anchor point of wall shifted by wall_thickness*1/2
+
+            wall_shapes.append(
+                espressomd.shapes.Rhomboid(corner=corner, a=a, b=b, c=c, direction=1)
             )
 
         for wall_shape in wall_shapes:
