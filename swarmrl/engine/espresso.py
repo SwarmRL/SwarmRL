@@ -185,7 +185,7 @@ class EspressoMD(Engine):
         self.params.steps_per_write_interval = steps_per_write_interval
         if abs(steps_per_write_interval - write_interval / time_step) > 1e-10:
             raise ValueError(
-                "inconsistent parameters: time_slice must be integer multiple of"
+                "inconsistent parameters: write_interval must be integer multiple of"
                 " time_step"
             )
 
