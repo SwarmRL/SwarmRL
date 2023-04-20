@@ -392,8 +392,7 @@ class EspressoMD(Engine):
             self.colloids.append(virtual_partcl)
 
         self.colloid_radius_register.update({rod_particle_type: partcl_radius})
-        border_parts = self.colloids[-2:]
-        return center_part, border_parts
+        return center_part
 
     def add_confining_walls(self, wall_type: int):
         """
