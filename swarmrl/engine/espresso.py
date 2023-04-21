@@ -170,6 +170,8 @@ class EspressoMD(Engine):
         # configuration and change forces
         time_slice = self.params.time_slice.m_as("sim_time")
 
+        write_interval = self.params.write_interval.m_as("sim_time")
+
         box_l = np.array(3 * [self.params.box_length.m_as("sim_length")])
 
         # system setup. Skin is a verlet list parameter that has to be set, but only
@@ -177,6 +179,15 @@ class EspressoMD(Engine):
         self.system.box_l = box_l
         self.system.time_step = time_step
         self.system.cell_system.skin = 0.4
+
+        # set writer params
+        steps_per_write_interval = int(round(write_interval / time_step))
+        self.params.steps_per_write_interval = steps_per_write_interval
+        if abs(steps_per_write_interval - write_interval / time_step) > 1e-10:
+            raise ValueError(
+                "inconsistent parameters: write_interval must be integer multiple of"
+                " time_step"
+            )
 
         # set integrator params
         steps_per_slice = int(round(time_slice / time_step))
@@ -441,7 +452,6 @@ class EspressoMD(Engine):
             self.colloids.append(virtual_partcl)
 
         self.colloid_radius_register.update({rod_particle_type: partcl_radius})
-
         return center_part
 
     def add_confining_walls(self, wall_type: int):
@@ -742,6 +752,34 @@ class EspressoMD(Engine):
         )
         self.system.integrator.set_brownian_dynamics()
 
+    def manage_forces(self, force_model: swarmrl.models.InteractionModel = None):
+        swarmrl_colloids = []
+        if force_model is not None:
+            for col in self.colloids:
+                swarmrl_colloids.append(
+                    swarmrl.models.interaction_model.Colloid(
+                        pos=col.pos, director=col.director, id=col.id, type=col.type
+                    )
+                )
+            actions = force_model.calc_action(swarmrl_colloids)
+            for action, coll in zip(actions, self.colloids):
+                coll.swimming = {"f_swim": action.force}
+                coll.ext_torque = action.torque
+                new_direction = action.new_direction
+                if new_direction is not None:
+                    if self.n_dims == 3:
+                        coll.director = new_direction
+                    else:
+                        old_direction = coll.director
+                        rotation_angle = np.arccos(np.dot(new_direction, old_direction))
+                        if rotation_angle > 1e-6:
+                            rotation_axis = np.cross(old_direction, new_direction)
+                            rotation_axis /= np.linalg.norm(rotation_axis)
+                            # only values of [0,0,1], [0,0,-1] can come out here,
+                            # plusminus numerical errors
+                            rotation_axis = [0, 0, round(rotation_axis[2])]
+                            coll.rotate(axis=rotation_axis, angle=rotation_angle)
+
     def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel = None):
         """
         Integrate the system for n_slices steps.
@@ -759,15 +797,40 @@ class EspressoMD(Engine):
         """
 
         if not self.integration_initialised:
+            self.slice_idx = 0
+            self.step_idx = 0
             self._setup_interactions()
             self._remove_overlap()
             self._init_h5_output()
             self.integration_initialised = True
 
-        for _ in range(n_slices):
-            if (
-                self.system.time
-                >= self.params.write_interval.m_as("sim_time") * self.write_idx
+            self.manage_forces(force_model)
+            self._update_traj_holder()
+
+            if len(self.traj_holder["Times"]) >= self.write_chunk_size:
+                self._write_traj_chunk_to_file()
+                for val in self.traj_holder.values():
+                    val.clear()
+
+        old_slice_idx = self.slice_idx
+        # managing forces hier is only important  in the first call and
+        # if the force_model changes form last integrate call to current call
+        self.manage_forces(force_model)
+        while self.slice_idx < old_slice_idx + n_slices:
+            steps_to_next_write = (
+                self.params.steps_per_write_interval * (self.write_idx + 1)
+                - self.step_idx
+            )
+            steps_to_next_slice = (
+                self.params.steps_per_slice * (self.slice_idx + 1) - self.step_idx
+            )
+            steps_to_next = min(steps_to_next_write, steps_to_next_slice)
+
+            self.system.integrator.run(steps_to_next)
+            self.step_idx += steps_to_next
+
+            if self.step_idx == self.params.steps_per_write_interval * (
+                self.write_idx + 1
             ):
                 self._update_traj_holder()
                 self.write_idx += 1
@@ -777,36 +840,9 @@ class EspressoMD(Engine):
                     for val in self.traj_holder.values():
                         val.clear()
 
-            swarmrl_colloids = []
-            if force_model is not None:
-                for col in self.colloids:
-                    swarmrl_colloids.append(
-                        swarmrl.models.interaction_model.Colloid(
-                            pos=col.pos, director=col.director, id=col.id, type=col.type
-                        )
-                    )
-                actions = force_model.calc_action(swarmrl_colloids)
-                for action, coll in zip(actions, self.colloids):
-                    coll.swimming = {"f_swim": action.force}
-                    coll.ext_torque = action.torque
-                    new_direction = action.new_direction
-                    if new_direction is not None:
-                        if self.n_dims == 3:
-                            coll.director = new_direction
-                        else:
-                            old_direction = coll.director
-                            rotation_angle = np.arccos(
-                                np.dot(new_direction, old_direction)
-                            )
-                            if rotation_angle > 1e-6:
-                                rotation_axis = np.cross(old_direction, new_direction)
-                                rotation_axis /= np.linalg.norm(rotation_axis)
-                                # only values of [0,0,1], [0,0,-1] can come out here,
-                                # plusminus numerical errors
-                                rotation_axis = [0, 0, round(rotation_axis[2])]
-                                coll.rotate(axis=rotation_axis, angle=rotation_angle)
-
-            self.system.integrator.run(self.params.steps_per_slice)
+            if self.step_idx == self.params.steps_per_slice * (self.slice_idx + 1):
+                self.slice_idx += 1
+                self.manage_forces(force_model)
 
     def finalize(self):
         """
