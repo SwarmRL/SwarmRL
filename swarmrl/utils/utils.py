@@ -316,7 +316,7 @@ def calc_signed_angle_between_directors(
     other_director /= jnp.linalg.norm(other_director)
 
     # calculate the angle in which the my_colloid is looking
-    angle = jnp.arccos(jnp.dot(other_director, my_director))
+    angle = jnp.arccos(jnp.clip(jnp.dot(other_director, my_director), -1.0, 1.0))
     # use the director in orthogonal direction to determine sign
     orthogonal_dot = jnp.dot(
         other_director,
