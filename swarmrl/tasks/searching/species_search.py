@@ -125,9 +125,9 @@ class SpeciesSearch(Task):
         distances = np.linalg.norm(
             (test_positions - reference_position) / self.box_length, axis=-1
         )
-        field_value = self.decay_fn(distances).sum()
         indices = np.asarray(np.nonzero(distances, size=distances.shape[0] - 1))
         distances = np.take(distances, indices, axis=0)
+        field_value = self.decay_fn(distances).sum()
 
         return index, field_value - historic_value, field_value
 
