@@ -86,7 +86,7 @@ def compute_torque_partition_on_rod(colloid_positions, rod_positions, rod_direct
 
     torques = colloid_only_map(forces, rod_directions)
     net_rod_torque = torques.sum(axis=1)
-    torque_magnitude = jnp.linalg.norm(net_rod_torque, axis=-1) + 1
+    torque_magnitude = jnp.linalg.norm(net_rod_torque, axis=-1) + 1e-8
     normalization_factors = torque_magnitude.sum()
     torque_partition = torque_magnitude / normalization_factors
 
