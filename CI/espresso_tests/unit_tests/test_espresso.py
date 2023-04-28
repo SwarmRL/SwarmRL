@@ -104,9 +104,6 @@ class EspressoTest(ut.TestCase):
             cutoff = wca_params["sigma"] * 2 ** (1 / 6)
             np.testing.assert_allclose(cutoff, 2 * coll_radius.m_as("sim_length"))
 
-            # write_interval == time_slice -> one output per slice
-            # writing happens before integrating -> run one more
-            runner.integrate(1, force_model)
             with h5py.File(f"{temp_dir}/trajectory.hdf5", "r") as h5_file:
                 part_group = h5_file["colloids"]
                 np.testing.assert_array_almost_equal(

@@ -5,6 +5,7 @@ import logging
 import os
 import pickle
 from abc import ABC
+from typing import List
 
 import jax
 import jax.numpy as np
@@ -17,7 +18,7 @@ from optax._src.base import GradientTransformation
 
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
 from swarmrl.networks.network import Network
-from swarmrl.sampling_strategies.sampling_stratgey import SamplingStrategy
+from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,15 @@ class FlaxModel(Network, ABC):
             apply_fn=self.apply_fn, params=params, tx=self.optimizer
         )
 
+    def reinitialize_network(self):
+        """
+        Initialize the neural network.
+        """
+        rng_key = onp.random.randint(0, 1027465782564)
+        init_rng = jax.random.PRNGKey(rng_key)
+        _, subkey = jax.random.split(init_rng)
+        self.model_state = self._create_train_state(subkey)
+
     def update_model(
         self,
         grads,
@@ -116,28 +126,50 @@ class FlaxModel(Network, ABC):
 
         self.epoch_count += 1
 
-    def compute_action(self, feature_vector: np.ndarray, explore_mode: bool = False):
+    def compute_action(self, observables: List, explore_mode: bool = False):
         """
-        Compute the action.
+        Compute and action from the action space.
+
+        This method computes an action on all colloids of the relevant type.
+
+        Parameters
+        ----------
+        observables : List
+                Observable for each colloid for which the action should be computed.
+        explore_mode : bool
+                If true, an exploration vs exploitation function is called.
+
+        Returns
+        -------
+        tuple : (np.ndarray, np.ndarray)
+                The first element is an array of indices corresponding to the action
+                taken by the agent. The value is bounded between 0 and the number of
+                output neurons. The second element is an array of the corresponding
+                log_probs (i.e. the output of the network put through a softmax).
         """
         # Compute state
         try:
-            model_output = self.apply_fn(
-                {"params": self.model_state.params}, feature_vector
+            logits = self.apply_fn(
+                {"params": self.model_state.params}, np.array(observables)
             )
-        except AttributeError:
-            model_output = self.apply_fn(
-                {"params": self.model_state["params"]}, feature_vector
+        except AttributeError:  # We need this for loaded models.
+            logits = self.apply_fn(
+                {"params": self.model_state["params"]}, np.array(observables)
             )
-        logger.debug(f"{model_output=}")
+        logger.debug(f"{logits=}")  # (n_colloids, n_actions)
 
         # Compute the action
-        index = self.sampling_strategy(model_output)
+        indices = self.sampling_strategy(logits)
 
+        # Add a small value to the log_probs to avoid log(0) errors.
+        eps = 1e-8
+        log_probs = np.log(jax.nn.softmax(logits) + eps)
         if explore_mode:
-            index = self.exploration_policy(index, len(model_output))
-
-        return index, model_output[index]
+            indices = self.exploration_policy(indices, len(logits))
+        return (
+            indices,
+            np.take_along_axis(log_probs, indices.reshape(-1, 1), axis=1).reshape(-1),
+        )
 
     def export_model(self, filename: str = "model", directory: str = "Models"):
         """
@@ -194,6 +226,14 @@ class FlaxModel(Network, ABC):
         ----------
         feature_vector : np.ndarray
                 Observable to be passed through the network on which a decision is made.
+
+        Returns
+        -------
+        logits : np.ndarray
+                Output of the network.
         """
 
-        return self.apply_fn({"params": self.model_state.params}, feature_vector)
+        try:
+            return self.apply_fn({"params": self.model_state.params}, feature_vector)
+        except AttributeError:  # We need this for loaded models.
+            return self.apply_fn({"params": self.model_state["params"]}, feature_vector)

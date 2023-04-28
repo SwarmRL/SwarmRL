@@ -13,6 +13,7 @@ from swarmrl import (
     rl_protocols,
     sampling_strategies,
     tasks,
+    training_routines,
     value_functions,
 )
 from swarmrl.engine import espresso
@@ -38,4 +39,5 @@ __all__ = [
     sampling_strategies.__name__,
     value_functions.__name__,
     rl_protocols.__name__,
+    training_routines.__name__,
 ]
