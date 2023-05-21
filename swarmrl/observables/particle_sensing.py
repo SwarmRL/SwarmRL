@@ -80,12 +80,12 @@ class ParticleSensing(Observable):
             indices.append(colloids[index].id)
             positions.append(colloids[index].pos)
 
-        test_points = np.array(
+        sensed_colloids = np.array(
             [colloid.pos for colloid in colloids if colloid.type == self.sensing_type]
         )
 
         out_indices, _, field_values = self.observable_fn(
-            np.array(indices), np.array(positions), test_points, historic_values
+            np.array(indices), np.array(positions), sensed_colloids, historic_values
         )
 
         for index, value in zip(out_indices, onp.array(field_values)):

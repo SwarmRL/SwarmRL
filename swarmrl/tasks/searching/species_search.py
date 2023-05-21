@@ -56,8 +56,8 @@ class SpeciesSearch(Task):
 
         self.historical_field = {}
 
-        self.observable_fn = jax.vmap(
-            self.compute_single_observable, in_axes=(0, 0, None, 0)
+        self.task_fn = jax.vmap(
+            self.compute_single_particle_task, in_axes=(0, 0, None, 0)
         )
 
     def initialize(self, colloids: List[Colloid]):
@@ -86,14 +86,14 @@ class SpeciesSearch(Task):
             [colloid.pos for colloid in colloids if colloid.type == self.sensing_type]
         )
 
-        out_indices, _, field_values = self.observable_fn(
+        out_indices, _, field_values = self.task_fn(
             np.array(indices), np.array(positions), test_points, historic_values
         )
 
         for index, value in zip(out_indices, onp.array(field_values)):
             self.historical_field[str(index)] = value
 
-    def compute_single_observable(
+    def compute_single_particle_task(
         self,
         index: int,
         reference_position: np.ndarray,
@@ -101,7 +101,7 @@ class SpeciesSearch(Task):
         historic_value: float,
     ) -> tuple:
         """
-        Compute the observable for a single colloid.
+        Compute the task for a single colloid.
 
         Parameters
         ----------
@@ -116,11 +116,11 @@ class SpeciesSearch(Task):
 
         Returns
         -------
-        tuple (index, observable_value)
+        tuple (index, task_value)
         index : int
                 Index of the colloid to compute the observable for.
-        observable_value : float
-                Value of the observable.
+        task_value : float
+                Value of the task.
         """
         distances = np.linalg.norm(
             (test_positions - reference_position) / self.box_length, axis=-1
@@ -165,7 +165,7 @@ class SpeciesSearch(Task):
             [colloid.pos for colloid in colloids if colloid.type == self.sensing_type]
         )
 
-        out_indices, delta_values, field_values = self.observable_fn(
+        out_indices, delta_values, field_values = self.task_fn(
             np.array(indices),
             np.array(positions),
             test_points,
