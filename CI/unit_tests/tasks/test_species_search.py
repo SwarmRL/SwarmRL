@@ -63,6 +63,12 @@ class TestSpeciesSearch:
         assert self.task.historical_field["1"] == pytest.approx(triangular_distance)
         assert self.task.historical_field["2"] == pytest.approx(triangular_distance)
 
+        # Test that a second initialization leaves evrything fixed.
+        self.task.initialize(colloids=self.colloids)
+        assert self.task.historical_field["0"] == straight_distance
+        assert self.task.historical_field["1"] == pytest.approx(triangular_distance)
+        assert self.task.historical_field["2"] == pytest.approx(triangular_distance)
+
     def test_closer_approach(self):
         """
         Test what happens if a particle gets closer.
@@ -98,3 +104,24 @@ class TestSpeciesSearch:
         reward = self.task(colloids=colloids)
 
         assert reward[0] == 0.0
+
+    def test_double_call(self):
+        """
+        Test what happens if you call the task many times.
+        """
+        # Initialize with class colloids
+        self.task.scale_factor = 1.0
+        self.task.initialize(colloids=self.colloids)
+
+        colloid_1 = Colloid(np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0]), 0, 0)
+        colloid_2 = Colloid(np.array([0.0, 0.5, 0.0]), np.array([0.0, 1.0, 0]), 1, 0)
+        colloid_3 = Colloid(np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0]), 2, 0)
+
+        colloids = [colloid_1, colloid_2, colloid_3]
+
+        reward = self.task(colloids=colloids)
+
+        assert reward[0] == 0.5
+        for _ in range(5):
+            reward = self.task(colloids=colloids)
+            assert reward[0] == 0.0
