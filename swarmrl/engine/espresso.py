@@ -384,6 +384,31 @@ class EspressoMD(Engine):
 
         return center_part
 
+    def add_source_particle(self, pos: pint.Quantity, source_particle_type: int):
+        """
+        Add a fixed particle that is not affected by any forces, but can be sensed by
+        vision cones and graph obs.
+        Parameters
+        ----------
+        pos
+        source_particle_type
+
+        Returns
+        -------
+
+        """
+        self._check_already_initialised()
+        source_particle = self.system.part.add(
+            pos=pos.m_as("sim_length"),
+            type=source_particle_type,
+            quat=[1, 0, 0, 0],
+            rotation=3 * [False],
+            fix=[True, True, True],
+        )
+        colloid_radius = self.ureg.Quantity(0.0, "micrometer").m_as("sim_length")
+        self.colloids.append(source_particle)
+        self.colloid_radius_register.update({source_particle_type: colloid_radius})
+
     def add_confining_walls(self, wall_type: int):
         """
         Walls on the edges of the box, will interact with particles through WCA.
