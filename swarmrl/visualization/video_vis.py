@@ -11,6 +11,7 @@ import numpy as np
 from matplotlib.animation import FuncAnimation
 from matplotlib.collections import LineCollection
 from matplotlib.widgets import Slider
+from scipy import optimize
 
 # derivative of modified bessel Function of second kind of real order
 # modivied bessel function of second kind of real order v
@@ -69,6 +70,29 @@ def calc_chemical_potential(chemical_pos, measure_pos):
     return chemical_magnitude, chemical_gradient
 
 
+def schmell_grad_from_schmell_mag(schmell_mag):
+    #  parameters with arbitrary units currently set to aim amplitude \approx 1
+    diffusion_coefficient = 670  # glucose in water in mum^2/s
+    density_decay_per_second = 0.4
+    amount_per_second_from_source = 1800  # chemics
+    rescale_fac = np.sqrt(density_decay_per_second / diffusion_coefficient)
+    const = 4182.925639571625
+    amplitude = amount_per_second_from_source / const
+
+    if schmell_mag != 0:
+        distance = optimize.newton(A_kv_zero, 0.005, args=(schmell_mag,), tol=0.001)
+    else:
+        distance = 300  # if no schmell source is in reach then newton doesn't converge
+
+    norm_schmell_gradient = amplitude * rescale_fac * kvp(0, distance)
+
+    return norm_schmell_gradient
+
+
+def A_kv_zero(x, schmell_mag):
+    return 0.5 * kv(0, x) - schmell_mag
+
+
 class Animations:
     def __init__(
         self,
@@ -88,6 +112,8 @@ class Animations:
         trace_fade_boolean,
         eyes_boolean,
         arrow_boolean,
+        body_color,
+        body_color_based_on_action_for_type,
         radius_col,
         schmell_boolean,
         schmell_ids,
@@ -103,7 +129,7 @@ class Animations:
         self.y_0 = None
         self.fig = fig
         self.ax = ax
-        self.written_info_data = None
+
         self.positions = positions
         self.directors = directors
         self.times = times
@@ -111,8 +137,12 @@ class Animations:
         self.types = types
         _, count_types = np.unique(self.types, return_counts=True)
         self.n_types = len(count_types)
+
+        # extra data
+        self.written_info_data = None
         self.vision_cone_data = None
         self.vision_cone_data_frame = None
+        self.action_data = None
 
         self.vision_cone_boolean = [False] * len(self.ids)
         self.cone_radius = [0] * len(self.ids)
@@ -144,6 +174,8 @@ class Animations:
         self.trace = [0] * len(self.ids)
 
         self.part_body = [0] * len(self.ids)
+        self.body_color = body_color
+        self.body_color_based_on_action_for_type = body_color_based_on_action_for_type
         self.part_lefteye = [0] * len(self.ids)
         self.part_righteye = [0] * len(self.ids)
         self.part_arrow = [0] * len(self.ids)
@@ -303,10 +335,15 @@ class Animations:
                 "my", [cfade, self.color_names[self.color_index[i]]]
             )
 
-        # prepare body color
-        # extend this part to colorsize the particle depemding on their actions
-        # or on their type
-        self.bodycolor = ["tab:green", "tab:brown"]
+        try:
+            if self.action_data is None and self.body_color_information != []:
+                print(
+                    "there is no action data to color the particle bodies with this"
+                    " input. Falling back to type"
+                )
+                self.body_color_based_on_action_for_type = []
+        except ValueError:
+            pass
 
         # prepare  schmell (colors)
         self.schmell_N = 100
@@ -372,11 +409,12 @@ class Animations:
                     xy=(-27000, -27000),
                     radius=self.radius_col[i],
                     alpha=0.7,
-                    color=self.bodycolor[self.types[i]],
+                    color=self.body_color[0][
+                        self.types[i]
+                    ],  # init the colors with types
                     zorder=n_parts + n_parts * self.n_cones + i,
                 )
             )
-
             if self.eyes_boolean[i]:
                 self.part_lefteye[i] = self.ax.add_patch(
                     patches.Circle(
@@ -778,6 +816,16 @@ class Animations:
             ydata = self.positions[: frame + 1, i, 1].magnitude
 
             self.part_body[i].set(center=(xdata[frame], ydata[frame]))
+
+            if self.body_color_based_on_action_for_type != []:
+                if self.types[i] not in self.body_color_based_on_action_for_type:
+                    self.part_body[i].set(color=self.body_color[0][self.types[i]])
+                    # print(self.body_color[0][self.types[i]])
+                elif self.types[i] in self.body_color_based_on_action_for_type:
+                    self.part_body[i].set(
+                        color=self.body_color[1][int(self.action_data[frame, i])]
+                    )
+                    # print(self.body_color[1][int(self.action_data[frame,i])])
 
             if self.rod_rotation_chess_board_boolean != [False] * len(self.ids):
                 if self.rod_rotation_chess_board_boolean[i]:
