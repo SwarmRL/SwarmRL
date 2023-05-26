@@ -270,7 +270,8 @@ class SubdividedVisionCones(Observable):
         containing the vision values
         """
         reference_ids = self.get_colloid_indices(colloids)
-
-        return [
+        observable = [
             self.compute_single_observable(index, colloids) for index in reference_ids
         ]
+
+        return observable

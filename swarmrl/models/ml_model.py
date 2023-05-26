@@ -104,7 +104,7 @@ class MLModel(InteractionModel):
             for item in self.particle_types:
                 record_trajectory(
                     particle_type=item,
-                    features=observables[item],
+                    features=np.array(observables[item]),
                     actions=np.array(action_indices[item]),
                     log_probs=np.array(log_probs[item]),
                     rewards=np.array(rewards[item]),

@@ -99,8 +99,12 @@ class ProximalPolicyLoss(Loss, ABC):
             Critic loss of an episode, summed over all time steps and meaned over
             all particles.
         """
-        predicted_values = critic.apply_fn({"params": critic_params}, features)
-        predicted_values = jnp.squeeze(predicted_values)
+        critic_apply_fn = jax.vmap(critic.apply_fn, in_axes=(None, 0))
+        predicted_values = critic_apply_fn(
+            {"params": critic.model_state.params}, features
+        )[:, :, 0]
+        # predicted_values = critic.apply_fn({"params": critic_params}, features)
+        # predicted_values = jnp.squeeze(predicted_values)
 
         value_loss = optax.huber_loss(predicted_values, true_values)
 
@@ -154,7 +158,9 @@ class ProximalPolicyLoss(Loss, ABC):
         """
 
         # compute the probabilities of the old actions under the new policy
-        new_logits = actor.apply_fn({"params": actor_params}, features)
+        actor_apply_fn = jax.vmap(actor.apply_fn, in_axes=(None, 0))
+        new_logits = actor_apply_fn({"params": actor_params}, features)
+        # new_logits = actor.apply_fn({"params": actor_params}, features)
         new_probabilities = jax.nn.softmax(new_logits)
 
         # compute the entropy of the whole distribution
@@ -210,10 +216,15 @@ class ProximalPolicyLoss(Loss, ABC):
         action_data = episode_data.item().get("actions")
         # will return the reward per particle.
         reward_data = episode_data.item().get("rewards")
+        critic_apply_fn = jax.vmap(critic.apply_fn, in_axes=(None, 0))
 
+        print(np.shape(feature_data))
         for _ in range(self.n_epochs):
             # compute the advantages and returns (true_values) for that epoch
-            predicted_values = np.squeeze(critic(feature_data))
+            # predicted_values = np.squeeze(critic(feature_data))
+            predicted_values = critic_apply_fn(
+                {"params": critic.model_state.params}, feature_data
+            )[:, :, 0]
             advantages, returns = self.value_function(
                 rewards=reward_data, values=predicted_values
             )
