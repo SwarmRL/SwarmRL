@@ -53,7 +53,9 @@ class ParticleSensing(Observable):
         self.historical_field = {}
 
         self.observable_fn = jax.vmap(
-            self.compute_single_observable, in_axes=(0, 0, None, 0)
+            self.compute_single_observable,
+            in_axes=(0, 0, None, 0),
+            # out_axes=()
         )
 
     def initialize(self, colloids: List[Colloid]):
@@ -78,12 +80,12 @@ class ParticleSensing(Observable):
             indices.append(colloids[index].id)
             positions.append(colloids[index].pos)
 
-        test_points = np.array(
+        sensed_colloids = np.array(
             [colloid.pos for colloid in colloids if colloid.type == self.sensing_type]
         )
 
-        out_indices, field_values = self.observable_fn(
-            np.array(indices), np.array(positions), test_points, historic_values
+        out_indices, _, field_values = self.observable_fn(
+            np.array(indices), np.array(positions), sensed_colloids, historic_values
         )
 
         for index, value in zip(out_indices, onp.array(field_values)):
@@ -121,9 +123,11 @@ class ParticleSensing(Observable):
         distances = np.linalg.norm(
             (test_positions - reference_position) / self.box_length, axis=-1
         )
+        indices = np.asarray(np.nonzero(distances, size=distances.shape[0] - 1))
+        distances = np.take(distances, indices, axis=0)
+        # Compute field value
         field_value = self.decay_fn(distances).sum()
-
-        return index, field_value - historic_value
+        return index, field_value - historic_value, field_value
 
     def compute_observable(self, colloids: List[Colloid]):
         """
@@ -160,7 +164,7 @@ class ParticleSensing(Observable):
             [colloid.pos for colloid in colloids if colloid.type == self.sensing_type]
         )
 
-        out_indices, field_values = self.observable_fn(
+        out_indices, delta_values, field_values = self.observable_fn(
             np.array(indices),
             np.array(positions),
             test_points,
@@ -170,4 +174,4 @@ class ParticleSensing(Observable):
         for index, value in zip(out_indices, onp.array(field_values)):
             self.historical_field[str(index)] = value
 
-        return self.scale_factor * field_values.reshape(-1, 1)
+        return self.scale_factor * delta_values.reshape(-1, 1)
