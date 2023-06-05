@@ -1,3 +1,4 @@
+import inspect
 import os
 import pickle
 import random
@@ -103,6 +104,8 @@ class Animations:
         times,
         ids,
         types,
+        ax_set_xlim,
+        ax_set_ylim,
         vision_cone_boolean,
         cone_radius,
         cone_vision_of_types,
@@ -114,9 +117,12 @@ class Animations:
         arrow_boolean,
         body_color,
         body_color_based_on_action_for_type,
+        body_color_alpha,
         radius_col,
-        schmell_boolean,
-        schmell_ids,
+        background_boolean,
+        background_sites,
+        background_colors,
+        background_data_generator,
         rod_rotation_chess_board_boolean,
         rod_length,
         rod_center_points,
@@ -127,6 +133,8 @@ class Animations:
         self.x_0 = None
         self.y_1 = None
         self.y_0 = None
+        self.ax_set_xlim = ax_set_xlim
+        self.ax_set_ylim = ax_set_ylim
         self.fig = fig
         self.ax = ax
 
@@ -154,37 +162,46 @@ class Animations:
         self.eyes_boolean = [False] * len(self.ids)
         self.arrow_boolean = [False] * len(self.ids)
         self.radius_col = [0] * len(self.ids)
-        # schmell means as much as  chemical potential
-        self.schmell_boolean = [False] * (len(self.ids) + 1)
-        # the plus 1 need to be extended to include all point sources of
-        # schmell that are not mounted to colloids
-        self.schmell_source_pos = [460, 500]
+
+        self.background_boolean = background_boolean
+        self.background_sites = background_sites
+        self.background_colors = background_colors
+        self.background_data_generator = background_data_generator
+        self.background_N = 200
+
+        """
+                for i in range(len(self.ids)):
+            if int(self.ids[i]) in schmell_ids:
+                # those ids correspond to chemical emitting colloids
+                self.schmell_boolean[i] = schmell_boolean
+        self.schmell_boolean[len(self.ids)] = schmell_boolean
+
+        """
 
         self.rod_rotation_chess_board_boolean = [False] * len(self.ids)
         self.rod_length = rod_length
         self.rod_center_points = rod_center_points
 
-        self.maze_boolean = False
+        self.maze_boolean = maze_boolean  # type=2 corresponds to wall particles
         self.maze_points = {}
         self.wall_thickness = 42
         self.maze_walls = []
 
+        # all the visual objects
         self.rod_rotation_chess_board_field = [0] * len(self.ids)
-
         self.trace = [0] * len(self.ids)
-
         self.part_body = [0] * len(self.ids)
         self.body_color = body_color
+        self.body_color_alpha = body_color_alpha
         self.body_color_based_on_action_for_type = body_color_based_on_action_for_type
         self.part_lefteye = [0] * len(self.ids)
         self.part_righteye = [0] * len(self.ids)
         self.part_arrow = [0] * len(self.ids)
-
         self.time_annotate = [0]
-        self.schmell = [0]
         self.written_info = [0]
         self.maze = []
-        self.set_gif_options(
+
+        self.set_gif_options_for_different_ids(
             vision_cone_boolean,
             cone_radius,
             n_cones,
@@ -194,14 +211,11 @@ class Animations:
             eyes_boolean,
             arrow_boolean,
             radius_col,
-            schmell_boolean,
-            schmell_ids,
             rod_rotation_chess_board_boolean,
             rod_center_points,
-            maze_boolean,
         )
 
-    def set_gif_options(
+    def set_gif_options_for_different_ids(
         self,
         vision_cone_boolean,
         cone_radius,
@@ -212,11 +226,8 @@ class Animations:
         eyes_boolean,
         arrow_boolean,
         radius_col,
-        schmell_boolean,
-        schmell_ids,
         rod_rotation_chess_board_boolean,
         rod_center_points,
-        maze_boolean,
     ):
         # Adjust in for loop what you want (default is False)
         # and place parameters that you have
@@ -256,20 +267,12 @@ class Animations:
                 raise Exception("unknown colloid type in visualization")
 
         for i in range(len(self.ids)):
-            if int(self.ids[i]) in schmell_ids:
-                # those ids correspond to chemical emitting colloids
-                self.schmell_boolean[i] = schmell_boolean
-        self.schmell_boolean[len(self.ids)] = schmell_boolean
-
-        for i in range(len(self.ids)):
             if int(self.ids[i]) in rod_center_points:
                 # those ids correspond to base particle of the chess board background
 
                 self.rod_rotation_chess_board_boolean[i] = (
                     rod_rotation_chess_board_boolean
                 )
-
-        self.maze_boolean = maze_boolean  # type=2 corresponds to wall particles
 
     # General initialization runs once and calls extra preparation functions to help
     def animation_plt_init(self):
@@ -293,6 +296,12 @@ class Animations:
         self.x_1 = mean_x + max_region / 2
         self.y_0 = mean_y - max_region / 2
         self.y_1 = mean_y + max_region / 2
+        if self.ax_set_xlim is not None:
+            self.x_0 = self.ax_set_xlim[0]
+            self.x_1 = self.ax_set_xlim[1]
+        if self.ax_set_ylim is not None:
+            self.y_0 = self.ax_set_ylim[0]
+            self.y_1 = self.ax_set_ylim[1]
         self.ax.set_xlim(self.x_0, self.x_1)
         self.ax.set_ylim(self.y_0, self.y_1)
         l_units = self.positions.units
@@ -345,13 +354,6 @@ class Animations:
         except ValueError:
             pass
 
-        # prepare  schmell (colors)
-        self.schmell_N = 100
-        cfade = colors.to_rgb(self.color_names[4]) + (0.0,)
-        self.schmellcolor = colors.LinearSegmentedColormap.from_list(
-            "my", [cfade, self.color_names[4]]
-        )
-
         # prepare rod rotation chess board
         if self.rod_rotation_chess_board_boolean:
             self.prepare_rod_rotation_chess_board_data()
@@ -382,9 +384,13 @@ class Animations:
         # eyes or  arrow                        <4*n_parts + n_parts*n_cones
         # writtenInfo and time_info             =4*n_parts + n_parts*n_cones +1
 
-        self.init_schmell_field()
-
         self.init_rod_rotation_chess_board()
+
+        # init background coloring
+        if self.background_boolean:
+            self.init_background()
+        else:
+            (self.background[0],) = self.ax.plot([], [], zorder=0, alpha=0)
 
         n_parts = len(self.ids)
 
@@ -408,8 +414,8 @@ class Animations:
                 patches.Circle(
                     xy=(-27000, -27000),
                     radius=self.radius_col[i],
-                    alpha=0.7,
-                    color=self.body_color[0][
+                    alpha=self.body_color_alpha,
+                    color=self.body_color["type"][
                         self.types[i]
                     ],  # init the colors with types
                     zorder=n_parts + n_parts * self.n_cones + i,
@@ -567,45 +573,6 @@ class Animations:
                         patches.Circle(xy=(0, 0), radius=42, visible=False)
                     )
 
-    def init_schmell_field(self):
-        if self.schmell_boolean != [False] * (len(self.ids) + 1):
-            self.X, self.Y = np.mgrid[
-                self.x_0 : self.x_1 : complex(0, self.schmell_N),
-                self.y_0 : self.y_1 : complex(0, self.schmell_N),
-            ]
-            self.testpos = np.stack([self.X.flatten(), self.Y.flatten()], axis=-1)
-            self.schmell_magnitude_shape = np.zeros((self.schmell_N, self.schmell_N))
-            n_parts = len(self.ids)
-            for i in range(n_parts):
-                if self.schmell_boolean[i]:
-                    pos = self.positions[0, i, :].magnitude
-                    self.schmell_magnitude, _ = calc_chemical_potential(
-                        pos, self.testpos
-                    )
-                    self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
-                        (self.schmell_N, self.schmell_N)
-                    )
-
-            self.schmell_magnitude, _ = calc_chemical_potential(
-                self.schmell_source_pos, self.testpos
-            )
-            self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
-                (self.schmell_N, self.schmell_N)
-            )
-
-            self.schmell[0] = self.ax.pcolormesh(
-                self.X,
-                self.Y,
-                np.arctan(self.schmell_magnitude_shape * 2.5),
-                vmin=np.arctan(np.min(self.schmell_magnitude_shape * 2.5)),
-                vmax=np.pi / 2,
-                cmap=self.schmellcolor,
-                shading="nearest",
-                zorder=0,
-            )
-        else:
-            (self.schmell[0],) = self.ax.plot([], [], zorder=0, alpha=0)
-
     def prepare_vision_cone_data(self):
         if self.vision_cone_data is None:
             print(
@@ -689,6 +656,82 @@ class Animations:
                     )  # divide norm_vals by ca. 100 to get shaded colors
                     self.vision_cone_data_frame[:, :, :, detected_type] += 0.05
 
+    def init_background(self):
+        self.background = [0] * len(self.background_sites)
+        self.X, self.Y = np.mgrid[
+            self.x_0 : self.x_1 : complex(0, self.background_N),
+            self.y_0 : self.y_1 : complex(0, self.background_N),
+        ]
+        self.testpos = np.stack([self.X.flatten(), self.Y.flatten()], axis=-1)
+        self.background_data_shape = np.zeros(
+            (len(self.background_sites), self.background_N, self.background_N)
+        )
+
+        # copy the dictionary
+        self.background_color_map = self.background_colors
+        self.max_val_pcolormesh = {}
+
+        # this holds a ditionary with the functions in the class
+        self.background_data_sources = dict(
+            inspect.getmembers(
+                self.background_data_generator, predicate=inspect.ismethod
+            )
+        )
+
+        for key_idx, key in enumerate(self.background_sites):
+            cfade = colors.to_rgb(self.background_colors[key]) + (0.0,)
+            self.background_color_map[key] = colors.LinearSegmentedColormap.from_list(
+                "my", [cfade, self.background_colors[key]]
+            )
+            if "fixed_pos" in key:
+                source_pos = self.background_sites[key]
+                self.background_data_magnitude, self.max_val_pcolormesh[key] = (
+                    self.background_data_sources["get_" + key + "_data"](
+                        source_pos, self.testpos
+                    )
+                )
+                self.background_data_shape[
+                    key_idx, :, :
+                ] += self.background_data_magnitude.reshape(
+                    self.background_N, self.background_N
+                )
+                self.background_data_shape[key_idx, :, :] /= np.amax(
+                    self.background_data_shape[key_idx, :, :]
+                )
+            elif "id_pos" in key:
+                source_ids = self.background_sites[key]
+                pos = self.positions[0, source_ids, :2].magnitude
+                self.background_data_magnitude, self.max_val_pcolormesh[key] = (
+                    self.background_data_sources["get_" + key + "_data"](
+                        pos, self.testpos
+                    )
+                )
+                self.background_data_shape[
+                    key_idx, :, :
+                ] += self.background_data_magnitude.reshape(
+                    self.background_N, self.background_N
+                )
+                self.background_data_shape[key_idx, :, :] /= np.amax(
+                    self.background_data_shape[key_idx, :, :]
+                )
+            else:
+                print(
+                    "Unknown key in Visualization/Animation dictionary background_sites"
+                    " and probably then also in background_colors."
+                )
+
+        for key_idx, key in enumerate(self.background_sites):
+            self.background[key_idx] = self.ax.pcolormesh(
+                self.X,
+                self.Y,
+                np.arctan(self.background_data_shape[key_idx, :, :] * 2.5),
+                vmin=np.arctan(np.min(self.background_data_shape[key_idx, :, :] * 2.5)),
+                vmax=self.max_val_pcolormesh[key],
+                cmap=self.background_color_map[key],
+                shading="nearest",
+                zorder=0,
+            )
+
     def animation_maze_setup(self, folder, filename):
         maze_file = open(folder + filename, "rb")
         self.maze_dic = pickle.load(maze_file)
@@ -738,12 +781,23 @@ class Animations:
         self.x_1 = mean_x + max_region / 2
         self.y_0 = mean_y - max_region / 2
         self.y_1 = mean_y + max_region / 2
+
+        if self.ax_set_xlim is not None:
+            self.x_0 = self.ax_set_xlim[0]
+            self.x_1 = self.ax_set_xlim[1]
+        if self.ax_set_ylim is not None:
+            self.y_0 = self.ax_set_ylim[0]
+            self.y_1 = self.ax_set_ylim[1]
+
         self.ax.set_xlim(self.x_0, self.x_1)
         self.ax.set_ylim(self.y_0, self.y_1)
 
         # the ax limits have changed now we need to init it again
-        self.schmell[0].set_alpha(0)
-        self.init_schmell_field()
+        self.background[0].set_alpha(0)
+        if self.background_boolean:
+            self.init_background()
+        else:
+            (self.background[0],) = self.ax.plot([], [], zorder=0, alpha=0)
 
         for i, wall in enumerate(self.maze_walls):
             vec_along_wall = [wall[2] - wall[0], wall[3] - wall[1]]
@@ -774,6 +828,8 @@ class Animations:
                 + str(frame)
                 + " which is to high"
             )
+
+        # Update the time counter
         t = round(self.times[frame], 0)
         self.time_annotate[0].set(text=f"time: ${t:g~L}$")
 
@@ -787,27 +843,36 @@ class Animations:
             else:
                 self.written_info[0].set(text=self.written_info_data[frame])
 
-        # Updating the schmell field
-        if self.schmell_boolean != [False] * (len(self.ids) + 1):
-            self.schmell_magnitude_shape = np.zeros((self.schmell_N, self.schmell_N))
-            for i in range(len(self.ids)):
-                if self.schmell_boolean[i]:
-                    pos = self.positions[frame, i, :].magnitude
-                    self.schmell_magnitude, _ = calc_chemical_potential(
-                        pos, self.testpos
+        # Updating the background field
+        if self.background_boolean:
+            for key_idx, key in enumerate(self.background_sites):
+                if "id_pos" in key:
+                    self.background_data_shape[key_idx, :, :] *= 0
+                    source_ids = self.background_sites[key]
+                    pos = self.positions[frame, source_ids, :2].magnitude
+                    self.background_data_magnitude, _ = self.background_data_sources[
+                        "get_" + key + "_data"
+                    ](pos, self.testpos)
+                    self.background_data_shape[
+                        key_idx, :, :
+                    ] += self.background_data_magnitude.reshape(
+                        self.background_N, self.background_N
                     )
-                    self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
-                        (self.schmell_N, self.schmell_N)
+                    self.background_data_shape[key_idx, :, :] /= np.amax(
+                        self.background_data_shape[key_idx, :, :]
+                    )
+                else:
+                    print(
+                        "Unknown key in Visualization/Animation dictionary"
+                        " background_sites and probably then also in background_colors."
                     )
 
-            self.schmell_magnitude, _ = calc_chemical_potential(
-                self.schmell_source_pos, self.testpos
-            )
-            self.schmell_magnitude_shape += self.schmell_magnitude.reshape(
-                (self.schmell_N, self.schmell_N)
-            )
-            self.schmell[0].set_array(np.arctan(self.schmell_magnitude_shape * 2.5))
+            for key_idx, key in enumerate(self.background_sites):
+                self.background[key_idx].set_array(
+                    np.arctan(self.background_data_shape[key_idx, :, :] * 2.5)
+                )
 
+        # Update objects for different ids
         for i in range(len(self.ids)):
             directors_angle = np.arctan2(
                 self.directors[frame, i, 1], self.directors[frame, i, 0]
@@ -815,18 +880,21 @@ class Animations:
             xdata = self.positions[: frame + 1, i, 0].magnitude
             ydata = self.positions[: frame + 1, i, 1].magnitude
 
+            # Update position
             self.part_body[i].set(center=(xdata[frame], ydata[frame]))
 
+            # Update color
             if self.body_color_based_on_action_for_type != []:
                 if self.types[i] not in self.body_color_based_on_action_for_type:
-                    self.part_body[i].set(color=self.body_color[0][self.types[i]])
+                    self.part_body[i].set(color=self.body_color["type"][self.types[i]])
                     # print(self.body_color[0][self.types[i]])
                 elif self.types[i] in self.body_color_based_on_action_for_type:
                     self.part_body[i].set(
-                        color=self.body_color[1][int(self.action_data[frame, i])]
+                        color=self.body_color["action"][int(self.action_data[frame, i])]
                     )
                     # print(self.body_color[1][int(self.action_data[frame,i])])
 
+            # Update chess board pattern of rods
             if self.rod_rotation_chess_board_boolean != [False] * len(self.ids):
                 if self.rod_rotation_chess_board_boolean[i]:
                     self.rod_rotation_chess_board_field[i].set(
@@ -834,6 +902,7 @@ class Animations:
                         alpha=self.diff_angle_signs[frame, i],
                     )
 
+            # Update traces behind ids
             if self.trace_boolean[i] and not self.trace_fade_boolean[i]:
                 self.trace[i].set_data(xdata, ydata)
             elif self.trace_boolean[i] and self.trace_fade_boolean[i]:
@@ -846,6 +915,7 @@ class Animations:
             else:
                 pass
 
+            # Update vision cones
             if self.vision_cone_boolean[i]:
                 for j in range(self.n_cones):
                     for k in range(self.n_types):
@@ -871,6 +941,7 @@ class Animations:
                                 i * self.n_cones * self.n_types + j * self.n_types + k
                             ].set(alpha=self.vision_cone_data_frame[frame, i, j, k])
 
+            # Update eyes
             if self.eyes_boolean[i]:
                 lefteye_x = (
                     self.radius_col[i] * 0.9 * np.cos(directors_angle + np.pi / 4)
@@ -890,6 +961,9 @@ class Animations:
                 self.part_righteye[i].set(
                     center=(xdata[frame] + righteye_x, ydata[frame] + righteye_y)
                 )
+
+            # Update arrows
+
             if self.arrow_boolean[i]:
                 end_x = self.radius_col[i] * 0.4 * np.cos(directors_angle + np.pi)
                 end_y = self.radius_col[i] * 0.4 * np.sin(directors_angle + np.pi)
@@ -912,7 +986,7 @@ class Animations:
                 + self.part_righteye
                 + self.part_arrow
                 + self.time_annotate
-                + self.schmell
+                + self.background
                 + self.written_info
                 + self.rod_rotation_chess_board_field
                 + self.maze
@@ -926,7 +1000,7 @@ class Animations:
                 + self.part_righteye
                 + self.part_arrow
                 + self.time_annotate
-                + self.schmell
+                + self.background
                 + self.written_info
                 + self.rod_rotation_chess_board_field
             )
