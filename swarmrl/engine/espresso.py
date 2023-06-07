@@ -758,7 +758,11 @@ class EspressoMD(Engine):
             for col in self.colloids:
                 swarmrl_colloids.append(
                     swarmrl.models.interaction_model.Colloid(
-                        pos=col.pos, director=col.director, id=col.id, type=col.type
+                        pos=col.pos,
+                        velocity=col.v,
+                        director=col.director,
+                        id=col.id,
+                        type=col.type,
                     )
                 )
             actions = force_model.calc_action(swarmrl_colloids)

@@ -27,11 +27,21 @@ class TestSubdividedVisionCones:
         Tests if the computation of the observable is still correct.
         """
 
-        col0 = Colloid(np.array([0, 0, 0]), np.array([0, 1.0, 0]), 0, 0)
-        col1 = Colloid(np.array([0, 5, 0]), np.array([1.0, 0, 0]), 1, 0)
-        col2 = Colloid(np.array([0, 8, 0]), np.array([1.0, 0, 0]), 2, 1)
-        col3 = Colloid(np.array([-7, 8, 0]), np.array([0.0, 1.0, 0]), 3, 1)
-        col4 = Colloid(np.array([1, 1, 0]), np.array([0.0, 1.0, 0]), 4, 0)
+        col0 = Colloid(
+            np.array([0, 0, 0]), np.array([0, 1.0, 0]), 0, np.array([0, 0, 0]), 0
+        )
+        col1 = Colloid(
+            np.array([0, 5, 0]), np.array([1.0, 0, 0]), 1, np.array([0, 0, 0]), 0
+        )
+        col2 = Colloid(
+            np.array([0, 8, 0]), np.array([1.0, 0, 0]), 2, np.array([0, 0, 0]), 1
+        )
+        col3 = Colloid(
+            np.array([-7, 8, 0]), np.array([0.0, 1.0, 0]), 3, np.array([0, 0, 0]), 1
+        )
+        col4 = Colloid(
+            np.array([1, 1, 0]), np.array([0.0, 1.0, 0]), 4, np.array([0, 0, 0]), 0
+        )
         colloids = [col0, col1, col2, col3, col4]
         observables = self.vc.compute_observable(colloids)
         observable = observables[0]
