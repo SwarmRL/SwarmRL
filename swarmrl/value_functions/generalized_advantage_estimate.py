@@ -52,13 +52,18 @@ class GAE:
                                     )
                 The advantage and the expected return for the episode.
         """
+
         gae = 0
+
+        returns = onp.zeros_like(rewards)
         advantages = onp.zeros_like(rewards)
         for t in reversed(range(len(rewards))):
             if t != len(rewards) - 1:
+                returns[t] = rewards[t] + self.gamma * returns[t + 1]
                 delta = rewards[t] + self.gamma * values[t + 1] - values[t]
             else:
                 delta = rewards[t] - values[t]
+                returns[t] = rewards[t]
 
             gae = delta + self.gamma * self.lambda_ * gae
 
@@ -66,4 +71,5 @@ class GAE:
         advantages = (advantages - np.mean(advantages)) / (
             np.std(advantages) + self.eps
         )
-        return advantages, advantages + values
+
+        return advantages, returns

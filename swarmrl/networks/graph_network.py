@@ -138,7 +138,7 @@ class GraphModel(Network, ABC):
         dummy_input = gn_utils.get_fully_connected_graph(
             n_node_per_graph=1,
             n_graph=1,
-            node_features=np.array([np.array([0, 0, 0, 0])]),
+            node_features=np.array([np.array([0, 0, 0])]),
             add_self_edges=False,
         )
 

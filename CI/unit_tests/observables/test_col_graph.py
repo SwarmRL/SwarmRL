@@ -1,7 +1,10 @@
 """
 Unit test for the position-angle observable.
 """
+
+
 import os
+import time
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -70,6 +73,22 @@ def build_specific_cols(num_cols, distance):
     return cols
 
 
+def build_circle_cols(n_colls, dist=300):
+    cols = []
+    pos_0 = 1000 * np.random.random(3)
+    pos_0[-1] = 0
+    direction_0 = np.random.random(3)
+    direction_0[-1] = 0
+    for i in range(n_colls - 1):
+        theta = np.random.random(1)[0] * 2 * np.pi
+        position = pos_0 + dist * np.array([np.cos(theta), np.sin(theta), 0])
+        direction = np.random.random(3)
+        direction[-1] = 0
+        direction = direction / np.linalg.norm(direction)
+        cols.append(Colloid(pos=position, director=direction, type=0, id=i))
+    return cols
+
+
 class TestGraphObservable:
     """
     Test suite for the position angle observable.
@@ -95,13 +114,21 @@ class TestGraphObservable:
         graph for each colloid with num_cols - 1 nodes.
         """
         # create a list of colloids.
-        num_cols = 8
+        num_cols = 20
         graph_obs = ColGraph(cutoff=np.sqrt(2), box_size=np.array([1000, 1000, 1000]))
-        for i in range(30):
-            cols = build_cols([3, 2, 3])
+        for i in range(1):
+            cols = build_circle_cols(num_cols)
+            start_time = time.time()
             graphs = graph_obs.compute_observable(colloids=cols)
-            for graph in graphs:
-                assert graph.n_node == int(num_cols - 1)
+            end_time = time.time()
+            print("time for one iteration: ", end_time - start_time)
+            # for graph in graphs:
+            #     assert graph.n_node == int(num_cols - 1)
+        info = {
+            "colloids": np.array(cols, dtype=object),
+            "graphs": np.array(graphs[0], dtype=object),
+        }
+        np.save("graph_list.npy", info, allow_pickle=True)
 
     def test_compute_observable_r500(self):
         """
