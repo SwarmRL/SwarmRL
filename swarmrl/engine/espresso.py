@@ -242,6 +242,7 @@ class EspressoMD(Engine):
             random_placement_radius=placement_radius,
             type_colloid=type_col,
         )
+        self._remove_overlap(relaxation_steps=1000)
 
     def add_colloids(
         self,
@@ -621,25 +622,26 @@ class EspressoMD(Engine):
         logger.debug(f"wrote {n_new_timesteps} time steps to hdf5 file")
         self.h5_time_steps_written += n_new_timesteps
 
-    def _remove_overlap(self):
+    def _remove_overlap(self, relaxation_steps: int = 1000):
         # remove overlap
         self.system.integrator.set_steepest_descent(
             f_max=0.0, gamma=0.1, max_displacement=0.1
         )
-        self.system.integrator.run(1000)
+        self.system.integrator.run(relaxation_steps)
 
-        # set the brownian thermostat
-        kT = (self.params.temperature * self.ureg.boltzmann_constant).m_as("sim_energy")
-        # Dummy gamma values, we set them for each particle separately.
-        # If we forget to do so, the simulation will explode as a gentle reminder
-        self.system.thermostat.set_brownian(
-            kT=kT,
-            gamma=1e-20,
-            gamma_rotation=1e-20,
-            seed=self.seed,
-            act_on_virtual=False,
-        )
-        self.system.integrator.set_brownian_dynamics()
+        # # set the brownian thermostat
+        # kT =
+        # (self.params.temperature * self.ureg.boltzmann_constant).m_as("sim_energy")
+        # # Dummy gamma values, we set them for each particle separately.
+        # # If we forget to do so, the simulation will explode as a gentle reminder
+        # self.system.thermostat.set_brownian(
+        #     kT=kT,
+        #     gamma=1e-20,
+        #     gamma_rotation=1e-20,
+        #     seed=self.seed,
+        #     act_on_virtual=False,
+        # )
+        # self.system.integrator.set_brownian_dynamics()
 
     def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel = None):
         """
@@ -662,7 +664,7 @@ class EspressoMD(Engine):
             if not self.hdf5_initialized:
                 self._init_h5_output()
                 self.hdf5_initialized = True
-            # self._remove_overlap()
+            self._remove_overlap()
             self.integration_initialised = True
 
         for _ in range(n_slices):

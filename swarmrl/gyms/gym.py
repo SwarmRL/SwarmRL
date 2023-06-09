@@ -123,6 +123,12 @@ class Gym:
         )
         return interaction_model, np.array(reward) / len(self.rl_protocols)
 
+    def reset(self, system_runner):
+        system_runner.reset_system()
+        for item, val in self.rl_protocols.items():
+            val.observable.initialize(system_runner.colloids)
+            val.task.initialize(system_runner.colloids)
+
     def export_models(self, directory: str = "Models"):
         """
         Export the models to the specified directory.
@@ -236,6 +242,7 @@ class Gym:
                     current_reward=np.round(current_reward, 2),
                     running_reward=np.round(np.mean(rewards[-10:]), 2),
                 )
+                self.reset(system_runner)
 
         system_runner.finalize()
 
