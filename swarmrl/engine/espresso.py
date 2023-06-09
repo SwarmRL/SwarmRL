@@ -138,6 +138,12 @@ class EspressoMD(Engine):
         # register to lookup which type has which radius
         self.colloid_radius_register = dict()
 
+        # register to lookup which colloids have been added to the system
+        self.colloids_added_register = {
+            "add_colloid": {"times": float, "args": []},
+            "add_rod": {"times": float, "args": []},
+        }
+
         # after the first call to integrate, no more changes to the engine are allowed
         self.integration_initialised = False
 
@@ -269,7 +275,15 @@ class EspressoMD(Engine):
         -------
 
         """
-
+        self.colloids_added_register["add_colloids"]["times"] += 1
+        args = [
+            n_colloids,
+            radius_colloid,
+            random_placement_center,
+            random_placement_radius,
+            type_colloid,
+        ]
+        self.colloids_added_register["add_colloids"]["args"].append([args])
         self._check_already_initialised()
 
         radius_simunits = radius_colloid.m_as("sim_length")
@@ -370,6 +384,21 @@ class EspressoMD(Engine):
             raise ValueError(f"Rod center z-component must be 0. You gave {rod_center}")
         if n_particles % 2 != 1:
             raise ValueError(f"n_particles must be uneven. You gave {n_particles}")
+
+        self.colloids_added_register["add_rod"]["times"] += 1
+        # put args of the function in a list and append it to the register
+        args = [
+            rod_center,
+            rod_length,
+            rod_thickness,
+            rod_start_angle,
+            n_particles,
+            friction_trans,
+            friction_rot,
+            rod_particle_type,
+            fixed,
+        ]
+        self.colloids_added_register["add_rod"]["args"].append([args])
 
         espressomd.assert_features(["VIRTUAL_SITES_RELATIVE"])
         import espressomd.virtual_sites as evs
@@ -624,24 +653,28 @@ class EspressoMD(Engine):
 
     def _remove_overlap(self, relaxation_steps: int = 1000):
         # remove overlap
+        try:
+            self.system.thermostat.turn_off()
+        except AttributeError:
+            pass
+
         self.system.integrator.set_steepest_descent(
             f_max=0.0, gamma=0.1, max_displacement=0.1
         )
         self.system.integrator.run(relaxation_steps)
 
         # # set the brownian thermostat
-        # kT =
-        # (self.params.temperature * self.ureg.boltzmann_constant).m_as("sim_energy")
-        # # Dummy gamma values, we set them for each particle separately.
-        # # If we forget to do so, the simulation will explode as a gentle reminder
-        # self.system.thermostat.set_brownian(
-        #     kT=kT,
-        #     gamma=1e-20,
-        #     gamma_rotation=1e-20,
-        #     seed=self.seed,
-        #     act_on_virtual=False,
-        # )
-        # self.system.integrator.set_brownian_dynamics()
+        kT = (self.params.temperature * self.ureg.boltzmann_constant).m_as("sim_energy")
+        # Dummy gamma values, we set them for each particle separately.
+        # If we forget to do so, the simulation will explode as a gentle reminder
+        self.system.thermostat.set_brownian(
+            kT=kT,
+            gamma=1e-20,
+            gamma_rotation=1e-20,
+            seed=self.seed,
+            act_on_virtual=False,
+        )
+        self.system.integrator.set_brownian_dynamics()
 
     def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel = None):
         """
