@@ -194,6 +194,9 @@ class Animations:
         self.body_color = body_color
         self.body_color_alpha = body_color_alpha
         self.body_color_based_on_action_for_type = body_color_based_on_action_for_type
+        self.background = [0] * max(
+            len(self.background_sites), 1
+        )  # the dummy visual object needs this list
         self.part_lefteye = [0] * len(self.ids)
         self.part_righteye = [0] * len(self.ids)
         self.part_arrow = [0] * len(self.ids)
@@ -345,7 +348,7 @@ class Animations:
             )
 
         try:
-            if self.action_data is None and self.body_color_information != []:
+            if self.action_data is None:
                 print(
                     "there is no action data to color the particle bodies with this"
                     " input. Falling back to type"
@@ -390,7 +393,9 @@ class Animations:
         if self.background_boolean:
             self.init_background()
         else:
-            (self.background[0],) = self.ax.plot([], [], zorder=0, alpha=0)
+            self.background[0] = self.ax.add_patch(
+                patches.Circle(xy=(0, 0), radius=42, visible=False)
+            )
 
         n_parts = len(self.ids)
 
@@ -657,7 +662,6 @@ class Animations:
                     self.vision_cone_data_frame[:, :, :, detected_type] += 0.05
 
     def init_background(self):
-        self.background = [0] * len(self.background_sites)
         self.X, self.Y = np.mgrid[
             self.x_0 : self.x_1 : complex(0, self.background_N),
             self.y_0 : self.y_1 : complex(0, self.background_N),

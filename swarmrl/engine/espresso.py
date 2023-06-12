@@ -804,7 +804,7 @@ class EspressoMD(Engine):
             self._init_h5_output()
             self.integration_initialised = True
 
-            self.manage_forces(force_model)
+            # self.manage_forces(force_model)
             self._update_traj_holder()
 
             if len(self.traj_holder["Times"]) >= self.write_chunk_size:
@@ -842,7 +842,10 @@ class EspressoMD(Engine):
 
             if self.step_idx == self.params.steps_per_slice * (self.slice_idx + 1):
                 self.slice_idx += 1
-                self.manage_forces(force_model)
+
+                if self.slice_idx < old_slice_idx + n_slices:
+                    # if the while loop will break anyway don't bother calculating
+                    self.manage_forces(force_model)
 
     def finalize(self):
         """
