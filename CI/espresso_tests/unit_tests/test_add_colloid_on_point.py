@@ -41,33 +41,24 @@ class AddColloidTest(ut.TestCase):
             position0 = [20, 10, 0]
             directors0 = np.array([1, 0, 0])
             type0 = 1
-            runner.add_colloid_on_point(
-                radius_colloid=ureg.Quantity(3.15, "micrometer"),
-                init_position=ureg.Quantity(position0, "micrometer"),
-                init_direction=directors0,
-                type_colloid=type0,
-            )
+            runner.add_colloid_on_point(radius_colloid=ureg.Quantity(3.15, "micrometer"),
+                                        init_position=ureg.Quantity(position0, "micrometer"), init_direction=directors0,
+                                        type_colloid=type0)
 
             position1 = [80, 30, 0]
             directors1 = np.array([1 / np.sqrt(2), 1 / np.sqrt(2), 0])
             type1 = 0
-            runner.add_colloid_on_point(
-                radius_colloid=ureg.Quantity(3.15, "micrometer"),
-                init_position=ureg.Quantity(position1, "micrometer"),
-                init_direction=directors1,
-                type_colloid=type1,
-            )
+            runner.add_colloid_on_point(radius_colloid=ureg.Quantity(3.15, "micrometer"),
+                                        init_position=ureg.Quantity(position1, "micrometer"), init_direction=directors1,
+                                        type_colloid=type1)
 
             position2 = [80, 30, 0]
             directors2 = np.array([1 / np.sqrt(2), 1 / np.sqrt(2), 0])
             type2 = 1
             with self.assertRaises(ValueError):
-                runner.add_colloid_on_point(
-                    radius_colloid=ureg.Quantity(44, "micrometer"),
-                    init_position=ureg.Quantity(position2, "micrometer"),
-                    init_direction=directors2,
-                    type_colloid=type2,
-                )
+                runner.add_colloid_on_point(radius_colloid=ureg.Quantity(44, "micrometer"),
+                                            init_position=ureg.Quantity(position2, "micrometer"),
+                                            init_direction=directors2, type_colloid=type2)
 
             const_force = dummy_models.ConstForce(force=0)
             runner.integrate(1, const_force)
