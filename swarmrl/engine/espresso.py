@@ -810,7 +810,7 @@ class EspressoMD(Engine):
 
         old_slice_idx = self.slice_idx
 
-        while self.slice_idx < old_slice_idx + n_slices:
+        while self.step_idx < self.params.steps_per_slice * (old_slice_idx + n_slices):
             if self.step_idx == self.params.steps_per_write_interval * self.write_idx:
                 self._update_traj_holder()
                 self.write_idx += 1
