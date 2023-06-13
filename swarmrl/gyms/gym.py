@@ -2,6 +2,7 @@
 Module to implement a simple multi-layer perceptron for the colloids.
 """
 import os
+import time
 from typing import List, Tuple
 
 import numpy as np
@@ -123,6 +124,12 @@ class Gym:
         )
         return interaction_model, np.array(reward) / len(self.rl_protocols)
 
+    def reset(self, system_runner):
+        system_runner.reset_system()
+        for item, val in self.rl_protocols.items():
+            val.observable.initialize(system_runner.colloids)
+            val.task.initialize(system_runner.colloids)
+
     def export_models(self, directory: str = "Models"):
         """
         Export the models to the specified directory.
@@ -225,8 +232,15 @@ class Gym:
                 visible=load_bar,
             )
             for _ in range(n_episodes):
+                start = time.time()
                 system_runner.integrate(episode_length, force_fn)
+                end = time.time()
+                print(f"espresso time: {end - start}")
+                start = time.time()
                 force_fn, current_reward = self.update_rl()
+                end = time.time()
+                print(f"training time: {end - start}")
+
                 rewards.append(current_reward)
                 episode += 1
                 progress.update(
@@ -236,6 +250,10 @@ class Gym:
                     current_reward=np.round(current_reward, 2),
                     running_reward=np.round(np.mean(rewards[-10:]), 2),
                 )
+                start = time.time()
+                self.reset(system_runner)
+                end = time.time()
+                print(f"reset time: {end - start}")
 
         system_runner.finalize()
 
