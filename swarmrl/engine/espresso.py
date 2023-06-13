@@ -837,7 +837,14 @@ class EspressoMD(Engine):
 
         Method will write the last chunks of trajectory
         """
+        self._update_traj_holder()  # get the last data
+        self.write_idx += 1  # just to be correct
         self._write_traj_chunk_to_file()
+        # clear the traj_holder in case some_one wants to
+        # keep on integrating even after calling finalize
+        # this way value are not writen twice
+        for val in self.traj_holder.values():
+            val.clear()
 
     def get_particle_data(self):
         """

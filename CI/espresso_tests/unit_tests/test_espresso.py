@@ -79,6 +79,7 @@ class EspressoTest(ut.TestCase):
             force = 1.234
             force_model = dummy_models.ConstForce(force)
             runner.integrate(n_slices, force_model)
+            runner.finalize()
 
             self.assertIsFile(f"{temp_dir}/trajectory.hdf5")
             self.assertIsFile(f"{temp_dir}/simulation_log.log")
