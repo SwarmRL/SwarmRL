@@ -72,4 +72,6 @@ class GAE:
             np.std(advantages) + self.eps
         )
 
+        returns = (returns - np.mean(returns)) / (np.std(returns) + self.eps)
+        # returns = advantages - values
         return advantages, returns

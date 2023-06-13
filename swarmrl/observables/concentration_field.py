@@ -103,7 +103,6 @@ class ConcentrationField(Observable, ABC):
         historic_distance = np.linalg.norm(self.source - previous_position)
 
         delta = self.decay_fn(current_distance) - self.decay_fn(historic_distance)
-
         return self.scale_factor * delta
 
     def compute_observable(self, colloids: List[Colloid]):
