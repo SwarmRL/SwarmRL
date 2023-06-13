@@ -221,6 +221,8 @@ class EspressoMD(Engine):
         init_position: pint.Quantity,
         init_direction: np.array = [1, 0, 0],
         type_colloid=0,
+        particle_gamma_translation: int = None,
+        particle_gamma_rotation: int = None
     ):
         """
         Parameters
@@ -233,6 +235,8 @@ class EspressoMD(Engine):
             Multiple calls can be made with the same type_colloid.
             Interaction models need to be made aware if there are different types
             of colloids in the system if specific behaviour is desired.
+        particle_gamma_translation
+        particle_gamma_rotation
 
         Returns
         -------
@@ -255,9 +259,9 @@ class EspressoMD(Engine):
         init_center = init_position.m_as("sim_length")
         init_direction = init_direction / np.linalg.norm(init_direction)
 
-        (
-            particle_gamma_translation,
-            particle_gamma_rotation,
+        if not particle_gamma_rotation and not particle_gamma_translation:
+            (particle_gamma_translation,
+                particle_gamma_rotation,
         ) = _calc_friction_coefficients(
             self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius_simunits
         )
@@ -340,23 +344,15 @@ class EspressoMD(Engine):
 
             if self.n_dims == 3:
                 director = utils.vector_from_angles(*utils.get_random_angles(self.rng))
-                self.add_colloid_on_point(
-                    radius_colloid=radius_colloid,
-                    init_position=start_pos,
-                    init_direction=director,
-                    type_colloid=type_colloid,
-                )
+                self.add_colloid_on_point(radius_colloid=radius_colloid, init_position=start_pos,
+                                          init_direction=director, type_colloid=type_colloid)
             else:
                 # initialize with body-frame = lab-frame to set correct rotation flags
                 # allow all rotations to bring the particle to correct state
                 start_angle = 2 * np.pi * self.rng.random()
                 init_direction = utils.vector_from_angles(np.pi / 2, start_angle)
-                self.add_colloid_on_point(
-                    radius_colloid=radius_colloid,
-                    init_position=start_pos,
-                    init_direction=init_direction,
-                    type_colloid=type_colloid,
-                )
+                self.add_colloid_on_point(radius_colloid=radius_colloid, init_position=start_pos,
+                                          init_direction=init_direction, type_colloid=type_colloid)
 
     def add_rod(
         self,

@@ -1,6 +1,7 @@
 """
 __init__ file for the swarmrl package.
 """
+
 import logging
 
 from swarmrl import (
@@ -41,3 +42,4 @@ __all__ = [
     rl_protocols.__name__,
     training_routines.__name__,
 ]
+
