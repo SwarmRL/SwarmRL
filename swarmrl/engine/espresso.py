@@ -843,6 +843,23 @@ class EspressoMD(Engine):
         """
         self._write_traj_chunk_to_file()
 
+    def save_current_state_to_file(self):
+        """
+        Method to save the current state of the simualtion to the file.
+
+        Be aware that this is a of the rithm save to the file.
+
+        Thus the time intervals might not be equally spaced anymore
+        """
+        self._update_traj_holder()  # take the last data
+        self.write_idx += 1  # just to be correct
+        self._write_traj_chunk_to_file()
+        # clear the traj_holder after finalize just in case someone keeps
+        # on integrating after finalize no value is writen twice.
+        # But one value will be written possibly before the determined time interval
+        for val in self.traj_holder.values():
+            val.clear()
+
     def get_particle_data(self):
         """
         Collect specific particle information from the colloids.
