@@ -758,7 +758,11 @@ class EspressoMD(Engine):
             for col in self.colloids:
                 swarmrl_colloids.append(
                     swarmrl.models.interaction_model.Colloid(
-                        pos=col.pos, director=col.director, id=col.id, type=col.type
+                        pos=col.pos,
+                        velocity=col.v,
+                        director=col.director,
+                        id=col.id,
+                        type=col.type,
                     )
                 )
             actions = force_model.calc_action(swarmrl_colloids)
@@ -805,6 +809,7 @@ class EspressoMD(Engine):
             self.integration_initialised = True
 
         old_slice_idx = self.slice_idx
+
         while self.slice_idx < old_slice_idx + n_slices:
             if self.step_idx == self.params.steps_per_write_interval * self.write_idx:
                 self._update_traj_holder()
