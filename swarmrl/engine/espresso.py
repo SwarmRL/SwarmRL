@@ -787,7 +787,7 @@ class EspressoMD(Engine):
         Parameters
         ----------
         n_slices : int
-                Number of integration steps to run.
+                Number of integration slices to run.
         force_model : swarmrl.InteractionModel
                 A SwarmRL interaction model to decide particle interaction rules.
 
@@ -806,7 +806,7 @@ class EspressoMD(Engine):
 
         old_slice_idx = self.slice_idx
 
-        while self.slice_idx < old_slice_idx + n_slices:
+        while self.step_idx < self.params.steps_per_slice * (old_slice_idx + n_slices):
             if self.step_idx == self.params.steps_per_write_interval * self.write_idx:
                 self._update_traj_holder()
                 self.write_idx += 1
@@ -837,14 +837,7 @@ class EspressoMD(Engine):
 
         Method will write the last chunks of trajectory
         """
-        self._update_traj_holder()  # get the last data
-        self.write_idx += 1  # just to be correct
         self._write_traj_chunk_to_file()
-        # clear the traj_holder in case some_one wants to
-        # keep on integrating even after calling finalize
-        # this way value are not writen twice
-        for val in self.traj_holder.values():
-            val.clear()
 
     def get_particle_data(self):
         """

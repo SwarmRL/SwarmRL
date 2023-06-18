@@ -106,7 +106,7 @@ class Simulation:
             system_runner.integrate(2, force_model)
             np.testing.assert_equal(system_runner.step_idx, 10)
             np.testing.assert_equal(system_runner.slice_idx, 2)
-            np.testing.assert_equal(system_runner.write_idx, 1)
+            np.testing.assert_equal(system_runner.write_idx, 2)
             np.testing.assert_almost_equal(system_runner.system.time, 1)
             np.testing.assert_equal(system_runner.params.steps_per_write_interval, 9)
             np.testing.assert_equal(system_runner.params.steps_per_slice, 5)
@@ -114,7 +114,7 @@ class Simulation:
             system_runner.integrate(3, force_model)
             np.testing.assert_equal(system_runner.step_idx, 25)
             np.testing.assert_equal(system_runner.slice_idx, 5)
-            np.testing.assert_equal(system_runner.write_idx, 2)
+            np.testing.assert_equal(system_runner.write_idx, 3)
             np.testing.assert_almost_equal(system_runner.system.time, 2.5)
             np.testing.assert_equal(len(system_runner.traj_holder["Times"]), 3)
 
@@ -122,7 +122,7 @@ class Simulation:
             system_runner.integrate(4, force_model)
             np.testing.assert_equal(system_runner.step_idx, 28)
             np.testing.assert_equal(system_runner.slice_idx, 4)
-            np.testing.assert_equal(system_runner.write_idx, 9)
+            np.testing.assert_equal(system_runner.write_idx, 10)
             np.testing.assert_almost_equal(system_runner.system.time, 2.8)
             np.testing.assert_equal(system_runner.params.steps_per_write_interval, 3)
             np.testing.assert_equal(system_runner.params.steps_per_slice, 7)
@@ -132,7 +132,7 @@ class Simulation:
             np.testing.assert_equal(system_runner.slice_idx, 6)
             np.testing.assert_equal(system_runner.write_idx, 14)
             np.testing.assert_almost_equal(system_runner.system.time, 4.2)
-            np.testing.assert_equal(len(system_runner.traj_holder["Times"]), 5)
+            np.testing.assert_equal(len(system_runner.traj_holder["Times"]), 4)
 
         if self.test_number == 2:
             system_runner.integrate(4, force_model)
@@ -142,13 +142,13 @@ class Simulation:
             np.testing.assert_almost_equal(system_runner.system.time, 0.8)
             np.testing.assert_equal(system_runner.params.steps_per_write_interval, 2)
             np.testing.assert_equal(system_runner.params.steps_per_slice, 2)
-            np.testing.assert_equal(len(system_runner.traj_holder["Times"]), 5)
+            np.testing.assert_equal(len(system_runner.traj_holder["Times"]), 4)
             system_runner.integrate(2, force_model)
             np.testing.assert_equal(system_runner.step_idx, 12)
             np.testing.assert_equal(system_runner.slice_idx, 6)
             np.testing.assert_equal(system_runner.write_idx, 6)
             np.testing.assert_almost_equal(system_runner.system.time, 1.2)
-            np.testing.assert_equal(len(system_runner.traj_holder["Times"]), 7)
+            np.testing.assert_equal(len(system_runner.traj_holder["Times"]), 6)
 
         system_runner.finalize()
 
