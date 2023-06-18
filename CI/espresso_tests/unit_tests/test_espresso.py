@@ -79,7 +79,16 @@ class EspressoTest(ut.TestCase):
             force = 1.234
             force_model = dummy_models.ConstForce(force)
             runner.integrate(n_slices, force_model)
-            runner.save_current_state_to_file()
+
+            # save_current_state_to_file
+            runner._update_traj_holder()  # take the last data
+            runner.write_idx += 1  # just to be correct
+            runner._write_traj_chunk_to_file()
+            # clear the traj_holder after finalize just in case someone keeps
+            # on integrating after finalize -> no value is writen twice.
+            # But one value will be written possibly before the determined time interval
+            for val in runner.traj_holder.values():
+                val.clear()
 
             self.assertIsFile(f"{temp_dir}/trajectory.hdf5")
             self.assertIsFile(f"{temp_dir}/simulation_log.log")
