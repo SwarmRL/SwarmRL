@@ -10,15 +10,13 @@ import jax.tree_util as tree
 import numpy as onp
 import optax
 from flax.training.train_state import TrainState
-from jraph._src import utils as gn_utils
-from jraph._src.graph import GraphsTuple
 from optax import GradientTransformation
 
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
 from swarmrl.networks.network import Network
+from swarmrl.observables.col_graph import GraphObservable
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
-from swarmrl.utils.utils import save_memory
 
 
 class EncodeNet(nn.Module):
@@ -66,19 +64,18 @@ class GraphNet(nn.Module):
     criticer: CritNet
 
     @nn.compact
-    def __call__(self, graph):
-        nodes, edges, receivers, senders, globals_, n_node, n_edge = graph
+    def __call__(self, graph: GraphObservable):
+        nodes, edges, channels, receivers, senders, globals_, n_node, n_edge = graph
 
         # Encode the nodes.
         # embedding_vec = self.encoder(nodes)
-        influence_scores = self.influencer(nodes)
+        influence_scores = self.influencer(channels)
         eps = 1e-8
         influence = jax.nn.softmax(influence_scores + eps, axis=0)
 
         graph_representation = np.mean(
-            tree.tree_map(lambda n, i: n * i, nodes, influence), axis=0
+            tree.tree_map(lambda n, i: n * i, channels, influence), axis=0
         )
-        # print(f"graph_representation: {graph_representation}")
         logits = self.actress(graph_representation)
         value = self.criticer(graph_representation)
         return logits, value, (graph_representation, influence)
@@ -101,6 +98,7 @@ class GraphModel(Network, ABC):
         rng_key: int = 42,
         deployment_mode: bool = False,
         record_memory: bool = False,
+        example_graph: GraphObservable = None,
     ):
         if rng_key is None:
             rng_key = onp.random.randint(0, 1027465782564)
@@ -118,7 +116,7 @@ class GraphModel(Network, ABC):
             # initialize the model state
             init_rng = jax.random.PRNGKey(rng_key)
             _, subkey = jax.random.split(init_rng)
-            self.model_state = self._create_train_state(subkey)
+            self.model_state = self._create_train_state(subkey, example_graph)
 
             self.epoch_count = 0
 
@@ -133,16 +131,10 @@ class GraphModel(Network, ABC):
             "indices": [],
             "taken_log_probs": [],
         }
+        self.kind = "network"
 
-    def _create_train_state(self, init_rng: int) -> TrainState:
-        dummy_input = gn_utils.get_fully_connected_graph(
-            n_node_per_graph=1,
-            n_graph=1,
-            node_features=np.array([np.array([0, 0, 0])]),
-            add_self_edges=False,
-        )
-
-        params = self.model.init(init_rng, dummy_input)["params"]
+    def _create_train_state(self, init_rng: int, example_graph) -> TrainState:
+        params = self.model.init(init_rng, example_graph)["params"]
 
         return TrainState.create(
             apply_fn=self.apply_fn, params=params, tx=self.optimizer
@@ -217,17 +209,6 @@ class GraphModel(Network, ABC):
             log_probs, indices.reshape(-1, 1), axis=1
         ).reshape(-1)
 
-        # wirte to disk
-        if self.record_memory:
-            self.memory["observables"].append(observables)
-            self.memory["graph_representations"].append(graph_representation_list)
-            self.memory["influences"].append(influence_list)
-            self.memory["logits"].append(logits_list)
-            self.memory["log_probs"].append(log_probs)
-            self.memory["indices"].append(indices)
-            self.memory["taken_log_probs"].append(taken_log_probs)
-            self.memory = save_memory(self.memory)
-
         if explore_mode:
             indices = self.exploration_policy(indices, len(logits_list))
         return indices, taken_log_probs
@@ -279,7 +260,7 @@ class GraphModel(Network, ABC):
         )
         self.epoch_count = epoch
 
-    def __call__(self, graph_obs: GraphsTuple):
+    def __call__(self, graph_obs: GraphObservable):
         """
         See parent class for full doc string.
 

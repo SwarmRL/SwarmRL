@@ -1,97 +1,125 @@
 import numpy as np
 
-import swarmrl as srl
 from swarmrl.models.interaction_model import Action
 
 
-class MyForceModel(srl.models.InteractionModel):
+class JonnysForceModel:
     def __init__(
         self,
-        force_params: dict,
+        delay: int = 0,
+        col_type: int = 1,
+        pred_type: int = 0,
+        force_params: dict = None,
         detection_radius_position_colls=np.inf,
         detection_radius_position_pred=np.inf,
-        home_pos=np.array([500, 500, 0]),
-        agent_speed=10,
+        center=np.array([500, 500, 0]),
     ):
+        self.kind = "classical"
+        if force_params is None:
+            a = 1
+            force_params = {
+                "K_a": 0.01 * a,
+                "K_r": -0.01 * a,
+                "K_h": -0.05 * a,
+                "K_p": 200 * a,
+            }
         self.force_params = force_params
 
+        self.delay = delay
+        self.counter = 0
+
+        # detection radius
         self.detection_radius_position_colls = detection_radius_position_colls
-        # r_alignment=r_repulsion,
-        # split in 2 if r_a not= r_r, split colls_in_vision as well
         self.detection_radius_position_pred = detection_radius_position_pred
-        self.home_pos = home_pos
-        self.agent_speed = agent_speed
-        self.t = 0
 
-    def calc_action(self, colloids):
-        actions = []
-        self.t += 0.2 / 5
+        # build a random home_pos
+        self.home_pos = center + np.random.random(3) * 1000
+        self.home_pos[-1] = 0
+
+        # def types
+        self.col_type = col_type
+        self.pred_type = pred_type
+
+    def compute_action(self, colloids):
+        actions = {}
         for colloid in colloids:
-            # if colloid.type == 1:
-            #     y, x = colloid.pos[1], colloid.pos[0]
-            #     force_x = 100 * np.cos(0.1 * self.t)
-            #     force_y = self.home_pos[1] - y
-            #     nd = np.array([force_x, force_y, 0])
-            #     new_direction = nd / np.linalg.norm(nd)
-            #     actions.append(Action(force=50*np.linalg.norm(nd),
-            #     new_direction=new_direction))
-            #     continue
+            if colloid.type == self.col_type:
+                if self.counter > self.delay:
+                    actions[colloid.id] = Action()
 
-            other_colloids = [
-                c for c in colloids if c is not colloid and not c.type == 1
-            ]
-            colls_in_vision = get_colloids_in_vision(
-                colloid,
-                other_colloids,
-                vision_radius=self.detection_radius_position_colls,
-            )
+                else:
+                    other_colloids = [
+                        c
+                        for c in colloids
+                        if c is not colloid and not c.type == self.pred_type
+                    ]
+                    colls_in_vision = get_colloids_in_vision(
+                        colloid,
+                        other_colloids,
+                        vision_radius=self.detection_radius_position_colls,
+                    )
 
-            predator = [
-                p for p in colloids if p is p.type == 1
-            ]  # only one predator is taken in account
-            pred_in_vision = get_colloids_in_vision(
-                colloid, predator, vision_radius=self.detection_radius_position_pred
-            )
+                    predator = [
+                        p for p in colloids if p is p.type == self.pred_type
+                    ]  # only one predator is taken in account
+                    pred_in_vision = get_colloids_in_vision(
+                        colloid,
+                        predator,
+                        vision_radius=self.detection_radius_position_pred,
+                    )
 
-            colls_in_vision_position = np.array([c.pos for c in colls_in_vision])
-            # colls_in_vision_director = np.array([c.director for c in colls_in_vision])
-            colls_in_vision_velocity = np.array([c.velocity for c in colls_in_vision])
-            pred_in_vision_position = np.array([p.pos for p in pred_in_vision])
+                    colls_in_vision_position = np.array(
+                        [c.pos for c in colls_in_vision]
+                    )
+                    colls_in_vision_velocity = np.array(
+                        [c.velocity for c in colls_in_vision]
+                    )
+                    pred_in_vision_position = np.array([p.pos for p in pred_in_vision])
 
-            force_a, force_r = np.array([0, 0, 0]), np.array([0, 0, 0])
-            if len(colls_in_vision) > 0:
-                force_a = np.sum(colls_in_vision_velocity - colloid.velocity, axis=0)
+                    force_a, force_r = np.array([0, 0, 0]), np.array([0, 0, 0])
+                    if len(colls_in_vision) > 0:
+                        force_a = np.sum(
+                            colls_in_vision_velocity - colloid.velocity, axis=0
+                        )
+                        force_r_notnorm = np.sum(
+                            colls_in_vision_position - colloid.pos, axis=0
+                        )
+                        dist_norm = np.linalg.norm(
+                            colls_in_vision_position - colloid.pos
+                        )
+                        alpha = np.where(dist_norm < 20, -10, 10)
+                        force_r = alpha * force_r_notnorm / dist_norm
 
-                force_r_notnorm = np.sum(colls_in_vision_position - colloid.pos, axis=0)
-                dist_norm = np.linalg.norm(colls_in_vision_position - colloid.pos)
-                force_r = force_r_notnorm / dist_norm
+                    force_h = self.home_pos - colloid.pos
+                    dist_norm_home = np.linalg.norm(force_h)
+                    force_h = 10 * force_h / dist_norm_home
 
-            force_h = self.home_pos - colloid.pos
+                    force_p = np.array([0, 0, 0])
+                    if len(pred_in_vision) > 0:
+                        force_p_notnorm = np.sum(
+                            colloid.pos - pred_in_vision_position, axis=0
+                        )
+                        dist_norm_pred = np.linalg.norm(
+                            colloid.pos - pred_in_vision_position
+                        )
+                        force_p = force_p_notnorm / dist_norm_pred**2
 
-            force_p = np.array([0, 0, 0])
-            if len(pred_in_vision) > 0:
-                force_p_notnorm = np.sum(colloid.pos - pred_in_vision_position, axis=0)
-                dist_norm_pred = np.linalg.norm(colloid.pos - pred_in_vision_position)
-                force_p = force_p_notnorm / dist_norm_pred
+                    force = (
+                        self.force_params["K_a"] * force_a
+                        + self.force_params["K_r"] * force_r
+                        + self.force_params["K_h"] * force_h
+                        + self.force_params["K_p"] * force_p
+                    )
 
-            force_f = (
-                -colloid.velocity
-                * (np.abs(colloid.velocity) - self.agent_speed)
-                / self.agent_speed
-            )
+                    force_magnitude = np.linalg.norm(force)
+                    force_direction = force / force_magnitude
 
-            force = (
-                self.force_params["K_a"] * force_a
-                + self.force_params["K_r"] * force_r
-                + self.force_params["K_h"] * force_h
-                + self.force_params["K_p"] * force_p
-                + self.force_params["K_f"] * force_f
-            )
-
-            force_magnitude = np.linalg.norm(force)
-            force_direction = force / force_magnitude
-
-            actions.append(Action(force=force_magnitude, new_direction=force_direction))
+                    actions[colloid.id] = Action(
+                        force=force_magnitude, new_direction=force_direction
+                    )
+            else:
+                pass
+        self.counter += 1
         return actions
 
 

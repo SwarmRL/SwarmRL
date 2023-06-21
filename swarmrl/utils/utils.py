@@ -261,6 +261,65 @@ def record_trajectory(
     )
 
 
+def record_graph_trajectory(
+    particle_type: str,
+    features: np.ndarray,
+    actions: np.ndarray,
+    log_probs: np.ndarray,
+    rewards: np.ndarray,
+):
+    """
+    Record trajectory if required.
+
+    Parameters
+    ----------
+    particle_type : str
+            Type of the particle saved. Important for the multi-species training.
+    rewards : np.ndarray (n_timesteps, n_particles, 1)
+            Rewards collected during the simulation to be used in training.
+    log_probs : np.ndarray (n_timesteps, n_particles, 1)
+            log_probs used for debugging.
+    features : np.ndarray (n_timesteps, n_particles, n_dimensions)
+            Features to store in the array.
+    actions : np.ndarray (n_timesteps, n_particles, 1)
+            A numpy array of actions
+
+    Returns
+    -------
+    Dumps a hidden file to disc which is often removed after reading.
+    """
+    try:
+        data = np.load(f".traj_data_{particle_type}.npy", allow_pickle=True)
+        feature_data = data.item().get("features")
+        action_data = data.item().get("actions")
+        log_probs_data = data.item().get("log_probs")
+        reward_data = data.item().get("rewards")
+
+        feature_data.append(features)
+        action_data = np.append(action_data, np.array([actions]), axis=0)
+        log_probs_data = np.append(log_probs_data, np.array([log_probs]), axis=0)
+        reward_data = np.append(reward_data, np.array([rewards]), axis=0)
+
+        os.remove(f".traj_data_{particle_type}.npy")
+
+    except FileNotFoundError:
+        feature_data = [features]
+        action_data = np.array([actions])
+        log_probs_data = np.array([log_probs])
+        reward_data = np.array([rewards])
+
+    np.save(
+        f".traj_data_{particle_type}.npy",
+        {
+            "features": feature_data,
+            "actions": action_data,
+            "log_probs": log_probs_data,
+            "rewards": reward_data,
+        },
+        allow_pickle=True,
+    )
+
+
 def save_memory(memory: dict):
     """
     Records the training data if required.

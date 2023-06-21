@@ -11,19 +11,19 @@ from swarmrl.models.interaction_model import Action, Colloid, InteractionModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-from swarmrl.utils.utils import record_trajectory
+from swarmrl.utils.utils import record_graph_trajectory
 
 
-class MLModel(InteractionModel):
+class SharedModel(InteractionModel):
     """
     Class for a NN based espresso interaction model.
     """
 
     def __init__(
         self,
-        models: Dict[str, Network],
-        observables: Dict[str, Observable],
-        tasks: Dict[str, Task],
+        force_models: Dict[str, Network],
+        observables: Dict[str, Observable or None],
+        tasks: Dict[str, Task or None],
         record_traj: bool = False,
         actions: dict = None,
     ):
@@ -32,7 +32,7 @@ class MLModel(InteractionModel):
 
         Parameters
         ----------
-        models : dict
+        force_models : dict(
                 SwarmRl networks to use in the action computation. This is a dict so as
                 to allow for multiple models to be passed.
         observables : dict[Observables]
@@ -44,7 +44,7 @@ class MLModel(InteractionModel):
                 If true, store trajectory data to disk for training.
         """
         super().__init__()
-        self.models = models
+        self.force_models = force_models
         self.observables = observables
         self.tasks = tasks
         self.record_traj = record_traj
@@ -52,12 +52,29 @@ class MLModel(InteractionModel):
 
         self.actions = actions
         # Used in the data saving.
-        self.particle_types = [item for item in self.models]
-        for item in self.particle_types:
+        self.particle_types = [type_ for type_ in self.force_models]
+        for type_ in self.particle_types:
             try:
-                os.remove(f".traj_data_{item}.npy")
+                os.remove(f".traj_data_{type_}.npy")
             except FileNotFoundError:
                 pass
+        self.particle_dict = {type_: 0 for type_ in self.particle_types}
+
+    def initialize_model(self, colloids: typing.List[Colloid]):
+        """
+        Initialize the model. This function checks how many particles of each type
+        are in the simulation and initializes the model accordingly. This method
+        does not take into account the number of passive particles in the simulation.
+        Only particles for which models are defined are taken into account.
+
+        Parameters
+        ----------
+        colloids : list[Colloid]
+                Colloids to initialize the model with.
+        """
+        for colloid in colloids:
+            if colloid.type in self.particle_types:
+                self.particle_dict[colloid.type] += 1
 
     def calc_action(
         self, colloids: typing.List[Colloid], explore_mode: bool = False
@@ -77,38 +94,44 @@ class MLModel(InteractionModel):
                 Return the action the colloid should take.
         """
         actions = {int(np.copy(colloid.id)): Action() for colloid in colloids}
-        action_indices = {item: [] for item in self.particle_types}
-        log_probs = {item: [] for item in self.particle_types}
-        rewards = {item: [] for item in self.particle_types}
-        observables = {item: [] for item in self.particle_types}
+        action_indices = {type_: [] for type_ in self.particle_types}
+        log_probs = {type_: [] for type_ in self.particle_types}
+        rewards = {type_: [] for type_ in self.particle_types}
+        observables = {type_: [] for type_ in self.particle_types}
+        for type_ in self.particle_types:
+            if self.force_models[type_].kind == "network":
+                observables[type_] = self.observables[type_].compute_observable(
+                    colloids
+                )
+                rewards[type_] = self.tasks[type_](colloids)
+                action_indices[type_], log_probs[type_] = self.force_models[
+                    type_
+                ].compute_action(
+                    observables=observables[type_], explore_mode=explore_mode
+                )
+                chosen_actions = np.take(
+                    list(self.actions[type_].values()), action_indices[type_], axis=-1
+                )
+                count = 0  # Count the colloids of a specific species.
+                for colloid in colloids:
+                    if str(colloid.type) == type_:
+                        actions[colloid.id] = chosen_actions[count]
+                        count += 1
+            elif self.force_models[type_].kind == "classical":
+                classical_actions = self.force_models[type_].compute_action(colloids)
+                for index, action in classical_actions.items():
+                    actions[index] = action
 
-        for item in self.particle_types:
-            observables[item] = self.observables[item].compute_observable(colloids)
-            np.save("features.npy", observables[item])
-            rewards[item] = self.tasks[item](colloids)
-            action_indices[item], log_probs[item] = self.models[item].compute_action(
-                observables=observables[item], explore_mode=explore_mode
-            )
-            chosen_actions = np.take(
-                list(self.actions[item].values()), action_indices[item], axis=-1
-            )
-
-            count = 0  # Count the colloids of a specific species.
-            for colloid in colloids:
-                if str(colloid.type) == item:
-                    actions[colloid.id] = chosen_actions[count]
-                    count += 1
-        actions = list(actions.values())  # convert to a list.
+        actions = list(actions.values())
 
         # Record the trajectory if required.
-
         if self.record_traj:
-            for item in self.particle_types:
-                record_trajectory(
-                    particle_type=item,
-                    features=np.array(observables[item]),
-                    actions=np.array(action_indices[item]),
-                    log_probs=np.array(log_probs[item]),
-                    rewards=np.array(rewards[item]),
+            for type_ in self.particle_types:
+                record_graph_trajectory(
+                    particle_type=type_,
+                    features=observables[type_],
+                    actions=np.array(action_indices[type_]),
+                    log_probs=np.array(log_probs[type_]),
+                    rewards=np.array(rewards[type_]),
                 )
         return actions
