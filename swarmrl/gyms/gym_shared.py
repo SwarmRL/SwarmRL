@@ -114,6 +114,10 @@ class SharedNetworkGym:
                 protocol.task.initialize(system_runner.colloids)
             except AttributeError:
                 pass
+            try:
+                protocol.network.reset()
+            except AttributeError:
+                pass
 
     def export_models(self, directory: str = "Models"):
         """
@@ -238,6 +242,8 @@ class SharedNetworkGym:
                 rewards.append(current_reward)
                 if k % 2 == 0:
                     np.save("rewards.npy", np.array(rewards), allow_pickle=True)
+                if k % 50 == 0 and k != 0:
+                    self.export_models(f"Models_ep_{k}")
                 episode += 1
                 progress.update(
                     task,
