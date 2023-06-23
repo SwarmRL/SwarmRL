@@ -221,8 +221,8 @@ class EspressoMD(Engine):
         init_position: pint.Quantity,
         init_direction: np.array = [1, 0, 0],
         type_colloid=0,
-        particle_gamma_translation: int = None,
-        particle_gamma_rotation: int = None
+        particle_gamma_translation: float = None,
+        particle_gamma_rotation: float = None
     ):
         """
         Parameters
@@ -258,7 +258,6 @@ class EspressoMD(Engine):
         radius_simunits = radius_colloid.m_as("sim_length")
         init_center = init_position.m_as("sim_length")
         init_direction = init_direction / np.linalg.norm(init_direction)
-
         if not particle_gamma_rotation and not particle_gamma_translation:
             (particle_gamma_translation,
                 particle_gamma_rotation,
@@ -312,6 +311,8 @@ class EspressoMD(Engine):
         random_placement_center: pint.Quantity,
         random_placement_radius: pint.Quantity,
         type_colloid=0,
+        particle_gamma_translation: float = None,
+        particle_gamma_rotation: float = None
     ):
         """
         Parameters
@@ -345,14 +346,18 @@ class EspressoMD(Engine):
             if self.n_dims == 3:
                 director = utils.vector_from_angles(*utils.get_random_angles(self.rng))
                 self.add_colloid_on_point(radius_colloid=radius_colloid, init_position=start_pos,
-                                          init_direction=director, type_colloid=type_colloid)
+                                          init_direction=director, type_colloid=type_colloid,
+                                          particle_gamma_translation = particle_gamma_translation,
+                                          particle_gamma_rotation = particle_gamma_rotation)
             else:
                 # initialize with body-frame = lab-frame to set correct rotation flags
                 # allow all rotations to bring the particle to correct state
                 start_angle = 2 * np.pi * self.rng.random()
                 init_direction = utils.vector_from_angles(np.pi / 2, start_angle)
                 self.add_colloid_on_point(radius_colloid=radius_colloid, init_position=start_pos,
-                                          init_direction=init_direction, type_colloid=type_colloid)
+                                          init_direction=init_direction, type_colloid=type_colloid,
+                                          particle_gamma_translation=particle_gamma_translation,
+                                          particle_gamma_rotation=particle_gamma_rotation)
 
     def add_rod(
         self,

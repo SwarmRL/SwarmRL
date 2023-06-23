@@ -6,13 +6,16 @@ import numpy as np
 class MyForceModel(srl.models.InteractionModel):
     def __init__(self,
                  force_params: dict,
+                 pred_movement,
+                 pred_params: np.array,
                  detection_radius_position_colls=np.inf,
                  detection_radius_position_pred=np.inf,
                  home_pos=np.array([500, 500, 0]),
                  agent_speed=10
                  ):
         self.force_params = force_params
-
+        self.pred_movement = pred_movement
+        self.pred_params = pred_params
         self.detection_radius_position_colls = detection_radius_position_colls
         # r_alignment=r_repulsion,
         # split in 2 if r_a not= r_r, split colls_in_vision as well
@@ -26,12 +29,13 @@ class MyForceModel(srl.models.InteractionModel):
         self.t += 0.2 / 5
         for colloid in colloids:
             if colloid.type == 1:
-                y, x = colloid.pos[1], colloid.pos[0]
-                force_x = 100 * np.cos(0.1 * self.t)
-                force_y = self.home_pos[1] - y
-                nd = np.array([force_x, force_y, 0])
+                pred_force = self.predator_movement(
+                    self.t,
+                    colloid.pos,
+                    self.pred_params)
+                nd = np.array([pred_force[0], pred_force[1], pred_force[2]])
                 new_direction = nd / np.linalg.norm(nd)
-                actions.append(Action(force=50*np.linalg.norm(nd), new_direction=new_direction))
+                actions.append(Action(force=50 * np.linalg.norm(nd), new_direction=new_direction))
                 continue
 
             other_colloids = [c for c in colloids if c is not colloid and not c.type == 1]
@@ -70,8 +74,8 @@ class MyForceModel(srl.models.InteractionModel):
             force_f = -colloid.velocity * (np.abs(colloid.velocity) - self.agent_speed) / self.agent_speed
 
             force = self.force_params["K_a"] * force_a + self.force_params["K_r"] * force_r \
-                + self.force_params["K_h"] * force_h \
-                + self.force_params["K_p"] * force_p + self.force_params["K_f"] * force_f
+                    + self.force_params["K_h"] * force_h \
+                    + self.force_params["K_p"] * force_p + self.force_params["K_f"] * force_f
 
             force_magnitude = np.linalg.norm(force)
             force_direction = force / force_magnitude
@@ -98,3 +102,10 @@ def rotate_vector_clockwise(v, alpha):
     r = np.array([[np.cos(alpha), np.sin(alpha)],
                   [-np.sin(alpha), np.cos(alpha)]])
     return np.matmul(r, v)
+
+
+def pred_cos_x(t, pos, home_pos, params):
+    force_x = params[0] * np.cos(params[1] * t)
+    force_y = home_pos[1] - pos[1]
+    force_z = 0
+    return force_x, force_y, force_z

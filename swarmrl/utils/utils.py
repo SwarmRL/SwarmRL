@@ -63,10 +63,12 @@ def write_params(
                 f"Espresso version {version.friendly()} branch {version.git_branch()} "
                 f"at commit {version.git_commit()}\n"
             )
-        txt_file.write(str(params))
+        for key,value in params.items():
+            txt_file.write(f"{key}: {str(value)} \n")
+        #txt_file.write(str(params))
 
-    with open(fname_base + ".pick", "wb") as pick_file:
-        pickle.dump(params, pick_file)
+    #with open(fname_base + ".pick", "wb") as pick_file:
+    #    pickle.dump(params, pick_file)
 
 
 def setup_sim_folder(
