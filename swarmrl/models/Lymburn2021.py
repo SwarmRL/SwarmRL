@@ -53,52 +53,60 @@ class JonnysForceModel:
         predators = [p for p in colloids if p.type == self.pred_type]
         sheep_pos = np.array([s.pos for s in sheeps])
         pred_pos = np.array([p.pos for p in predators])
-        sheep_sheep_dist = np.linalg.norm(
-            sheep_pos[:, None, :] - sheep_pos[None, :, :], axis=-1
-        )
-        sheep_pred_dist = np.linalg.norm(
-            sheep_pos[:, None, :] - pred_pos[None, :, :], axis=-1
-        )
+        # sheep_sheep_dist = np.linalg.norm(
+        #     sheep_pos[:, None, :] - sheep_pos[None, :, :], axis=-1
+        # )
+        # sheep_pred_dist = np.linalg.norm(
+        #     sheep_pos[:, None, :] - pred_pos[None, :, :], axis=-1
+        # )
         sheep_vel = np.array([s.velocity for s in sheeps])
 
         # compute the force
 
-        force_a = np.zeros(3)
-        force_r = np.zeros(3)
-        force_h = np.zeros(3)
-        force_p = np.zeros(3)
+        # force_a = np.zeros(3)
+        # force_r = np.zeros(3)
+        # force_h = np.zeros(3)
+        # force_p = np.zeros(3)
+
+        k_a = 0.3
+        k_r = -0.001
+        k_h = -5.0
+        k_p = 0.04
 
         # alignment: difference between the average velocity
         # of all
         # sheep and the velocity of the sheep
-        force_a = np.mean(sheep_vel - sheep_vel[:, None, :], axis=0)
-        print(np.shape(force_a))
+        force_a = k_a * np.mean(sheep_vel - sheep_vel[:, None, :], axis=0)
+        print("force_a")
+        print(force_a)
 
         # repulsion: repulsion from other sheep. The repulsion should
-        # be quadratic in the distance
-        # centered around an r_0
-        force_r = np.sum(
-            (sheep_pos[:, None, :] - sheep_pos[None, :, :])
-            * (1 - self.r_0 / sheep_sheep_dist[:, :, None]) ** 2,
+        # be quadratic in the distance, centered around an r_0
+        dr = np.sum(
+            (sheep_pos[:, None, :] - sheep_pos[None, :, :]),
             axis=0,
         )
-        print(np.shape(force_r))
+        # force_r_amp = np.linalg.norm(dr, axis=-1)
+        force_r = k_r * (dr - self.r_0 * np.array([1, 1, 0])) ** 2
+        print("force_r")
+        print(force_r)
 
         # home: repulsion from the home position. The repulsion should
         # be constant in the distance
         force_h_vec = self.home_pos - sheep_pos
         force_h_vec /= np.linalg.norm(force_h_vec, axis=-1)[:, None]
-        print(np.shape(force_h_vec))
+        force_h = k_h * force_h_vec
+        print("force_h")
+        print(force_h_vec)
 
         # predator: repulsion from the predator. The repulsion should
-        # be exponential in the distance
-        force_p = np.sum(
-            (sheep_pos[:, None, :] - pred_pos[None, :, :])
-            * np.exp(-sheep_pred_dist[:, :, None]),
+        # be cubic in the distance
+        force_p = k_p * np.sum(
+            (sheep_pos[:, None, :] - pred_pos[None, :, :]),
             axis=0,
         )
-        force_p /= np.linalg.norm(force_p, axis=-1)[:, None]
-        print(np.shape(force_p))
+        print("force_p")
+        print(force_p)
 
         total_force = force_h + force_a + force_r + force_p
         force_magnitude = np.linalg.norm(total_force, axis=-1)
@@ -107,8 +115,9 @@ class JonnysForceModel:
         # compute the action
         actions = {}
         for i, sheep in enumerate(sheeps):
+            # print(force_magnitude[i])
             actions[sheep.id] = Action(
-                force=10,
+                force=force_magnitude[i],
                 new_direction=total_force[i],
             )
 

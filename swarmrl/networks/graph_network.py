@@ -184,8 +184,6 @@ class GraphModel(Network, ABC):
                 log_probs (i.e. the output of the network put through a softmax).
         """
         logits_list = []
-        graph_representation_list = []
-        influence_list = []
         # Compute state
         for obs in observables:
             try:
@@ -197,8 +195,6 @@ class GraphModel(Network, ABC):
                     {"params": self.model_state["params"]}, obs
                 )
             logits_list.append(logits)
-            graph_representation_list.append(graph_representation)
-            influence_list.append(influence)
 
         # Compute the action
         indices = self.sampling_strategy(np.array(logits_list))

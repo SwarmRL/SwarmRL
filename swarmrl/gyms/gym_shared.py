@@ -31,6 +31,7 @@ class SharedNetworkGym:
     def __init__(
         self,
         rl_protocols: List[SharedActorCritic],
+        global_task=None,
         ppo_epochs: int = 15,
         loss: SharedProximalPolicyLoss = None,
     ):
@@ -47,7 +48,7 @@ class SharedNetworkGym:
         if loss is None:
             loss = SharedProximalPolicyLoss(n_epochs=ppo_epochs)
         self.loss = loss
-
+        self.global_task = global_task
         # Add the protocols to an easily accessible internal dict.
         self.rl_protocols = {}
         for protocol in rl_protocols:
@@ -69,6 +70,7 @@ class SharedNetworkGym:
             record_traj=True,
             tasks=tasks,
             actions=actions,
+            global_task=global_task,
         )
 
     def update_rl(self) -> Tuple[SharedModel, np.ndarray]:
@@ -203,7 +205,10 @@ class SharedNetworkGym:
         episode = 0
 
         # Initialize the tasks and observables.
-
+        try:
+            self.global_task.initialize(system_runner.colloids)
+        except AttributeError:
+            pass
         for item, val in self.rl_protocols.items():
             try:
                 val.observable.initialize(system_runner.colloids)

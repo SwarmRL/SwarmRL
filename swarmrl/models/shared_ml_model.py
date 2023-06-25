@@ -26,6 +26,7 @@ class SharedModel(InteractionModel):
         tasks: Dict[str, Task or None],
         record_traj: bool = False,
         actions: dict = None,
+        global_task=None,
     ):
         """
         Constructor for the NNModel.
@@ -47,6 +48,7 @@ class SharedModel(InteractionModel):
         self.force_models = force_models
         self.observables = observables
         self.tasks = tasks
+        self.global_task = global_task
         self.record_traj = record_traj
         self.eps = np.finfo(np.float32).eps.item()
 
@@ -96,14 +98,21 @@ class SharedModel(InteractionModel):
         actions = {int(np.copy(colloid.id)): Action() for colloid in colloids}
         action_indices = {type_: [] for type_ in self.particle_types}
         log_probs = {type_: [] for type_ in self.particle_types}
-        rewards = {type_: [] for type_ in self.particle_types}
+
         observables = {type_: [] for type_ in self.particle_types}
+
+        if self.global_task is not None:
+            rewards = self.global_task(colloids)
+        else:
+            rewards = {type_: [] for type_ in self.particle_types}
+
         for type_ in self.particle_types:
             if self.force_models[type_].kind == "network":
                 observables[type_] = self.observables[type_].compute_observable(
                     colloids
                 )
-                rewards[type_] = self.tasks[type_](colloids)
+                if self.tasks[type_] is not None:
+                    rewards[type_] = self.tasks[type_](colloids)
                 action_indices[type_], log_probs[type_] = self.force_models[
                     type_
                 ].compute_action(
