@@ -24,7 +24,7 @@ class EncodeNet(nn.Module):
     def __call__(self, x):
         x = nn.Dense(128)(x)
         x = nn.relu(x)
-        x = nn.Dense(8)(x)
+        x = nn.Dense(12)(x)
         return x
 
 
@@ -51,16 +51,18 @@ class InfluenceNet(nn.Module):
 
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(128)(x)
+        x = nn.Dense(32)(x)
         x = nn.relu(x)
         x = nn.Dense(1)(x)
         return x
 
 
 class GraphNet(nn.Module):
-    encoder: EncodeNet
+    edge_encoder: EncodeNet
+    channel_encoder: EncodeNet
+    edge_influencer: InfluenceNet
+    message_influencer: InfluenceNet
     actress: ActNet
-    influencer: InfluenceNet
     criticer: CritNet
 
     @nn.compact
@@ -69,16 +71,33 @@ class GraphNet(nn.Module):
 
         # Encode the nodes.
         # embedding_vec = self.encoder(nodes)
-        influence_scores = self.influencer(channels)
-        eps = 1e-8
-        influence = jax.nn.softmax(influence_scores + eps, axis=0)
 
-        graph_representation = np.mean(
-            tree.tree_map(lambda n, i: n * i, channels, influence), axis=0
+        print(np.shape(edges))
+        channel_embedding = self.channel_encoder(channels)
+        edge_embedding = self.edge_encoder(edges)
+        edge_scores = self.edge_influencer(edge_embedding)
+        edge_scores = jax.nn.softmax(edge_scores, axis=1)
+
+        message = (
+            np.mean(
+                tree.tree_map(lambda c, c_s: c * c_s, edge_embedding, edge_scores),
+                axis=0,
+            )
+            + channel_embedding
         )
+        message_score = jax.nn.softmax(self.message_influencer(message), axis=1)
+        graph_representation = np.mean(
+            tree.tree_map(
+                lambda m, m_s: m * m_s,
+                message,
+                message_score,
+            ),
+            axis=0,
+        )
+
         logits = self.actress(graph_representation)
         value = self.criticer(graph_representation)
-        return logits, value, (graph_representation, influence)
+        return logits, value
 
 
 class GraphModel(Network, ABC):
@@ -88,9 +107,11 @@ class GraphModel(Network, ABC):
 
     def __init__(
         self,
-        encoder: EncodeNet = EncodeNet(),
+        edge_encoder: EncodeNet = EncodeNet(),
+        channel_encoder: EncodeNet = EncodeNet(),
+        edge_influencer: InfluenceNet = InfluenceNet(),
+        message_influencer: InfluenceNet = InfluenceNet(),
         actress: ActNet = ActNet(),
-        influencer: InfluenceNet = InfluenceNet(),
         criticer: CritNet = CritNet(),
         optimizer: GradientTransformation = optax.adam(1e-3),
         exploration_policy: ExplorationPolicy = None,
@@ -104,7 +125,12 @@ class GraphModel(Network, ABC):
             rng_key = onp.random.randint(0, 1027465782564)
         self.sampling_strategy = sampling_strategy
         self.model = GraphNet(
-            encoder=encoder, actress=actress, criticer=criticer, influencer=influencer
+            edge_encoder=edge_encoder,
+            channel_encoder=channel_encoder,
+            edge_influencer=edge_influencer,
+            message_influencer=message_influencer,
+            actress=actress,
+            criticer=criticer,
         )
         self.apply_fn = jax.jit(self.model.apply)
         self.model_state = None
@@ -187,13 +213,9 @@ class GraphModel(Network, ABC):
         # Compute state
         for obs in observables:
             try:
-                logits, _, (graph_representation, influence) = self.apply_fn(
-                    {"params": self.model_state.params}, obs
-                )
+                logits, _ = self.apply_fn({"params": self.model_state.params}, obs)
             except AttributeError:  # We need this for loaded models.
-                logits, _, (graph_representation, influence) = self.apply_fn(
-                    {"params": self.model_state["params"]}, obs
-                )
+                logits, _ = self.apply_fn({"params": self.model_state["params"]}, obs)
             logits_list.append(logits)
 
         # Compute the action

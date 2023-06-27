@@ -55,28 +55,28 @@ class SheepShepp:
         sheeps = np.array(
             [colloid.pos for colloid in colloids if colloid.type == self.sheep_type]
         )
-        shepps = np.array(
-            [colloid.pos for colloid in colloids if colloid.type == self.shepp_type]
-        )
+        # shepps = np.array(
+        #     [colloid.pos for colloid in colloids if colloid.type == self.shepp_type]
+        # )
 
         # compute the distance between all sheeps and shepps
-        dist_sheep_shepps = np.linalg.norm(
-            sheeps[:, None, :] - shepps[None, :, :], axis=2
-        )
-        dist_reward = np.where(
-            np.any(dist_sheep_shepps > self.fear_radius, axis=1), 0, 1
-        )
+        # dist_sheep_shepps = np.linalg.norm(
+        #     sheeps[:, None, :] - shepps[None, :, :], axis=2
+        # )
+        # dist_reward = np.where(
+        #     np.any(dist_sheep_shepps > self.fear_radius, axis=1), 0, 1
+        # )
         # compute the distance between sheeps and center
         dist_sheeps = np.linalg.norm(sheeps - self.center, axis=1)
-        sheep_reward = np.where(dist_sheeps > self.radius, 1, -1)
+        # sheep_reward = np.where(dist_sheeps > self.radius, 1, -1)
 
         shepp_reward = np.ones(self.colls["shepps"]) * int(
             not np.any(dist_sheeps > self.radius, axis=0)
         )
         # the the two rewards together
-        sheep_reward = sheep_reward + dist_reward
+        # sheep_reward = sheep_reward + dist_reward
         rewards = {
-            str(self.sheep_type): sheep_reward,
+            # str(self.sheep_type): sheep_reward,
             str(self.shepp_type): shepp_reward,
         }
 
