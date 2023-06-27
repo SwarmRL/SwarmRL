@@ -10,6 +10,7 @@ import jax.tree_util as tree
 import numpy as onp
 import optax
 from flax.training.train_state import TrainState
+from jraph._src import utils
 from optax import GradientTransformation
 
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
@@ -72,12 +73,14 @@ class GraphNet(nn.Module):
         # Encode the nodes.
         # embedding_vec = self.encoder(nodes)
 
-        print(np.shape(edges))
         channel_embedding = self.channel_encoder(channels)
         edge_embedding = self.edge_encoder(edges)
-        edge_scores = self.edge_influencer(edge_embedding)
-        edge_scores = jax.nn.softmax(edge_scores, axis=1)
 
+        edge_scores = utils.segment_softmax(
+            self.edge_influencer(edge_embedding),
+            segment_ids=receivers,
+            num_segments=n_node,
+        )
         message = (
             np.mean(
                 tree.tree_map(lambda c, c_s: c * c_s, edge_embedding, edge_scores),
@@ -85,8 +88,9 @@ class GraphNet(nn.Module):
             )
             + channel_embedding
         )
-        message_score = jax.nn.softmax(self.message_influencer(message), axis=1)
-        graph_representation = np.mean(
+        message_score = nn.softmax(self.message_influencer(message), axis=1)
+
+        graph_representation = np.sum(
             tree.tree_map(
                 lambda m, m_s: m * m_s,
                 message,
@@ -132,7 +136,7 @@ class GraphModel(Network, ABC):
             actress=actress,
             criticer=criticer,
         )
-        self.apply_fn = jax.jit(self.model.apply)
+        self.apply_fn = self.model.apply
         self.model_state = None
 
         if not deployment_mode:

@@ -394,3 +394,23 @@ def calc_signed_angle_between_directors(
     angle *= jnp.where(orthogonal_dot >= 0, 1, -1)
 
     return angle
+
+
+def store_rewards(rewards: dict):
+    rewards = np.array(list(rewards.values()))
+    try:
+        data = np.load("reward_data.npy", allow_pickle=True)
+        reward_data = data.item().get("rewards")
+        reward_data = np.append(reward_data, rewards, axis=0)
+        os.remove("reward_data.npy", allow_pickle=True)
+
+    except FileNotFoundError:
+        reward_data = np.array([rewards])
+
+    np.save(
+        "reward_data.npy",
+        {
+            "rewards": reward_data,
+        },
+        allow_pickle=True,
+    )

@@ -3,30 +3,16 @@ import numpy as np
 from swarmrl.models.interaction_model import Action
 
 
-class JonnysForceModel:
+class FleeSwarm:
     def __init__(
         self,
-        delay: int = 0,
         col_type: int = 1,
         pred_type: int = 0,
-        force_params: dict = None,
         detection_radius_position_colls=np.inf,
         detection_radius_position_pred=np.inf,
         center=np.array([500, 500, 0]),
     ):
         self.kind = "classical"
-        if force_params is None:
-            a = 1
-            force_params = {
-                "K_a": 0.01 * a,
-                "K_r": 3 * a,
-                "K_h": -5.0 * a,
-                "K_p": 40000 * a,
-            }
-        self.force_params = force_params
-
-        self.delay = delay
-        self.counter = 0
 
         # detection radius
         self.detection_radius_position_colls = detection_radius_position_colls
@@ -37,7 +23,7 @@ class JonnysForceModel:
 
         # build a random home_pos
         self.center = center
-        self.home_pos = self.center + (np.random.random(3) - 0.5) * 0
+        self.home_pos = self.center
         self.home_pos[-1] = 0
 
         # def types
@@ -45,15 +31,13 @@ class JonnysForceModel:
         self.pred_type = pred_type
 
     def reset(self):
-        self.home_pos = self.center + np.random.random(3) * 0
-        self.home_pos[-1] = 0
+        pass
 
     def compute_action(self, colloids):
         sheeps = [c for c in colloids if c.type == self.col_type]
         predators = [p for p in colloids if p.type == self.pred_type]
         sheep_pos = np.array([s.pos for s in sheeps])
         pred_pos = np.array([p.pos for p in predators])
-        # sheep_vel = np.array([s.velocity for s in sheeps])
 
         # repulsion force
         dr = sheep_pos[:, None, :] - sheep_pos[None, :, :]
@@ -78,6 +62,58 @@ class JonnysForceModel:
 
         # compute the total force
         total_force = 20 * force_r + 20 * force_h + (-50) * force_p
+        force_magnitude = np.linalg.norm(total_force, axis=-1)
+        total_force /= force_magnitude[:, None] + 1e-10
+
+        # compute the action
+        actions = {}
+        for i, sheep in enumerate(sheeps):
+            actions[sheep.id] = Action(
+                force=force_magnitude[i],
+                new_direction=total_force[i],
+            )
+        return actions
+
+
+class FearSwarm:
+    def __init__(
+        self,
+        col_type: int = 1,
+        pred_type: int = 0,
+    ):
+        self.kind = "classical"
+
+        # def types
+        self.col_type = col_type
+        self.pred_type = pred_type
+        self.old_dists = None
+
+    def reset(self):
+        pass
+
+    def compute_action(self, colloids):
+        sheeps = [c for c in colloids if c.type == self.col_type]
+        predators = [p for p in colloids if p.type == self.pred_type]
+        sheep_pos = np.array([s.pos for s in sheeps])
+        pred_pos = np.array([p.pos for p in predators])
+
+        # compute the pairwise distance except for the diagonal
+        dr = sheep_pos[:, None, :] - sheep_pos[None, :, :]
+        dr_norm = np.linalg.norm(dr, axis=-1)
+        dr /= dr_norm[:, :, None] + 1e-10
+        force_r = np.where(dr_norm < 50, 15, 0)
+        force_r = np.sum(force_r[:, :, None] * dr, axis=1)
+
+        # preditor force
+        dr_p = pred_pos[:, None, :] - sheep_pos[None, :, :]
+        dr_norm_p = np.linalg.norm(dr_p, axis=-1)
+        mask = np.where(dr_norm_p < 100, 1, 0)
+        force_p = np.sum(mask[:, :, None] * dr_p, axis=1)
+        force_p /= np.linalg.norm(force_p, axis=-1)[:, None] + 1e-10
+        force_p *= 15
+
+        # compute the total force
+        total_force = force_r - force_p
         force_magnitude = np.linalg.norm(total_force, axis=-1)
         total_force /= force_magnitude[:, None]
 
