@@ -63,7 +63,7 @@ class FleeSwarm:
         # compute the total force
         total_force = 20 * force_r + 20 * force_h + (-50) * force_p
         force_magnitude = np.linalg.norm(total_force, axis=-1)
-        total_force /= force_magnitude[:, None] + 1e-10
+        total_force /= force_magnitude[:, None]
 
         # compute the action
         actions = {}
@@ -97,33 +97,36 @@ class FearSwarm:
         sheep_pos = np.array([s.pos for s in sheeps])
         pred_pos = np.array([p.pos for p in predators])
 
-        # compute the pairwise distance except for the diagonal
-        dr = sheep_pos[:, None, :] - sheep_pos[None, :, :]
-        dr_norm = np.linalg.norm(dr, axis=-1)
-        dr /= dr_norm[:, :, None] + 1e-10
-        force_r = np.where(dr_norm < 50, 15, 0)
-        force_r = np.sum(force_r[:, :, None] * dr, axis=1)
+        # # compute the pairwise distance except for the diagonal
+        # dr = sheep_pos[:, None, :] - sheep_pos[None, :, :]
+        # dr_norm = np.linalg.norm(dr, axis=-1)
+        # dr /= dr_norm[:, :, None] + 1e-10
+        # force_r = np.where(dr_norm < 50, 15, 0)
+        # force_r = np.sum(force_r[:, :, None] * dr, axis=1)
 
         # preditor force
         dr_p = pred_pos[:, None, :] - sheep_pos[None, :, :]
         dr_norm_p = np.linalg.norm(dr_p, axis=-1)
-        mask = np.where(dr_norm_p < 100, 1, 0)
+        mask = np.where(dr_norm_p < 50, 1, 0)
         force_p = np.sum(mask[:, :, None] * dr_p, axis=1)
         force_p /= np.linalg.norm(force_p, axis=-1)[:, None] + 1e-10
-        force_p *= 15
+        force_p_magnitude = np.linalg.norm(force_p * 15)
 
         # compute the total force
-        total_force = force_r - force_p
-        force_magnitude = np.linalg.norm(total_force, axis=-1)
-        total_force /= force_magnitude[:, None]
-
+        total_force = force_p
+        force_magnitude = force_p_magnitude
         # compute the action
         actions = {}
         for i, sheep in enumerate(sheeps):
-            actions[sheep.id] = Action(
-                force=force_magnitude[i],
-                new_direction=total_force[i],
-            )
+            if force_magnitude > 0:
+                actions[sheep.id] = Action(
+                    force=force_magnitude,
+                    new_direction=total_force,
+                )
+            else:
+                actions[sheep.id] = Action(
+                    force=0,
+                )
         return actions
 
 

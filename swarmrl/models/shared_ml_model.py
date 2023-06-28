@@ -113,6 +113,7 @@ class SharedModel(InteractionModel):
                 )
                 if self.tasks[type_] is not None:
                     rewards[type_] = self.tasks[type_](colloids)
+                print("we came here")
                 action_indices[type_], log_probs[type_] = self.force_models[
                     type_
                 ].compute_action(

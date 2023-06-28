@@ -75,11 +75,11 @@ class SheepShepp:
         dr_p = shepps[:, None, :] - sheeps[None, :, :]
         dr_norm_p = np.linalg.norm(dr_p, axis=-1)
 
-        r = np.sum(np.where(dr_norm_p < self.old_dists, 0.1, 0), axis=0)
+        r = np.sum(np.where(dr_norm_p < self.old_dists, 1, 0), axis=0)
 
         self.old_dists = dr_norm_p
 
-        shepp_reward = np.ones(self.colls["shepps"]) * n_sheeps
+        shepp_reward = 10 * np.ones(self.colls["shepps"]) * n_sheeps
 
         # the the two rewards together
         # sheep_reward = sheep_reward + dist_reward

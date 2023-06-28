@@ -43,7 +43,7 @@ class ActNet(nn.Module):
     def __call__(self, x):
         x = nn.Dense(128)(x)
         x = nn.relu(x)
-        x = nn.Dense(4)(x)
+        x = nn.Dense(3)(x)
         return x
 
 
@@ -69,13 +69,12 @@ class GraphNet(nn.Module):
     @nn.compact
     def __call__(self, graph: GraphObservable):
         nodes, edges, channels, receivers, senders, globals_, n_node, n_edge = graph
-
+        print("edges", edges)
         # Encode the nodes.
         # embedding_vec = self.encoder(nodes)
 
         channel_embedding = self.channel_encoder(channels)
         edge_embedding = self.edge_encoder(edges)
-
         edge_scores = utils.segment_softmax(
             self.edge_influencer(edge_embedding),
             segment_ids=receivers,
@@ -89,7 +88,6 @@ class GraphNet(nn.Module):
             + channel_embedding
         )
         message_score = nn.softmax(self.message_influencer(message), axis=1)
-
         graph_representation = np.sum(
             tree.tree_map(
                 lambda m, m_s: m * m_s,

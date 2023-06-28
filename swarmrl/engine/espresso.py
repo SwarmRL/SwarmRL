@@ -732,7 +732,6 @@ class EspressoMD(Engine):
                 )
             actions = force_model.calc_action(swarmrl_colloids)
             for action, coll in zip(actions, self.colloids):
-                # print(action.torque)
                 coll.swimming = {"f_swim": action.force}
                 coll.ext_torque = action.torque
                 new_direction = action.new_direction
@@ -744,6 +743,8 @@ class EspressoMD(Engine):
                         rotation_angle = np.arccos(np.dot(new_direction, old_direction))
                         if rotation_angle > 1e-6:
                             rotation_axis = np.cross(old_direction, new_direction)
+                            print(old_direction)
+                            print(new_direction)
                             rotation_axis /= np.linalg.norm(rotation_axis)
                             # only values of [0,0,1], [0,0,-1] can come out here,
                             # plusminus numerical errors

@@ -72,16 +72,17 @@ class ColGraph(Observable):
                 num_nodes = np.sum(mask)
 
                 if num_nodes == 0:
+                    print("No nodes within the cutoff distance")
                     graph_obs.append(
                         GraphObservable(
                             nodes=None,
-                            edges=None,
+                            edges=np.array([np.array([0, 0, 0])]),
                             channels=np.array([np.array([0, 0, 0])]),
                             globals=None,
-                            receivers=None,
-                            senders=None,
-                            n_node=np.array([0]),
-                            n_edge=np.array([0]),
+                            receivers=[0],
+                            senders=[0],
+                            n_node=np.array([1]),
+                            n_edge=np.array([1]),
                         )
                         # gn_utils.get_fully_connected_graph(
                         #     n_node_per_graph=1,
@@ -158,7 +159,7 @@ class ColGraph(Observable):
                 # )
                 graph_obs[-1].senders.astype(np.float32)
                 graph_obs[-1].receivers.astype(np.float32)
-
+                print("Graph built ", len(colloids))
             else:
                 pass
         return graph_obs
