@@ -114,7 +114,7 @@ class SharedProximalPolicyLoss(Loss, ABC):
             new_part_logits = []
             new_part_values = []
             for j in range(len(features[i])):
-                new_logits_single, predicted_values_single, _ = network.apply_fn(
+                new_logits_single, predicted_values_single = network.apply_fn(
                     {"params": network_params}, features[i][j]
                 )
                 new_part_logits.append(new_logits_single)
@@ -192,6 +192,7 @@ class SharedProximalPolicyLoss(Loss, ABC):
         feature_data = episode_data.item().get("features")
         old_log_probs_data = episode_data.item().get("log_probs")
         action_data = episode_data.item().get("actions")
+        print("action_data", action_data)
         # will return the reward per particle.
         reward_data = episode_data.item().get("rewards")
 

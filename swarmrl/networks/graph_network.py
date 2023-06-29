@@ -68,7 +68,7 @@ class GraphNet(nn.Module):
 
     @nn.compact
     def __call__(self, graph: GraphObservable):
-        nodes, edges, channels, receivers, senders, globals_, n_node, n_edge = graph
+        _, edges, channels, receivers, senders, globals_, n_node, _ = graph
         print("edges", edges)
         # Encode the nodes.
         # embedding_vec = self.encoder(nodes)
@@ -80,13 +80,11 @@ class GraphNet(nn.Module):
             segment_ids=receivers,
             num_segments=n_node,
         )
-        message = (
-            np.mean(
-                tree.tree_map(lambda c, c_s: c * c_s, edge_embedding, edge_scores),
-                axis=0,
-            )
-            + channel_embedding
+        message = np.mean(
+            tree.tree_map(lambda c, c_s: c * c_s, edge_embedding, edge_scores), axis=0
         )
+
+        message += channel_embedding
         message_score = nn.softmax(self.message_influencer(message), axis=1)
         graph_representation = np.sum(
             tree.tree_map(

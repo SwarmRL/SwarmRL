@@ -1,6 +1,7 @@
 from typing import Any, Iterable, List, Mapping, NamedTuple, Optional, Union
 
 import jax.numpy as np
+import numpy as onp
 from jax import vmap
 
 from swarmrl.models.interaction_model import Colloid
@@ -14,6 +15,7 @@ class GraphObservable(NamedTuple):
     nodes: Optional[ArrayTree]
     edges: Optional[ArrayTree]
     channels: Optional[ArrayTree]
+    destinations: Optional[ArrayTree]
     receivers: Optional[np.ndarray]
     senders: Optional[np.ndarray]
     globals: Optional[ArrayTree]
@@ -64,6 +66,20 @@ class ColGraph(Observable):
         distances = np.linalg.norm(part_part_vec, axis=-1)
         part_part_vec = -1 * part_part_vec / (distances[:, :, None] + self.eps)
 
+        nodes_list = []
+        edges_list = []
+        channels_list = []
+        destinations_list = []
+        receivers_list = []
+        senders_list = []
+        globals_list = []
+        n_node_list = []
+        n_edge_list = []
+
+        max_num_nodes = 0
+        max_num_edges = 0
+        max_num_channels = 0
+
         for col in colloids:
             if col.type == self.particle_type:
                 # mask for the colloids within the cutoff distance. without itself.
@@ -78,18 +94,13 @@ class ColGraph(Observable):
                             nodes=None,
                             edges=np.array([np.array([0, 0, 0])]),
                             channels=np.array([np.array([0, 0, 0])]),
+                            destinations=None,
                             globals=None,
                             receivers=[0],
                             senders=[0],
                             n_node=np.array([1]),
                             n_edge=np.array([1]),
                         )
-                        # gn_utils.get_fully_connected_graph(
-                        #     n_node_per_graph=1,
-                        #     n_graph=1,
-                        #     node_features=np.array([np.array([-1, -1, -1, -1])]),
-                        #     add_self_edges=False,
-                        # )
                     )
                     continue
 
@@ -141,6 +152,7 @@ class ColGraph(Observable):
                         nodes=None,
                         edges=edges,
                         channels=channels,
+                        destinations=None,
                         globals=None,
                         receivers=receiver,
                         senders=sender,
@@ -148,17 +160,55 @@ class ColGraph(Observable):
                         n_edge=np.array([edges.shape[0]]),
                     )
                 )
-                # graph_obs.append(
-                #     gn_utils.get_fully_connected_graph(
-                #         n_node_per_graph=len(nodes),
-                #         n_graph=1,
-                #         node_features=nodes,
-                #         add_self_edges=False,
-                #     )
-                # )
+                nodes_list.append(None)
+                edges_list.append(edges)
+                channels_list.append(channels)
+                destinations_list.append(None)
+                receivers_list.append(receiver)
+                senders_list.append(sender)
+                globals_list.append(None)
+                n_node_list.append(np.array([num_nodes]))
+                n_edge_list.append(np.array([edges.shape[0]]))
+
+                if num_nodes > max_num_nodes:
+                    max_num_nodes = num_nodes
+                if edges.shape[0] > max_num_edges:
+                    max_num_edges = edges.shape[0]
+                if channels.shape[0] > max_num_channels:
+                    max_num_channels = channels.shape[0]
+
                 graph_obs[-1].senders.astype(np.float32)
                 graph_obs[-1].receivers.astype(np.float32)
-                print("Graph built ", len(colloids))
             else:
                 pass
-        return graph_obs
+
+        num_graphs = len(graph_obs)
+        edge_pad = onp.zeros((num_graphs, max_num_edges, 3))
+        channel_pad = onp.zeros((num_graphs, max_num_channels, 3))
+        # node_pad = np.zeros((num_graphs, max_num_nodes, 3))
+        sender_pad = -1 * onp.ones((num_graphs, max_num_edges))
+        receiver_pad = -1 * onp.ones((num_graphs, max_num_edges))
+
+        for i in range(len(graph_obs)):
+            edge_pad[i, : graph_obs[i].edges.shape[0], :] = graph_obs[i].edges
+            channel_pad[i, : graph_obs[i].channels.shape[0], :] = graph_obs[i].channels
+            receiver_pad[i, : len(graph_obs[i].receivers)] = graph_obs[i].receivers
+            sender_pad[i, : len(graph_obs[i].senders)] = graph_obs[i].senders
+
+        second_return = [
+            nodes_list,
+            edge_pad,
+            channel_pad,
+            destinations_list,
+            receiver_pad,
+            sender_pad,
+            globals_list,
+            n_node_list,
+            n_edge_list,
+        ]
+
+        print("max_num_nodes", max_num_nodes)
+        print("max_num_edges", max_num_edges)
+        print("max_num_channels", max_num_channels)
+
+        return graph_obs, second_return
