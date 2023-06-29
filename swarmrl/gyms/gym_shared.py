@@ -245,10 +245,15 @@ class SharedNetworkGym:
                 end = time.time()
                 print(f"Training {k} took {end - start} seconds.")
                 rewards.append(current_reward)
-                if k % 2 == 0:
+                if k % 10 == 0:
+                    try:
+                        for protocol in self.rl_protocols.values():
+                            protocol.network.exploration_policy.probability *= 0.8
+                    except AttributeError:
+                        pass
+
+                if k % 5 == 0:
                     np.save("rewards.npy", np.array(rewards), allow_pickle=True)
-                if k % 50 == 0 and k != 0:
-                    self.export_models(f"Models_ep_{k}")
                 episode += 1
                 progress.update(
                     task,
