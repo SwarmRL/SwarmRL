@@ -23,9 +23,9 @@ from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 class EncodeNet(nn.Module):
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(128)(x)
-        x = nn.relu(x)
-        x = nn.Dense(12)(x)
+        x = nn.Dense(16)(x)
+        x = nn.sigmoid(x)
+        x = nn.Dense(5)(x)
         return x
 
 
@@ -41,7 +41,7 @@ class CritNet(nn.Module):
 class ActNet(nn.Module):
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(128)(x)
+        x = nn.Dense(16)(x)
         x = nn.relu(x)
         x = nn.Dense(3)(x)
         return x
@@ -52,8 +52,6 @@ class InfluenceNet(nn.Module):
 
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(32)(x)
-        x = nn.relu(x)
         x = nn.Dense(1)(x)
         return x
 
@@ -68,11 +66,8 @@ class GraphNet(nn.Module):
 
     @nn.compact
     def __call__(self, graph: GraphObservable):
-        _, edges, channels, receivers, senders, globals_, n_node, _ = graph
-        print("edges", edges)
+        nodes, edges, channels, receivers, senders, globals_, n_node, n_edge = graph
         # Encode the nodes.
-        # embedding_vec = self.encoder(nodes)
-
         channel_embedding = self.channel_encoder(channels)
         edge_embedding = self.edge_encoder(edges)
         edge_scores = utils.segment_softmax(
@@ -80,13 +75,17 @@ class GraphNet(nn.Module):
             segment_ids=receivers,
             num_segments=n_node,
         )
-        message = np.mean(
-            tree.tree_map(lambda c, c_s: c * c_s, edge_embedding, edge_scores), axis=0
+        pre_message = tree.tree_map(lambda c, c_s: c * c_s, edge_embedding, edge_scores)
+        print("pre_message: ", np.shape(pre_message))
+        message = (
+            np.mean(
+                pre_message,
+                axis=0,
+            )
+            + channel_embedding
         )
-
-        message += channel_embedding
         message_score = nn.softmax(self.message_influencer(message), axis=1)
-        graph_representation = np.sum(
+        graph_representation = np.mean(
             tree.tree_map(
                 lambda m, m_s: m * m_s,
                 message,
@@ -113,7 +112,7 @@ class GraphModel(Network, ABC):
         message_influencer: InfluenceNet = InfluenceNet(),
         actress: ActNet = ActNet(),
         criticer: CritNet = CritNet(),
-        optimizer: GradientTransformation = optax.adam(1e-3),
+        optimizer: GradientTransformation = optax.sgd(1e-5),
         exploration_policy: ExplorationPolicy = None,
         sampling_strategy: SamplingStrategy = GumbelDistribution(),
         rng_key: int = 42,

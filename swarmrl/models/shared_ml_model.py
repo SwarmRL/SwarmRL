@@ -79,7 +79,7 @@ class SharedModel(InteractionModel):
                 self.particle_dict[colloid.type] += 1
 
     def calc_action(
-        self, colloids: typing.List[Colloid], explore_mode: bool = False
+        self, colloids: typing.List[Colloid], explore_mode: bool = True
     ) -> typing.List[Action]:
         """
         Compute the state of the system based on the current colloid position.
@@ -112,7 +112,6 @@ class SharedModel(InteractionModel):
                 )
                 if self.tasks[type_] is not None:
                     rewards[type_] = self.tasks[type_](colloids)
-                print("we came here")
                 action_indices[type_], log_probs[type_] = self.force_models[
                     type_
                 ].compute_action(

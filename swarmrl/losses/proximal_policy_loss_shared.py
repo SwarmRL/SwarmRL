@@ -15,7 +15,7 @@ from flax.core.frozen_dict import FrozenDict
 from swarmrl.losses.loss import Loss
 from swarmrl.networks.flax_network import FlaxModel
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
-from swarmrl.utils.utils import gather_n_dim_indices, save_memory
+from swarmrl.utils.utils import gather_n_dim_indices
 from swarmrl.value_functions.generalized_advantage_estimate import GAE
 
 
@@ -56,23 +56,6 @@ class SharedProximalPolicyLoss(Loss, ABC):
         self.epsilon = epsilon
         self.entropy_coefficient = entropy_coefficient
         self.eps = 1e-8
-        self.record_training = record_training
-        self.memory = {
-            "file_name": "loss_memory.npy",
-            "feature_data": [],
-            "rewards": [],
-            "action_indices:": [],
-            "old_log_probs": [],
-            "advantages": [],
-            "returns": [],
-            "critic_vals": [],
-            "new_logits": [],
-            "entropy": [],
-            "chosen_log_probs": [],
-            "ratio": [],
-            "actor_loss": [],
-            "critic_loss": [],
-        }
 
     def calculate_loss(
         self,
@@ -142,7 +125,6 @@ class SharedProximalPolicyLoss(Loss, ABC):
 
         # compute the ratio between old and new probs
         ratio = jnp.exp(chosen_log_probs - old_log_probs)
-
         # compute the clipped loss
         clipped_loss = -1 * jnp.minimum(
             ratio * advantages,
@@ -158,18 +140,12 @@ class SharedProximalPolicyLoss(Loss, ABC):
 
         particle_critic_loss = jnp.sum(value_loss, 1)
         critic_loss = jnp.sum(particle_critic_loss)
-
-        if self.record_training:
-            self.memory["returns"].append(returns.primal)
-            self.memory["advantages"].append(advantages)
-            self.memory["critic_vals"].append(predicted_values.primal)
-            self.memory["new_logits"].append(new_logits.primal)
-            self.memory["entropy"].append(entropy.primal)
-            self.memory["chosen_log_probs"].append(chosen_log_probs.primal)
-            self.memory["ratio"].append(ratio.primal)
-            self.memory["actor_loss"].append(actor_loss.primal)
-            self.memory["critic_loss"].append(critic_loss.primal)
-
+        print(
+            "loss: ",
+            (
+                actor_loss + self.entropy_coefficient * entropy + 0.5 * critic_loss
+            ).primal,
+        )
         return actor_loss + self.entropy_coefficient * entropy + 0.5 * critic_loss
 
     def compute_loss(self, network: FlaxModel, episode_data):
@@ -195,7 +171,7 @@ class SharedProximalPolicyLoss(Loss, ABC):
         print("action_data", action_data)
         # will return the reward per particle.
         reward_data = episode_data.item().get("rewards")
-
+        print("action_data", action_data)
         for _ in range(self.n_epochs):
             network_grad_fn = jax.value_and_grad(self.calculate_loss)
             network_loss, network_grad = network_grad_fn(
@@ -208,10 +184,3 @@ class SharedProximalPolicyLoss(Loss, ABC):
             )
 
             network.update_model(network_grad)
-
-        if self.record_training:
-            self.memory["feature_data"] = feature_data
-            self.memory["old_log_probs"] = old_log_probs_data
-            self.memory["action_indices"] = action_data
-            self.memory["rewards"] = reward_data
-            self.memory = save_memory(self.memory)
