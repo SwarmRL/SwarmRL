@@ -55,7 +55,6 @@ class ColGraph(Observable):
         Builds a graph for each colloid in the system. In the graph, each node is a
         representation of a colloid within the cutoff distance.
         """
-        graph_obs = []
         # normalize the positions by the box size.
         positions = np.array([col.pos for col in colloids]) / self.box_size
         # directions = np.array([col.director for col in colloids])
@@ -88,20 +87,15 @@ class ColGraph(Observable):
                 num_nodes = np.sum(mask)
 
                 if num_nodes == 0:
-                    print("No nodes within the cutoff distance")
-                    graph_obs.append(
-                        GraphObservable(
-                            nodes=None,
-                            edges=np.array([np.array([0, 0, 0])]),
-                            channels=np.array([np.array([0, 0, 0])]),
-                            destinations=None,
-                            globals=None,
-                            receivers=[0],
-                            senders=[0],
-                            n_node=np.array([1]),
-                            n_edge=np.array([1]),
-                        )
-                    )
+                    nodes_list.append(None)
+                    edges_list.append(np.array([np.array([0, 0, 0])]))
+                    channels_list.append(np.array([np.array([0, 0, 0])]))
+                    destinations_list.append(np.arange(1))
+                    receivers_list.append([0])
+                    senders_list.append([0])
+                    globals_list.append(None)
+                    n_node_list.append(np.array([1]))
+                    n_edge_list.append(np.array([1]))
                     continue
 
                 director = np.copy(col.director)
@@ -144,71 +138,52 @@ class ColGraph(Observable):
                     )
                 ).T
 
-                if len(edges) == 0:
-                    edges = np.array([np.array([0, 0, 0])])
-
-                graph_obs.append(
-                    GraphObservable(
-                        nodes=None,
-                        edges=edges,
-                        channels=channels,
-                        destinations=None,
-                        globals=None,
-                        receivers=receiver,
-                        senders=sender,
-                        n_node=np.array([num_nodes]),
-                        n_edge=np.array([edges.shape[0]]),
-                    )
-                )
                 nodes_list.append(None)
                 edges_list.append(edges)
                 channels_list.append(channels)
-                destinations_list.append(None)
+                destinations_list.append(np.arange(num_nodes))
                 receivers_list.append(receiver)
                 senders_list.append(sender)
                 globals_list.append(None)
                 n_node_list.append(np.array([num_nodes]))
                 n_edge_list.append(np.array([edges.shape[0]]))
 
-                if num_nodes > max_num_nodes:
-                    max_num_nodes = num_nodes
-                if edges.shape[0] > max_num_edges:
-                    max_num_edges = edges.shape[0]
-                if channels.shape[0] > max_num_channels:
-                    max_num_channels = channels.shape[0]
+                # update the maximum number of nodes, edges and channels for the
+                # padding later.
+                max_num_nodes = np.maximum(max_num_nodes, num_nodes)
+                max_num_edges = np.maximum(max_num_edges, edges.shape[0])
+                max_num_channels = np.maximum(max_num_channels, channels.shape[0])
 
-                graph_obs[-1].senders.astype(np.float32)
-                graph_obs[-1].receivers.astype(np.float32)
             else:
                 pass
 
-        num_graphs = len(graph_obs)
+        # pad the graphs to the maximum number of nodes, edges and channels.
+        num_graphs = len(globals_list)
+
         edge_pad = onp.zeros((num_graphs, max_num_edges, 3))
         channel_pad = onp.zeros((num_graphs, max_num_channels, 3))
-        # node_pad = np.zeros((num_graphs, max_num_nodes, 3))
         sender_pad = -1 * onp.ones((num_graphs, max_num_edges))
         receiver_pad = -1 * onp.ones((num_graphs, max_num_edges))
+        destinations_pad = -1 * onp.ones((num_graphs, max_num_nodes))
 
-        for i in range(len(graph_obs)):
-            edge_pad[i, : graph_obs[i].edges.shape[0], :] = graph_obs[i].edges
-            channel_pad[i, : graph_obs[i].channels.shape[0], :] = graph_obs[i].channels
-            receiver_pad[i, : len(graph_obs[i].receivers)] = graph_obs[i].receivers
-            sender_pad[i, : len(graph_obs[i].senders)] = graph_obs[i].senders
+        # pad the graphs to the maximum number of nodes, edges and channels.
+        for i in range(num_graphs):
+            edge_pad[i, : len(edges_list[i]), :] = edges_list[i]
+            channel_pad[i, : channels_list[i].shape[0], :] = channels_list[i]
+            receiver_pad[i, : len(receivers_list[i])] = receivers_list[i]
+            sender_pad[i, : len(senders_list[i])] = senders_list[i]
+            destinations_pad[i, : destinations_list[i].shape[0]] = destinations_list[i]
 
-        second_return = [
-            nodes_list,
-            edge_pad,
-            channel_pad,
-            destinations_list,
-            receiver_pad,
-            sender_pad,
-            globals_list,
-            n_node_list,
-            n_edge_list,
-        ]
+        graph = GraphObservable(
+            nodes=nodes_list,
+            edges=edge_pad,
+            channels=channel_pad,
+            destinations=destinations_pad,
+            globals=globals_list,
+            receivers=receiver_pad.astype(int),
+            senders=sender_pad.astype(int),
+            n_node=np.array(n_node_list).astype(int),
+            n_edge=np.array(n_edge_list).astype(int),
+        )
 
-        print("max_num_nodes", max_num_nodes)
-        print("max_num_edges", max_num_edges)
-        print("max_num_channels", max_num_channels)
-
-        return graph_obs, second_return
+        return graph

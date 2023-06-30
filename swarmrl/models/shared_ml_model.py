@@ -98,7 +98,6 @@ class SharedModel(InteractionModel):
         actions = {int(np.copy(colloid.id)): Action() for colloid in colloids}
         action_indices = {type_: [] for type_ in self.particle_types}
         log_probs = {type_: [] for type_ in self.particle_types}
-
         observables = {type_: [] for type_ in self.particle_types}
 
         if self.global_task is not None:
