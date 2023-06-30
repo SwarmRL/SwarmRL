@@ -87,16 +87,15 @@ class SharedNetworkGym:
         reward = 0.0  # TODO: Separate between species and optimize visualization.
 
         for type_, val in self.rl_protocols.items():
-            episode_data = np.load(f".traj_data_{type_}.npy", allow_pickle=True)
-
-            new_reward = np.mean(episode_data.item().get("rewards"))
-            if np.isnan(new_reward):
-                new_reward = 0.0
-            reward += new_reward
-
-            # Compute loss for actor and critic.
             if val.network.kind == "network":
-                print("training network")
+                episode_data = np.load(f".traj_data_{type_}.npy", allow_pickle=True)
+
+                new_reward = np.mean(episode_data.item().get("rewards"))
+                if np.isnan(new_reward):
+                    new_reward = 0.0
+                reward += new_reward
+
+                # Compute loss for actor and critic.
                 self.loss.compute_loss(
                     network=val.network,
                     episode_data=episode_data,

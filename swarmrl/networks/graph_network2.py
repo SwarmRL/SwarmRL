@@ -22,9 +22,9 @@ from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 class EncodeNet(nn.Module):
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(128)(x)
+        x = nn.Dense(32)(x)
         x = nn.relu(x)
-        x = nn.Dense(12)(x)
+        x = nn.Dense(6)(x)
         return x
 
 
@@ -40,7 +40,7 @@ class CritNet(nn.Module):
 class ActNet(nn.Module):
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(128)(x)
+        x = nn.Dense(32)(x)
         x = nn.relu(x)
         x = nn.Dense(3)(x)
         return x
@@ -85,7 +85,7 @@ def messenger(edges, receivers, n_nodes):
     return message
 
 
-class GraphModel(Network, ABC):
+class GraphModel2(Network, ABC):
     """
     Abstract class for graph models.
     """
@@ -200,7 +200,6 @@ class GraphModel(Network, ABC):
         if explore_mode:
             indices = self.exploration_policy(indices, np.shape(logits)[0])
 
-        print(indices, taken_log_probs)
         return indices, taken_log_probs
 
     def export_model(self, filename: str = "model", directory: str = "Models"):

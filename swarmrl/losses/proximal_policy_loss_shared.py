@@ -94,16 +94,9 @@ class SharedProximalPolicyLoss(Loss, ABC):
         new_logits = []
         predicted_values = []
         for i in range(len(features)):
-            new_part_logits = []
-            new_part_values = []
-            for j in range(len(features[i])):
-                new_logits_single, predicted_values_single = network.apply_fn(
-                    {"params": network_params}, features[i][j]
-                )
-                new_part_logits.append(new_logits_single)
-                new_part_values.append(predicted_values_single)
-            new_logits.append(new_part_logits)
-            predicted_values.append(new_part_values)
+            logits, values = network.apply_fn({"params": network_params}, features[i])
+            new_logits.append(logits)
+            predicted_values.append(values)
 
         new_logits = jnp.array(new_logits)
         predicted_values = jnp.array(predicted_values)
@@ -132,14 +125,14 @@ class SharedProximalPolicyLoss(Loss, ABC):
         )
 
         # sum over the time steps
-        particle_actor_loss = jnp.sum(clipped_loss, axis=0)
+        particle_actor_loss = jnp.mean(clipped_loss, axis=0)
 
         # sum over the particle losses
         actor_loss = jnp.sum(particle_actor_loss)
         value_loss = optax.huber_loss(predicted_values, returns)
 
         particle_critic_loss = jnp.sum(value_loss, 1)
-        critic_loss = jnp.sum(particle_critic_loss)
+        critic_loss = jnp.mean(particle_critic_loss)
         print(
             "loss: ",
             (
@@ -168,10 +161,8 @@ class SharedProximalPolicyLoss(Loss, ABC):
         feature_data = episode_data.item().get("features")
         old_log_probs_data = episode_data.item().get("log_probs")
         action_data = episode_data.item().get("actions")
-        print("action_data", action_data)
         # will return the reward per particle.
         reward_data = episode_data.item().get("rewards")
-        print("action_data", action_data)
         for _ in range(self.n_epochs):
             network_grad_fn = jax.value_and_grad(self.calculate_loss)
             network_loss, network_grad = network_grad_fn(

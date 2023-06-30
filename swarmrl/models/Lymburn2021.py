@@ -105,7 +105,7 @@ class FearSwarm:
         # force_r = np.sum(force_r[:, :, None] * dr, axis=1)
 
         # preditor force
-        dr_p = pred_pos[:, None, :] - sheep_pos[None, :, :]
+        dr_p = sheep_pos[None, :, :] - pred_pos[:, None, :]
         dr_norm_p = np.linalg.norm(dr_p, axis=-1)
         mask = np.where(dr_norm_p < 50, 1, 0)
         force_p = np.sum(mask[:, :, None] * dr_p, axis=1)
@@ -121,7 +121,7 @@ class FearSwarm:
             if force_magnitude > 0:
                 actions[sheep.id] = Action(
                     force=force_magnitude,
-                    new_direction=total_force,
+                    new_direction=total_force[i],
                 )
             else:
                 actions[sheep.id] = Action(

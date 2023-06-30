@@ -23,7 +23,7 @@ class GraphObservable(NamedTuple):
     n_edge: np.ndarray
 
 
-class ColGraph(Observable):
+class ColGraph2(Observable):
     """ """
 
     def __init__(

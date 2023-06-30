@@ -75,7 +75,9 @@ class SheepShepp:
         dr_p = shepps[:, None, :] - sheeps[None, :, :]
         dr_norm_p = np.linalg.norm(dr_p, axis=-1)
 
-        r = np.sum(np.where(dr_norm_p < self.old_dists, 10, 0), axis=0)
+        r = np.sum(
+            np.where(dr_norm_p < self.old_dists, self.old_dists - dr_norm_p, 0), axis=0
+        )
 
         self.old_dists = dr_norm_p
 
