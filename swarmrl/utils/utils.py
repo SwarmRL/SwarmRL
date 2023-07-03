@@ -289,7 +289,7 @@ def record_graph_trajectory(
     Dumps a hidden file to disc which is often removed after reading.
     """
     try:
-        data = np.load(f".traj_data_{particle_type}.npy", allow_pickle=True)
+        data = np.load(f".traj_dataa_{particle_type}.npy", allow_pickle=True)
         feature_data = data.item().get("features")
         action_data = data.item().get("actions")
         log_probs_data = data.item().get("log_probs")
@@ -300,7 +300,7 @@ def record_graph_trajectory(
         log_probs_data = np.append(log_probs_data, np.array([log_probs]), axis=0)
         reward_data = np.append(reward_data, np.array([rewards]), axis=0)
 
-        os.remove(f".traj_data_{particle_type}.npy")
+        os.remove(f".traj_dataa_{particle_type}.npy")
 
     except FileNotFoundError:
         feature_data = [features]
@@ -309,7 +309,7 @@ def record_graph_trajectory(
         reward_data = np.array([rewards])
 
     np.save(
-        f".traj_data_{particle_type}.npy",
+        f".traj_dataa_{particle_type}.npy",
         {
             "features": feature_data,
             "actions": action_data,
@@ -396,19 +396,19 @@ def calc_signed_angle_between_directors(
     return angle
 
 
-def store_rewards(rewards: dict):
+def store_rewards(rewards: dict, directory: str = "."):
     rewards = np.array(list(rewards.values()))
     try:
-        data = np.load("reward_data.npy", allow_pickle=True)
+        data = np.load(f"{directory}/reward_data.npy", allow_pickle=True)
         reward_data = data.item().get("rewards")
         reward_data = np.append(reward_data, rewards, axis=0)
-        os.remove("reward_data.npy", allow_pickle=True)
+        os.remove(f"{directory}/reward_data.npy", allow_pickle=True)
 
     except FileNotFoundError:
         reward_data = np.array([rewards])
 
     np.save(
-        "reward_data.npy",
+        f"{directory}/reward_data.npy",
         {
             "rewards": reward_data,
         },

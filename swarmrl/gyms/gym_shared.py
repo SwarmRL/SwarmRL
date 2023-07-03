@@ -87,7 +87,7 @@ class SharedNetworkGym:
 
         for type_, val in self.rl_protocols.items():
             if val.network.kind == "network":
-                episode_data = np.load(f".traj_data_{type_}.npy", allow_pickle=True)
+                episode_data = np.load(f".traj_dataa_{type_}.npy", allow_pickle=True)
 
                 new_reward = np.mean(episode_data.item().get("rewards"))
                 if np.isnan(new_reward):
@@ -180,6 +180,7 @@ class SharedNetworkGym:
         episode_length: int,
         load_bar: bool = True,
         episodic_training: bool = False,
+        simulation_name: str = "no_name",
     ):
         """
         Perform the RL training.
@@ -238,10 +239,14 @@ class SharedNetworkGym:
                 current_reward = self.update_rl()
                 rewards.append(current_reward)
                 if k % 100 == 0:
-                    self.export_models(f"Models_ep{k}")
+                    self.export_models(f"./{simulation_name}/Models_ep{k}")
 
                 if k % 5 == 0:
-                    np.save("rewards.npy", np.array(rewards), allow_pickle=True)
+                    np.save(
+                        f"./{simulation_name}/rewards.npy",
+                        np.array(rewards),
+                        allow_pickle=True,
+                    )
                 episode += 1
                 progress.update(
                     task,
@@ -254,14 +259,14 @@ class SharedNetworkGym:
                     self.reset(system_runner)
 
                 for item, val in self.rl_protocols.items():
-                    os.remove(f".traj_data_{item}.npy")
+                    os.remove(f".traj_dataa_{item}.npy")
 
         system_runner.finalize()
 
         # Remove the file at the end of the training.
         for type_ in self.rl_protocols:
             try:
-                os.remove(f".traj_data_{type_}.npy")
+                os.remove(f".traj_dataa_{type_}.npy")
             except FileNotFoundError:
                 pass
 

@@ -67,8 +67,10 @@ class GraphNet(nn.Module):
         _, edges, channels, destinations, receivers, senders, globals_, n_node, _ = (
             graph
         )
-
+        print("edges", edges.shape)
+        print("channels", channels.shape)
         num_nodes = n_node[0][0]
+        print("num_nodes", num_nodes)
         channel_embedding = self.channel_encoder(channels)
         edge_embedding = self.edge_encoder(edges)
 

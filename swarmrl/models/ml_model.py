@@ -55,7 +55,7 @@ class MLModel(InteractionModel):
         self.particle_types = [item for item in self.models]
         for item in self.particle_types:
             try:
-                os.remove(f".traj_data_{item}.npy")
+                os.remove(f".traj_dataa_{item}.npy")
             except FileNotFoundError:
                 pass
 

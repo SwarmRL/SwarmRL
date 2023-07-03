@@ -97,7 +97,7 @@ class SharedProximalPolicyLoss(Loss, ABC):
             logits, values = network.apply_fn({"params": network_params}, features[i])
             new_logits.append(logits)
             predicted_values.append(values)
-
+        print("new_logits", new_logits)
         new_logits = jnp.array(new_logits)
         predicted_values = jnp.array(predicted_values)
 
@@ -133,8 +133,9 @@ class SharedProximalPolicyLoss(Loss, ABC):
 
         particle_critic_loss = jnp.sum(value_loss, 1)
         critic_loss = jnp.mean(particle_critic_loss)
-
-        return actor_loss + self.entropy_coefficient * entropy + 0.5 * critic_loss
+        loss = actor_loss + self.entropy_coefficient * entropy + 0.5 * critic_loss
+        print("loss", loss)
+        return loss
 
     def compute_loss(self, network: FlaxModel, episode_data):
         """
@@ -154,8 +155,11 @@ class SharedProximalPolicyLoss(Loss, ABC):
             The updated actor and critic network.
         """
         feature_data = episode_data.item().get("features")
+        print("feature_data", feature_data)
         old_log_probs_data = episode_data.item().get("log_probs")
+        print("old_log_probs_data", old_log_probs_data)
         action_data = episode_data.item().get("actions")
+        print("action_data", action_data)
         # will return the reward per particle.
         reward_data = episode_data.item().get("rewards")
         for _ in range(self.n_epochs):
