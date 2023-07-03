@@ -67,12 +67,11 @@ class GAE:
                 returns[t] = rewards[t]
 
             gae = delta + self.gamma * self.lambda_ * gae
-
-            advantages[t] = gae.primal
+            advantages[t] = gae
         advantages = (advantages - np.mean(advantages)) / (
             np.std(advantages) + self.eps
         )
 
         returns = (returns - np.mean(returns)) / (np.std(returns) + self.eps)
-        # returns = advantages - values
+        # returns = advantages + values
         return advantages, returns

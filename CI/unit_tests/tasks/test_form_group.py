@@ -55,7 +55,7 @@ class TestFormGroup:
             box_length=np.array([1000, 1000, 1000.0]), reward_scale_factor=1000
         )
         task.initialize(colloids)
-
+        print(task.old_dists)
         # move each colloid 2 along its director
         colloids = colloids
         for i, col in enumerate(colloids):
@@ -66,4 +66,22 @@ class TestFormGroup:
 
         reward = task(colloids)
         assert len(reward) == 5
-        print(type(reward))
+
+    def test_call2(self):
+        colloids = build_cols([5])
+        task = FromGroup(
+            box_length=np.array([1000, 1000, 1000.0]), reward_scale_factor=1000
+        )
+        task.initialize(colloids)
+        center_mass = np.sum(np.array([col.pos for col in colloids]), axis=0) / len(
+            colloids
+        )
+        for i, col in enumerate(colloids):
+            dist_vec = col.pos - center_mass
+            dist = np.linalg.norm(dist_vec)
+            new_pos = col.pos - 2 * dist_vec / dist
+            colloids[i] = Colloid(
+                pos=new_pos, director=col.director, type=col.type, id=col.id
+            )
+        reward2 = task(colloids)
+        assert np.all(reward2 > 0)

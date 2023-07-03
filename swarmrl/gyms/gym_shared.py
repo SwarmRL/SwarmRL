@@ -2,7 +2,6 @@
 Module to implement a simple multi-layer perceptron for the colloids.
 """
 import os
-import time
 from typing import List, Tuple
 
 import numpy as np
@@ -235,21 +234,11 @@ class SharedNetworkGym:
                 visible=load_bar,
             )
             for k in range(n_episodes):
-                start = time.time()
                 system_runner.integrate(episode_length, self.interaction_model)
-                end = time.time()
-                print(f"Simulation {k} took {end - start} seconds.")
-                start = time.time()
                 current_reward = self.update_rl()
-                end = time.time()
-                print(f"Training {k} took {end - start} seconds.")
                 rewards.append(current_reward)
-                if k % 10 == 0:
-                    try:
-                        for protocol in self.rl_protocols.values():
-                            protocol.network.exploration_policy.probability *= 0.8
-                    except AttributeError:
-                        pass
+                if k % 100 == 0:
+                    self.export_models(f"Models_ep{k}")
 
                 if k % 5 == 0:
                     np.save("rewards.npy", np.array(rewards), allow_pickle=True)
