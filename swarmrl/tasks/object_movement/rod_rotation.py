@@ -85,17 +85,22 @@ class RotateRod(Task):
                 Angular velocity of the rod
         """
         # Compute the angular velocity
-        dot_product = np.clip(
-            np.dot(self._historic_rod_director, new_director), -1.0, 1.0
+
+        # angle between the two directors
+        angular_velocity = np.arctan2(
+            self._historic_rod_director[0] * new_director[1]
+            - self._historic_rod_director[1] * new_director[0],
+            self._historic_rod_director[0] * new_director[0]
+            + self._historic_rod_director[1] * new_director[1],
         )
-        angular_velocity = np.arccos(dot_product)
 
         # Update the historical rod director
         self._historic_rod_director = new_director
-        velocity_change = angular_velocity - self._historic_velocity
+        velocity_change = abs(angular_velocity - self._historic_velocity)
+        sign_change = np.sign(angular_velocity) * np.sign(self._historic_velocity)
         self._historic_velocity = angular_velocity
 
-        return self.angular_velocity_scale * np.clip(velocity_change, 0, None)
+        return self.angular_velocity_scale * velocity_change * sign_change
 
     def partition_reward(
         self,
