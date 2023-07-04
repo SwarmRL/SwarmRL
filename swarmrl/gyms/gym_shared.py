@@ -2,6 +2,7 @@
 Module to implement a simple multi-layer perceptron for the colloids.
 """
 import os
+import time
 from typing import List, Tuple
 
 import numpy as np
@@ -45,7 +46,7 @@ class SharedNetworkGym:
                 A loss model to use in the A-C loss computation.
         """
         if loss is None:
-            loss = SharedProximalPolicyLoss(n_epochs=ppo_epochs)
+            loss = SharedProximalPolicyLoss(n_epochs=ppo_epochs, epsilon=0.6)
         self.loss = loss
         self.global_task = global_task
         # Add the protocols to an easily accessible internal dict.
@@ -87,7 +88,7 @@ class SharedNetworkGym:
 
         for type_, val in self.rl_protocols.items():
             if val.network.kind == "network":
-                episode_data = np.load(f".traj_dataa_{type_}.npy", allow_pickle=True)
+                episode_data = np.load(f".traj_data_{type_}.npy", allow_pickle=True)
 
                 new_reward = np.mean(episode_data.item().get("rewards"))
                 if np.isnan(new_reward):
@@ -235,15 +236,20 @@ class SharedNetworkGym:
                 visible=load_bar,
             )
             for k in range(n_episodes):
+                start = time.time()
                 system_runner.integrate(episode_length, self.interaction_model)
+                end = time.time()
+                print(f"Simulation {k} took {end - start} seconds.")
+                start = time.time()
                 current_reward = self.update_rl()
+                end = time.time()
+                print(f"Simulation {k} took {end - start} seconds.")
                 rewards.append(current_reward)
-                if k % 100 == 0:
-                    self.export_models(f"./{simulation_name}/Models_ep{k}")
-
+                if k % 100 == 0 and k != 0:
+                    self.export_models(f"./Models_ep{k}")
                 if k % 5 == 0:
                     np.save(
-                        f"./{simulation_name}/rewards.npy",
+                        "./rewards.npy",
                         np.array(rewards),
                         allow_pickle=True,
                     )
@@ -259,14 +265,14 @@ class SharedNetworkGym:
                     self.reset(system_runner)
 
                 for item, val in self.rl_protocols.items():
-                    os.remove(f".traj_dataa_{item}.npy")
+                    os.remove(f".traj_data_{item}.npy")
 
         system_runner.finalize()
 
         # Remove the file at the end of the training.
         for type_ in self.rl_protocols:
             try:
-                os.remove(f".traj_dataa_{type_}.npy")
+                os.remove(f".traj_data_{type_}.npy")
             except FileNotFoundError:
                 pass
 

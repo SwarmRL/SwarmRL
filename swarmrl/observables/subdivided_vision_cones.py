@@ -273,5 +273,5 @@ class SubdividedVisionCones(Observable):
         observable = [
             self.compute_single_observable(index, colloids) for index in reference_ids
         ]
-
+        print(observable)
         return observable
