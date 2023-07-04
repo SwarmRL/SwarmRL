@@ -97,7 +97,10 @@ class RotateRod(Task):
         # Update the historical rod director
         self._historic_rod_director = new_director
         velocity_change = abs(angular_velocity - self._historic_velocity)
-        sign_change = np.sign(angular_velocity) * np.sign(self._historic_velocity)
+        if self._historic_velocity == 0.0:
+            sign_change = 1.0
+        else:
+            sign_change = np.sign(angular_velocity) * np.sign(self._historic_velocity)
         self._historic_velocity = angular_velocity
 
         return self.angular_velocity_scale * velocity_change * sign_change
