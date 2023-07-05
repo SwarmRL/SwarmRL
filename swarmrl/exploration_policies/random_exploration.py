@@ -6,7 +6,6 @@ from functools import partial
 
 import jax
 import jax.numpy as np
-import numpy as onp
 
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
 
@@ -49,12 +48,11 @@ class RandomExploration(ExplorationPolicy, ABC):
                 Action chosen after the exploration module has operated for
                 each colloid.
         """
-        key = jax.random.PRNGKey(onp.random.randint(0, 1000000000))
+        key = jax.random.PRNGKey(seed)
         sample = jax.random.uniform(key, shape=model_actions.shape)
 
         to_be_changed = np.clip(sample - self.probability, a_min=0, a_max=1)
-        to_be_changed = np.clip(to_be_changed * 10, a_min=0, a_max=1)
-
+        to_be_changed = np.clip(to_be_changed * 1e6, a_min=0, a_max=1)
         not_to_be_changed = np.clip(to_be_changed * -10 + 1, 0, 1)
 
         # Choose random actions
