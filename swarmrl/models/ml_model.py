@@ -1,8 +1,8 @@
 """
 Espresso interaction model capable of handling a neural network as a function.
 """
-import os
 import typing
+from dataclasses import dataclass, field
 from typing import Dict
 
 import numpy as np
@@ -11,7 +11,19 @@ from swarmrl.models.interaction_model import Action, Colloid, InteractionModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-from swarmrl.utils.utils import record_trajectory
+
+
+@dataclass
+class TrajectoryInformation:
+    """
+    Helper dataclass for training RL models.
+    """
+
+    particle_type: int
+    features: list = field(default_factory=list)
+    actions: list = field(default_factory=list)
+    log_probs: list = field(default_factory=list)
+    rewards: list = field(default_factory=list)
 
 
 class MLModel(InteractionModel):
@@ -49,15 +61,15 @@ class MLModel(InteractionModel):
         self.tasks = tasks
         self.record_traj = record_traj
         self.eps = np.finfo(np.float32).eps.item()
-
         self.actions = actions
         # Used in the data saving.
         self.particle_types = [item for item in self.models]
-        for item in self.particle_types:
-            try:
-                os.remove(f".traj_data_{item}.npy")
-            except FileNotFoundError:
-                pass
+
+        # Trajectory data to be filled in after each action.
+        self.trajectory_data = {
+            item: TrajectoryInformation(particle_type=item)
+            for item in self.particle_types
+        }
 
     def calc_action(
         self, colloids: typing.List[Colloid], explore_mode: bool = False
@@ -96,15 +108,13 @@ class MLModel(InteractionModel):
                 if str(colloid.type) == item:
                     actions[colloid.id] = chosen_actions[count]
                     count += 1
-        actions = list(actions.values())  # convert to a list.
+
         # Record the trajectory if required.
-        if self.record_traj:
-            for item in self.particle_types:
-                record_trajectory(
-                    particle_type=item,
-                    features=np.array(observables[item]),
-                    actions=np.array(action_indices[item]),
-                    log_probs=np.array(log_probs[item]),
-                    rewards=np.array(rewards[item]),
-                )
-        return actions
+        # if self.record_traj:
+        for item in self.particle_types:
+            self.trajectory_data[item].features.append(observables[item])
+            self.trajectory_data[item].actions.append(action_indices[item])
+            self.trajectory_data[item].log_probs.append(log_probs[item])
+            self.trajectory_data[item].rewards.append(rewards[item])
+
+        return list(actions.values())
