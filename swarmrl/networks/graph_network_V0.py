@@ -1,11 +1,12 @@
 import os
 import pickle
 from abc import ABC
-from typing import List
+from typing import Callable, List
 
 import flax.linen as nn
 import jax
 import jax.numpy as np
+import jax.tree_util as tree
 import numpy as onp
 import optax
 from flax.training.train_state import TrainState
@@ -22,9 +23,9 @@ from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 class EncodeNet(nn.Module):
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(32)(x)
+        x = nn.Dense(128)(x)
         x = nn.relu(x)
-        x = nn.Dense(6)(x)
+        x = nn.Dense(3)(x)
         return x
 
 
@@ -40,7 +41,6 @@ class CritNet(nn.Module):
 class ActNet(nn.Module):
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(32)(x)
         x = nn.relu(x)
         x = nn.Dense(3)(x)
         return x
@@ -55,7 +55,7 @@ class InfluenceNet(nn.Module):
         return x
 
 
-class GraphNet(nn.Module):
+class GraphNetV0(nn.Module):
     node_encoder: EncodeNet
     node_influence: InfluenceNet
 
@@ -78,8 +78,35 @@ class GraphNet(nn.Module):
         return logits, value
 
 
-def messenger(edges, receivers, n_nodes):
-    message = utils.segment_mean(edges, segment_ids=receivers, num_segments=n_nodes)
+class GraphNetV1(nn.Module):
+    node_encoder: EncodeNet
+    node_influence: InfluenceNet
+    messenger: Callable
+    actress: ActNet
+    criticer: CritNet
+
+    @nn.compact
+    def __call__(self, graph: GraphObservable):
+        nodes, _, destinations, receivers, senders, _, n_node, n_edge = graph
+        vodes = self.node_encoder(nodes)
+        print("vodes: ", np.shape(vodes))
+        received_messages = tree.tree_map(lambda v: v[receivers], vodes)
+        messages = self.messenger(received_messages, receivers, n_node[0][0])
+        print("messages: ", np.shape(messages))
+        vodes = vodes + messages
+        influence = self.node_influence(vodes).squeeze()
+        padding_mask = np.where(destinations == -1, -15, 0)
+        alpha = nn.softmax(influence + padding_mask, axis=1)
+        # vodes has shape (n_node, 4, 6) and alpha has shape (n_node, 4)
+        globals = np.einsum("ijk,ij->ik", vodes, alpha)
+
+        logits = self.actress(globals)
+        value = self.criticer(globals)
+        return logits, value
+
+
+def messenger(nodes, receivers, n_nodes):
+    message = utils.segment_mean(nodes, segment_ids=receivers, num_segments=n_nodes)
     return message
 
 
@@ -90,6 +117,7 @@ class GraphModel_V0(Network, ABC):
 
     def __init__(
         self,
+        version=0,
         node_encoder: EncodeNet = EncodeNet(),
         node_influence: InfluenceNet = InfluenceNet(),
         actress: ActNet = ActNet(),
@@ -99,18 +127,28 @@ class GraphModel_V0(Network, ABC):
         sampling_strategy: SamplingStrategy = GumbelDistribution(),
         rng_key: int = 42,
         deployment_mode: bool = False,
-        record_memory: bool = False,
         example_graph: GraphObservable = None,
     ):
         if rng_key is None:
             rng_key = onp.random.randint(0, 1027465782564)
         self.sampling_strategy = sampling_strategy
-        self.model = GraphNet(
-            node_encoder=node_encoder,
-            node_influence=node_influence,
-            actress=actress,
-            criticer=criticer,
-        )
+        if version == 0:
+            self.model = GraphNetV0(
+                node_encoder=node_encoder,
+                node_influence=node_influence,
+                actress=actress,
+                criticer=criticer,
+            )
+        elif version == 1:
+            self.model = GraphNetV1(
+                node_encoder=node_encoder,
+                node_influence=node_influence,
+                messenger=jax.vmap(messenger, in_axes=(0, 0, None)),
+                actress=actress,
+                criticer=criticer,
+            )
+        else:
+            raise ValueError("Invalid version number")
         self.apply_fn = self.model.apply
         self.model_state = None
 

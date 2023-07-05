@@ -243,7 +243,7 @@ class SharedNetworkGym:
                 start = time.time()
                 current_reward = self.update_rl()
                 end = time.time()
-                print(f"Simulation {k} took {end - start} seconds.")
+                print(f"Training {k} took {end - start} seconds.")
                 rewards.append(current_reward)
                 if k % 100 == 0 and k != 0:
                     self.export_models(f"./Models_ep{k}")

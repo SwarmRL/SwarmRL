@@ -106,7 +106,9 @@ class ColGraph2(Observable):
                 pos_angles = self.vangle(director, relevant_part_part_vec)
 
                 # compute pairwise absolute difference between the angles.
-                pair_wise_angle = np.abs(pos_angles[:, None] - pos_angles) / np.pi % 1
+                pair_wise_angle = (
+                    np.abs(np.abs(pos_angles[:, None]) - np.abs(pos_angles)) / np.pi % 1
+                )
 
                 edge_mask = (pair_wise_angle < self.relation_angle) & (
                     pair_wise_angle > 0.0
