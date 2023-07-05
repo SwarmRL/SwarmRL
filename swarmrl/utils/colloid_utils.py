@@ -6,6 +6,7 @@ import jax
 import jax.numpy as jnp
 
 
+@jax.jit
 def compute_forces(r):
     """
     Compute the energy between two colloids.
@@ -30,6 +31,7 @@ def compute_forces(r):
     return force_fn(r)
 
 
+@jax.jit
 def compute_distance_matrix(set_a, set_b):
     """
     Compute a distance matrix between two sets.
@@ -54,6 +56,7 @@ def compute_distance_matrix(set_a, set_b):
     return distance_fn(set_a, set_b)
 
 
+@jax.jit
 def compute_torque(force, direction):
     """
     Compute the torque on a rod.
@@ -65,6 +68,7 @@ def compute_torque(force, direction):
     return jnp.cross(direction, force)
 
 
+@jax.jit
 def compute_torque_partition_on_rod(colloid_positions, rod_positions, rod_directions):
     """
     Compute the torque on a rod using a WCA potential.

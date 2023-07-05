@@ -81,7 +81,6 @@ class MLModel(InteractionModel):
         log_probs = {item: [] for item in self.particle_types}
         rewards = {item: [] for item in self.particle_types}
         observables = {item: [] for item in self.particle_types}
-
         for item in self.particle_types:
             observables[item] = self.observables[item].compute_observable(colloids)
             rewards[item] = self.tasks[item](colloids)
@@ -98,7 +97,6 @@ class MLModel(InteractionModel):
                     actions[colloid.id] = chosen_actions[count]
                     count += 1
         actions = list(actions.values())  # convert to a list.
-
         # Record the trajectory if required.
         if self.record_traj:
             for item in self.particle_types:
