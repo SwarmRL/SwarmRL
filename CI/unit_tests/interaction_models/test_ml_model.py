@@ -87,6 +87,9 @@ class TestMLModel:
             input_shape=(3,),
             optimizer=optax.sgd(0.001),
             rng_key=6862168,
+            exploration_policy=srl.exploration_policies.RandomExploration(
+                probability=0.0
+            ),
             sampling_strategy=CategoricalDistribution(),
         )
         second_network = FlaxModel(
@@ -94,6 +97,9 @@ class TestMLModel:
             input_shape=(3,),
             optimizer=optax.sgd(0.001),
             rng_key=6862168,
+            exploration_policy=srl.exploration_policies.RandomExploration(
+                probability=0.0
+            ),
             sampling_strategy=CategoricalDistribution(),
         )
         translate = Action(force=10.0)

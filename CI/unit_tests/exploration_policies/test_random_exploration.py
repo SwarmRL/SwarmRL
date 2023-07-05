@@ -28,7 +28,7 @@ class TestRandomExploration:
         # Force a new point
         self.explorer.probability = 1.0
         chosen_actions = self.explorer(
-            model_actions=self.chosen_actions, action_space_length=4
+            model_actions=self.chosen_actions, action_space_length=4, seed=0
         )
         assert_raises(
             AssertionError, assert_array_equal, chosen_actions, self.chosen_actions
@@ -38,10 +38,10 @@ class TestRandomExploration:
         """
         Test that the chosen actions are not changed when the probability is 0.
         """
-        self.explorer.probability = 0.0
+        explorer = RandomExploration(probability=0.0)
 
-        for i in range(10):
-            chosen_actions = self.explorer(
-                model_actions=self.chosen_actions, action_space_length=4
+        for i in range(100):
+            chosen_actions = explorer(
+                model_actions=self.chosen_actions, action_space_length=4, seed=i
             )
             assert_array_equal(chosen_actions, self.chosen_actions)
