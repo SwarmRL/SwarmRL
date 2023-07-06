@@ -808,34 +808,10 @@ class EspressoMD(Engine):
             self._init_h5_output()
             self.integration_initialised = True
 
-            self.manage_forces(force_model)
-            self._update_traj_holder()
-
-            if len(self.traj_holder["Times"]) >= self.write_chunk_size:
-                self._write_traj_chunk_to_file()
-                for val in self.traj_holder.values():
-                    val.clear()
-
         old_slice_idx = self.slice_idx
-        # managing forces hier is only important  in the first call and
-        # if the force_model changes form last integrate call to current call
-        self.manage_forces(force_model)
-        while self.slice_idx < old_slice_idx + n_slices:
-            steps_to_next_write = (
-                self.params.steps_per_write_interval * (self.write_idx + 1)
-                - self.step_idx
-            )
-            steps_to_next_slice = (
-                self.params.steps_per_slice * (self.slice_idx + 1) - self.step_idx
-            )
-            steps_to_next = min(steps_to_next_write, steps_to_next_slice)
 
-            self.system.integrator.run(steps_to_next)
-            self.step_idx += steps_to_next
-
-            if self.step_idx == self.params.steps_per_write_interval * (
-                self.write_idx + 1
-            ):
+        while self.step_idx < self.params.steps_per_slice * (old_slice_idx + n_slices):
+            if self.step_idx == self.params.steps_per_write_interval * self.write_idx:
                 self._update_traj_holder()
                 self.write_idx += 1
 
@@ -844,9 +820,20 @@ class EspressoMD(Engine):
                     for val in self.traj_holder.values():
                         val.clear()
 
-            if self.step_idx == self.params.steps_per_slice * (self.slice_idx + 1):
+            if self.step_idx == self.params.steps_per_slice * self.slice_idx:
                 self.slice_idx += 1
                 self.manage_forces(force_model)
+
+            steps_to_next_write = (
+                self.params.steps_per_write_interval * self.write_idx - self.step_idx
+            )
+            steps_to_next_slice = (
+                self.params.steps_per_slice * self.slice_idx - self.step_idx
+            )
+            steps_to_next = min(steps_to_next_write, steps_to_next_slice)
+
+            self.system.integrator.run(steps_to_next)
+            self.step_idx += steps_to_next
 
     def finalize(self):
         """
