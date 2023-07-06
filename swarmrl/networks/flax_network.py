@@ -11,7 +11,6 @@ import jax
 import jax.numpy as np
 import numpy as onp
 from flax import linen as nn
-
 from flax.training.train_state import TrainState
 from optax._src.base import GradientTransformation
 
