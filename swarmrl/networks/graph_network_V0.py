@@ -242,7 +242,7 @@ class GraphModel_V0(Network, ABC):
         ).reshape(-1)
 
         if explore_mode:
-            indices = self.exploration_policy(indices, np.shape(logits)[0])
+            indices = self.exploration_policy(indices, 3)
 
         return indices, taken_log_probs
 

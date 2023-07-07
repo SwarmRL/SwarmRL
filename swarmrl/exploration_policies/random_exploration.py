@@ -54,12 +54,11 @@ class RandomExploration(ExplorationPolicy, ABC):
         exploration_indices = np.where(sample <= self.probability)
 
         # Choose random actions
-        # rng = jax.random.PRNGKey(onp.random.randint(0, 1000000000))
-        # exploration_actions = jax.random.randint(
-        #     rng, shape=(len(exploration_indices),), minval=0,
-        #     maxval=action_space_length
-        # )
-        exploration_actions = np.array([0])
+        rng = jax.random.PRNGKey(onp.random.randint(0, 1000000000))
+        exploration_actions = jax.random.randint(
+            rng, shape=(len(exploration_indices),), minval=0, maxval=action_space_length
+        )
+        # exploration_actions = np.array([0])
         model_actions = onp.array(model_actions)
 
         # Put the new actions in.
