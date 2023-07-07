@@ -17,7 +17,7 @@ class GraphObservable(NamedTuple):
     destinations: Optional[np.ndarray]
     receivers: Optional[np.ndarray]
     senders: Optional[np.ndarray]
-    globals: Optional[ArrayTree]
+    globals_: Optional[ArrayTree]
     n_node: np.ndarray
     n_edge: np.ndarray
 
@@ -129,7 +129,7 @@ class ColGraphV0(Observable):
             nodes=node_pad,
             edges=[None] * num_graphs,
             destinations=destinations_pad.astype(int),
-            globals=globals_list,
+            globals_=globals_list,
             receivers=[None] * num_graphs,
             senders=[None] * num_graphs,
             n_node=np.array(n_nodes_list).astype(int),
@@ -272,9 +272,9 @@ class ColGraphV1(Observable):
 
         graph = GraphObservable(
             nodes=node_pad,
-            edges=[None] * num_graphs,
+            edges=np.zeros_like(sender_pad),
             destinations=destinations_pad.astype(int),
-            globals=globals_list,
+            globals_=np.zeros((num_graphs, 1)),
             receivers=receiver_pad.astype(int),
             senders=sender_pad.astype(int),
             n_node=np.array(n_nodes_list).astype(int),

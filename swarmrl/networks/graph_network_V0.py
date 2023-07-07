@@ -1,7 +1,6 @@
 import os
 import pickle
 from abc import ABC
-from typing import Callable, List
 
 import flax.linen as nn
 import jax
@@ -15,7 +14,7 @@ from optax import GradientTransformation
 
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
 from swarmrl.networks.network import Network
-from swarmrl.observables.col_graph import GraphObservable
+from swarmrl.observables.col_graph_V0 import GraphObservable
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 
@@ -55,58 +54,61 @@ class InfluenceNet(nn.Module):
         return x
 
 
-class GraphNetV0(nn.Module):
-    node_encoder: EncodeNet
-    node_influence: InfluenceNet
-
-    actress: ActNet
-    criticer: CritNet
-
-    @nn.compact
-    def __call__(self, graph: GraphObservable):
-        nodes, _, destinations, _, _, _, n_node, _ = graph
-
-        vodes = self.node_encoder(nodes)
-        influence = self.node_influence(vodes).squeeze()
-        padding_mask = np.where(destinations == -1, -15, 0)
-        alpha = nn.softmax(influence + padding_mask, axis=1)
-        # vodes has shape (n_node, 4, 6) and alpha has shape (n_node, 4)
-        globals = np.einsum("ijk,ij->ik", vodes, alpha)
-
-        logits = self.actress(globals)
-        value = self.criticer(globals)
-        return logits, value
+# class GraphNetV0(nn.Module):
+#     node_encoder: EncodeNet
+#     node_influence: InfluenceNet
+#
+#     actress: ActNet
+#     criticer: CritNet
+#
+#     @nn.compact
+#     def __call__(self, graph: GraphObservable):
+#         nodes, _, destinations, _, _, _, n_node, _ = graph
+#
+#         vodes = self.node_encoder(nodes)
+#         influence = self.node_influence(vodes).squeeze()
+#         padding_mask = np.where(destinations == -1, -15, 0)
+#         alpha = nn.softmax(influence + padding_mask, axis=1)
+#         # vodes has shape (n_node, 4, 6) and alpha has shape (n_node, 4)
+#         globals = np.einsum("ijk,ij->ik", vodes, alpha)
+#
+#         logits = self.actress(globals)
+#         value = self.criticer(globals)
+#         return logits, value
 
 
 class GraphNetV1(nn.Module):
     node_encoder: EncodeNet
     node_influence: InfluenceNet
-    messenger: Callable
     actress: ActNet
     criticer: CritNet
 
     @nn.compact
     def __call__(self, graph: GraphObservable):
         nodes, _, destinations, receivers, senders, _, n_node, n_edge = graph
+        n_nodes = n_node[0]
         vodes = self.node_encoder(nodes)
-        print("vodes: ", np.shape(vodes))
-        received_messages = tree.tree_map(lambda v: v[receivers], vodes)
-        messages = self.messenger(received_messages, receivers, n_node[0][0])
-        print("messages: ", np.shape(messages))
-        vodes = vodes + messages
-        influence = self.node_influence(vodes).squeeze()
-        padding_mask = np.where(destinations == -1, -15, 0)
-        alpha = nn.softmax(influence + padding_mask, axis=1)
-        # vodes has shape (n_node, 4, 6) and alpha has shape (n_node, 4)
-        globals = np.einsum("ijk,ij->ik", vodes, alpha)
+        messages = messenger(
+            nodes=vodes,
+            senders=senders,
+            receivers=receivers,
+            n_nodes=n_nodes,
+        )
 
-        logits = self.actress(globals)
-        value = self.criticer(globals)
+        vodes = vodes + messages
+        influence = self.node_influence(vodes)
+
+        padding_mask = np.where(destinations == -1, np.array([-15]), np.array([0]))
+        alpha = nn.softmax(influence + padding_mask[:, np.newaxis], axis=0)
+        graph_representation = np.sum(vodes * alpha, axis=0)
+        logits = self.actress(graph_representation)
+        value = self.criticer(graph_representation)
         return logits, value
 
 
-def messenger(nodes, receivers, n_nodes):
-    message = utils.segment_mean(nodes, segment_ids=receivers, num_segments=n_nodes)
+def messenger(nodes, senders, receivers, n_nodes):
+    received_messages = tree.tree_map(lambda v: v[senders], nodes)
+    message = utils.segment_sum(received_messages, receivers, n_nodes)
     return message
 
 
@@ -133,23 +135,27 @@ class GraphModel_V0(Network, ABC):
             rng_key = onp.random.randint(0, 1027465782564)
         self.sampling_strategy = sampling_strategy
         if version == 0:
-            self.model = GraphNetV0(
-                node_encoder=node_encoder,
-                node_influence=node_influence,
-                actress=actress,
-                criticer=criticer,
-            )
+            pass
+            # self.model = GraphNetV0(
+            #     node_encoder=node_encoder,
+            #     node_influence=node_influence,
+            #     actress=actress,
+            #     criticer=criticer,
+            # )
         elif version == 1:
             self.model = GraphNetV1(
                 node_encoder=node_encoder,
                 node_influence=node_influence,
-                messenger=jax.vmap(messenger, in_axes=(0, 0, None)),
                 actress=actress,
                 criticer=criticer,
             )
         else:
             raise ValueError("Invalid version number")
-        self.apply_fn = self.model.apply
+        self.apply_fn = jax.vmap(
+            self.model.apply,
+            in_axes=(None, GraphObservable(0, None, 0, 0, 0, None, None, None)),
+        )
+        # self.apply_fn = jax.jit(self.apply_fn)
         self.model_state = None
 
         if not deployment_mode:
@@ -194,7 +200,7 @@ class GraphModel_V0(Network, ABC):
 
         self.epoch_count += 1
 
-    def compute_action(self, observables: List, explore_mode: bool = False):
+    def compute_action(self, observables: GraphObservable, explore_mode: bool = False):
         """
         Compute and action from the action space.
 
@@ -202,8 +208,12 @@ class GraphModel_V0(Network, ABC):
 
         Parameters
         ----------
-        observables : List
-                Observable for each colloid for which the action should be computed.
+        graph_obs : GraphObservable
+                The graph observation. It is a named tuple with the following fields:
+                nodes, edges, destinations, receivers, senders, n_node, n_edge.
+                Each of the nodes is a batched version of the corresponding
+                attribute of the graph. The batch size is the number of colloids
+                of the relevant type.
         explore_mode : bool
                 If true, an exploration vs exploitation function is called.
 
@@ -215,7 +225,6 @@ class GraphModel_V0(Network, ABC):
                 output neurons. The second element is an array of the corresponding
                 log_probs (i.e. the output of the network put through a softmax).
         """
-
         try:
             logits, _ = self.apply_fn({"params": self.model_state.params}, observables)
         except AttributeError:  # We need this for loaded models.

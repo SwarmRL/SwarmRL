@@ -46,7 +46,7 @@ class SharedNetworkGym:
                 A loss model to use in the A-C loss computation.
         """
         if loss is None:
-            loss = SharedProximalPolicyLoss(n_epochs=ppo_epochs, epsilon=0.6)
+            loss = SharedProximalPolicyLoss(n_epochs=ppo_epochs, epsilon=0.3)
         self.loss = loss
         self.global_task = global_task
         # Add the protocols to an easily accessible internal dict.
