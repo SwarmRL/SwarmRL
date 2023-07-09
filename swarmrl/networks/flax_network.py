@@ -11,8 +11,6 @@ import jax
 import jax.numpy as np
 import numpy as onp
 from flax import linen as nn
-
-# from flax.training import checkpoints
 from flax.training.train_state import TrainState
 from optax._src.base import GradientTransformation
 
@@ -165,7 +163,6 @@ class FlaxModel(Network, ABC):
         eps = 1e-8
         log_probs = np.log(jax.nn.softmax(logits) + eps)
 
-        # if explore_mode:
         indices = self.exploration_policy(
             indices, logits.shape[-1], onp.random.randint(8759865)
         )
