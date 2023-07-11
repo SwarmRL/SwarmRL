@@ -70,11 +70,12 @@ class SheepShepp:
         dists = np.linalg.norm(sheep_pos[:, None, :] - shepps_pos[None, :, :], axis=-1)
 
         delta = old_dist - dists
-        reward = self.scale_factor * np.mean(delta)
-        self.old_positions["sheep_pos"] = sheep_pos
-        self.old_positions["shepp_pos"] = shepps_pos
+        reward = self.scale_factor * delta
+        reward = np.where(reward >= 0, reward, 0)
+        self.old_positions["sheep_pos"] = np.array(sheep_pos)
+        self.old_positions["shepp_pos"] = np.array(shepps_pos)
 
         sheep_center_dist = np.linalg.norm(sheep_pos - self.center, axis=-1)
         reward2 = np.sum(np.where(sheep_center_dist < self.radius, 100, 0))
-
-        return reward + reward2
+        total_reward = reward + reward2
+        return total_reward

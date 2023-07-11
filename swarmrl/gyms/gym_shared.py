@@ -237,7 +237,9 @@ class SharedNetworkGym:
             )
             for k in range(n_episodes):
                 start = time.time()
-                system_runner.integrate(episode_length, self.interaction_model)
+                system_runner.integrate(
+                    episode_length + int(k / 20), self.interaction_model
+                )
                 end = time.time()
                 print(f"Simulation {k} took {end - start} seconds.")
                 start = time.time()

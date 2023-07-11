@@ -24,7 +24,6 @@ class EncodeNet(nn.Module):
     def __call__(self, x):
         x = nn.Dense(128)(x)
         x = nn.relu(x)
-        x = nn.Dense(3)(x)
         return x
 
 
@@ -54,27 +53,32 @@ class InfluenceNet(nn.Module):
         return x
 
 
-# class GraphNetV0(nn.Module):
-#     node_encoder: EncodeNet
-#     node_influence: InfluenceNet
-#
-#     actress: ActNet
-#     criticer: CritNet
-#
-#     @nn.compact
-#     def __call__(self, graph: GraphObservable):
-#         nodes, _, destinations, _, _, _, n_node, _ = graph
-#
-#         vodes = self.node_encoder(nodes)
-#         influence = self.node_influence(vodes).squeeze()
-#         padding_mask = np.where(destinations == -1, -15, 0)
-#         alpha = nn.softmax(influence + padding_mask, axis=1)
-#         # vodes has shape (n_node, 4, 6) and alpha has shape (n_node, 4)
-#         globals = np.einsum("ijk,ij->ik", vodes, alpha)
-#
-#         logits = self.actress(globals)
-#         value = self.criticer(globals)
-#         return logits, value
+class GraphNetV0(nn.Module):
+    node_encoder: EncodeNet
+    node_influence: InfluenceNet
+
+    actress: ActNet
+    criticer: CritNet
+
+    @nn.compact
+    def __call__(self, graph: GraphObservable):
+        nodes, _, destinations, _, _, _, n_node, _ = graph
+
+        vodes = self.node_encoder(nodes)
+        # influence = self.node_influence(vodes).squeeze()
+        # padding_mask = np.where(destinations == -1, -15, 0)
+        # alpha = nn.softmax(influence + padding_mask, axis=0)
+        # globals_ = alpha @ vodes
+        # logits = self.actress(globals_)
+        # value = self.criticer(globals_)
+        influence = self.node_influence(vodes)
+
+        padding_mask = np.where(destinations == -1, np.array([-15]), np.array([0]))
+        alpha = nn.softmax(influence + padding_mask[:, np.newaxis], axis=0)
+        graph_representation = np.sum(vodes * alpha, axis=0)
+        logits = self.actress(graph_representation)
+        value = self.criticer(graph_representation)
+        return logits, value
 
 
 class GraphNetV1(nn.Module):
@@ -124,7 +128,7 @@ class GraphModel_V0(Network, ABC):
         node_influence: InfluenceNet = InfluenceNet(),
         actress: ActNet = ActNet(),
         criticer: CritNet = CritNet(),
-        optimizer: GradientTransformation = optax.adam(1e-3),
+        optimizer: GradientTransformation = optax.sgd(1e-3),
         exploration_policy: ExplorationPolicy = None,
         sampling_strategy: SamplingStrategy = GumbelDistribution(),
         rng_key: int = 42,
@@ -135,13 +139,12 @@ class GraphModel_V0(Network, ABC):
             rng_key = onp.random.randint(0, 1027465782564)
         self.sampling_strategy = sampling_strategy
         if version == 0:
-            pass
-            # self.model = GraphNetV0(
-            #     node_encoder=node_encoder,
-            #     node_influence=node_influence,
-            #     actress=actress,
-            #     criticer=criticer,
-            # )
+            self.model = GraphNetV0(
+                node_encoder=node_encoder,
+                node_influence=node_influence,
+                actress=actress,
+                criticer=criticer,
+            )
         elif version == 1:
             self.model = GraphNetV1(
                 node_encoder=node_encoder,
@@ -151,6 +154,7 @@ class GraphModel_V0(Network, ABC):
             )
         else:
             raise ValueError("Invalid version number")
+
         self.apply_fn = jax.vmap(
             self.model.apply,
             in_axes=(None, GraphObservable(0, None, 0, 0, 0, None, None, None)),

@@ -131,7 +131,6 @@ class SharedModel(InteractionModel):
                     actions[index] = action
 
         actions = list(actions.values())
-        print(action_indices)
         # Record the trajectory if required.
         if self.record_traj:
             for type_ in self.particle_types:

@@ -272,7 +272,7 @@ class ColGraphV1(Observable):
 
         graph = GraphObservable(
             nodes=node_pad,
-            edges=np.zeros_like(sender_pad),
+            edges=np.zeros_like(node_pad[0]),
             destinations=destinations_pad.astype(int),
             globals_=np.zeros((num_graphs, 1)),
             receivers=receiver_pad.astype(int),
