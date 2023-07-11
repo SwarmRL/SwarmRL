@@ -16,7 +16,7 @@ from swarmrl.losses.loss import Loss
 from swarmrl.networks.flax_network import FlaxModel
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.utils.utils import gather_n_dim_indices
-from swarmrl.value_functions.generalized_advantage_estimate import GAE
+from swarmrl.value_functions.generalized_advantage_estimate_shared import GAE
 
 
 class SharedProximalPolicyLoss(Loss, ABC):
