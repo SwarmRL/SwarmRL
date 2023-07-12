@@ -2,10 +2,10 @@
 Random exploration module.
 """
 from abc import ABC
+from functools import partial
 
 import jax
 import jax.numpy as np
-import numpy as onp
 
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
 
@@ -27,8 +27,9 @@ class RandomExploration(ExplorationPolicy, ABC):
         """
         self.probability = probability
 
+    @partial(jax.jit, static_argnums=(0,))
     def __call__(
-        self, model_actions: np.ndarray, action_space_length: int
+        self, model_actions: np.ndarray, action_space_length: int, seed: int = 0
     ) -> np.ndarray:
         """
         Return an index associated with the chosen action.
@@ -47,20 +48,25 @@ class RandomExploration(ExplorationPolicy, ABC):
                 Action chosen after the exploration module has operated for
                 each colloid.
         """
-        rng = jax.random.PRNGKey(onp.random.randint(0, 1000000000))
-        sample = jax.random.uniform(rng, shape=model_actions.shape)
+        key = jax.random.PRNGKey(seed)
+        sample = jax.random.uniform(key, shape=model_actions.shape)
 
-        # Get indices to randomize
-        exploration_indices = np.where(sample <= self.probability)
+        to_be_changed = np.clip(sample - self.probability, a_min=0, a_max=1)
+        to_be_changed = np.clip(to_be_changed * 1e6, a_min=0, a_max=1)
+        not_to_be_changed = np.clip(to_be_changed * -10 + 1, 0, 1)
 
         # Choose random actions
-        rng = jax.random.PRNGKey(onp.random.randint(0, 1000000000))
+        key, subkey = jax.random.split(key)
         exploration_actions = jax.random.randint(
-            rng, shape=(len(exploration_indices),), minval=0, maxval=action_space_length
+            subkey,
+            shape=(model_actions.shape[0],),
+            minval=0,
+            maxval=action_space_length,
         )
-        model_actions = onp.array(model_actions)
 
         # Put the new actions in.
-        onp.put(model_actions, exploration_indices, exploration_actions)
+        model_actions = (
+            model_actions * to_be_changed + exploration_actions * not_to_be_changed
+        ).astype(np.int16)
 
         return model_actions
