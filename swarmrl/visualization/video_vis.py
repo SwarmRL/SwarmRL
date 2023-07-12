@@ -737,7 +737,7 @@ class Animations:
             )
 
     def animation_maze_setup(self, folder, filename):
-        maze_file = open(folder + filename, "rb")
+        maze_file = open(folder + "/" + filename, "rb")
         self.maze_dic = pickle.load(maze_file)
         self.wall_thickness = self.maze_dic["wall_thickness"]
         self.maze_walls = pickle.load(maze_file)
