@@ -247,7 +247,7 @@ class SubdividedVisionCones(Observable):
         my_pos, my_director = self._calculate_director(colloid)
 
         of_others = [
-            [c, self.radii[i]] for i, c in enumerate(colloids) if c is not index
+            [c, self.radii[i]] for i, c in enumerate(colloids) if c is not colloid
         ]
         other_colloids = [of_others[i][0] for i in range(len(of_others))]
         self.radii = [of_others[i][1] for i in range(len(of_others))]
