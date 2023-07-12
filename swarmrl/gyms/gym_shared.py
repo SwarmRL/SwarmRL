@@ -46,7 +46,7 @@ class SharedNetworkGym:
                 A loss model to use in the A-C loss computation.
         """
         if loss is None:
-            loss = SharedProximalPolicyLoss(n_epochs=ppo_epochs, epsilon=0.3)
+            loss = SharedProximalPolicyLoss(n_epochs=ppo_epochs, epsilon=0.2)
         self.loss = loss
         self.global_task = global_task
         # Add the protocols to an easily accessible internal dict.
@@ -181,7 +181,7 @@ class SharedNetworkGym:
         episode_length: int,
         load_bar: bool = True,
         episodic_training: bool = False,
-        simulation_name: str = "no_name",
+        scheduler: bool = False,
     ):
         """
         Perform the RL training.
@@ -237,9 +237,12 @@ class SharedNetworkGym:
             )
             for k in range(n_episodes):
                 start = time.time()
-                system_runner.integrate(
-                    episode_length + int(k / 20), self.interaction_model
-                )
+                if scheduler:
+                    system_runner.integrate(
+                        episode_length + int(k / 20), self.interaction_model
+                    )
+                else:
+                    system_runner.integrate(episode_length, self.interaction_model)
                 end = time.time()
                 print(f"Simulation {k} took {end - start} seconds.")
                 start = time.time()
