@@ -54,9 +54,17 @@ class InfluenceNet(nn.Module):
 
 
 class GraphNetV0(nn.Module):
+    """
+    This is the first version of the graph network.
+    Node features are encoded and then aggregated using a softmax over
+    the influence of each node.
+    The influence of each node is computed using a simple dense network and is
+    a measure of the importance of each node in the graph.
+    There are no interactions or messages between nodes.
+    """
+
     node_encoder: EncodeNet
     node_influence: InfluenceNet
-
     actress: ActNet
     criticer: CritNet
 
@@ -65,14 +73,7 @@ class GraphNetV0(nn.Module):
         nodes, _, destinations, _, _, _, n_node, _ = graph
 
         vodes = self.node_encoder(nodes)
-        # influence = self.node_influence(vodes).squeeze()
-        # padding_mask = np.where(destinations == -1, -15, 0)
-        # alpha = nn.softmax(influence + padding_mask, axis=0)
-        # globals_ = alpha @ vodes
-        # logits = self.actress(globals_)
-        # value = self.criticer(globals_)
         influence = self.node_influence(vodes)
-
         padding_mask = np.where(destinations == -1, np.array([-15]), np.array([0]))
         alpha = nn.softmax(influence + padding_mask[:, np.newaxis], axis=0)
         graph_representation = np.sum(vodes * alpha, axis=0)
@@ -82,6 +83,16 @@ class GraphNetV0(nn.Module):
 
 
 class GraphNetV1(nn.Module):
+    """
+    This is the second version of the graph network.
+    Node features are encoded.
+    Pure messages are computed between nodes and aggregated without any weighting.
+    The aggregated messages are added to the node features and then aggregated using
+    a softmax over the influence of each node.
+    The influence of each node is computed using a simple dense network and is
+    a measure of the importance of each node in the graph.
+    """
+
     node_encoder: EncodeNet
     node_influence: InfluenceNet
     actress: ActNet
@@ -92,7 +103,7 @@ class GraphNetV1(nn.Module):
         nodes, _, destinations, receivers, senders, _, n_node, n_edge = graph
         n_nodes = n_node[0]
         vodes = self.node_encoder(nodes)
-        messages = messenger(
+        messages = compute_pure_message(
             nodes=vodes,
             senders=senders,
             receivers=receivers,
@@ -101,7 +112,6 @@ class GraphNetV1(nn.Module):
 
         vodes = vodes + messages
         influence = self.node_influence(vodes)
-
         padding_mask = np.where(destinations == -1, np.array([-15]), np.array([0]))
         alpha = nn.softmax(influence + padding_mask[:, np.newaxis], axis=0)
         graph_representation = np.sum(vodes * alpha, axis=0)
@@ -110,9 +120,68 @@ class GraphNetV1(nn.Module):
         return logits, value
 
 
-def messenger(nodes, senders, receivers, n_nodes):
+class GraphNetV2(nn.Module):
+    """
+    This is the second version of the graph network.
+    Node features are encoded.
+    Weighted messages are computed between nodes and aggregated.
+    The network can learn to ignore messages from certain nodes.
+    The aggregated messages are added to the node features and then aggregated using
+    a softmax over the influence of each node.
+    The influence of each node is computed using a simple dense network and is
+    a measure of the importance of each node in the graph.
+    """
+
+    node_encoder: EncodeNet
+    node_influence: InfluenceNet
+    actress: ActNet
+    criticer: CritNet
+
+    @nn.compact
+    def __call__(self, graph: GraphObservable):
+        nodes, _, destinations, receivers, senders, _, n_node, n_edge = graph
+        n_nodes = n_node[0]
+        vodes = self.node_encoder(nodes)
+        messages = compute_weighted_message(
+            nodes=vodes,
+            senders=senders,
+            receivers=receivers,
+            n_nodes=n_nodes,
+        )
+
+        vodes = vodes + messages
+        influence = self.node_influence(vodes)
+        padding_mask = np.where(destinations == -1, np.array([-15]), np.array([0]))
+        alpha = nn.softmax(influence + padding_mask[:, np.newaxis], axis=0)
+        graph_representation = np.sum(vodes * alpha, axis=0)
+        logits = self.actress(graph_representation)
+        value = self.criticer(graph_representation)
+        return logits, value
+
+
+def compute_pure_message(nodes, senders, receivers, n_nodes):
     received_messages = tree.tree_map(lambda v: v[senders], nodes)
     message = utils.segment_sum(received_messages, receivers, n_nodes)
+    return message
+
+
+def compute_weighted_message(nodes, senders, receivers, n_nodes):
+    """Compute the message for each node based on the influence between
+    sender and receiver.
+    """
+    # compute sender and receiver nodes
+    sending_nodes = tree.tree_map(lambda n: n[senders], nodes)
+    receiving_nodes = tree.tree_map(lambda n: n[receivers], nodes)
+    # compute influence (inspired by VAIN)
+    influences = utils.segment_softmax(
+        np.exp(-np.linalg.norm(sending_nodes - receiving_nodes, axis=-1)),
+        receivers,
+        n_nodes,
+    )
+    # compute message. The message is the influence times the sending node
+    send_messages = influences[:, np.newaxis] * sending_nodes
+    # aggregate messages
+    message = utils.segment_sum(send_messages, receivers, n_nodes)
     return message
 
 
@@ -147,6 +216,13 @@ class GraphModel_V0(Network, ABC):
             )
         elif version == 1:
             self.model = GraphNetV1(
+                node_encoder=node_encoder,
+                node_influence=node_influence,
+                actress=actress,
+                criticer=criticer,
+            )
+        elif version == 2:
+            self.model = GraphNetV2(
                 node_encoder=node_encoder,
                 node_influence=node_influence,
                 actress=actress,

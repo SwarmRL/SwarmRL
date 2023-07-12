@@ -14,6 +14,33 @@ from swarmrl.models import SharedModel
 from swarmrl.rl_protocols.shared_ac import SharedActorCritic
 
 
+def compute_episode_len(
+    episode_number: int, min_episode_len: int, max_episode_len: int
+) -> int:
+    """
+    Compute the episode length.
+
+    Parameters
+    ----------
+    episode_number : int
+            Current episode number.
+    min_episode_len : int
+            Minimum episode length.
+    max_episode_len : int
+            Maximum episode length.
+
+    Returns
+    -------
+    episode_len : int
+            Length of the current episode.
+    """
+    if episode_number < max_episode_len:
+        episode_len = min_episode_len + int(episode_number / 20)
+    else:
+        episode_len = max_episode_len
+    return episode_len
+
+
 class SharedNetworkGym:
     """
     Class for the simple MLP RL implementation.
@@ -34,6 +61,7 @@ class SharedNetworkGym:
         global_task=None,
         ppo_epochs: int = 15,
         loss: SharedProximalPolicyLoss = None,
+        scheduler=None,
     ):
         """
         Constructor for the MLP RL.
@@ -72,6 +100,8 @@ class SharedNetworkGym:
             actions=actions,
             global_task=global_task,
         )
+
+        self.scheduler = scheduler
 
     def update_rl(self) -> Tuple[SharedModel, np.ndarray]:
         """
@@ -181,7 +211,6 @@ class SharedNetworkGym:
         episode_length: int,
         load_bar: bool = True,
         episodic_training: bool = False,
-        scheduler: bool = False,
     ):
         """
         Perform the RL training.
@@ -237,10 +266,13 @@ class SharedNetworkGym:
             )
             for k in range(n_episodes):
                 start = time.time()
-                if scheduler:
-                    system_runner.integrate(
-                        episode_length + int(k / 20), self.interaction_model
+                if self.scheduler is not None:
+                    dynamic_episode_len = self.scheduler(
+                        episode_number=k,
+                        min_length=episode_length,
+                        max_episode_length=1000,
                     )
+                    system_runner.integrate(dynamic_episode_len, self.interaction_model)
                 else:
                     system_runner.integrate(episode_length, self.interaction_model)
                 end = time.time()
