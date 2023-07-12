@@ -61,7 +61,6 @@ class SharedNetworkGym:
         global_task=None,
         ppo_epochs: int = 15,
         loss: SharedProximalPolicyLoss = None,
-        scheduler=None,
     ):
         """
         Constructor for the MLP RL.
@@ -100,8 +99,6 @@ class SharedNetworkGym:
             actions=actions,
             global_task=global_task,
         )
-
-        self.scheduler = scheduler
 
     def update_rl(self) -> Tuple[SharedModel, np.ndarray]:
         """
@@ -211,6 +208,7 @@ class SharedNetworkGym:
         episode_length: int,
         load_bar: bool = True,
         episodic_training: bool = False,
+        scheduler=None,
     ):
         """
         Perform the RL training.
@@ -266,11 +264,11 @@ class SharedNetworkGym:
             )
             for k in range(n_episodes):
                 start = time.time()
-                if self.scheduler is not None:
-                    dynamic_episode_len = self.scheduler(
+                if scheduler is not None:
+                    dynamic_episode_len = compute_episode_len(
                         episode_number=k,
-                        min_length=episode_length,
-                        max_episode_length=1000,
+                        min_episode_len=episode_length,
+                        max_episode_len=1000,
                     )
                     system_runner.integrate(dynamic_episode_len, self.interaction_model)
                 else:
