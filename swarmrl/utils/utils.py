@@ -7,6 +7,7 @@ import pickle
 import shutil
 import typing
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -169,7 +170,8 @@ def setup_swarmrl_logger(
     return logger
 
 
-def gather_n_dim_indices(reference_array: np.ndarray, indices: np.ndarray):
+@jax.jit
+def gather_n_dim_indices(reference_array: jnp.ndarray, indices: jnp.ndarray):
     """
     Gather entries from an n_dim array using an n_dim index array
 
@@ -191,7 +193,9 @@ def gather_n_dim_indices(reference_array: np.ndarray, indices: np.ndarray):
     reference_shape = reference_array.shape
 
     multiplier = (
-        np.linspace(0, len(indices.flatten()) - 1, len(indices.flatten()), dtype=int)
+        jnp.linspace(
+            0, indices.flatten().shape[0] - 1, indices.flatten().shape[0], dtype=int
+        )
         * reference_shape[-1]
     )
 

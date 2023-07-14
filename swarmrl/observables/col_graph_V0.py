@@ -8,6 +8,9 @@ from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.observable import Observable
 from swarmrl.utils.utils import calc_signed_angle_between_directors
 
+# from jax.tree_util import register_pytree_node
+
+
 ArrayTree = Union[np.ndarray, Iterable["ArrayTree"], Mapping[Any, "ArrayTree"]]
 
 
@@ -20,6 +23,25 @@ class GraphObservable(NamedTuple):
     globals_: Optional[ArrayTree]
     n_node: np.ndarray
     n_edge: np.ndarray
+
+
+#     def tree_flatten(self):
+#         return (
+#             self.nodes, self.edges, self.destinations, self.receivers, self.senders,
+#             self.globals_, self.n_node, self.n_edge,
+#         )
+#
+#     @classmethod
+#     def tree_unflatten(cls, aux_data, children):
+#         return cls(*children)
+#
+#
+# register_pytree_node(
+#     GraphObservable,
+#     GraphObservable.tree_flatten,
+#     GraphObservable.tree_unflatten,
+# )
+#
 
 
 class ColGraphV0(Observable):
@@ -144,6 +166,7 @@ class ColGraphV1(Observable):
 
     def __init__(
         self,
+        num_nodes: int,
         cutoff: float = 0.1,
         relation_angle: float = 0.1,
         box_size=None,
@@ -160,11 +183,18 @@ class ColGraphV1(Observable):
         """
         self.cutoff = cutoff
         self.relation_angle = relation_angle
-        self.box_size = box_size
+        if box_size is None:
+            self.box_size = 1000 * np.array([1.0, 1.0, 1.0])
+        else:
+            self.box_size = box_size
         self.eps = 10e-8
         self.vangle = vmap(calc_signed_angle_between_directors, in_axes=(None, 0))
         self.record_memory = record_memory
         self.particle_type = particle_type
+        self.num_nodes = num_nodes - 1
+
+    def initialize(self, colloids: List[Colloid]):
+        self.num_nodes = len(colloids) - 1
 
     def compute_observable(self, colloids: List[Colloid]) -> GraphObservable:
         """
@@ -188,9 +218,6 @@ class ColGraphV1(Observable):
         n_nodes_list = []
         n_edges_list = []
         globals_list = []
-
-        max_num_nodes = 0
-        max_num_edges = 0
 
         for col in colloids:
             if col.type == self.particle_type:
@@ -249,8 +276,8 @@ class ColGraphV1(Observable):
                 destinations_list.append([i for i in range(num_nodes)])
                 # update the maximum number of nodes, edges and channels for the
                 # padding later.
-                max_num_nodes = np.maximum(max_num_nodes, num_nodes)
-                max_num_edges = np.maximum(max_num_edges, num_edges)
+                # max_num_nodes = np.maximum(max_num_nodes, num_nodes)
+                # max_num_edges = np.maximum(max_num_edges, num_edges)
 
             else:
                 pass
@@ -258,10 +285,10 @@ class ColGraphV1(Observable):
         # pad the graphs to the maximum number of nodes, edges and channels.
         num_graphs = len(globals_list)
 
-        node_pad = onp.zeros((num_graphs, max_num_nodes, 3))
-        sender_pad = -1 * onp.ones((num_graphs, max_num_edges))
-        receiver_pad = -1 * onp.ones((num_graphs, max_num_edges))
-        destinations_pad = -1 * onp.ones((num_graphs, max_num_nodes))
+        node_pad = onp.zeros((num_graphs, self.num_nodes, 3))
+        sender_pad = -1 * onp.ones((num_graphs, self.num_nodes**2))
+        receiver_pad = -1 * onp.ones((num_graphs, self.num_nodes**2))
+        destinations_pad = -1 * onp.ones((num_graphs, self.num_nodes))
 
         # pad the graphs to the maximum number of nodes, edges and channels.
         for i in range(num_graphs):

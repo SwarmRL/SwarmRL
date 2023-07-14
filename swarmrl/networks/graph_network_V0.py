@@ -39,6 +39,7 @@ class CritNet(nn.Module):
 class ActNet(nn.Module):
     @nn.compact
     def __call__(self, x):
+        x = nn.Dense(16)(x)
         x = nn.relu(x)
         x = nn.Dense(3)(x)
         return x
@@ -235,6 +236,12 @@ class GraphModel_V0(Network, ABC):
             self.model.apply,
             in_axes=(None, GraphObservable(0, None, 0, 0, 0, None, None, None)),
         )
+
+        self.swarm_apply_fn = jax.vmap(
+            self.apply_fn,
+            in_axes=(None, GraphObservable(0, None, 0, 0, 0, None, None, None)),
+        )
+
         # self.apply_fn = jax.jit(self.apply_fn)
         self.model_state = None
 
@@ -373,7 +380,7 @@ class GraphModel_V0(Network, ABC):
         )
         self.epoch_count = epoch
 
-    def __call__(self, graph_obs: GraphObservable):
+    def __call__(self, sequenced_graph, params):
         """
         See parent class for full doc string.
 
@@ -388,7 +395,13 @@ class GraphModel_V0(Network, ABC):
                 Output of the network.
         """
 
+        # try:
+        #     return list(map(lambda graph_obs: self.apply_fn({"params": params}
+        #     , graph_obs), sequenced_graph))
+        # except AttributeError:  # We need this for loaded models.
+        #     return list(map(lambda graph_obs: self.apply_fn({"params": params}
+        #     , graph_obs), sequenced_graph))
         try:
-            return self.apply_fn({"params": self.model_state.params}, graph_obs)
+            return self.swarm_apply_fn({"params": params}, sequenced_graph)
         except AttributeError:  # We need this for loaded models.
-            return self.apply_fn({"params": self.model_state["params"]}, graph_obs)
+            return self.swarm_apply_fn({"params": params}, sequenced_graph)

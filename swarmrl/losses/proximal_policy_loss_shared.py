@@ -14,6 +14,7 @@ from flax.core.frozen_dict import FrozenDict
 
 from swarmrl.losses.loss import Loss
 from swarmrl.networks.flax_network import FlaxModel
+from swarmrl.observables.col_graph_V0 import GraphObservable
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.utils.utils import gather_n_dim_indices
 from swarmrl.value_functions.generalized_advantage_estimate_shared import GAE
@@ -91,24 +92,36 @@ class SharedProximalPolicyLoss(Loss, ABC):
             Critic loss of an episode, summed over all time steps and meaned over
             all particles.
         """
-        new_logits = []
-        predicted_values = []
-        for i in range(len(features)):
-            logits, values = network.apply_fn({"params": network_params}, features[i])
-            new_logits.append(logits)
-            predicted_values.append(values)
 
-        new_logits = jnp.array(new_logits)
-        predicted_values = jnp.array(predicted_values)
-
+        # Make vmap function
+        new_nodes = jnp.array([graph.nodes for graph in features])
+        new_edges = jnp.array([graph.edges for graph in features])
+        new_destinations = jnp.array([graph.destinations for graph in features])
+        new_receivers = jnp.array([graph.receivers for graph in features])
+        new_senders = jnp.array([graph.senders for graph in features])
+        new_globals = jnp.array([graph.globals_ for graph in features])
+        new_n_node = jnp.array([graph.n_node for graph in features])
+        new_n_edge = jnp.array([graph.n_edge for graph in features])
+        new_graph = GraphObservable(
+            nodes=new_nodes,
+            edges=new_edges,
+            destinations=new_destinations.astype(int),
+            receivers=new_receivers.astype(int),
+            senders=new_senders.astype(int),
+            globals_=new_globals,
+            n_node=new_n_node.astype(int)[0],
+            n_edge=new_n_edge.astype(int),
+        )
+        new_logits, predicted_values = network(new_graph, network_params)
         predicted_values = jnp.squeeze(predicted_values)
         # compute the advantages and returns
         advantages, returns = self.value_function(
             rewards=rewards, values=predicted_values
         )
+        advantages = advantages
 
         # compute the probabilities of the old actions under the new policy
-        new_probabilities = jax.nn.softmax(new_logits)
+        new_probabilities = jax.nn.softmax(new_logits, axis=-1)
 
         # compute the entropy of the whole distribution
         entropy = jnp.sum(self.sampling_strategy.compute_entropy(new_probabilities))

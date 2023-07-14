@@ -25,7 +25,7 @@ class SpeciesSearch(Task):
         box_length: np.ndarray,
         sensing_type: int = 0,
         avoid: bool = False,
-        scale_factor: int = 100,
+        scale_factor: int = 10000,
         particle_type: int = 0,
     ):
         """
@@ -92,6 +92,7 @@ class SpeciesSearch(Task):
 
         for index, value in zip(out_indices, onp.array(field_values)):
             self.historical_field[str(index)] = value
+        print("Historical Field: ", self.historical_field)
 
     def compute_single_particle_task(
         self,
@@ -128,7 +129,6 @@ class SpeciesSearch(Task):
         indices = np.asarray(np.nonzero(distances, size=distances.shape[0] - 1))
         distances = np.take(distances, indices, axis=0)
         field_value = self.decay_fn(distances).sum()
-
         return index, field_value - historic_value, field_value
 
     def __call__(self, colloids: List[Colloid]):

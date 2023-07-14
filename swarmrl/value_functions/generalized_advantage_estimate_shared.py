@@ -2,9 +2,10 @@
 Module for the expected returns value function.
 """
 import logging
+from functools import partial
 
+import jax
 import jax.numpy as np
-import numpy as onp
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ class GAE:
         # Set by us to stabilize division operations.
         self.eps = np.finfo(np.float32).eps.item()
 
+    @partial(jax.jit, static_argnums=(0,))
     def __call__(self, rewards: np.ndarray, values: np.ndarray):
         """
         Call function for the advantage.
@@ -55,19 +57,19 @@ class GAE:
 
         gae = 0
 
-        returns = onp.zeros_like(rewards)
-        advantages = onp.zeros_like(rewards)
+        returns = np.zeros_like(rewards)
+        advantages = np.zeros_like(rewards)
         for t in reversed(range(len(rewards))):
             if t != len(rewards) - 1:
-                returns[t] = rewards[t] + self.gamma * returns[t + 1]
+                returns.at[t].set(rewards[t] + self.gamma * returns[t + 1])
                 delta = rewards[t] + self.gamma * values[t + 1] - values[t]
             else:
                 # print(rewards[t], values[t])
                 delta = rewards[t] - values[t]
-                returns[t] = rewards[t]
+                returns.at[t].set(rewards[t])
 
             gae = delta + self.gamma * self.lambda_ * gae
-            advantages[t] = gae.primal
+            advantages.at[t].set(gae)
         advantages = (advantages - np.mean(advantages)) / (
             np.std(advantages) + self.eps
         )

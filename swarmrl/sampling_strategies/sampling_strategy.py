@@ -1,6 +1,9 @@
 """
 Parent class for sampling strategies.
 """
+from functools import partial
+
+import jax
 import jax.numpy as np
 
 
@@ -9,7 +12,8 @@ class SamplingStrategy:
     Parent class for sampling strategies.
     """
 
-    def compute_entropy(self, probabilities: np.ndarray) -> float:
+    @partial(jax.jit, static_argnums=(0,))
+    def compute_entropy(self, probabilities: np.ndarray) -> np.ndarray:
         """
         Compute the Shannon entropy of the probabilities.
 
