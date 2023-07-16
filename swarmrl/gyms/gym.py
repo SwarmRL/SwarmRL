@@ -11,6 +11,7 @@ from swarmrl.losses.loss import Loss
 from swarmrl.losses.policy_gradient_loss import PolicyGradientLoss
 from swarmrl.models.ml_model import MLModel
 from swarmrl.rl_protocols.actor_critic import ActorCritic
+from swarmrl.rl_protocols.classical_algorithm import ClassicalAlgorithm
 
 
 class Gym:
@@ -65,6 +66,14 @@ class Gym:
         tasks = {}
         actions = {}
         for item, value in self.rl_protocols.items():
+            if isinstance(value, ClassicalAlgorithm):
+                # Classical algorithms don't need to be trained.
+                force_models[item] = value.policy
+                observables[item] = value.observable
+                tasks[item] = value.task
+                actions[item] = value.actions
+                continue
+
             force_models[item] = value.actor
             observables[item] = value.observable
             tasks[item] = value.task
@@ -96,6 +105,10 @@ class Gym:
         tasks = {}
         actions = {}
         for item, val in self.rl_protocols.items():
+            if isinstance(val, ClassicalAlgorithm):
+                # Classical algorithms don't need to be trained.
+                continue
+
             episode_data = trajectory_data[item]
 
             reward += np.mean(episode_data.rewards)
