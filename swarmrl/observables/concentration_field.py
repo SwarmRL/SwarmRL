@@ -7,8 +7,10 @@ Observable for sensing changes in some field value, or, the gradient.
 """
 import logging
 from abc import ABC
+from functools import partial
 from typing import List
 
+import jax
 import jax.numpy as np
 import numpy as onp
 
@@ -62,6 +64,8 @@ class ConcentrationField(Observable, ABC):
         self.scale_factor = scale_factor
         self._observable_shape = (3,)
 
+        self.mapped_fn = jax.vmap(self.compute_single_observable, in_axes=(None, 0, 0))
+
     def initialize(self, colloids: List[Colloid]):
         """
         Initialize the observable with starting positions of the colloids.
@@ -80,31 +84,49 @@ class ConcentrationField(Observable, ABC):
             position = onp.copy(item.pos) / self.box_length
             self._historic_positions[str(index)] = position
 
-    def compute_single_observable(self, index: int, colloids: List[Colloid]) -> float:
+    # @partial(jax.jit, static_argnums=(0, 2))
+    # def compute_single_observable(
+    #         self, index: int, colloids: List[Colloid], historic_positions: dict
+    #         ) -> float:
+    #     """
+    #     Compute the observable for a single colloid.
+
+    #     Parameters
+    #     ----------
+    #     index : int
+    #             Index of the colloid to compute the observable for.
+    #     colloids : List[Colloid]
+    #             List of colloids in the system.
+    #     """
+    #     reference_colloid = colloids[index]
+    #     # reference_colloid = colloids.at(index)
+    #     position = reference_colloid.pos / self.box_length
+    #     index = reference_colloid.id
+    #     previous_position = historic_positions[str(index)]
+
+    #     # Update historic position.
+    #     historic_positions[str(index)] = position
+
+    #     current_distance = np.linalg.norm(self.source - position)
+    #     historic_distance = np.linalg.norm(self.source - previous_position)
+
+    #     delta = self.decay_fn(current_distance) - self.decay_fn(historic_distance)
+
+    #     return self.scale_factor * delta, historic_positions
+
+    @partial(jax.jit, static_argnums=(0,))
+    def compute_single_observable(self, colloid, historic_position):
         """
         Compute the observable for a single colloid.
-
-        Parameters
-        ----------
-        index : int
-                Index of the colloid to compute the observable for.
-        colloids : List[Colloid]
-                List of colloids in the system.
         """
-        reference_colloid = colloids[index]
-        position = onp.copy(reference_colloid.pos) / self.box_length
-        index = onp.copy(reference_colloid.id)
-        previous_position = self._historic_positions[str(index)]
-
-        # Update historic position.
-        self._historic_positions[str(index)] = position
+        position = colloid.pos / self.box_length
 
         current_distance = np.linalg.norm(self.source - position)
-        historic_distance = np.linalg.norm(self.source - previous_position)
+        historic_distance = np.linalg.norm(self.source - historic_position)
 
         delta = self.decay_fn(current_distance) - self.decay_fn(historic_distance)
 
-        return self.scale_factor * delta
+        return self.scale_factor * delta, position, colloid.id
 
     def compute_observable(self, colloids: List[Colloid]):
         """
@@ -122,7 +144,6 @@ class ConcentrationField(Observable, ABC):
                 current field value minus to previous field value.
         """
         reference_ids = self.get_colloid_indices(colloids)
-
         if self._historic_positions == {}:
             msg = (
                 f"{type(self).__name__} requires initialization. Please set the "
@@ -130,8 +151,21 @@ class ConcentrationField(Observable, ABC):
             )
             raise ValueError(msg)
 
-        observables = [
-            self.compute_single_observable(index, colloids) for index in reference_ids
+        reference_colloids = onp.take(colloids, reference_ids)
+        colloids_ids = [item.id for item in reference_colloids]
+        previous_positions = [
+            self._historic_positions[str(item)] for item in colloids_ids
         ]
+
+        observables, new_positions, new_ids = self.mapped_fn(
+            reference_colloids, previous_positions
+        )
+
+        for index, position in zip(new_ids, new_positions):
+            self._historic_positions[str(index)] = position
+
+        # observables = [
+        #     self.compute_single_observable(index, colloids) for index in reference_ids
+        # ]
 
         return np.array(observables).reshape(-1, 1)

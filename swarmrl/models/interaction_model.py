@@ -5,8 +5,10 @@ import dataclasses
 import typing
 
 import numpy as np
+from jax.tree_util import register_pytree_node_class
 
 
+@register_pytree_node_class
 @dataclasses.dataclass(frozen=True)
 class Colloid:
     """
@@ -21,6 +23,24 @@ class Colloid:
 
     def __eq__(self, other):
         return self.id == other.id
+
+    def tree_flatten(self):
+        """
+        Method for converting the class into a tuple of a list of children and an
+            auxiliary data object.
+        This is required for pytrees.
+        """
+        children = (self.pos, self.director, self.id, self.velocity, self.type)
+        aux_data = None
+        return (children, aux_data)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        """
+        A method for converting the tuple of children and auxiliary data back into
+            an instance of the class.
+        """
+        return cls(*children)
 
 
 @dataclasses.dataclass
