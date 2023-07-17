@@ -2,8 +2,7 @@
 Module to implement a simple multi-layer perceptron for the colloids.
 """
 import os
-
-# import time
+import time
 from typing import List, Tuple
 
 import numpy as np
@@ -264,7 +263,7 @@ class SharedNetworkGym:
                 visible=load_bar,
             )
             for k in range(n_episodes):
-                # start = time.time()
+                start = time.time()
                 if scheduler is not None:
                     dynamic_episode_len = compute_episode_len(
                         episode_number=k,
@@ -274,12 +273,12 @@ class SharedNetworkGym:
                     system_runner.integrate(dynamic_episode_len, self.interaction_model)
                 else:
                     system_runner.integrate(episode_length, self.interaction_model)
-                # end = time.time()
-                # print(f"Simulation {k} took {end - start} seconds.")
-                # start = time.time()
+                end = time.time()
+                print(f"Simulation {k} took {end - start} seconds.")
+                start = time.time()
                 current_reward = self.update_rl()
-                # end = time.time()
-                # print(f"Training {k} took {end - start} seconds.")
+                end = time.time()
+                print(f"Training {k} took {end - start} seconds.")
                 rewards.append(current_reward)
                 if k % 100 == 0 and k != 0:
                     self.export_models(f"./Models_ep{k}")

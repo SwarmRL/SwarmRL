@@ -74,6 +74,7 @@ class ColGraphV0(Observable):
         Builds a graph for each colloid in the system. In the graph, each node is a
         representation of a colloid within the cutoff distance.
         """
+
         # normalize the positions by the box size.
         positions = np.array([col.pos for col in colloids]) / self.box_size
         # directions = np.array([col.director for col in colloids])
@@ -194,6 +195,8 @@ class ColGraphV1(Observable):
 
     def initialize(self, colloids: List[Colloid]):
         self.num_nodes = len(colloids) - 1
+        for col in colloids:
+            print(col.id, col.type)
 
     def compute_observable(self, colloids: List[Colloid]) -> GraphObservable:
         """

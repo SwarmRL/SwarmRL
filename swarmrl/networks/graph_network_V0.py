@@ -42,7 +42,7 @@ class CritNet(nn.Module):
 class ActNet(nn.Module):
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(16)(x)
+        x = nn.Dense(128)(x)
         x = nn.relu(x)
         x = nn.Dense(3)(x)
         return x
