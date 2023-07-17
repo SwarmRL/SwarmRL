@@ -117,7 +117,8 @@ class GradientSensing(Task, ABC):
         delta = self.decay_fn(current_distance) - self.decay_fn(old_distance)
 
         # Compute the reward
-        reward = np.clip(self.reward_scale_factor * delta, 0.0, None)
+        # reward = np.clip(self.reward_scale_factor * delta, 0.0, None)
+        reward = self.reward_scale_factor * delta
 
         # Update the historic position
         self._historic_positions[str(colloid_id)] = current_position

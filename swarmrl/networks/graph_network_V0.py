@@ -9,6 +9,7 @@ import jax.tree_util as tree
 import numpy as onp
 import optax
 from flax.training.train_state import TrainState
+from jax import config
 from jraph._src import utils
 from optax import GradientTransformation
 
@@ -17,6 +18,8 @@ from swarmrl.networks.network import Network
 from swarmrl.observables.col_graph_V0 import GraphObservable
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
+
+config.update("jax_enable_x64", True)
 
 
 class EncodeNet(nn.Module):
@@ -113,8 +116,9 @@ class GraphNetV1(nn.Module):
 
         vodes = vodes + messages
         influence = self.node_influence(vodes)
-        padding_mask = np.where(destinations == -1, np.array([-15]), np.array([0]))
-        alpha = nn.softmax(influence + padding_mask[:, np.newaxis], axis=0)
+        # padding_mask = np.where(destinations == -1, np.array([0]), np.array([0]))
+        # alpha = nn.softmax(influence + padding_mask[:, np.newaxis], axis=0)
+        alpha = nn.softmax(influence, axis=0)
         graph_representation = np.sum(vodes * alpha, axis=0)
         logits = self.actress(graph_representation)
         value = self.criticer(graph_representation)
@@ -143,17 +147,26 @@ class GraphNetV2(nn.Module):
         nodes, _, destinations, receivers, senders, _, n_node, n_edge = graph
         n_nodes = n_node[0]
         vodes = self.node_encoder(nodes)
-        messages = compute_weighted_message(
-            nodes=vodes,
-            senders=senders,
-            receivers=receivers,
-            n_nodes=n_nodes,
-        )
 
+        sending_nodes = tree.tree_map(lambda n: n[senders], vodes)
+        receiving_nodes = tree.tree_map(lambda n: n[receivers], vodes)
+
+        attention_score = 10 * self.node_influence(receiving_nodes)
+        # influences = utils.segment_softmax(
+        #     attention_score.squeeze(),
+        #     receivers,
+        #     n_nodes,
+        # )
+        # compute message. The message is the influence times the sending node
+        # send_messages = influences[:, None] * sending_nodes
+        send_messages = attention_score.squeeze()[:, None] * sending_nodes
+        # # aggregate messages
+        messages = utils.segment_sum(send_messages, receivers, n_nodes)
         vodes = vodes + messages
         influence = self.node_influence(vodes)
-        padding_mask = np.where(destinations == -1, np.array([-15]), np.array([0]))
-        alpha = nn.softmax(influence + padding_mask[:, np.newaxis], axis=0)
+        # padding_mask = np.where(destinations == -1, np.array([0]), np.array([0]))
+        # alpha = nn.softmax(influence + padding_mask[:, np.newaxis], axis=0)
+        alpha = nn.softmax(influence, axis=0)
         graph_representation = np.sum(vodes * alpha, axis=0)
         logits = self.actress(graph_representation)
         value = self.criticer(graph_representation)

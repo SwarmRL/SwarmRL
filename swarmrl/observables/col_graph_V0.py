@@ -2,13 +2,14 @@ from typing import Any, Iterable, List, Mapping, NamedTuple, Optional, Union
 
 import jax.numpy as np
 import numpy as onp
-from jax import vmap
+from jax import config, vmap
 
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.observable import Observable
 from swarmrl.utils.utils import calc_signed_angle_between_directors
 
 ArrayTree = Union[np.ndarray, Iterable["ArrayTree"], Mapping[Any, "ArrayTree"]]
+config.update("jax_enable_x64", True)
 
 
 class GraphObservable(NamedTuple):
@@ -140,6 +141,7 @@ class ColGraphV0(Observable):
         destinations_pad = -1 * onp.ones((num_graphs, max_num_nodes))
 
         # pad the graphs to the maximum number of nodes, edges and channels.
+
         for i in range(num_graphs):
             node_pad[i, : len(nodes_list[i]), :] = nodes_list[i]
             destinations_pad[i, : len(destinations_list[i])] = destinations_list[i]
@@ -271,11 +273,6 @@ class ColGraphV1(Observable):
                 n_nodes_list.append([num_nodes])
                 n_edges_list.append([num_edges])
                 destinations_list.append([i for i in range(num_nodes)])
-                # update the maximum number of nodes, edges and channels for the
-                # padding later.
-                # max_num_nodes = np.maximum(max_num_nodes, num_nodes)
-                # max_num_edges = np.maximum(max_num_edges, num_edges)
-
             else:
                 pass
 
