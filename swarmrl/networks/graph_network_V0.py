@@ -22,7 +22,7 @@ from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 class EncodeNet(nn.Module):
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(128)(x)
+        x = nn.Dense(12)(x)
         x = nn.relu(x)
         return x
 

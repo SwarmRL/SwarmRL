@@ -8,9 +8,6 @@ from swarmrl.models.interaction_model import Colloid
 from swarmrl.observables.observable import Observable
 from swarmrl.utils.utils import calc_signed_angle_between_directors
 
-# from jax.tree_util import register_pytree_node
-
-
 ArrayTree = Union[np.ndarray, Iterable["ArrayTree"], Mapping[Any, "ArrayTree"]]
 
 
