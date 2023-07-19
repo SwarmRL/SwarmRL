@@ -1,6 +1,7 @@
 """
 Computes vision cone(s).
 """
+from functools import partial
 from typing import List
 
 import jax.numpy as jnp
@@ -78,27 +79,7 @@ class SubdividedVisionCones(Observable):
                 all_types.append(c.type)
         self.detected_types = np.array(np.sort(all_types))
 
-    def _calculate_director(self, colloid: Colloid):
-        """
-        Calculates the normalised director of the colloids.
-
-        Parameters
-        ----------
-        colloid : object
-                Colloid for which the observable should be computed.
-
-        Returns
-        -------
-        Colloid position and vision cone director.
-        """
-        my_pos = np.copy(colloid.pos)
-        my_director = np.copy(colloid.director)
-        # TODO: Add 3D support
-        my_director = my_director / np.linalg.norm(my_director)
-        assert abs(colloid.pos[2]) < 10e-6
-        assert abs(colloid.director[2]) < 10e-6
-        return my_pos, my_director
-
+    @partial(jit, static_argnums=(0,))
     def _calculate_cones_single_object(
         self,
         my_pos: np.ndarray,
@@ -244,7 +225,7 @@ class SubdividedVisionCones(Observable):
         if self.detected_types is None:
             self._detect_all_things_to_see(colloids)
 
-        my_pos, my_director = self._calculate_director(colloid)
+        my_pos, my_director = colloid.pos, colloid.director
 
         of_others = [
             [c, self.radii[i]] for i, c in enumerate(colloids) if c is not index
@@ -270,8 +251,7 @@ class SubdividedVisionCones(Observable):
         containing the vision values
         """
         reference_ids = self.get_colloid_indices(colloids)
-        observable = [
+
+        return [
             self.compute_single_observable(index, colloids) for index in reference_ids
         ]
-        print(observable)
-        return observable

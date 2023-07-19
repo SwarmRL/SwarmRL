@@ -1,48 +1,45 @@
 import flax.linen as nn
-import jax
 import jax.numpy as np
 import jax.tree_util as tree
 import numpy as onp
+import numpy.testing as npt
+from jraph._src import utils
 
 from swarmrl.models.interaction_model import Colloid
-from swarmrl.networks.graph_network import GraphModel
-from swarmrl.observables.col_graph import ColGraph
+from swarmrl.networks.graph_network_V0 import GraphModel_V0
+from swarmrl.observables.col_graph_V0 import ColGraphV1, GraphObservable
 
 
-def build_cols(collist):
-    """
-    Helper function that builds a list of colloids from a list.
-
-    Parameters
-    ----------
-    collist : list
-        List of the number of colloids of each type.
-
-    Returns
-    -------
-    cols : list
-
-    """
+def build_circle_cols(n_cols, dist=300):
     cols = []
-    i = 0
-    for type_cols, num_cols in enumerate(collist):
-        for _ in range(num_cols):
-            position = 1000 * onp.random.random(3)
-            position[-1] = 0
-            direction = onp.random.random(3)
-            direction[-1] = 0
-            direction = direction / onp.linalg.norm(direction)
-            cols.append(Colloid(pos=position, director=direction, type=type_cols, id=i))
-            i += 1
+    pos_0 = 1000 * onp.random.random(3)
+    pos_0[-1] = 0
+    direction_0 = onp.random.random(3)
+    direction_0[-1] = 0
+    for i in range(n_cols):
+        theta = onp.random.random(1)[0] * 2 * np.pi
+        position = pos_0 + dist * onp.array([onp.cos(theta), onp.sin(theta), 0])
+        direction = onp.random.random(3)
+        direction[-1] = 0
+        direction = direction / onp.linalg.norm(direction)
+        cols.append(Colloid(pos=position, director=direction, type=0, id=i))
     return cols
 
 
 class EncodeNet(nn.Module):
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(128)(x)
+        x = nn.Dense(12)(x)
         x = nn.relu(x)
-        x = nn.Dense(8)(x)
+        return x
+
+
+class CritNet(nn.Module):
+    @nn.compact
+    def __call__(self, x):
+        x = nn.Dense(16)(x)
+        x = nn.relu(x)
+        x = nn.Dense(1)(x)
         return x
 
 
@@ -51,7 +48,7 @@ class ActNet(nn.Module):
     def __call__(self, x):
         x = nn.Dense(128)(x)
         x = nn.relu(x)
-        x = nn.Dense(4)(x)
+        x = nn.Dense(3)(x)
         return x
 
 
@@ -60,105 +57,153 @@ class InfluenceNet(nn.Module):
 
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(128)(x)
-        x = nn.relu(x)
         x = nn.Dense(1)(x)
         return x
 
 
-class GraphNet(nn.Module):
-    encoder: EncodeNet
-    actress: ActNet
-    influencer: InfluenceNet
-
-    @nn.compact
-    def __call__(self, graph):
-        nodes, edges, receivers, senders, globals_, n_node, n_edge = graph
-
-        # Encode the nodes.
-        embedding_vec = self.encoder(nodes)
-        influence_scores = self.influencer(nodes)
-        influence = jax.nn.softmax(influence_scores, axis=0)
-        graph_representation = np.mean(
-            tree.tree_map(lambda n, i: n * i, embedding_vec, influence), axis=0
-        )
-        logits = self.actress(graph_representation)
-        return logits, graph_representation, influence
-
-
 class TestGraphNetwork:
-    def test_graph_network(self):
-        col_graph = ColGraph(cutoff=0.7, box_size=np.array([1000, 1000, 1000]))
-
-        encoder = EncodeNet()
-        actress = ActNet()
-        influencer = InfluenceNet()
-
-        rng_key = 42
-        graph_actor = GraphModel(
-            encoder=encoder, actress=actress, influencer=influencer, rng_key=rng_key
+    @classmethod
+    def setup_class(cls):
+        cls.cols = build_circle_cols(10)
+        cls.graph_obs = ColGraphV1(
+            colloids=cls.cols, cutoff=2.0, box_size=np.array([1000, 1000, 1000])
         )
-        assert graph_actor is not None
 
-        log_probabs = []
-        for i in range(150):
-            cols = build_cols([3, 3])
-            graph_obs = col_graph.compute_observable(cols)
-            _, log_probs = graph_actor.compute_action(graph_obs)
-            log_probabs.append(log_probs)
-        print(log_probabs)
+        cls.init_graph = cls.graph_obs.compute_initialization_input(cls.cols)
 
-    def test_create_trainstate(self):
+        cls.graph_model = GraphModel_V0(
+            node_encoder=EncodeNet(),
+            node_influence=InfluenceNet(),
+            actress=ActNet(),
+            criticer=CritNet(),
+            version=2,
+            init_graph=cls.init_graph,
+        )
+
+    def test_network_architecture(self):
+        test_graph = GraphObservable(
+            nodes=np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3]]),
+            edges=[None],
+            receivers=np.array([0, 0, 1, 2, 2]).astype(int),
+            senders=np.array([1, 2, 0, 0, 1]).astype(int),
+            destinations=np.array([0, 1, 2]).astype(int),
+            globals_=[None],
+            n_node=np.array([3]).astype(int),
+            n_edge=np.array([5]).astype(int),
+        )
+
+        graph_model = GraphModel_V0(
+            node_encoder=EncodeNet(),
+            node_influence=InfluenceNet(),
+            actress=ActNet(),
+            criticer=CritNet(),
+            version=2,
+            init_graph=test_graph,
+        )
+
+        graph_net = graph_model.model
+        params = graph_model.model_state.params
         encoder = EncodeNet()
         actress = ActNet()
         influencer = InfluenceNet()
-        actor = GraphNet(encoder=encoder, actress=actress, influencer=influencer)
+        criticer = CritNet()
 
-        cols = build_cols([5, 5])
-        # build the graph.
-        col_graph = ColGraph(cutoff=0.7, box_size=np.array([1000, 1000, 1000]))
-        graph_obs = col_graph.compute_observable(cols)
+        # unpack the graph
+        nodes, _, destinations, receivers, senders, _, n_node, n_edge = test_graph
 
-        rng = jax.random.PRNGKey(10)
-        params = actor.init(rng, graph_obs[0])["params"]
+        n_nodes = n_node[0]
+        # embed the nodes
+        vodes = encoder.apply({"params": params["node_encoder"]}, nodes)
+        npt.assert_equal(np.shape(vodes), (3, 12))
+        # select the sending and receiving nodes
+        sending_nodes = tree.tree_map(lambda x: x[senders], nodes)
+        receiving_nodes = tree.tree_map(lambda x: x[receivers], nodes)
 
-        apply_fn = jax.jit(actor.apply)
+        npt.assert_equal(np.shape(sending_nodes), (5, 3))
+        npt.assert_equal(np.shape(receiving_nodes), (5, 3))
 
-        probabs = []
-        graph_reps = []
-        influences = []
-        for i in range(100):
-            cols = build_cols([3, 3])
-            graph_obs = col_graph.compute_observable(cols)
-            logits, graph_rep, influence = apply_fn({"params": params}, graph_obs[0])
-            probs = jax.nn.softmax(logits)
-            probabs.append(probs)
-            graph_reps.append(graph_rep)
-            influences.append(influence)
+        # this is only done to show that the sending and receiving nodes are
+        # selected correctly
+        # the sending nodes should be the nodes-features of nodes with
+        # index 1, 2, 0, 0, 1
+        # the receiving nodes should be the nodes-features of nodes
+        # with index 0, 0, 1, 2, 2
+        npt.assert_array_equal(
+            sending_nodes,
+            np.array([[2, 2, 2], [3, 3, 3], [1, 1, 1], [1, 1, 1], [2, 2, 2]]),
+        )
+        npt.assert_array_equal(
+            receiving_nodes,
+            np.array([[1, 1, 1], [1, 1, 1], [2, 2, 2], [3, 3, 3], [3, 3, 3]]),
+        )
 
-    def test_batch_deployment(self):
-        col_graph = ColGraph(cutoff=0.7, box_size=np.array([1000, 1000, 1000]))
+        # select the sending and receiving vodes (embedded nodes) like it is
+        # actually done in the graph network
+        sending_vodes = tree.tree_map(lambda x: x[senders], vodes)
 
-        # create a single graph for initialization.
-        cols = build_cols([10])
-        graph_obs = col_graph.compute_observable(cols)
-        init_graph = onp.array(graph_obs[0], dtype=object)
+        # compute the attention score and check the dimensions
+        attention_score = influencer.apply(
+            {"params": params["node_influence"]}, sending_vodes
+        )
+        npt.assert_equal(np.shape(attention_score), (5, 1))
+        actual_send_messages = 10 * attention_score.squeeze()[:, None] * sending_vodes
 
-        graph_obs_array = onp.array(graph_obs, dtype=object)
-        # print(onp.array(init_graph, dtype=object))
-        print(np.shape(onp.array(graph_obs, dtype=object)))
+        # compute dummy attention and dummy message to show that the graph network works
+        dummy_attention_score = 0.5 * np.ones((5, 1))
+        dummy_send_messages = dummy_attention_score.squeeze()[:, None] * sending_nodes
 
-        encoder = EncodeNet()
-        actress = ActNet()
-        influencer = InfluenceNet()
-        actor = GraphNet(encoder=encoder, actress=actress, influencer=influencer)
+        # the send messages should be the sending nodes multiplied by the attention
+        # score it should be 1/2 of the sending nodes
+        npt.assert_equal(np.shape(dummy_send_messages), (5, 3))
+        npt.assert_array_equal(
+            dummy_send_messages,
+            np.array(
+                [
+                    [1, 1, 1],
+                    [1.5, 1.5, 1.5],
+                    [0.5, 0.5, 0.5],
+                    [0.5, 0.5, 0.5],
+                    [1, 1, 1],
+                ]
+            ),
+        )
 
-        rng = jax.random.PRNGKey(10)
-        params = actor.init(rng, init_graph)["params"]
-        assert actor.apply({"params": params}, init_graph) is not None
-        # actor.apply({"params": params}, graph_obs_array)
-        vapply = jax.vmap(actor.apply, in_axes=(None, 0))
-        vapply({"params": params}, graph_obs_array)
+        # aggregate the received dummy messages.
+        # the receivers are 0, 0, 1, 2, 2
+        # the received messages should be the sum of messages sent to 0, 1, 2
+        # the received messages should be 2.5, 0.5, 1.5
+        dummy_messages = utils.segment_sum(dummy_send_messages, receivers, n_nodes)
+        npt.assert_equal(np.shape(dummy_messages), (3, 3))
+        npt.assert_array_equal(
+            dummy_messages,
+            np.array([[2.5, 2.5, 2.5], [0.5, 0.5, 0.5], [1.5, 1.5, 1.5]]),
+        )
+
+        actual_messages = utils.segment_sum(actual_send_messages, receivers, n_nodes)
+        npt.assert_equal(np.shape(actual_messages), (3, 12))
+
+        vodes = vodes + actual_messages
+        influence = influencer.apply({"params": params["node_influence"]}, vodes)
+        alpha = nn.softmax(influence, axis=0)
+
+        graph_representation = np.sum(vodes * alpha, axis=0)
+        logits = actress.apply({"params": params["actress"]}, graph_representation)
+        value = criticer.apply({"params": params["criticer"]}, graph_representation)
+
+        graph_model_output = graph_net.apply({"params": params}, test_graph)
+
+        npt.assert_array_almost_equal(graph_model_output[0], logits)
+        npt.assert_array_almost_equal(graph_model_output[1], value)
+
+    def test_init_graph_network(self):
+        assert self.graph_model is not None
+        assert self.graph_model.apply_fn is not None
+        assert self.graph_model.model_state is not None
+        assert self.graph_model.kind == "network"
+
+    # def test_call(self):
+    #     # input_graph = self.graph_obs.compute_observable(self.cols)
+    #     # output = self.graph_model.compute_action(input_graph)
 
     # def test_things(self):
     #     graph_obs = ColGraph(cutoff=3.0, box_size=np.array([1000, 1000, 1000]))

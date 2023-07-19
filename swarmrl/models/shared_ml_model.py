@@ -1,9 +1,10 @@
 """
 Espresso interaction model capable of handling a neural network as a function.
 """
+import dataclasses
 import os
 import typing
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 
@@ -12,6 +13,31 @@ from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
 from swarmrl.utils.utils import record_graph_trajectory
+
+
+@dataclasses.dataclass(frozen=True)
+class Swarm:
+    """
+    Wrapper class for a colloid object.
+    """
+
+    pos: np.ndarray
+    directors: np.ndarray
+    ids: np.ndarray
+    velocities: np.ndarray = None
+    types: np.ndarray = 0
+
+
+def col_to_swarm(colloids: List[Colloid]):
+    """
+    Convert a list of colloids to a swarm
+    """
+    return Swarm(
+        pos=np.array([c.pos for c in colloids]),
+        directors=np.array([c.director for c in colloids]),
+        ids=np.array([c.id for c in colloids]),
+        types=np.array([c.type for c in colloids]).astype(int),
+    )
 
 
 class SharedModel(InteractionModel):
@@ -95,6 +121,9 @@ class SharedModel(InteractionModel):
         action: Action
                 Return the action the colloid should take.
         """
+
+        # swarm = col_to_swarm(colloids)
+
         actions = {int(np.copy(colloid.id)): Action() for colloid in colloids}
         action_indices = {type_: [] for type_ in self.particle_types}
         log_probs = {type_: [] for type_ in self.particle_types}

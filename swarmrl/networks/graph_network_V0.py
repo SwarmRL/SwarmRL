@@ -25,18 +25,25 @@ config.update("jax_enable_x64", True)
 class EncodeNet(nn.Module):
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(12)(x)
+        x = nn.Dense(32)(x)
         x = nn.relu(x)
         return x
 
 
-class CritNet(nn.Module):
+class EmbedNet(nn.Module):
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(16)(x)
-        x = nn.relu(x)
-        x = nn.Dense(1)(x)
+        x = nn.Dense(8)(x)
         return x
+
+
+# class CritNet(nn.Module):
+#     @nn.compact
+#     def __call__(self, x):
+#         x = nn.Dense(128)(x)
+#         x = nn.relu(x)
+#         x = nn.Dense(1)(x)
+#         return x
 
 
 class ActNet(nn.Module):
@@ -44,8 +51,11 @@ class ActNet(nn.Module):
     def __call__(self, x):
         x = nn.Dense(128)(x)
         x = nn.relu(x)
+        x = nn.Dense(128)(x)
+        x = nn.relu(x)
         x = nn.Dense(3)(x)
-        return x
+        y = nn.Dense(1)(x)
+        return x, y
 
 
 class InfluenceNet(nn.Module):
@@ -57,72 +67,74 @@ class InfluenceNet(nn.Module):
         return x
 
 
-class GraphNetV0(nn.Module):
-    """
-    This is the first version of the graph network.
-    Node features are encoded and then aggregated using a softmax over
-    the influence of each node.
-    The influence of each node is computed using a simple dense network and is
-    a measure of the importance of each node in the graph.
-    There are no interactions or messages between nodes.
-    """
-
-    node_encoder: EncodeNet
-    node_influence: InfluenceNet
-    actress: ActNet
-    criticer: CritNet
-
-    @nn.compact
-    def __call__(self, graph: GraphObservable):
-        nodes, _, destinations, _, _, _, n_node, _ = graph
-
-        vodes = self.node_encoder(nodes)
-        influence = self.node_influence(vodes)
-        padding_mask = np.where(destinations == -1, np.array([-15]), np.array([0]))
-        alpha = nn.softmax(influence + padding_mask[:, np.newaxis], axis=0)
-        graph_representation = np.sum(vodes * alpha, axis=0)
-        logits = self.actress(graph_representation)
-        value = self.criticer(graph_representation)
-        return logits, value
-
-
-class GraphNetV1(nn.Module):
-    """
-    This is the second version of the graph network.
-    Node features are encoded.
-    Pure messages are computed between nodes and aggregated without any weighting.
-    The aggregated messages are added to the node features and then aggregated using
-    a softmax over the influence of each node.
-    The influence of each node is computed using a simple dense network and is
-    a measure of the importance of each node in the graph.
-    """
-
-    node_encoder: EncodeNet
-    node_influence: InfluenceNet
-    actress: ActNet
-    criticer: CritNet
-
-    @nn.compact
-    def __call__(self, graph: GraphObservable):
-        nodes, _, destinations, receivers, senders, _, n_node, n_edge = graph
-        n_nodes = n_node[0]
-        vodes = self.node_encoder(nodes)
-        messages = compute_pure_message(
-            nodes=vodes,
-            senders=senders,
-            receivers=receivers,
-            n_nodes=n_nodes,
-        )
-
-        vodes = vodes + messages
-        influence = self.node_influence(vodes)
-        # padding_mask = np.where(destinations == -1, np.array([0]), np.array([0]))
-        # alpha = nn.softmax(influence + padding_mask[:, np.newaxis], axis=0)
-        alpha = nn.softmax(influence, axis=0)
-        graph_representation = np.sum(vodes * alpha, axis=0)
-        logits = self.actress(graph_representation)
-        value = self.criticer(graph_representation)
-        return logits, value
+#
+# class GraphNetV0(nn.Module):
+#     """
+#     This is the first version of the graph network.
+#     Node features are encoded and then aggregated using a softmax over
+#     the influence of each node.
+#     The influence of each node is computed using a simple dense network and is
+#     a measure of the importance of each node in the graph.
+#     There are no interactions or messages between nodes.
+#     """
+#
+#     node_encoder: EncodeNet
+#     node_influence: InfluenceNet
+#     actress: ActNet
+#     criticer: CritNet
+#
+#     @nn.compact
+#     def __call__(self, graph: GraphObservable):
+#         nodes, _, destinations, _, _, _, n_node, _ = graph
+#
+#         vodes = self.node_encoder(nodes)
+#         influence = self.node_influence(vodes)
+#         padding_mask = np.where(destinations == -1, np.array([-15]), np.array([0]))
+#         alpha = nn.softmax(influence + padding_mask[:, np.newaxis], axis=0)
+#         graph_representation = np.sum(vodes * alpha, axis=0)
+#         logits = self.actress(graph_representation)
+#         value = self.criticer(graph_representation)
+#         return logits, value
+#
+#
+# class GraphNetV1(nn.Module):
+#     """
+#     This is the second version of the graph network.
+#     Node features are encoded.
+#     Pure messages are computed between nodes and aggregated without any weighting.
+#     The aggregated messages are added to the node features and then aggregated using
+#     a softmax over the influence of each node.
+#     The influence of each node is computed using a simple dense network and is
+#     a measure of the importance of each node in the graph.
+#     """
+#
+#     node_encoder: EncodeNet
+#     node_influence: InfluenceNet
+#     actress: ActNet
+#     criticer: CritNet
+#
+#     @nn.compact
+#     def __call__(self, graph: GraphObservable):
+#         nodes, _, destinations, receivers, senders, _, n_node, n_edge = graph
+#         n_nodes = n_node[0]
+#         vodes = self.node_encoder(nodes)
+#         messages = compute_pure_message(
+#             nodes=vodes,
+#             senders=senders,
+#             receivers=receivers,
+#             n_nodes=n_nodes,
+#         )
+#
+#         vodes = vodes + messages
+#         influence = self.node_influence(vodes)
+#         # padding_mask = np.where(destinations == -1, np.array([0]), np.array([0]))
+#         # alpha = nn.softmax(influence + padding_mask[:, np.newaxis], axis=0)
+#         alpha = nn.softmax(influence, axis=0)
+#         graph_representation = np.sum(vodes * alpha, axis=0)
+#         logits = self.actress(graph_representation)
+#         value = self.criticer(graph_representation)
+#         return logits, value
+#
 
 
 class GraphNetV2(nn.Module):
@@ -138,45 +150,38 @@ class GraphNetV2(nn.Module):
     """
 
     node_encoder: EncodeNet
+    node_embedder: EmbedNet
     node_influence: InfluenceNet
     actress: ActNet
-    criticer: CritNet
 
     @nn.compact
     def __call__(self, graph: GraphObservable):
         nodes, _, destinations, receivers, senders, _, n_node, n_edge = graph
         n_nodes = n_node[0]
         vodes = self.node_encoder(nodes)
+        vodes = compute_pure_message(vodes, senders, receivers, n_nodes)
 
-        sending_nodes = tree.tree_map(lambda n: n[senders], vodes)
-        receiving_nodes = tree.tree_map(lambda n: n[receivers], vodes)
-
-        attention_score = 10 * self.node_influence(receiving_nodes)
-        # influences = utils.segment_softmax(
-        #     attention_score.squeeze(),
-        #     receivers,
-        #     n_nodes,
-        # )
-        # compute message. The message is the influence times the sending node
-        # send_messages = influences[:, None] * sending_nodes
-        send_messages = attention_score.squeeze()[:, None] * sending_nodes
-        # # aggregate messages
-        messages = utils.segment_sum(send_messages, receivers, n_nodes)
-        vodes = vodes + messages
         influence = self.node_influence(vodes)
-        # padding_mask = np.where(destinations == -1, np.array([0]), np.array([0]))
-        # alpha = nn.softmax(influence + padding_mask[:, np.newaxis], axis=0)
-        alpha = nn.softmax(influence, axis=0)
-        graph_representation = np.sum(vodes * alpha, axis=0)
-        logits = self.actress(graph_representation)
-        value = self.criticer(graph_representation)
-        return logits, value
+        # attention = utils.segment_softmax(influence, destinations, n_nodes)
+        attention = nn.softmax(influence, axis=0)
+
+        graph_representation = np.sum(vodes * attention, axis=0)
+        graph_representation = self.node_embedder(graph_representation)
+        logits, vale = self.actress(graph_representation)
+
+        return logits, vale
 
 
-def compute_pure_message(nodes, senders, receivers, n_nodes):
-    received_messages = tree.tree_map(lambda v: v[senders], nodes)
-    message = utils.segment_sum(received_messages, receivers, n_nodes)
-    return message
+def compute_pure_message(nodes, senders, receivers, n_nodes, message_passing_steps=1):
+    """Compute the message for each node based on the influence between
+    sender and receiver.
+    """
+    for _ in range(message_passing_steps):
+        send_messages = tree.tree_map(lambda n: n[senders], nodes)
+        message = utils.segment_sum(send_messages, receivers, n_nodes)
+        nodes = tree.tree_map(lambda n: n + message, nodes)
+
+    return nodes
 
 
 def compute_weighted_message(nodes, senders, receivers, n_nodes):
@@ -206,41 +211,29 @@ class GraphModel_V0(Network, ABC):
 
     def __init__(
         self,
-        version=0,
+        init_graph: GraphObservable = None,
+        version: int = 0,
         node_encoder: EncodeNet = EncodeNet(),
+        node_embedding: EmbedNet = EmbedNet(),
         node_influence: InfluenceNet = InfluenceNet(),
         actress: ActNet = ActNet(),
-        criticer: CritNet = CritNet(),
-        optimizer: GradientTransformation = optax.sgd(1e-3),
+        # criticer: CritNet = CritNet(),
+        optimizer: GradientTransformation = optax.sgd(1e-5),
         exploration_policy: ExplorationPolicy = None,
         sampling_strategy: SamplingStrategy = GumbelDistribution(),
         rng_key: int = 42,
         deployment_mode: bool = False,
-        example_graph: GraphObservable = None,
     ):
         if rng_key is None:
             rng_key = onp.random.randint(0, 1027465782564)
         self.sampling_strategy = sampling_strategy
-        if version == 0:
-            self.model = GraphNetV0(
-                node_encoder=node_encoder,
-                node_influence=node_influence,
-                actress=actress,
-                criticer=criticer,
-            )
-        elif version == 1:
-            self.model = GraphNetV1(
-                node_encoder=node_encoder,
-                node_influence=node_influence,
-                actress=actress,
-                criticer=criticer,
-            )
-        elif version == 2:
+
+        if version == 2:
             self.model = GraphNetV2(
                 node_encoder=node_encoder,
+                node_embedder=node_embedding,
                 node_influence=node_influence,
                 actress=actress,
-                criticer=criticer,
             )
         else:
             raise ValueError("Invalid version number")
@@ -255,7 +248,6 @@ class GraphModel_V0(Network, ABC):
             in_axes=(None, GraphObservable(0, None, 0, 0, 0, None, None, None)),
         )
 
-        # self.apply_fn = jax.jit(self.apply_fn)
         self.model_state = None
 
         if not deployment_mode:
@@ -265,14 +257,16 @@ class GraphModel_V0(Network, ABC):
             # initialize the model state
             init_rng = jax.random.PRNGKey(rng_key)
             _, subkey = jax.random.split(init_rng)
-            self.model_state = self._create_train_state(subkey, example_graph)
+            self.model_state = self._create_train_state(subkey, init_graph)
 
             self.epoch_count = 0
 
         self.kind = "network"
 
-    def _create_train_state(self, init_rng: int, example_graph) -> TrainState:
-        params = self.model.init(init_rng, example_graph)["params"]
+    def _create_train_state(
+        self, init_rng: int, init_graph: GraphObservable
+    ) -> TrainState:
+        params = self.model.init(init_rng, init_graph)["params"]
 
         return TrainState.create(
             apply_fn=self.apply_fn, params=params, tx=self.optimizer
@@ -308,7 +302,7 @@ class GraphModel_V0(Network, ABC):
 
         Parameters
         ----------
-        graph_obs : GraphObservable
+        observable : GraphObservable
                 The graph observation. It is a named tuple with the following fields:
                 nodes, edges, destinations, receivers, senders, n_node, n_edge.
                 Each of the nodes is a batched version of the corresponding

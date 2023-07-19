@@ -5,6 +5,8 @@ import numpy as onp
 from jax import config, vmap
 
 from swarmrl.models.interaction_model import Colloid
+
+# from swarmrl.models.shared_ml_model import Swarm, col_to_swarm
 from swarmrl.observables.observable import Observable
 from swarmrl.utils.utils import calc_signed_angle_between_directors
 
@@ -21,25 +23,6 @@ class GraphObservable(NamedTuple):
     globals_: Optional[ArrayTree]
     n_node: np.ndarray
     n_edge: np.ndarray
-
-
-#     def tree_flatten(self):
-#         return (
-#             self.nodes, self.edges, self.destinations, self.receivers, self.senders,
-#             self.globals_, self.n_node, self.n_edge,
-#         )
-#
-#     @classmethod
-#     def tree_unflatten(cls, aux_data, children):
-#         return cls(*children)
-#
-#
-# register_pytree_node(
-#     GraphObservable,
-#     GraphObservable.tree_flatten,
-#     GraphObservable.tree_unflatten,
-# )
-#
 
 
 class ColGraphV0(Observable):
@@ -166,7 +149,7 @@ class ColGraphV1(Observable):
 
     def __init__(
         self,
-        num_nodes: int,
+        colloids: List[Colloid],
         cutoff: float = 0.1,
         relation_angle: float = 0.1,
         box_size=None,
@@ -188,15 +171,52 @@ class ColGraphV1(Observable):
         else:
             self.box_size = box_size
         self.eps = 10e-8
+
         self.vangle = vmap(calc_signed_angle_between_directors, in_axes=(None, 0))
         self.record_memory = record_memory
         self.particle_type = particle_type
-        self.num_nodes = num_nodes - 1
+
+        self.num_nodes = None
+        self.initialize(colloids)
 
     def initialize(self, colloids: List[Colloid]):
         self.num_nodes = len(colloids) - 1
-        for col in colloids:
-            print(col.id, col.type)
+
+    def compute_initialization_input(self, colloids: List[Colloid]) -> GraphObservable:
+        """
+        A method that computes the input for the initialization of a graph model.
+        It is used to create the train-state of the graph model.
+        Instead of a graph with padded nodes for all colloids, it only
+        contains a single colloid. So to speak a unvectorized version of the
+        compute_observable method.
+
+        Parameters
+        ----------
+        colloids : List[Colloid]
+            List of colloids in the system.
+
+        Returns
+        -------
+        GraphObservable
+            A graph of a single colloid's observation.
+        """
+        # swarm = col_to_swarm(colloids)
+        system_graph = self.compute_observable(colloids)
+        # get the graph for the first colloid.
+        single_graph = GraphObservable(
+            nodes=system_graph.nodes[0],
+            edges=system_graph.edges[0],
+            destinations=system_graph.destinations[0],
+            receivers=system_graph.receivers[0],
+            senders=system_graph.senders[0],
+            globals_=system_graph.globals_[0],
+            n_node=system_graph.n_node[0],
+            n_edge=system_graph.n_edge[0],
+        )
+        return single_graph
+
+    def compute_single_observable(self, colloid: Colloid) -> GraphObservable:
+        pass
 
     def compute_observable(self, colloids: List[Colloid]) -> GraphObservable:
         """
@@ -205,9 +225,7 @@ class ColGraphV1(Observable):
         """
         # normalize the positions by the box size.
         positions = np.array([col.pos for col in colloids]) / self.box_size
-        # directions = np.array([col.director for col in colloids])
         types = np.array([col.type for col in colloids])
-        # delta_types = types[:, None] - types
         # compute the direction between all pais of colloids.
         part_part_vec = positions[:, None] - positions
         distances = np.linalg.norm(part_part_vec, axis=-1)
@@ -220,6 +238,13 @@ class ColGraphV1(Observable):
         n_nodes_list = []
         n_edges_list = []
         globals_list = []
+
+        # mask = (distances < self.cutoff) & (distances > 0)
+        # num_nodes = np.sum(mask, axis=-1)
+        #
+        # relevant_distances = distances[mask]
+        # relevant_part_part_vec = part_part_vec[mask]
+        # relvant_types = types[mask]
 
         for col in colloids:
             if col.type == self.particle_type:
