@@ -2,11 +2,9 @@ from typing import Any, Iterable, List, Mapping, NamedTuple, Optional, Union
 
 import jax.numpy as np
 import numpy as onp
-from jax import config, vmap
+from jax import config, jit, vmap
 
 from swarmrl.models.interaction_model import Colloid
-
-# from swarmrl.models.shared_ml_model import Swarm, col_to_swarm
 from swarmrl.observables.observable import Observable
 from swarmrl.utils.utils import calc_signed_angle_between_directors
 
@@ -23,6 +21,25 @@ class GraphObservable(NamedTuple):
     globals_: Optional[ArrayTree]
     n_node: np.ndarray
     n_edge: np.ndarray
+
+
+@jit
+def compute_dists_vecs(positions):
+    """
+    Compute the distances and vectors between all pairs of particles.
+    """
+    part_part_vec = positions[:, None] - positions
+    distances = np.linalg.norm(part_part_vec, axis=-1)
+    part_part_vec = -1 * part_part_vec / (distances[:, :, None] + 10e-8)
+    return distances, part_part_vec
+
+
+@jit
+def compute_pair_wise_angle(pos_angles):
+    """
+    Compute the angle between all pairs of particles.
+    """
+    return np.abs(np.abs(pos_angles[:, None]) - np.abs(pos_angles)) / np.pi % 1
 
 
 class ColGraphV0(Observable):
@@ -64,9 +81,8 @@ class ColGraphV0(Observable):
         types = np.array([col.type for col in colloids])
         # delta_types = types[:, None] - types
         # compute the direction between all pais of colloids.
-        part_part_vec = positions[:, None] - positions
-        distances = np.linalg.norm(part_part_vec, axis=-1)
-        part_part_vec = -1 * part_part_vec / (distances[:, :, None] + self.eps)
+
+        distances, part_part_vec = compute_dists_vecs(positions)
 
         nodes_list = []
         destinations_list = []
@@ -200,7 +216,6 @@ class ColGraphV1(Observable):
         GraphObservable
             A graph of a single colloid's observation.
         """
-        # swarm = col_to_swarm(colloids)
         system_graph = self.compute_observable(colloids)
         # get the graph for the first colloid.
         single_graph = GraphObservable(
@@ -215,9 +230,6 @@ class ColGraphV1(Observable):
         )
         return single_graph
 
-    def compute_single_observable(self, colloid: Colloid) -> GraphObservable:
-        pass
-
     def compute_observable(self, colloids: List[Colloid]) -> GraphObservable:
         """
         Builds a graph for each colloid in the system. In the graph, each node is a
@@ -227,9 +239,7 @@ class ColGraphV1(Observable):
         positions = np.array([col.pos for col in colloids]) / self.box_size
         types = np.array([col.type for col in colloids])
         # compute the direction between all pais of colloids.
-        part_part_vec = positions[:, None] - positions
-        distances = np.linalg.norm(part_part_vec, axis=-1)
-        part_part_vec = -1 * part_part_vec / (distances[:, :, None] + self.eps)
+        distances, part_part_vec = compute_dists_vecs(positions)
 
         nodes_list = []
         destinations_list = []
@@ -239,28 +249,12 @@ class ColGraphV1(Observable):
         n_edges_list = []
         globals_list = []
 
-        # mask = (distances < self.cutoff) & (distances > 0)
-        # num_nodes = np.sum(mask, axis=-1)
-        #
-        # relevant_distances = distances[mask]
-        # relevant_part_part_vec = part_part_vec[mask]
-        # relvant_types = types[mask]
-
         for col in colloids:
             if col.type == self.particle_type:
                 # mask for the colloids within the cutoff distance. without itself.
                 mask = (distances[col.id] < self.cutoff) & (distances[col.id] > 0)
                 # get the indices of sender and receiver within the cutoff distance.
                 num_nodes = np.sum(mask)
-
-                if num_nodes == 0:
-                    nodes_list.append(np.array([np.array([1.0, 1.0, 1.0])]))
-                    globals_list.append([None])
-                    n_nodes_list.append([1])
-                    receivers_list.append([None])
-                    senders_list.append([None])
-                    destinations_list.append([0])
-                    continue
 
                 director = np.copy(col.director)
                 relevant_distances = distances[col.id][mask]
@@ -270,9 +264,7 @@ class ColGraphV1(Observable):
                 pos_angles = self.vangle(director, relevant_part_part_vec)
                 delta_type = relevant_types - col.type
 
-                pair_wise_angle = (
-                    np.abs(np.abs(pos_angles[:, None]) - np.abs(pos_angles)) / np.pi % 1
-                )
+                pair_wise_angle = compute_pair_wise_angle(pos_angles)
 
                 edge_mask = (pair_wise_angle < self.relation_angle) & (
                     pair_wise_angle > 0.0

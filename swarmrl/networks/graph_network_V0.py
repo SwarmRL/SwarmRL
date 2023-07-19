@@ -33,7 +33,7 @@ class EncodeNet(nn.Module):
 class EmbedNet(nn.Module):
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(8)(x)
+        x = nn.Dense(3)(x)
         return x
 
 
@@ -157,14 +157,14 @@ class GraphNetV2(nn.Module):
     @nn.compact
     def __call__(self, graph: GraphObservable):
         nodes, _, destinations, receivers, senders, _, n_node, n_edge = graph
+
         n_nodes = n_node[0]
         vodes = self.node_encoder(nodes)
         vodes = compute_pure_message(vodes, senders, receivers, n_nodes)
-
+        vodes = np.concatenate([vodes, nodes[:, -1:]], axis=1)
         influence = self.node_influence(vodes)
-        # attention = utils.segment_softmax(influence, destinations, n_nodes)
         attention = nn.softmax(influence, axis=0)
-
+        # stack the last entry of the node features to the vodes.
         graph_representation = np.sum(vodes * attention, axis=0)
         graph_representation = self.node_embedder(graph_representation)
         logits, vale = self.actress(graph_representation)
@@ -172,7 +172,7 @@ class GraphNetV2(nn.Module):
         return logits, vale
 
 
-def compute_pure_message(nodes, senders, receivers, n_nodes, message_passing_steps=1):
+def compute_pure_message(nodes, senders, receivers, n_nodes, message_passing_steps=2):
     """Compute the message for each node based on the influence between
     sender and receiver.
     """
@@ -218,7 +218,7 @@ class GraphModel_V0(Network, ABC):
         node_influence: InfluenceNet = InfluenceNet(),
         actress: ActNet = ActNet(),
         # criticer: CritNet = CritNet(),
-        optimizer: GradientTransformation = optax.sgd(1e-5),
+        optimizer: GradientTransformation = optax.adam(1e-4),
         exploration_policy: ExplorationPolicy = None,
         sampling_strategy: SamplingStrategy = GumbelDistribution(),
         rng_key: int = 42,

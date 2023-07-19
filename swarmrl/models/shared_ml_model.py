@@ -18,7 +18,7 @@ from swarmrl.utils.utils import record_graph_trajectory
 @dataclasses.dataclass(frozen=True)
 class Swarm:
     """
-    Wrapper class for a colloid object.
+    Wrapper class for a swarm object.
     """
 
     pos: np.ndarray
@@ -121,8 +121,6 @@ class SharedModel(InteractionModel):
         action: Action
                 Return the action the colloid should take.
         """
-
-        # swarm = col_to_swarm(colloids)
 
         actions = {int(np.copy(colloid.id)): Action() for colloid in colloids}
         action_indices = {type_: [] for type_ in self.particle_types}
