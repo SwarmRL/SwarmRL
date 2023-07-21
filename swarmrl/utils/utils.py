@@ -13,6 +13,24 @@ import numpy as np
 import swarmrl
 
 
+def get_random_angles(rng: np.random.Generator):
+    # https://mathworld.wolfram.com/SpherePointPicking.html
+    return np.arccos(2.0 * rng.random() - 1), 2.0 * np.pi * rng.random()
+
+
+def vector_from_angles(theta, phi):
+    return np.array(
+        [np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)]
+    )
+
+
+def angles_from_vector(director):
+    director /= np.linalg.norm(director)
+    theta = np.arccos(director[2])
+    phi = np.arctan2(director[1], director[0])
+    return theta, phi
+
+
 def write_params(
     folder_name: str,
     sim_name: str,
@@ -243,6 +261,65 @@ def record_trajectory(
     )
 
 
+def record_graph_trajectory(
+    particle_type: str,
+    features: np.ndarray,
+    actions: np.ndarray,
+    log_probs: np.ndarray,
+    rewards: np.ndarray,
+):
+    """
+    Record trajectory if required.
+
+    Parameters
+    ----------
+    particle_type : str
+            Type of the particle saved. Important for the multi-species training.
+    rewards : np.ndarray (n_timesteps, n_particles, 1)
+            Rewards collected during the simulation to be used in training.
+    log_probs : np.ndarray (n_timesteps, n_particles, 1)
+            log_probs used for debugging.
+    features : np.ndarray (n_timesteps, n_particles, n_dimensions)
+            Features to store in the array.
+    actions : np.ndarray (n_timesteps, n_particles, 1)
+            A numpy array of actions
+
+    Returns
+    -------
+    Dumps a hidden file to disc which is often removed after reading.
+    """
+    try:
+        data = np.load(f".traj_data_{particle_type}.npy", allow_pickle=True)
+        feature_data = data.item().get("features")
+        action_data = data.item().get("actions")
+        log_probs_data = data.item().get("log_probs")
+        reward_data = data.item().get("rewards")
+
+        feature_data.append(features)
+        action_data = np.append(action_data, np.array([actions]), axis=0)
+        log_probs_data = np.append(log_probs_data, np.array([log_probs]), axis=0)
+        reward_data = np.append(reward_data, np.array([rewards]), axis=0)
+
+        os.remove(f".traj_data_{particle_type}.npy")
+
+    except FileNotFoundError:
+        feature_data = [features]
+        action_data = np.array([actions])
+        log_probs_data = np.array([log_probs])
+        reward_data = np.array([rewards])
+
+    np.save(
+        f".traj_data_{particle_type}.npy",
+        {
+            "features": feature_data,
+            "actions": action_data,
+            "log_probs": log_probs_data,
+            "rewards": reward_data,
+        },
+        allow_pickle=True,
+    )
+
+
 def save_memory(memory: dict):
     """
     Records the training data if required.
@@ -260,17 +337,25 @@ def save_memory(memory: dict):
     Dumps a  file to disc to evaluate training.
     """
     empty_memory = {key: [] for key in memory.keys()}
+    return_memory = {key: [] for key in memory.keys()}
     empty_memory["file_name"] = memory["file_name"]
+    return_memory["file_name"] = memory["file_name"]
     try:
         reloaded_dict = np.load(memory["file_name"], allow_pickle=True).item()
         for key, _ in reloaded_dict.items():
-            reloaded_dict[key].append(memory[key])
+            if key != "file_name":
+                reloaded_dict[key].append(memory[key])
+            else:
+                pass
         np.save(memory["file_name"], reloaded_dict, allow_pickle=True)
     except FileNotFoundError:
         for key, _ in empty_memory.items():
-            empty_memory[key].append(memory[key])
-        np.save(memory["file_name"], empty_memory, allow_pickle=True)
-    return empty_memory
+            if key != "file_name":
+                empty_memory[key].append(memory[key])
+            else:
+                pass
+        np.save(empty_memory["file_name"], empty_memory, allow_pickle=True)
+    return return_memory
 
 
 def calc_signed_angle_between_directors(
@@ -298,7 +383,7 @@ def calc_signed_angle_between_directors(
     other_director /= jnp.linalg.norm(other_director)
 
     # calculate the angle in which the my_colloid is looking
-    angle = jnp.arccos(jnp.dot(other_director, my_director))
+    angle = jnp.arccos(jnp.clip(jnp.dot(other_director, my_director), -1.0, 1.0))
     # use the director in orthogonal direction to determine sign
     orthogonal_dot = jnp.dot(
         other_director,
@@ -309,3 +394,23 @@ def calc_signed_angle_between_directors(
     angle *= jnp.where(orthogonal_dot >= 0, 1, -1)
 
     return angle
+
+
+def store_rewards(rewards: dict, directory: str = "."):
+    rewards = np.array(list(rewards.values()))
+    try:
+        data = np.load(f"{directory}/reward_data.npy", allow_pickle=True)
+        reward_data = data.item().get("rewards")
+        reward_data = np.append(reward_data, rewards, axis=0)
+        os.remove(f"{directory}/reward_data.npy")
+
+    except FileNotFoundError:
+        reward_data = np.array([rewards])
+
+    np.save(
+        f"{directory}/reward_data.npy",
+        {
+            "rewards": reward_data,
+        },
+        allow_pickle=True,
+    )

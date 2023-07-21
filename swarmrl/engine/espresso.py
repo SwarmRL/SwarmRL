@@ -11,6 +11,7 @@ import numpy as np
 import pint
 
 import swarmrl.models.interaction_model
+import swarmrl.utils.utils as utils
 
 from .engine import Engine
 
@@ -69,7 +70,7 @@ def _get_random_start_pos(
         assert init_center[2] == 0.0
     elif dim == 3:
         r = init_radius * np.cbrt(rng.random())
-        pos = r * _vector_from_angles(*_get_random_angles(rng))
+        pos = r * utils.vector_from_angles(*utils.get_random_angles(rng))
     else:
         raise ValueError("Random position finder only implemented for 2d and 3d")
 
@@ -140,8 +141,9 @@ class EspressoMD(Engine):
 
         # register to lookup which colloids have been added to the system
         self.colloids_added_register = {
-            "add_colloid": {"times": float, "args": []},
-            "add_rod": {"times": float, "args": []},
+            "add_colloids": {"times": 0, "args": []},
+            "add_rod": {"times": 0, "args": []},
+            "add_source": {"times": 0, "args": []},
         }
 
         # after the first call to integrate, no more changes to the engine are allowed
@@ -189,6 +191,8 @@ class EspressoMD(Engine):
         # configuration and change forces
         time_slice = self.params.time_slice.m_as("sim_time")
 
+        write_interval = self.params.write_interval.m_as("sim_time")
+
         box_l = np.array(3 * [self.params.box_length.m_as("sim_length")])
 
         # system setup. Skin is a verlet list parameter that has to be set, but only
@@ -196,6 +200,15 @@ class EspressoMD(Engine):
         self.system.box_l = box_l
         self.system.time_step = time_step
         self.system.cell_system.skin = 0.4
+
+        # set writer params
+        steps_per_write_interval = int(round(write_interval / time_step))
+        self.params.steps_per_write_interval = steps_per_write_interval
+        if abs(steps_per_write_interval - write_interval / time_step) > 1e-10:
+            raise ValueError(
+                "inconsistent parameters: write_interval must be integer multiple of"
+                " time_step"
+            )
 
         # set integrator params
         steps_per_slice = int(round(time_slice / time_step))
@@ -228,26 +241,24 @@ class EspressoMD(Engine):
         Reset the system to its initial state.
         """
         # save the old register
-        old_register = np.copy(self.colloid_radius_register).item()
         # clear the system
         self.colloid_radius_register = dict()
         self.system.part.clear()
         self.colloids = list()
-        self.integration_initialised = False
 
-        # add the old colloids back
-        for type_col in old_register.keys():
-            n_colloids = old_register[type_col]["n_colloids"]
-            radius_colloid = old_register[type_col]["radius"]
-            placement_center = old_register[type_col]["center"]
-            placement_radius = old_register[type_col]["init_rad"]
-        self.add_colloids(
-            n_colloids=n_colloids,
-            radius_colloid=radius_colloid,
-            random_placement_center=placement_center,
-            random_placement_radius=placement_radius,
-            type_colloid=type_col,
-        )
+        for i in range(self.colloids_added_register["add_colloids"]["times"]):
+            self.add_colloids(
+                *self.colloids_added_register["add_colloids"]["args"][i], reset=True
+            )
+        for j in range(self.colloids_added_register["add_rod"]["times"]):
+            self.add_rod(
+                *self.colloids_added_register["add_rod"]["args"][j], reset=True
+            )
+        for k in range(self.colloids_added_register["add_source"]["times"]):
+            self.add_source(
+                *self.colloids_added_register["add_source"]["args"][k], reset=True
+            )
+
         self._remove_overlap(relaxation_steps=1000)
 
     def add_colloids(
@@ -257,6 +268,7 @@ class EspressoMD(Engine):
         random_placement_center: pint.Quantity,
         random_placement_radius: pint.Quantity,
         type_colloid=0,
+        reset=False,
     ):
         """
         Parameters
@@ -270,21 +282,24 @@ class EspressoMD(Engine):
             Multiple calls can be made with the same type_colloid.
             Interaction models need to be made aware if there are different types
             of colloids in the system if specific behaviour is desired.
-
+        reset
+            If True, the function is called to after resetting the system. In
+            that case the function does not add the colloids to the register.
         Returns
         -------
+        colloid.
 
         """
-        self.colloids_added_register["add_colloids"]["times"] += 1
-        args = [
-            n_colloids,
-            radius_colloid,
-            random_placement_center,
-            random_placement_radius,
-            type_colloid,
-        ]
-        self.colloids_added_register["add_colloids"]["args"].append([args])
-        self._check_already_initialised()
+        if not reset:
+            self.colloids_added_register["add_colloids"]["times"] += 1
+            args = [
+                n_colloids,
+                radius_colloid,
+                random_placement_center,
+                random_placement_radius,
+                type_colloid,
+            ]
+            self.colloids_added_register["add_colloids"]["args"].append(args)
 
         radius_simunits = radius_colloid.m_as("sim_length")
         init_center = random_placement_center.m_as("sim_length")
@@ -304,7 +319,9 @@ class EspressoMD(Engine):
             if self.n_dims == 3:
                 colloid = self.system.part.add(
                     pos=start_pos,
-                    director=_vector_from_angles(*_get_random_angles(self.rng)),
+                    director=utils.vector_from_angles(
+                        *utils.get_random_angles(self.rng)
+                    ),
                     rotation=3 * [True],
                     gamma=particle_gamma_translation,
                     gamma_rot=particle_gamma_rotation,
@@ -333,8 +350,6 @@ class EspressoMD(Engine):
                 type_colloid: {
                     "radius": radius_colloid,
                     "n_colloids": n_colloids,
-                    "center": random_placement_center,
-                    "init_rad": random_placement_radius,
                 }
             }
         )
@@ -350,6 +365,7 @@ class EspressoMD(Engine):
         friction_rot: pint.Quantity,
         rod_particle_type: int,
         fixed: bool = True,
+        reset=False,
     ):
         """
         Add a rod to the system.
@@ -372,7 +388,9 @@ class EspressoMD(Engine):
             The rod is made out of points so they get their own type.
         fixed
             Fixes the central particle of the rod.
-
+        reset
+            If True, the function is called to after resetting the system. In
+            that case the function does not add the rod to the register.
         Returns
         -------
         The espresso handle to the central particle. For debugging purposes only
@@ -436,7 +454,7 @@ class EspressoMD(Engine):
                 "(both in simulation units)"
             )
 
-        director = _vector_from_angles(np.pi / 2, rod_start_angle)
+        director = utils.vector_from_angles(np.pi / 2, rod_start_angle)
 
         for k in range(n_particles - 1):
             dist_to_center = (-1) ** k * (k // 2 + 1) * point_dist
@@ -453,6 +471,38 @@ class EspressoMD(Engine):
 
         return center_part
 
+    def add_source(self, pos: pint.Quantity, source_particle_type: int, reset=False):
+        """
+        Add a fixed particle that is not affected by any forces, but can be sensed by
+        vision cones and graph obs.
+        Parameters
+        ----------
+        pos
+        source_particle_type
+
+        Returns
+        -------
+
+        """
+        source_particle = self.system.part.add(
+            pos=pos.m_as("sim_length"),
+            type=source_particle_type,
+            quat=[1, 0, 0, 0],
+            rotation=3 * [False],
+            fix=[True, True, True],
+        )
+        colloid_radius = self.ureg.Quantity(0.0, "micrometer")
+        self.colloids.append(source_particle)
+        self.colloid_radius_register.update(
+            {source_particle_type: {"radius": colloid_radius}}
+        )
+
+        if not reset:
+            self.colloids_added_register["add_source"]["times"] += 1
+            # put args of the function in a list and append it to the register
+            args = [pos, source_particle_type]
+            self.colloids_added_register["add_source"]["args"].append(args)
+
     def add_confining_walls(self, wall_type: int):
         """
         Walls on the edges of the box, will interact with particles through WCA.
@@ -460,7 +510,7 @@ class EspressoMD(Engine):
 
         Parameters
         ----------
-        wall_type
+        wall_type : int
             Wall interacts with particles, so it needs its own type.
 
         Returns
@@ -530,19 +580,19 @@ class EspressoMD(Engine):
             )
         parts.ext_force = force_simunits
 
-    def get_friction_coefficients(self, type: int):
+    def get_friction_coefficients(self, type_: int):
         """
         Returns both the translational and the rotational friction coefficient
         of the desired in simulation units
         """
-        radius = self.colloid_radius_register.get(type, None)["radius"].m_as(
+        radius = self.colloid_radius_register.get(type_, None)["radius"].m_as(
             "sim_length"
         )
 
         if radius is None:
             raise ValueError(
-                f"cannot get friction coefficient for type {type}. Did you actually add"
-                " that particle type?"
+                f"cannot get friction coefficient for type {type_}. Did you actually"
+                " add that particle type?"
             )
         return _calc_friction_coefficients(
             self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius
@@ -676,6 +726,38 @@ class EspressoMD(Engine):
         )
         self.system.integrator.set_brownian_dynamics()
 
+    def manage_forces(self, force_model: swarmrl.models.InteractionModel = None):
+        swarmrl_colloids = []
+        if force_model is not None:
+            for col in self.colloids:
+                swarmrl_colloids.append(
+                    swarmrl.models.interaction_model.Colloid(
+                        pos=col.pos,
+                        velocity=col.v,
+                        director=col.director,
+                        id=col.id,
+                        type=col.type,
+                    )
+                )
+            actions = force_model.calc_action(swarmrl_colloids)
+            for action, coll in zip(actions, self.colloids):
+                coll.swimming = {"f_swim": action.force}
+                coll.ext_torque = action.torque
+                new_direction = action.new_direction
+                if new_direction is not None:
+                    if self.n_dims == 3:
+                        coll.director = new_direction
+                    else:
+                        old_direction = coll.director
+                        rotation_angle = np.arccos(np.dot(new_direction, old_direction))
+                        if rotation_angle > 1e-6:
+                            rotation_axis = np.cross(old_direction, new_direction)
+                            rotation_axis /= np.linalg.norm(rotation_axis)
+                            # only values of [0,0,1], [0,0,-1] can come out here,
+                            # plusminus numerical errors
+                            rotation_axis = [0, 0, round(rotation_axis[2])]
+                            coll.rotate(axis=rotation_axis, angle=rotation_angle)
+
     def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel = None):
         """
         Integrate the system for n_slices steps.
@@ -693,17 +775,40 @@ class EspressoMD(Engine):
         """
 
         if not self.integration_initialised:
+            self.slice_idx = 0
+            self.step_idx = 0
             self._setup_interactions()
-            if not self.hdf5_initialized:
-                self._init_h5_output()
-                self.hdf5_initialized = True
             self._remove_overlap()
+            self._init_h5_output()
             self.integration_initialised = True
 
-        for _ in range(n_slices):
-            if (
-                self.system.time
-                >= self.params.write_interval.m_as("sim_time") * self.write_idx
+            self.manage_forces(force_model)
+            self._update_traj_holder()
+
+            if len(self.traj_holder["Times"]) >= self.write_chunk_size:
+                self._write_traj_chunk_to_file()
+                for val in self.traj_holder.values():
+                    val.clear()
+
+        old_slice_idx = self.slice_idx
+        # managing forces hier is only important  in the first call and
+        # if the force_model changes form last integrate call to current call
+        self.manage_forces(force_model)
+        while self.slice_idx < old_slice_idx + n_slices:
+            steps_to_next_write = (
+                self.params.steps_per_write_interval * (self.write_idx + 1)
+                - self.step_idx
+            )
+            steps_to_next_slice = (
+                self.params.steps_per_slice * (self.slice_idx + 1) - self.step_idx
+            )
+            steps_to_next = min(steps_to_next_write, steps_to_next_slice)
+
+            self.system.integrator.run(steps_to_next)
+            self.step_idx += steps_to_next
+
+            if self.step_idx == self.params.steps_per_write_interval * (
+                self.write_idx + 1
             ):
                 self._update_traj_holder()
                 self.write_idx += 1
@@ -713,37 +818,9 @@ class EspressoMD(Engine):
                     for val in self.traj_holder.values():
                         val.clear()
 
-            swarmrl_colloids = []
-
-            if force_model is not None:
-                for col in self.colloids:
-                    swarmrl_colloids.append(
-                        swarmrl.models.interaction_model.Colloid(
-                            pos=col.pos, director=col.director, id=col.id, type=col.type
-                        )
-                    )
-                actions = force_model.calc_action(swarmrl_colloids)
-                for action, coll in zip(actions, self.colloids):
-                    coll.swimming = {"f_swim": action.force}
-                    coll.ext_torque = action.torque
-                    new_direction = action.new_direction
-                    if new_direction is not None:
-                        if self.n_dims == 3:
-                            coll.director = new_direction
-                        else:
-                            old_direction = coll.director
-                            rotation_angle = np.arccos(
-                                np.dot(new_direction, old_direction)
-                            )
-                            if rotation_angle > 1e-6:
-                                rotation_axis = np.cross(old_direction, new_direction)
-                                rotation_axis /= np.linalg.norm(rotation_axis)
-                                # only values of [0,0,1], [0,0,-1] can come out here,
-                                # plusminus numerical errors
-                                rotation_axis = [0, 0, round(rotation_axis[2])]
-                                coll.rotate(axis=rotation_axis, angle=rotation_angle)
-
-            self.system.integrator.run(self.params.steps_per_slice)
+            if self.step_idx == self.params.steps_per_slice * (self.slice_idx + 1):
+                self.slice_idx += 1
+                self.manage_forces(force_model)
 
     def finalize(self):
         """

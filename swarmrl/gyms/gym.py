@@ -2,7 +2,6 @@
 Module to implement a simple multi-layer perceptron for the colloids.
 """
 import os
-import time
 from typing import List, Tuple
 
 import numpy as np
@@ -187,6 +186,7 @@ class Gym:
         n_episodes: int,
         episode_length: int,
         load_bar: bool = True,
+        episodic_training: bool = False,
     ):
         """
         Perform the RL training.
@@ -201,6 +201,9 @@ class Gym:
                 Number of time steps in one episode.
         load_bar : bool (default=True)
                 If true, show a progress bar.
+        episodic_training : bool (default=False)
+                If true, perform episodic training. Otherwise, perform online training.
+                If true the system is reset after each episode.
         """
         rewards = [0.0]
         current_reward = 0.0
@@ -232,15 +235,8 @@ class Gym:
                 visible=load_bar,
             )
             for _ in range(n_episodes):
-                start = time.time()
                 system_runner.integrate(episode_length, force_fn)
-                end = time.time()
-                print(f"espresso time: {end - start}")
-                start = time.time()
                 force_fn, current_reward = self.update_rl()
-                end = time.time()
-                print(f"training time: {end - start}")
-
                 rewards.append(current_reward)
                 episode += 1
                 progress.update(
@@ -250,10 +246,8 @@ class Gym:
                     current_reward=np.round(current_reward, 2),
                     running_reward=np.round(np.mean(rewards[-10:]), 2),
                 )
-                start = time.time()
-                self.reset(system_runner)
-                end = time.time()
-                print(f"reset time: {end - start}")
+                if episodic_training:
+                    self.reset(system_runner)
 
         system_runner.finalize()
 
