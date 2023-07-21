@@ -24,14 +24,19 @@ class MyForceModel(srl.models.InteractionModel):
         self.agent_speed = agent_speed
         self.t = 0
 
+    def predator_movement_func(self, t, pos, director, home_pos, params):
+        return self.pred_movement(t, pos, director, home_pos, params)
+
     def calc_action(self, colloids):
         actions = []
         self.t += 0.2 / 5
         for colloid in colloids:
             if colloid.type == 1:
-                pred_force = self.predator_movement(
+                pred_force = self.predator_movement_func(
                     self.t,
                     colloid.pos,
+                    colloid.director,
+                    self.home_pos,
                     self.pred_params)
                 nd = np.array([pred_force[0], pred_force[1], pred_force[2]])
                 new_direction = nd / np.linalg.norm(nd)
@@ -74,8 +79,8 @@ class MyForceModel(srl.models.InteractionModel):
             force_f = -colloid.velocity * (np.abs(colloid.velocity) - self.agent_speed) / self.agent_speed
 
             force = self.force_params["K_a"] * force_a + self.force_params["K_r"] * force_r \
-                    + self.force_params["K_h"] * force_h \
-                    + self.force_params["K_p"] * force_p + self.force_params["K_f"] * force_f
+                + self.force_params["K_h"] * force_h \
+                + self.force_params["K_p"] * force_p + self.force_params["K_f"] * force_f
 
             force_magnitude = np.linalg.norm(force)
             force_direction = force / force_magnitude
@@ -104,8 +109,25 @@ def rotate_vector_clockwise(v, alpha):
     return np.matmul(r, v)
 
 
-def pred_cos_x(t, pos, home_pos, params):
+def pred_cos_x(t, pos, director, home_pos, params):
     force_x = params[0] * np.cos(params[1] * t)
     force_y = home_pos[1] - pos[1]
     force_z = 0
     return force_x, force_y, force_z
+
+
+def circle(t, pos, director, home_pos, params):
+    r, alpha = params[0], params[1]
+    if np.linalg.norm(pos-home_pos) < r:
+        force_x, force_y, _ = 100*(pos - home_pos)
+    else:
+        force_x, force_y = 500*rotate_vector_clockwise(director[:-1], alpha)
+    return force_x, force_y, 0
+
+
+def circle2(t, pos, director, home_pos, params):
+    force_x = params[0]*np.cos(params[1]*t)
+    force_y = params[0]*np.sin(params[1]*t)
+    return force_x, force_y, 0
+
+def lorent

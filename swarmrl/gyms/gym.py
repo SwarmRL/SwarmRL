@@ -245,5 +245,4 @@ class Gym:
                 os.remove(f".traj_data_{item}.npy")
             except FileNotFoundError:
                 pass
-
         return np.array(rewards)
