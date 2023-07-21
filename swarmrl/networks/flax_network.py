@@ -80,6 +80,7 @@ class FlaxModel(Network, ABC):
             self.model_state = self._create_train_state(subkey)
 
             self.epoch_count = 0
+        self.kind = "network"
 
     def _create_train_state(self, init_rng: int) -> TrainState:
         """

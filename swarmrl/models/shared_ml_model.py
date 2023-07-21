@@ -12,7 +12,9 @@ from swarmrl.models.interaction_model import Action, Colloid, InteractionModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-from swarmrl.utils.utils import record_graph_trajectory
+from swarmrl.utils.utils import record_trajectory
+
+# from swarmrl.utils.utils import record_graph_trajectory
 
 
 @dataclasses.dataclass(frozen=True)
@@ -161,7 +163,7 @@ class SharedModel(InteractionModel):
         # Record the trajectory if required.
         if self.record_traj:
             for type_ in self.particle_types:
-                record_graph_trajectory(
+                record_trajectory(
                     particle_type=type_,
                     features=observables[type_],
                     actions=np.array(action_indices[type_]),

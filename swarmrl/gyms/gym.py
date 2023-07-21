@@ -2,6 +2,7 @@
 Module to implement a simple multi-layer perceptron for the colloids.
 """
 import os
+import time
 from typing import List, Tuple
 
 import numpy as np
@@ -235,7 +236,11 @@ class Gym:
                 visible=load_bar,
             )
             for k in range(n_episodes):
+                start = time.time()
                 system_runner.integrate(episode_length, force_fn)
+                end = time.time()
+                print(f"Simulation {k} took {end - start} seconds.")
+
                 force_fn, current_reward = self.update_rl()
 
                 rewards.append(current_reward)

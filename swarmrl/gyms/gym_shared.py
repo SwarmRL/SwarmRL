@@ -81,23 +81,33 @@ class SharedNetworkGym:
         for protocol in rl_protocols:
             self.rl_protocols[str(protocol.particle_type)] = protocol
 
+    def initialize_training(self) -> SharedModel:
+        """
+        Return an initialized interaction model.
+
+        Returns
+        -------
+        interaction_model : MLModel
+                Interaction model to start the simulation with.
+        """
+        # Collect the force models for the simulation runs.
         force_models = {}
         observables = {}
         tasks = {}
         actions = {}
-        for type_, value in self.rl_protocols.items():
-            force_models[type_] = value.network
-            observables[type_] = value.observable
-            tasks[type_] = value.task
-            actions[type_] = value.actions
+        for item, value in self.rl_protocols.items():
+            force_models[item] = value.network
+            observables[item] = value.observable
+            tasks[item] = value.task
+            actions[item] = value.actions
 
-        self.interaction_model = SharedModel(
+        return SharedModel(
             force_models=force_models,
             observables=observables,
             record_traj=True,
             tasks=tasks,
             actions=actions,
-            global_task=global_task,
+            global_task=self.global_task,
         )
 
     def update_rl(self) -> Tuple[SharedModel, np.ndarray]:
@@ -112,6 +122,11 @@ class SharedNetworkGym:
                 Current mean episode reward. This is returned for nice progress bars.
         """
         reward = 0.0  # TODO: Separate between species and optimize visualization.
+
+        force_models = {}
+        observables = {}
+        tasks = {}
+        actions = {}
 
         for type_, val in self.rl_protocols.items():
             if val.network.kind == "network":
@@ -129,10 +144,21 @@ class SharedNetworkGym:
                 )
             else:
                 pass
+            force_models[type_] = val.network
+            observables[type_] = val.observable
+            tasks[type_] = val.task
+            actions[type_] = val.actions
 
-            self.interaction_model.force_models[type_] = val.network
+        interaction_model = SharedModel(
+            force_models=force_models,
+            observables=observables,
+            record_traj=True,
+            tasks=tasks,
+            actions=actions,
+            global_task=self.global_task,
+        )
 
-        return np.array(reward) / len(self.rl_protocols)
+        return interaction_model, np.array(reward) / len(self.rl_protocols)
 
     def reset(self, system_runner):
         system_runner.reset_system()
@@ -231,6 +257,8 @@ class SharedNetworkGym:
         current_reward = 0.0
         episode = 0
 
+        force_fn = self.initialize_training()
+
         # Initialize the tasks and observables.
         try:
             self.global_task.initialize(system_runner.colloids)
@@ -270,13 +298,13 @@ class SharedNetworkGym:
                         min_episode_len=episode_length,
                         max_episode_len=1000,
                     )
-                    system_runner.integrate(dynamic_episode_len, self.interaction_model)
+                    system_runner.integrate(dynamic_episode_len, force_fn)
                 else:
-                    system_runner.integrate(episode_length, self.interaction_model)
+                    system_runner.integrate(episode_length, force_fn)
                 end = time.time()
                 print(f"Simulation {k} took {end - start} seconds.")
                 start = time.time()
-                current_reward = self.update_rl()
+                force_fn, current_reward = self.update_rl()
                 end = time.time()
                 print(f"Training {k} took {end - start} seconds.")
                 rewards.append(current_reward)
@@ -300,7 +328,10 @@ class SharedNetworkGym:
                     self.reset(system_runner)
 
                 for item, val in self.rl_protocols.items():
-                    os.remove(f".traj_data_{item}.npy")
+                    try:
+                        os.remove(f".traj_data_{item}.npy")
+                    except FileNotFoundError:
+                        pass
 
         system_runner.finalize()
 

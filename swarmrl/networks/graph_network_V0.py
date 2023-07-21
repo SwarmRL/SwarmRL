@@ -53,8 +53,9 @@ class ActNet(nn.Module):
         x = nn.relu(x)
         x = nn.Dense(128)(x)
         x = nn.relu(x)
-        x = nn.Dense(3)(x)
         y = nn.Dense(1)(x)
+        x = nn.Dense(3)(x)
+
         return x, y
 
 
@@ -325,7 +326,7 @@ class GraphModel_V0(Network, ABC):
             logits, _ = self.apply_fn(
                 {"params": self.model_state["params"]}, observables
             )
-
+        print(logits.shape)
         # Compute the action
         indices = np.array(self.sampling_strategy(np.array(logits)))
         # Add a small value to the log_probs to avoid log(0) errors.
