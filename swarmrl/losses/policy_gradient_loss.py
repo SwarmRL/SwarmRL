@@ -82,7 +82,7 @@ class PolicyGradientLoss(Loss):
         logits = actor_apply_fn({"params": actor_params}, feature_data)
         probabilities = jax.nn.softmax(logits)  # get probabilities
         chosen_probabilities = gather_n_dim_indices(probabilities, action_indices)
-        log_probs = np.log(chosen_probabilities)
+        log_probs = np.log(chosen_probabilities + 1e-8)
         logger.debug(f"{log_probs.shape=}")
 
         value_function_values = self.value_function(rewards)
