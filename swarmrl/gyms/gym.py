@@ -123,6 +123,12 @@ class Gym:
         )
         return interaction_model, np.array(reward) / len(self.rl_protocols)
 
+    def reset(self, system_runner):
+        system_runner.reset_system()
+        for item, val in self.rl_protocols.items():
+            val.observable.initialize(system_runner.colloids)
+            val.task.initialize(system_runner.colloids)
+
     def export_models(self, directory: str = "Models"):
         """
         Export the models to the specified directory.
@@ -180,6 +186,7 @@ class Gym:
         n_episodes: int,
         episode_length: int,
         load_bar: bool = True,
+        episodic_training: bool = False,
     ):
         """
         Perform the RL training.
@@ -194,6 +201,9 @@ class Gym:
                 Number of time steps in one episode.
         load_bar : bool (default=True)
                 If true, show a progress bar.
+        episodic_training : bool (default=False)
+                If true, perform episodic training. Otherwise, perform online training.
+                If true the system is reset after each episode.
         """
         rewards = [0.0]
         current_reward = 0.0
@@ -234,6 +244,8 @@ class Gym:
                     current_reward=np.round(current_reward, 2),
                     running_reward=np.round(np.mean(rewards[-10:]), 2),
                 )
+                if episodic_training:
+                    self.reset(system_runner)
 
         system_runner.finalize()
 
