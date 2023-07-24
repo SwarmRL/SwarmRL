@@ -114,6 +114,7 @@ class TestGeneticTraining(ut.TestCase):
             box_length=np.array([1000.0, 1000.0, 1000]),
         )
 
+        # Set the observable
         observable = srl.observables.ConcentrationField(
             source=np.array([500.0, 500.0, 0.0]),
             decay_fn=scale_function,
