@@ -33,7 +33,6 @@ class SharedProximalPolicyLoss(Loss, ABC):
         n_epochs: int = 10,
         epsilon: float = 0.2,
         entropy_coefficient: float = 0.01,
-        record_training=False,
     ):
         """
         Constructor for the PPO class.
@@ -49,8 +48,6 @@ class SharedProximalPolicyLoss(Loss, ABC):
             the maximum of the relative distance between old and updated policy.
         entropy_coefficient : float
             Entropy coefficient for the PPO update. # TODO Add more here.
-        record_training : bool
-            If true, training data is stored.
         """
         self.value_function = value_function
         self.sampling_strategy = sampling_strategy
