@@ -33,7 +33,7 @@ jobs:
           pip install .
       - name: Install espresso
         run: |
-          pip install cython
+          pip install cython==0.29.36
           sudo apt-get install libboost-all-dev
           git clone https://github.com/espressomd/espresso.git
           cd espresso

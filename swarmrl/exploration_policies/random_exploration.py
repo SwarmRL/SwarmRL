@@ -29,7 +29,7 @@ class RandomExploration(ExplorationPolicy, ABC):
 
     @partial(jax.jit, static_argnums=(0,))
     def __call__(
-        self, model_actions: np.ndarray, action_space_length: int, seed: int = 0
+        self, model_actions: np.ndarray, action_space_length: int, seed
     ) -> np.ndarray:
         """
         Return an index associated with the chosen action.
