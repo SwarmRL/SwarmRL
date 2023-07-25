@@ -133,6 +133,7 @@ class EspressoMD(Engine):
             "add_colloids": {"times": 0, "args": []},
             "add_rod": {"times": 0, "args": []},
             "add_source": {"times": 0, "args": []},
+            "add_colloid_on_point": {"times": 0, "args": []},
         }
 
         # after the first call to integrate, no more changes to the engine are allowed
@@ -244,6 +245,11 @@ class EspressoMD(Engine):
             self.add_source(
                 *self.colloids_added_register["add_source"]["args"][k], reset=True
             )
+        for m in range(self.colloids_added_register["add_colloid_on_point"]["times"]):
+            self.add_colloid_on_point(
+                *self.colloids_added_register["add_colloid_on_point"]["args"][m],
+                reset=True,
+            )
 
         self._remove_overlap(relaxation_steps=1000)
 
@@ -253,6 +259,7 @@ class EspressoMD(Engine):
         init_position: pint.Quantity,
         init_direction: np.array = [1, 0, 0],
         type_colloid=0,
+        reset=False,
     ):
         """
         Parameters
@@ -265,14 +272,15 @@ class EspressoMD(Engine):
             Multiple calls can be made with the same type_colloid.
             Interaction models need to be made aware if there are different types
             of colloids in the system if specific behaviour is desired.
+        reset
+            If True, the function is called to after resetting the system. In
+            that case the function does not add the colloids to the register.
 
         Returns
         -------
         colloid.
 
         """
-
-        self._check_already_initialised()
 
         if type_colloid in self.colloid_radius_register.keys():
             if self.colloid_radius_register[type_colloid] != radius_colloid.m_as(
@@ -331,6 +339,16 @@ class EspressoMD(Engine):
 
         self.colloid_radius_register.update({type_colloid: radius_simunits})
 
+        if not reset:
+            self.colloids_added_register["add_colloid_on_point"]["args"].append(
+                [
+                    radius_colloid,
+                    init_position,
+                    init_direction,
+                    type_colloid,
+                ]
+            )
+            self.colloids_added_register["add_colloid_on_point"]["times"] += 1
         return colloid
 
     def add_colloids(
@@ -362,6 +380,38 @@ class EspressoMD(Engine):
         colloid.
 
         """
+
+        init_center = random_placement_center.m_as("sim_length")
+        init_rad = random_placement_radius.m_as("sim_length")
+
+        for i in range(n_colloids):
+            start_pos = (
+                _get_random_start_pos(init_rad, init_center, self.n_dims, self.rng)
+                * self.ureg.sim_length
+            )
+
+            if self.n_dims == 3:
+                director = utils.vector_from_angles(*utils.get_random_angles(self.rng))
+                self.add_colloid_on_point(
+                    radius_colloid=radius_colloid,
+                    init_position=start_pos,
+                    init_direction=director,
+                    type_colloid=type_colloid,
+                    reset=True,
+                )
+            else:
+                # initialize with body-frame = lab-frame to set correct rotation flags
+                # allow all rotations to bring the particle to correct state
+                start_angle = 2 * np.pi * self.rng.random()
+                init_direction = utils.vector_from_angles(np.pi / 2, start_angle)
+                self.add_colloid_on_point(
+                    radius_colloid=radius_colloid,
+                    init_position=start_pos,
+                    init_direction=init_direction,
+                    type_colloid=type_colloid,
+                    reset=True,
+                )
+
         if not reset:
             self.colloids_added_register["add_colloids"]["times"] += 1
             args = [
@@ -372,59 +422,6 @@ class EspressoMD(Engine):
                 type_colloid,
             ]
             self.colloids_added_register["add_colloids"]["args"].append(args)
-
-        radius_simunits = radius_colloid.m_as("sim_length")
-        init_center = random_placement_center.m_as("sim_length")
-        init_rad = random_placement_radius.m_as("sim_length")
-
-        (
-            particle_gamma_translation,
-            particle_gamma_rotation,
-        ) = _calc_friction_coefficients(
-            self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius_simunits
-        )
-        for i in range(n_colloids):
-            start_pos = _get_random_start_pos(
-                init_rad, init_center, self.n_dims, self.rng
-            )
-
-            if self.n_dims == 3:
-                colloid = self.system.part.add(
-                    pos=start_pos,
-                    director=utils.vector_from_angles(
-                        *utils.get_random_angles(self.rng)
-                    ),
-                    rotation=3 * [True],
-                    gamma=particle_gamma_translation,
-                    gamma_rot=particle_gamma_rotation,
-                    fix=3 * [False],
-                    type=type_colloid,
-                )
-            else:
-                # initialize with body-frame = lab-frame to set correct rotation flags
-                # allow all rotations to bring the particle to correct state
-                start_angle = 2 * np.pi * self.rng.random()
-                colloid = self.system.part.add(
-                    pos=start_pos,
-                    fix=[False, False, True],
-                    rotation=3 * [True],
-                    gamma=particle_gamma_translation,
-                    gamma_rot=particle_gamma_rotation,
-                    quat=[1, 0, 0, 0],
-                    type=type_colloid,
-                )
-                self._rotate_colloid_to_2d(colloid, start_angle)
-
-            self.colloids.append(colloid)
-
-        self.colloid_radius_register.update(
-            {
-                type_colloid: {
-                    "radius": radius_colloid,
-                    "n_colloids": n_colloids,
-                }
-            }
-        )
 
     def add_rod(
         self,
@@ -467,28 +464,13 @@ class EspressoMD(Engine):
         -------
         The espresso handle to the central particle. For debugging purposes only
         """
-        self._check_already_initialised()
+
         if self.n_dims != 2:
             raise ValueError("Rod can only be added in 2d")
         if rod_center[2].magnitude != 0:
             raise ValueError(f"Rod center z-component must be 0. You gave {rod_center}")
         if n_particles % 2 != 1:
             raise ValueError(f"n_particles must be uneven. You gave {n_particles}")
-
-        self.colloids_added_register["add_rod"]["times"] += 1
-        # put args of the function in a list and append it to the register
-        args = [
-            rod_center,
-            rod_length,
-            rod_thickness,
-            rod_start_angle,
-            n_particles,
-            friction_trans,
-            friction_rot,
-            rod_particle_type,
-            fixed,
-        ]
-        self.colloids_added_register["add_rod"]["args"].append([args])
 
         espressomd.assert_features(["VIRTUAL_SITES_RELATIVE"])
         import espressomd.virtual_sites as evs
@@ -500,7 +482,7 @@ class EspressoMD(Engine):
         fric_rot = friction_rot.m_as(
             "sim_force * sim_length *  sim_time"
         )  # [M / omega]
-        particle_radius = rod_thickness.m_as("sim_length") / 2
+        partcl_radius = rod_thickness.m_as("sim_length") / 2
 
         # place the real particle
         center_part = self.system.part.add(
@@ -516,12 +498,12 @@ class EspressoMD(Engine):
         self.colloids.append(center_part)
 
         # place virtual
-        point_span = rod_length.m_as("sim_length") - 2 * particle_radius
+        point_span = rod_length.m_as("sim_length") - 2 * partcl_radius
         point_dist = point_span / (n_particles - 1)
-        if point_dist > 2 * particle_radius:
+        if point_dist > 2 * partcl_radius:
             logger.warning(
                 "your rod has holes. "
-                f"Particle radius {particle_radius} "
+                f"Particle radius {partcl_radius} "
                 f"particle_distance {point_dist} "
                 "(both in simulation units)"
             )
@@ -537,9 +519,23 @@ class EspressoMD(Engine):
             virtual_partcl.vs_auto_relate_to(center_part)
             self.colloids.append(virtual_partcl)
 
-        self.colloid_radius_register.update(
-            {rod_particle_type: {"radius": particle_radius, "n_colloids": n_particles}}
-        )
+        self.colloid_radius_register.update({rod_particle_type: partcl_radius})
+
+        if not reset:
+            self.colloids_added_register["add_rod"]["times"] += 1
+            # put args of the function in a list and append it to the register
+            args = [
+                rod_center,
+                rod_length,
+                rod_thickness,
+                rod_start_angle,
+                n_particles,
+                friction_trans,
+                friction_rot,
+                rod_particle_type,
+                fixed,
+            ]
+            self.colloids_added_register["add_rod"]["args"].append(args)
 
         return center_part
 
@@ -575,7 +571,7 @@ class EspressoMD(Engine):
             args = [pos, source_particle_type]
             self.colloids_added_register["add_source"]["args"].append(args)
 
-    def add_confining_walls(self, wall_type: int):
+    def add_confining_walls(self, wall_type: int, reset=False):
         """
         Walls on the edges of the box, will interact with particles through WCA.
         Is NOT communicated to the interaction models, though.
@@ -588,7 +584,7 @@ class EspressoMD(Engine):
         Returns
         -------
         """
-        self._check_already_initialised()
+        # self._check_already_initialised()
         if wall_type in self.colloid_radius_register.keys():
             raise ValueError(
                 f"wall type {wall_type} is already taken "
@@ -615,9 +611,6 @@ class EspressoMD(Engine):
                 shape=wall_shape, particle_type=wall_type, penetrable=False
             )
             self.system.constraints.add(constr)
-
-        # the wall itself has no radius, only the particle radius counts
-        self.colloid_radius_register.update({wall_type: 0.0})
 
     def add_walls(
         self,
@@ -735,19 +728,16 @@ class EspressoMD(Engine):
             )
         parts.ext_force = force_simunits
 
-    def get_friction_coefficients(self, type_: int):
+    def get_friction_coefficients(self, type: int):
         """
         Returns both the translational and the rotational friction coefficient
         of the desired in simulation units
         """
-        radius = self.colloid_radius_register.get(type_, None)["radius"].m_as(
-            "sim_length"
-        )
-
+        radius = self.colloid_radius_register.get(type, None)
         if radius is None:
             raise ValueError(
-                f"cannot get friction coefficient for type {type_}. Did you actually"
-                " add that particle type?"
+                f"cannot get friction coefficient for type {type}. Did you actually add"
+                " that particle type?"
             )
         return _calc_friction_coefficients(
             self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius
@@ -857,6 +847,7 @@ class EspressoMD(Engine):
         self.h5_time_steps_written += n_new_timesteps
 
     def _remove_overlap(self, relaxation_steps: int = 1000):
+        self.system.thermostat.turn_off()
         # remove overlap
         self.system.integrator.set_steepest_descent(
             f_max=0.0, gamma=0.1, max_displacement=0.1

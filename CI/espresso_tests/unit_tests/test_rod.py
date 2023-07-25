@@ -38,18 +38,20 @@ class RodTest(ut.TestCase):
             )
 
             fric_rot = ureg.Quantity(1e-17, "newton * meter * second")
+            fric_trans = ureg.Quantity(10, "newton/ (meter / second)")
             rod_thickness = ureg.Quantity(3, "micrometer")
+            rod_start_angle = np.pi / 2.0
+            n_particles = 31
+            rod_particle_type = 2
             center_part = runner.add_rod(
                 ureg.Quantity(np.array([25, 25, 0]), "micrometer"),
                 ureg.Quantity(40, "micrometer"),
                 rod_thickness,
-                np.pi / 2.0,
-                31,
-                ureg.Quantity(
-                    10, "newton/ (meter / second)"
-                ),  # unused value because fixed
+                rod_start_angle,
+                n_particles,
+                fric_trans,  # unused value because fixed
                 fric_rot,
-                2,
+                rod_particle_type,
                 fixed=True,
             )
 
