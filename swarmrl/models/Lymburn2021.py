@@ -130,4 +130,5 @@ def circle2(t, pos, director, home_pos, params):
     force_y = params[0]*np.sin(params[1]*t)
     return force_x, force_y, 0
 
-def lorent
+def lorenz_attractor():
+    pass

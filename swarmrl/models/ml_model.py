@@ -20,12 +20,12 @@ class MLModel(InteractionModel):
     """
 
     def __init__(
-        self,
-        models: Dict[str, Network],
-        observables: Dict[str, Observable],
-        tasks: Dict[str, Task],
-        record_traj: bool = False,
-        actions: dict = None,
+            self,
+            models: Dict[str, Network],
+            observables: Dict[str, Observable],
+            tasks: Dict[str, Task],
+            record_traj: bool = False,
+            actions: dict = None,
     ):
         """
         Constructor for the NNModel.
@@ -60,7 +60,7 @@ class MLModel(InteractionModel):
                 pass
 
     def calc_action(
-        self, colloids: typing.List[Colloid], explore_mode: bool = False
+            self, colloids: typing.List[Colloid], explore_mode: bool = False
     ) -> typing.List[Action]:
         """
         Compute the state of the system based on the current colloid position.
@@ -88,6 +88,18 @@ class MLModel(InteractionModel):
             action_indices[item], log_probs[item] = self.models[item].compute_action(
                 observables=observables[item], explore_mode=explore_mode
             )
+
+            # if self.model is classical for item, action_indices will be the already calculated actions,
+            # so we will just check whether action_indices is a Object of type Action
+            if isinstance(action_indices[item], Action):
+                chosen_actions = action_indices[item]
+                count = 0
+                # set actions for colloids of item in particle_types
+                for colloid in colloids:
+                    if str(colloid.type) == item:
+                        actions[colloid.id] = chosen_actions  # TODO make chosen_actions subscriptable
+                        count += 1  # Right now only works for 1 classical particle
+                continue
             chosen_actions = np.take(
                 list(self.actions[item].values()), action_indices[item], axis=-1
             )
