@@ -2,9 +2,10 @@
 Module for the expected returns value function.
 """
 import logging
+from functools import partial
 
 import jax.numpy as np
-import numpy as onp
+from jax import jit
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ class GAE:
         # Set by us to stabilize division operations.
         self.eps = np.finfo(np.float32).eps.item()
 
+    @partial(jit, static_argnums=(0,))
     def __call__(self, rewards: np.ndarray, values: np.ndarray):
         """
         Call function for the advantage.
@@ -51,7 +53,7 @@ class GAE:
                 Expected returns for the rewards.
         """
         gae = 0
-        advantages = onp.zeros_like(rewards)
+        advantages = np.zeros_like(rewards)
         for t in reversed(range(len(rewards))):
             if t != len(rewards) - 1:
                 delta = rewards[t] + self.gamma * values[t + 1] - values[t]
@@ -60,25 +62,11 @@ class GAE:
 
             gae = delta + self.gamma * self.lambda_ * gae
 
-            advantages[t] = gae
+            advantages.at[t].set(gae)
+
+        returns = advantages + values
+
         advantages = (advantages - np.mean(advantages)) / (
             np.std(advantages) + self.eps
         )
-        return advantages
-
-    def returns(self, advantages: np.ndarray, values: np.ndarray):
-        """
-        Function to compute the expected return.
-        Parameters
-        ----------
-        advantages : np.ndarray (n_time_steps, n_particles)
-                A numpy array of advantages
-        values : np.ndarray (n_time_steps, n_particles)
-                The prediction of the critic for the episode.
-        Returns
-        -------
-        expected_returns : np.ndarray (n_time_steps, n_particles)
-                Expected returns for the rewards.
-        """
-        returns = advantages + values
-        return returns
+        return advantages, returns

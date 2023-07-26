@@ -6,11 +6,13 @@ Notes
 https://spinningup.openai.com/en/latest/algorithms/ppo.html
 """
 from abc import ABC
+from functools import partial
 
 import jax
 import jax.numpy as jnp
 import optax
 from flax.core.frozen_dict import FrozenDict
+from jax import jit
 
 from swarmrl.losses.loss import Loss
 from swarmrl.networks.network import Network
@@ -56,6 +58,7 @@ class ProximalPolicyLoss(Loss, ABC):
         self.entropy_coefficient = entropy_coefficient
         self.eps = 1e-8
 
+    @partial(jit, static_argnums=(0, 2))
     def _calculate_loss(
         self,
         network_params: FrozenDict,
@@ -93,6 +96,7 @@ class ProximalPolicyLoss(Loss, ABC):
 
         # compute the probabilities of the old actions under the new policy
         new_logits, predicted_values = network(network_params, feature_data)
+        predicted_values = predicted_values.squeeze()
 
         # compute the advantages and returns
         advantages, returns = self.value_function(
@@ -126,9 +130,7 @@ class ProximalPolicyLoss(Loss, ABC):
 
         particle_critic_loss = jnp.sum(critic_loss, 1)
         total_critic_loss = jnp.sum(particle_critic_loss)
-        print(total_critic_loss)
         loss = actor_loss + self.entropy_coefficient * entropy + 0.5 * total_critic_loss
-
         return loss
 
     def compute_loss(self, network: Network, episode_data):
@@ -146,7 +148,7 @@ class ProximalPolicyLoss(Loss, ABC):
         -------
 
         """
-        old_log_probs_data = episode_data.log_probs
+        old_log_probs_data = jnp.array(episode_data.log_probs)
         feature_data = jnp.array(episode_data.features)
         action_data = jnp.array(episode_data.actions)
         reward_data = jnp.array(episode_data.rewards)
