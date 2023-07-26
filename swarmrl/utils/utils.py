@@ -358,8 +358,8 @@ def create_colloids(
 
     Returns
     -------
-    colloids : np.ndarray (n_cols, 3)
-            Array of colloids in the box.
+    colloids : list(Colloid)
+            List of colloids in the system. 
     """
     cols = []
     for i in range(n_cols):
