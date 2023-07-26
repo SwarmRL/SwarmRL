@@ -4,6 +4,7 @@ __init__ file for the swarmrl package.
 import logging
 
 from swarmrl import (
+    agents,
     exploration_policies,
     gyms,
     losses,
@@ -30,6 +31,7 @@ __all__ = [
     espresso.__name__,
     utils.__name__,
     losses.__name__,
+    agents.__name__,
     tasks.__name__,
     observables.__name__,
     networks.__name__,
