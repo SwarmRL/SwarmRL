@@ -359,7 +359,7 @@ def create_colloids(
     Returns
     -------
     colloids : list(Colloid)
-            List of colloids in the system. 
+            List of colloid.
     """
     cols = []
     for i in range(n_cols):
