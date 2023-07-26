@@ -1,6 +1,7 @@
 """
 Module to implement a simple multi-layer perceptron for the colloids.
 """
+import os
 from typing import List, Tuple
 
 import numpy as np
@@ -87,7 +88,7 @@ class Gym:
             actions=actions,
         )
 
-    def update_rl(self, trajectory_data: dict) -> Tuple[MLModel, np.ndarray]:
+    def update_rl(self) -> Tuple[MLModel, np.ndarray]:
         """
         Update the RL algorithm.
 
