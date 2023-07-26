@@ -1,7 +1,7 @@
 """
 Test the SwarmRL agents
 """
-import numpy as np
+import jax.numpy as np
 from numpy.testing import assert_array_equal
 
 from swarmrl.agents.colloid import Colloid
@@ -85,8 +85,8 @@ class TestAgents:
         assert swarm.type.shape == (3, 1)
 
         indices = swarm.type_indices
-        assert indices[0] == [0, 1]
-        assert indices[1] == [2]
+        assert_array_equal(indices[0], [0, 1])
+        assert_array_equal(indices[1], [2])
 
     def test_swarm_partition(self):
         """
