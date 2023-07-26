@@ -7,7 +7,7 @@ from typing import Dict
 
 import numpy as np
 
-from swarmrl.agents.colloid import Colloid
+from swarmrl.agents import Colloid, Swarm
 from swarmrl.models.interaction_model import Action, InteractionModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
@@ -89,13 +89,15 @@ class MLModel(InteractionModel):
         action: Action
                 Return the action the colloid should take.
         """
+        swarm = Swarm.create_swarm(colloids)
+
         actions = {int(np.copy(colloid.id)): Action() for colloid in colloids}
         action_indices = {item: [] for item in self.particle_types}
         log_probs = {item: [] for item in self.particle_types}
         rewards = {item: [] for item in self.particle_types}
         observables = {item: [] for item in self.particle_types}
         for _type in self.particle_types:
-            observables[_type] = self.observables[_type].compute_observable(colloids)
+            observables[_type] = self.observables[_type].compute_observable(swarm)
             rewards[_type] = self.tasks[_type](colloids)
             action_indices[_type], log_probs[_type] = self.models[_type].compute_action(
                 observables=observables[_type], explore_mode=explore_mode

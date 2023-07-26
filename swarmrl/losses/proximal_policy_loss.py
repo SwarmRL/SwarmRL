@@ -205,7 +205,7 @@ class ProximalPolicyLoss(Loss, ABC):
         model_tuple : tuple  FlaxModel, FlaxModel
             The updated actor and critic network.
         """
-        old_log_probs_data = episode_data.log_probs
+        old_log_probs_data = np.array(episode_data.log_probs)
         feature_data = np.array(episode_data.features)
         action_data = np.array(episode_data.actions)
         reward_data = np.array(episode_data.rewards)

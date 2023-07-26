@@ -9,10 +9,11 @@ import logging
 from abc import ABC
 from typing import List
 
+import jax
 import jax.numpy as np
 import numpy as onp
 
-from swarmrl.agents.colloid import Colloid
+from swarmrl.agents import Colloid, Swarm
 from swarmrl.observables.observable import Observable
 
 logger = logging.getLogger(__name__)
@@ -62,6 +63,18 @@ class ConcentrationField(Observable, ABC):
         self.scale_factor = scale_factor
         self._observable_shape = (3,)
 
+        self.vmapped_fn = jax.jit(
+            jax.vmap(
+                self.compute_single_observable,
+                in_axes=(
+                    Swarm(
+                        pos=0, director=0, id=0, velocity=0, type=0, type_indices=None
+                    ),
+                    0,
+                ),
+            )
+        )
+
     def initialize(self, colloids: List[Colloid]):
         """
         Initialize the observable with starting positions of the colloids.
@@ -80,7 +93,9 @@ class ConcentrationField(Observable, ABC):
             position = onp.copy(item.pos) / self.box_length
             self._historic_positions[str(index)] = position
 
-    def compute_single_observable(self, index: int, colloids: List[Colloid]) -> float:
+    def compute_single_observable(
+        self, colloid: Colloid, previous_position: dict
+    ) -> tuple:
         """
         Compute the observable for a single colloid.
 
@@ -91,22 +106,18 @@ class ConcentrationField(Observable, ABC):
         colloids : List[Colloid]
                 List of colloids in the system.
         """
-        reference_colloid = colloids[index]
-        position = onp.copy(reference_colloid.pos) / self.box_length
-        index = onp.copy(reference_colloid.id)
-        previous_position = self._historic_positions[str(index)]
-
-        # Update historic position.
-        self._historic_positions[str(index)] = position
+        position = colloid.pos / self.box_length
+        index = colloid.id
+        # previous_position = historic_positions[str(index)]
 
         current_distance = np.linalg.norm(self.source - position)
         historic_distance = np.linalg.norm(self.source - previous_position)
 
         delta = self.decay_fn(current_distance) - self.decay_fn(historic_distance)
 
-        return self.scale_factor * delta
+        return self.scale_factor * delta, index, position
 
-    def compute_observable(self, colloids: List[Colloid]):
+    def compute_observable(self, swarm: Swarm) -> np.ndarray:
         """
         Compute the position of the colloid.
 
@@ -121,7 +132,9 @@ class ConcentrationField(Observable, ABC):
                 List of observables, one for each colloid. In this case,
                 current field value minus to previous field value.
         """
-        reference_ids = self.get_colloid_indices(colloids)
+        # reference_ids = self.get_colloid_indices(colloids)
+
+        partitioned_swarm = swarm.get_species_swarm(self.particle_type)
 
         if self._historic_positions == {}:
             msg = (
@@ -130,8 +143,18 @@ class ConcentrationField(Observable, ABC):
             )
             raise ValueError(msg)
 
-        observables = [
-            self.compute_single_observable(index, colloids) for index in reference_ids
-        ]
+        historic_positions = np.array(
+            [
+                self._historic_positions[str(item)]
+                for item in swarm.type_indices[self.particle_type]
+            ]
+        )
+
+        observables, indices, positions = self.vmapped_fn(
+            partitioned_swarm, historic_positions
+        )
+
+        for index, position in zip(indices, positions):
+            self._historic_positions[str(index)] = position
 
         return np.array(observables).reshape(-1, 1)
