@@ -1,9 +1,6 @@
 """
 Test the ML based interaction model.
 """
-import os
-from pathlib import Path
-
 import flax.linen as nn
 import numpy as np
 import optax
@@ -41,8 +38,9 @@ class FlaxNet(nn.Module):
         x = nn.relu(x)
         x = nn.Dense(features=12)(x)
         x = nn.relu(x)
+        y = nn.Dense(features=1)(x)
         x = nn.Dense(features=4)(x)
-        return x
+        return x, y
 
 
 class DummyTask:
@@ -151,16 +149,13 @@ class TestMLModel:
         assert_array_equal(actions[0].torque, np.array([0.0, 0.0, 0.0]))
 
         # Check reward data
-        loaded_data_0 = np.load(".traj_data_0.npy", allow_pickle=True)
-        loaded_data_2 = np.load(".traj_data_2.npy", allow_pickle=True)
-        loaded_data_0 = loaded_data_0.item()["rewards"]
-        loaded_data_2 = loaded_data_2.item()["rewards"]
+        loaded_data_0 = self.multi_interaction.trajectory_data["0"]
+        loaded_data_2 = self.multi_interaction.trajectory_data["2"]
+
+        loaded_data_0 = loaded_data_0.rewards[0][0]
+        loaded_data_2 = loaded_data_2.rewards[0][0]
         assert loaded_data_2 == 5.0
         assert loaded_data_0 == 1.0
-
-        # Clean up files
-        os.remove(".traj_data_0.npy")
-        os.remove(".traj_data_2.npy")
 
     def test_file_saving(self):
         """
@@ -181,13 +176,9 @@ class TestMLModel:
             [colloid_1, colloid_2, colloid_3], explore_mode=False
         )
 
-        # Check if the file exists
-        data_file = Path(".traj_data_0.npy")
-        assert data_file.exists()
-
         # Check that data is stored correctly
-        data = np.load(".traj_data_0.npy", allow_pickle=True)
-        data = data.item().get("features")
+        data = self.interaction.trajectory_data["0"]
+        data = data.features
 
         # Colloid 1
         assert_array_almost_equal(data[0][0], colloid_1.pos / 1000.0)
@@ -215,17 +206,14 @@ class TestMLModel:
             np.array([0, 0, 0]),
             0,
         )
+
         self.interaction.calc_action(
             [colloid_1, colloid_2, colloid_3], explore_mode=False
         )
 
-        # Check if the file exists
-        data_file = Path(".traj_data_0.npy")
-        assert data_file.exists()
-
         # Check that data is stored correctly
-        data = np.load(".traj_data_0.npy", allow_pickle=True)
-        data = data.item().get("features")
+        data = self.interaction.trajectory_data["0"]
+        data = data.features
 
         # Colloid 1
         assert_array_almost_equal(data[1][0], colloid_1.pos / 1000.0)
@@ -238,6 +226,3 @@ class TestMLModel:
         # Colloid 3
         assert_array_almost_equal(data[1][2], colloid_3.pos / 1000.0)
         # assert_array_equal(data[1][2].director, colloid_3.director)
-
-        self.interaction.record_traj = False
-        os.remove(".traj_data_0.npy")

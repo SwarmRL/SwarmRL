@@ -49,31 +49,31 @@ class PolicyGradientLoss(Loss):
         network_params: FrozenDict,
         network: Network,
         feature_data: jnp.ndarray,
-        rewards: jnp.ndarray,
         action_indices: jnp.ndarray,
+        rewards: jnp.ndarray,
     ) -> jnp.array:
         """
         Compute the loss of the shared actor-critic network.
 
         Parameters
         ----------
+        network : FlaxModel
+            The actor-critic network that approximates the policy.
         network_params : FrozenDict
-                Parameters of the actor-critic model used.
-        network : Network
-                actor-critic model to use in the analysis.
-        feature_data : np.ndarray (n_timesteps, n_particles, feature_dimension)
-                Observable data for each time step and particle within the episode.
-        rewards : np.ndarray (n_timesteps, n_particles, reward_dimension)
-                Reward data for each time step and particle within the episode.
-        action_indices : np.ndarray (n_timesteps, n_particles)
-                Indices of the chosen actions at each time step so that exploration
-                is preserved in the model training.
+            Parameters of the actor-critic model used.
+        feature_data : np.ndarray (n_time_steps, n_particles, feature_dimension)
+            Observable data for each time step and particle within the episode.
+        action_indices : np.ndarray (n_time_steps, n_particles)
+            The actions taken by the policy for all time steps and particles during one
+            episode.
+        rewards : np.ndarray (n_time_steps, n_particles)
+            The rewards received for all time steps and particles during one episode.
 
 
         Returns
         -------
         loss : float
-                The loss for the episode.
+            The loss of the actor-critic network for the last episode.
         """
         actor_apply_fn = jax.vmap(network.apply_fn, in_axes=(None, 0))
         # (n_timesteps, n_particles, n_possibilities)
@@ -118,9 +118,9 @@ class PolicyGradientLoss(Loss):
         -------
 
         """
-        feature_data = episode_data.item().get("features")
-        action_data = episode_data.item().get("actions")
-        reward_data = episode_data.item().get("rewards")
+        feature_data = jnp.array(episode_data.features)
+        action_data = jnp.array(episode_data.actions)
+        reward_data = jnp.array(episode_data.rewards)
 
         self.n_particles = jnp.shape(feature_data)[1]
         self.n_time_steps = jnp.shape(feature_data)[0]

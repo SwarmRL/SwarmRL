@@ -64,7 +64,8 @@ class FlaxModel(Network, ABC):
             rng_key = onp.random.randint(0, 1027465782564)
         self.sampling_strategy = sampling_strategy
         self.model = flax_model
-        self.apply_fn = jax.jit(self.model.apply)
+        self.apply_fn = jax.jit(jax.vmap(self.model.apply, in_axes=(None, 0)))
+        self.batch_apply_fn = jax.vmap(self.model.apply)
         self.input_shape = input_shape
         self.model_state = None
 
@@ -96,7 +97,7 @@ class FlaxModel(Network, ABC):
         params = self.model.init(init_rng, np.ones(list(self.input_shape)))["params"]
 
         return TrainState.create(
-            apply_fn=self.apply_fn, params=params, tx=self.optimizer
+            apply_fn=self.model.apply, params=params, tx=self.optimizer
         )
 
     def reinitialize_network(self):
@@ -217,14 +218,18 @@ class FlaxModel(Network, ABC):
         )
         self.epoch_count = epoch
 
-    def __call__(self, feature_vector: np.ndarray):
+    def __call__(self, parmas: dict, episode_features):
         """
-        See parent class for full doc string.
+        vmape
 
         Parameters
         ----------
-        feature_vector : np.ndarray
-                Observable to be passed through the network on which a decision is made.
+        parmas : dict
+                Parameters of the model.
+        episode_features:
+                Features of the episode. This contains the features of all agents,
+                for all time steps in the episode.
+
 
         Returns
         -------
@@ -232,7 +237,4 @@ class FlaxModel(Network, ABC):
                 Output of the network.
         """
 
-        try:
-            return self.apply_fn({"params": self.model_state.params}, feature_vector)
-        except AttributeError:  # We need this for loaded models.
-            return self.apply_fn({"params": self.model_state["params"]}, feature_vector)
+        return self.batch_apply_fn({"params": parmas}, episode_features)
