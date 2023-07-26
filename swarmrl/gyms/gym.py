@@ -100,7 +100,7 @@ class Gym:
 
             # Compute loss for actor and critic.
             self.loss.compute_loss(
-                actor=val.network,
+                network=val.network,
                 episode_data=episode_data,
             )
 

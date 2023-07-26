@@ -13,7 +13,7 @@ import optax
 from flax.core.frozen_dict import FrozenDict
 
 from swarmrl.losses.loss import Loss
-from swarmrl.networks.flax_network import FlaxModel
+from swarmrl.networks.network import Network
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 from swarmrl.utils.utils import gather_n_dim_indices
@@ -59,7 +59,7 @@ class ProximalPolicyLoss(Loss, ABC):
     def _calculate_loss(
         self,
         network_params: FrozenDict,
-        network: FlaxModel,
+        network: Network,
         feature_data,
         action_indices,
         rewards,
@@ -92,9 +92,7 @@ class ProximalPolicyLoss(Loss, ABC):
         """
 
         # compute the probabilities of the old actions under the new policy
-        new_logits, predicted_values = network.apply_fn(
-            {"params": network_params}, feature_data
-        )
+        new_logits, predicted_values = network(network_params, feature_data)
 
         # compute the advantages and returns
         advantages, returns = self.value_function(
@@ -133,7 +131,7 @@ class ProximalPolicyLoss(Loss, ABC):
 
         return loss
 
-    def compute_loss(self, network: FlaxModel, episode_data):
+    def compute_loss(self, network: Network, episode_data):
         """
         Compute the loss and update the shared actor-critic network.
 

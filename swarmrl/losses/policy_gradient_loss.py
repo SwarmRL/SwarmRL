@@ -75,11 +75,9 @@ class PolicyGradientLoss(Loss):
         loss : float
             The loss of the actor-critic network for the last episode.
         """
-        actor_apply_fn = jax.vmap(network.apply_fn, in_axes=(None, 0))
+
         # (n_timesteps, n_particles, n_possibilities)
-        logits, predicted_values = actor_apply_fn(
-            {"params": network_params}, feature_data
-        )
+        logits, predicted_values = network(network_params, feature_data)
         probabilities = jax.nn.softmax(logits)  # get probabilities
         chosen_probabilities = gather_n_dim_indices(probabilities, action_indices)
         log_probs = jnp.log(chosen_probabilities + 1e-8)

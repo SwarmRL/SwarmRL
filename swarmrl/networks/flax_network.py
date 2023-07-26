@@ -11,6 +11,7 @@ import jax
 import jax.numpy as np
 import numpy as onp
 from flax import linen as nn
+from flax.core.frozen_dict import FrozenDict
 from flax.training.train_state import TrainState
 from optax._src.base import GradientTransformation
 
@@ -65,7 +66,7 @@ class FlaxModel(Network, ABC):
         self.sampling_strategy = sampling_strategy
         self.model = flax_model
         self.apply_fn = jax.jit(jax.vmap(self.model.apply, in_axes=(None, 0)))
-        self.batch_apply_fn = jax.vmap(self.model.apply)
+        self.batch_apply_fn = jax.vmap(self.model.apply, in_axes=(None, 0))
         self.input_shape = input_shape
         self.model_state = None
 
@@ -218,7 +219,7 @@ class FlaxModel(Network, ABC):
         )
         self.epoch_count = epoch
 
-    def __call__(self, parmas: dict, episode_features):
+    def __call__(self, parmas: FrozenDict, episode_features):
         """
         vmape
 
