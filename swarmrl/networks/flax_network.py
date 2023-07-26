@@ -147,11 +147,11 @@ class FlaxModel(Network, ABC):
         """
         # Compute state
         try:
-            logits = self.apply_fn(
+            logits, _ = self.apply_fn(
                 {"params": self.model_state.params}, np.array(observables)
             )
         except AttributeError:  # We need this for loaded models.
-            logits = self.apply_fn(
+            logits, _ = self.apply_fn(
                 {"params": self.model_state["params"]}, np.array(observables)
             )
         logger.debug(f"{logits=}")  # (n_colloids, n_actions)

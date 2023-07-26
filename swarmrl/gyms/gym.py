@@ -9,7 +9,7 @@ from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
 from swarmrl.engine.engine import Engine
 from swarmrl.losses.loss import Loss
-from swarmrl.losses.policy_gradient_loss import PolicyGradientLoss
+from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
 from swarmrl.models.ml_model import MLModel
 from swarmrl.rl_protocols.actor_critic import ActorCritic
 
@@ -20,18 +20,16 @@ class Gym:
 
     Attributes
     ----------
-    actor : Network
-                A sequential torch model to use as an actor.
-    critic : Network
-                A sequential torch model to use as a critic.
-    task : callable
-                Callable function from which a reward can be computed.
+    rl_protocols : list(protocol)
+            A list of RL protocols to use in the simulation.
+    loss : Loss
+            An optimization method to compute the loss and update the model.
     """
 
     def __init__(
         self,
         rl_protocols: List[ActorCritic],
-        loss: Loss = PolicyGradientLoss(),
+        loss: Loss = ProximalPolicyLoss(),
     ):
         """
         Constructor for the MLP RL.
@@ -48,8 +46,8 @@ class Gym:
 
         # Add the protocols to an easily accessible internal dict.
         # TODO: Maybe turn into a dataclass? Not sure if it helps yet.
-        for item in rl_protocols:
-            self.rl_protocols[str(item.particle_type)] = item
+        for protocol in rl_protocols:
+            self.rl_protocols[str(protocol.particle_type)] = protocol
 
     def initialize_training(self) -> MLModel:
         """
@@ -65,11 +63,11 @@ class Gym:
         observables = {}
         tasks = {}
         actions = {}
-        for item, value in self.rl_protocols.items():
-            force_models[item] = value.actor
-            observables[item] = value.observable
-            tasks[item] = value.task
-            actions[item] = value.actions
+        for type_, value in self.rl_protocols.items():
+            force_models[type_] = value.network
+            observables[type_] = value.observable
+            tasks[type_] = value.task
+            actions[type_] = value.actions
 
         return MLModel(
             models=force_models,
@@ -96,22 +94,21 @@ class Gym:
         observables = {}
         tasks = {}
         actions = {}
-        for item, val in self.rl_protocols.items():
-            episode_data = np.load(f".traj_data_{item}.npy", allow_pickle=True)
+        for type_, val in self.rl_protocols.items():
+            episode_data = np.load(f".traj_data_{type_}.npy", allow_pickle=True)
 
             reward += np.mean(episode_data.item().get("rewards"))
 
             # Compute loss for actor and critic.
             self.loss.compute_loss(
-                actor=val.actor,
-                critic=val.critic,
+                actor=val.network,
                 episode_data=episode_data,
             )
 
-            force_models[item] = val.actor
-            observables[item] = val.observable
-            tasks[item] = val.task
-            actions[item] = val.actions
+            force_models[type_] = val.network
+            observables[type_] = val.observable
+            tasks[type_] = val.task
+            actions[type_] = val.actions
 
         # Create a new interaction model.
         interaction_model = MLModel(
@@ -141,9 +138,10 @@ class Gym:
         This is super lazy. We should add this to the rl protocol. Same with the
         model restoration.
         """
-        for item, val in self.rl_protocols.items():
-            val.actor.export_model(filename=f"ActorModel_{item}", directory=directory)
-            val.critic.export_model(filename=f"CriticModel_{item}", directory=directory)
+        for type_, val in self.rl_protocols.items():
+            val.network.export_model(
+                filename=f"ActorModel_{type_}", directory=directory
+            )
 
     def restore_models(self, directory: str = "Models"):
         """
@@ -158,21 +156,17 @@ class Gym:
         -------
         Loads the actor and critic from the specific directory.
         """
-        for item, val in self.rl_protocols.items():
-            val.actor.restore_model_state(
-                filename=f"ActorModel_{item}", directory=directory
-            )
-            val.critic.restore_model_state(
-                filename=f"CriticModel_{item}", directory=directory
+        for type_, val in self.rl_protocols.items():
+            val.network.restore_model_state(
+                filename=f"Model_{type_}", directory=directory
             )
 
     def initialize_models(self):
         """
         Initialize all of the models in the gym.
         """
-        for item, val in self.rl_protocols.items():
-            val.actor.reinitialize_network()
-            val.critic.reinitialize_network()
+        for _, val in self.rl_protocols.items():
+            val.network.reinitialize_network()
 
     def perform_rl_training(
         self,
@@ -201,7 +195,7 @@ class Gym:
         force_fn = self.initialize_training()
 
         # Initialize the tasks and observables.
-        for item, val in self.rl_protocols.items():
+        for _, val in self.rl_protocols.items():
             val.observable.initialize(system_runner.colloids)
             val.task.initialize(system_runner.colloids)
 
@@ -238,9 +232,9 @@ class Gym:
         system_runner.finalize()
 
         # Remove the file at the end of the training.
-        for item in self.rl_protocols:
+        for type_ in self.rl_protocols:
             try:
-                os.remove(f".traj_data_{item}.npy")
+                os.remove(f".traj_data_{type_}.npy")
             except FileNotFoundError:
                 pass
 
