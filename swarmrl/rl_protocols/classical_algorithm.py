@@ -40,3 +40,22 @@ class ClassicalAlgorithm(RLProtocol):
         self.task = task
         self.observable = observable
         self.actions = actions
+
+    def compute_episode_step(self,
+                             item,
+                             colloids,
+                             actions,
+    ):
+
+        observables_computed = self.observable.compute_observable(colloids)
+        rewards = self.task(colloids)
+        chosen_actions = self.policy.compute_action(
+            observables=observables_computed, explore_mode=False)
+
+        count = 0  # Count the colloids of a specific species.
+        for colloid in colloids:
+            if str(colloid.type) == item:
+                actions[colloid.id] = chosen_actions[count]
+                count += 1
+
+        return observables_computed, rewards, actions

@@ -25,6 +25,8 @@ class TrajectoryInformation:
     log_probs: list = field(default_factory=list)
     rewards: list = field(default_factory=list)
 
+from swarmrl.rl_protocols import RLProtocol
+
 
 class MLModel(InteractionModel):
     """
@@ -32,13 +34,14 @@ class MLModel(InteractionModel):
     """
 
     def __init__(
-        self,
-        models: Dict[str, Network],
-        observables: Dict[str, Observable],
-        tasks: Dict[str, Task],
-        record_traj: bool = False,
-        actions: dict = None,
-    ):
+            self,
+            protocols: Dict[str, RLProtocol],
+            models: Dict[str, Network],
+            observables: Dict[str, Observable],
+            tasks: Dict[str, Task],
+            record_traj: bool = False,):
+            #actions: dict = None,
+    #):
         """
         Constructor for the NNModel.
 
@@ -56,12 +59,13 @@ class MLModel(InteractionModel):
                 If true, store trajectory data to disk for training.
         """
         super().__init__()
+        self.protocols = protocols
         self.models = models
         self.observables = observables
         self.tasks = tasks
         self.record_traj = record_traj
         self.eps = np.finfo(np.float32).eps.item()
-        self.actions = actions
+        #self.actions = actions
         # Used in the data saving.
         self.particle_types = [item for item in self.models]
 
@@ -72,7 +76,7 @@ class MLModel(InteractionModel):
         }
 
     def calc_action(
-        self, colloids: typing.List[Colloid], explore_mode: bool = False
+            self, colloids: typing.List[Colloid], explore_mode: bool = False
     ) -> typing.List[Action]:
         """
         Compute the state of the system based on the current colloid position.
@@ -88,33 +92,21 @@ class MLModel(InteractionModel):
         action: Action
                 Return the action the colloid should take.
         """
-        actions = {int(np.copy(colloid.id)): Action() for colloid in colloids}
-        action_indices = {item: [] for item in self.particle_types}
-        log_probs = {item: [] for item in self.particle_types}
-        rewards = {item: [] for item in self.particle_types}
-        observables = {item: [] for item in self.particle_types}
-        for _type in self.particle_types:
-            observables[_type] = self.observables[_type].compute_observable(colloids)
-            rewards[_type] = self.tasks[_type](colloids)
-            action_indices[_type], log_probs[_type] = self.models[_type].compute_action(
-                observables=observables[_type], explore_mode=explore_mode
-            )
-            chosen_actions = np.take(
-                list(self.actions[_type].values()), action_indices[_type], axis=-1
+        calc_actions = {int(np.copy(colloid.id)): Action() for colloid in colloids}
+        for item in self.particle_types:
+            observables, rewards, calc_actions = self.protocols[item].compute_episode_step(
+                item,
+                colloids,
+                calc_actions,
             )
 
-            count = 0  # Count the colloids of a specific species.
-            for colloid in colloids:
-                if str(colloid.type) == _type:
-                    actions[colloid.id] = chosen_actions[count]
-                    count += 1
-
+        actions = list(calc_actions.values())  # convert to a list.
         # Record the trajectory if required.
         # if self.record_traj:
-        for _type in self.particle_types:
-            self.trajectory_data[_type].features.append(observables[_type])
-            self.trajectory_data[_type].actions.append(action_indices[_type])
-            self.trajectory_data[_type].log_probs.append(log_probs[_type])
-            self.trajectory_data[_type].rewards.append(rewards[_type])
+        #for _type in self.particle_types:
+        #    self.trajectory_data[_type].features.append(observables[_type])
+        #    self.trajectory_data[_type].actions.append(action_indices[_type])
+        #    self.trajectory_data[_type].log_probs.append(log_probs[_type])
+        #    self.trajectory_data[_type].rewards.append(rewards[_type])
 
-        return list(actions.values())
+        return actions

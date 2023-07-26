@@ -11,7 +11,7 @@ from swarmrl.models.interaction_model import Action, Colloid
 from swarmrl.models.ml_model import MLModel
 from swarmrl.networks.flax_network import FlaxModel
 from swarmrl.sampling_strategies.categorical_distribution import CategoricalDistribution
-
+from swarmrl.rl_protocols.actor_critic import ActorCritic
 
 def _action_to_index(action):
     """
@@ -46,7 +46,6 @@ class DummyTask:
     """
     Dummy task for the test
     """
-
     def __call__(self, data):
         """
         Dummy call method.
@@ -110,20 +109,29 @@ class TestMLModel:
             "RotateCounterClockwise": rotate_counter_clockwise,
             "DoNothing": do_nothing,
         }
-
+        cls.protocol = ActorCritic(
+            particle_type=0,
+            actor = network,
+            critic = network,
+            task = DummyTask(),
+            observable = observable,
+            actions = cls.action_space,
+        )
         cls.interaction = MLModel(
+            protocols={"0": cls.protocol},
             models={"0": network},
             observables={"0": observable},
-            tasks={"0": DummyTask()},
-            actions={"0": cls.action_space},
-        )
+            tasks={"0": DummyTask()},)
+            #actions={"0": cls.action_space},
+        #)
         cls.multi_interaction = MLModel(
+            protocols={"0": cls.protocol, "2": cls.protocol},
             models={"0": network, "2": second_network},
             observables={"0": observable, "2": observable},
-            tasks={"0": DummyTask(), "2": SecondDummyTask()},
-            actions={"0": cls.action_space, "2": cls.action_space},
-            record_traj=True,
-        )
+            tasks={"0": DummyTask(), "2": SecondDummyTask()},)#
+            #actions={"0": cls.action_space, "2": cls.action_space},
+            #record_traj=True,
+        #)
 
     def test_species_and_order_handling(self):
         """
@@ -225,3 +233,16 @@ class TestMLModel:
         # Colloid 3
         assert_array_almost_equal(data[1][2], colloid_3.pos / 1000.0)
         # assert_array_equal(data[1][2].director, colloid_3.director)
+
+    def test_reconstruct(self):
+        colloid_1 = Colloid(
+            np.array([3, 7, 1]), np.array([0, 0, 1]), 0, np.array([0, 0, 0]), 0
+        )
+        colloid_2 = Colloid(
+            np.array([1, 1, 0]), np.array([0, 0, -1]), 1, np.array([0, 0, 0]), 0
+        )
+        colloid_3 = Colloid(
+            np.array([100, 27, 0.222]), np.array([0, 0, 1]), 2, np.array([0, 0, 0]), 0
+        )
+
+        self.interaction.calc_action([colloid_1, colloid_2, colloid_3])
