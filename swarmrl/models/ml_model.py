@@ -93,28 +93,28 @@ class MLModel(InteractionModel):
         log_probs = {item: [] for item in self.particle_types}
         rewards = {item: [] for item in self.particle_types}
         observables = {item: [] for item in self.particle_types}
-        for item in self.particle_types:
-            observables[item] = self.observables[item].compute_observable(colloids)
-            rewards[item] = self.tasks[item](colloids)
-            action_indices[item], log_probs[item] = self.models[item].compute_action(
-                observables=observables[item], explore_mode=explore_mode
+        for _type in self.particle_types:
+            observables[_type] = self.observables[_type].compute_observable(colloids)
+            rewards[_type] = self.tasks[_type](colloids)
+            action_indices[_type], log_probs[_type] = self.models[_type].compute_action(
+                observables=observables[_type], explore_mode=explore_mode
             )
             chosen_actions = np.take(
-                list(self.actions[item].values()), action_indices[item], axis=-1
+                list(self.actions[_type].values()), action_indices[_type], axis=-1
             )
 
             count = 0  # Count the colloids of a specific species.
             for colloid in colloids:
-                if str(colloid.type) == item:
+                if str(colloid.type) == _type:
                     actions[colloid.id] = chosen_actions[count]
                     count += 1
 
         # Record the trajectory if required.
         # if self.record_traj:
-        for item in self.particle_types:
-            self.trajectory_data[item].features.append(observables[item])
-            self.trajectory_data[item].actions.append(action_indices[item])
-            self.trajectory_data[item].log_probs.append(log_probs[item])
-            self.trajectory_data[item].rewards.append(rewards[item])
+        for _type in self.particle_types:
+            self.trajectory_data[_type].features.append(observables[_type])
+            self.trajectory_data[_type].actions.append(action_indices[_type])
+            self.trajectory_data[_type].log_probs.append(log_probs[_type])
+            self.trajectory_data[_type].rewards.append(rewards[_type])
 
         return list(actions.values())
