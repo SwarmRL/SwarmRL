@@ -584,7 +584,7 @@ class EspressoMD(Engine):
         Returns
         -------
         """
-        # self._check_already_initialised()
+        self._check_already_initialised()
         if wall_type in self.colloid_radius_register.keys():
             raise ValueError(
                 f"wall type {wall_type} is already taken "
@@ -611,6 +611,9 @@ class EspressoMD(Engine):
                 shape=wall_shape, particle_type=wall_type, penetrable=False
             )
             self.system.constraints.add(constr)
+
+        # the wall itself has no radius, only the particle radius counts
+        self.colloid_radius_register.update({wall_type: 0.0})
 
     def add_walls(
         self,
