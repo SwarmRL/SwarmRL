@@ -11,6 +11,7 @@ import jax.numpy as jnp
 import numpy as np
 
 import swarmrl
+from swarmrl.models.interaction_model import Colloid
 
 
 def get_random_angles(rng: np.random.Generator):
@@ -327,3 +328,48 @@ def calc_signed_angle_between_directors(
     angle *= jnp.where(orthogonal_dot >= 0, 1, -1)
 
     return angle
+
+
+def create_colloids(
+    n_cols: int,
+    type_: int = 0,
+    center: np.array = np.array([500, 500, 0]),
+    dist: float = 200.0,
+    face_middle: bool = False,
+):
+    """
+    Create a number of colloids in a circle around the center of the box.
+    This method is primarily used for writing tests. It is not used in the
+    actual simulation. The colloids are created in a circle around the center
+    of the box.
+
+    Parameters
+    ----------
+    n_cols : int
+            Number of colloids to create.
+    type_ : int, optional
+            Type of the colloids to create.
+    center : np.ndarray, optional
+            Center of the circle in which the colloids are created.
+    dist : float, optional
+            Distance of the colloids to the center.
+    face_middle : bool, optional
+            If True, the colloids face the center of the circle.
+
+    Returns
+    -------
+    colloids : np.ndarray (n_cols, 3)
+            Array of colloids in the box.
+    """
+    cols = []
+    for i in range(n_cols):
+        theta = np.random.random(1)[0] * 2 * np.pi
+        position = center + dist * np.array([np.cos(theta), np.sin(theta), 0])
+        if face_middle:
+            direction = np.array(center - position)
+        else:
+            direction = np.random.random(3)
+        direction[-1] = 0
+        direction = direction / np.linalg.norm(direction)
+        cols.append(Colloid(pos=position, director=direction, type=type_, id=i))
+    return cols
