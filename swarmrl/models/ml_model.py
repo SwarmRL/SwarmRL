@@ -60,12 +60,8 @@ class MLModel(InteractionModel):
         """
         super().__init__()
         self.protocols = protocols
-        self.models = models
-        self.observables = observables
-        self.tasks = tasks
         self.record_traj = record_traj
         self.eps = np.finfo(np.float32).eps.item()
-        #self.actions = actions
         # Used in the data saving.
         self.particle_types = [item for item in self.models]
 
