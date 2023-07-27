@@ -107,7 +107,13 @@ class Gym:
         for item, val in self.rl_protocols.items():
             if isinstance(val, ClassicalAlgorithm):
                 # Classical algorithms don't need to be trained.
+                force_models[item] = val.policy
+                observables[item] = val.observable
+                tasks[item] = val.task
+                actions[item] = val.actions
                 continue
+
+            episode_data = np.load(f".traj_data_{item}.npy", allow_pickle=True)
 
             episode_data = trajectory_data[item]
 
