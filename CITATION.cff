@@ -1,0 +1,42 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: SwarmRL
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Samuel
+    family-names: Tovey
+    email: stovey@icp.uni-stuttgart.de
+    affiliation: University of Stuttgart
+    orcid: 'https://orcid.org/0000-0001-9537-8361'
+  - given-names: Christoph
+    family-names: Lohrmann
+    email: clohrmann@icp.uni-stuttgart.de
+    affiliation: University of Stuttgart
+    orcid: 'https://orcid.org/0000-0002-9011-2975'
+  - given-names: David
+    family-names: Zimmer
+    affiliation: University of Stuttgart
+  - given-names: Simon
+    family-names: Koppenhoefer
+    email: skoppenhoefer@icp.uni-stuttgart.de
+    affiliation: University of Stuttgart
+  - given-names: Tobias
+    family-names: Merkt
+    affiliation: Univeristy of Stuttgart
+identifiers:
+  - type: doi
+    value: 10.48550/arXiv.2307.00994
+repository-code: 'https://github.com/SwarmRL/SwarmRL'
+abstract: >-
+  SwarmRL brings multi-agent reinforcement learning  and
+  classical control algorithms to the field of active
+  matter.
+keywords:
+  - Reinforcement Learning
+  - Molecular Dynamics
+  - Active Matter
