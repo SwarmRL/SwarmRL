@@ -160,6 +160,9 @@ class Gym:
         model restoration.
         """
         for item, val in self.rl_protocols.items():
+            if isinstance(val, ClassicalAlgorithm):
+                # No need to export Classical Models.
+                continue
             val.actor.export_model(filename=f"ActorModel_{item}", directory=directory)
             val.critic.export_model(filename=f"CriticModel_{item}", directory=directory)
 
@@ -177,6 +180,9 @@ class Gym:
         Loads the actor and critic from the specific directory.
         """
         for item, val in self.rl_protocols.items():
+            if isinstance(val, ClassicalAlgorithm):
+                # No need to restore Classical Algorithms.
+                continue
             val.actor.restore_model_state(
                 filename=f"ActorModel_{item}", directory=directory
             )
