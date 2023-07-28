@@ -78,6 +78,7 @@ class PolicyGradientLoss(Loss):
 
         # (n_timesteps, n_particles, n_possibilities)
         logits, predicted_values = network(network_params, feature_data)
+        predicted_values = predicted_values.squeeze()
         probabilities = jax.nn.softmax(logits)  # get probabilities
         chosen_probabilities = gather_n_dim_indices(probabilities, action_indices)
         log_probs = jnp.log(chosen_probabilities + 1e-8)
