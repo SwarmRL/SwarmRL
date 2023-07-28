@@ -17,3 +17,5 @@ dask
 distributed
 dask-jobqueue
 pyzmq  # requires libzmq3-dev to work
+pyyaml
+
