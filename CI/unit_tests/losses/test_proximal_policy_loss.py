@@ -15,6 +15,9 @@ class DummyNetwork:
         values = np.array([np.ones((out_shape[0], out_shape[1]))])
         return log_probs, values
 
+    def __call__(self, params, features):
+        return self.apply_fn(params, features)
+
 
 def dummy_value_function(rewards, values):
     advantages = np.ones_like(rewards)
