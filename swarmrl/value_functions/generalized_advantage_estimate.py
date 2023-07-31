@@ -61,8 +61,7 @@ class GAE:
                 delta = rewards[t] - values[t]
 
             gae = delta + self.gamma * self.lambda_ * gae
-
-            advantages.at[t].set(gae)
+            advantages = advantages.at[t].set(gae)
 
         returns = advantages + values
 

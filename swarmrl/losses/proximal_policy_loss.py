@@ -130,7 +130,7 @@ class ProximalPolicyLoss(Loss, ABC):
 
         particle_critic_loss = jnp.sum(critic_loss, 1)
         total_critic_loss = jnp.sum(particle_critic_loss)
-        loss = actor_loss + self.entropy_coefficient * entropy + 0.5 * total_critic_loss
+        loss = actor_loss - self.entropy_coefficient * entropy + 0.5 * total_critic_loss
         return loss
 
     def compute_loss(self, network: Network, episode_data):
