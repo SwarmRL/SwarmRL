@@ -79,7 +79,7 @@ class TestFlaxNetwork:
             sampling_strategy=self.sampling_strategy,
             exploration_policy=self.exploration_policy,
         )
-        input_vector = np.array([1.0, 2.0])
+        input_vector = np.array([[1.0, 2.0]])
         pre_save_logits, pre_save_value = pre_save_model(
             pre_save_model.model_state.params, input_vector
         )
