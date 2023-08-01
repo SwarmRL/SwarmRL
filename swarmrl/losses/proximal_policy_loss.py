@@ -58,7 +58,7 @@ class ProximalPolicyLoss(Loss, ABC):
         self.entropy_coefficient = entropy_coefficient
         self.eps = 1e-8
 
-    @partial(jit, static_argnums=(0, 2))
+    @partial(jit, static_argnums=(1, 2, 3, 4, 5, 6))
     def _calculate_loss(
         self,
         network_params: FrozenDict,
