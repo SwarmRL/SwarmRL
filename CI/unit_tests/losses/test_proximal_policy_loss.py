@@ -119,8 +119,7 @@ class TestProximalPolicyLoss:
 
                 critic_loss = optax.huber_loss(new_predicted_values, returns)
                 critic_loss = np.sum(critic_loss)
-                print(critic_loss)
-                loss = np.sum(loss) + entropy_coefficient * entropy + 0.5 * critic_loss
+                loss = np.sum(loss) - entropy_coefficient * entropy + 0.5 * critic_loss
                 true_results.append(loss)
 
         # compare the results of the PPO loss function with the results computed by hand
