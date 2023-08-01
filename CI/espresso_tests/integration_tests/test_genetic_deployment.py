@@ -86,15 +86,10 @@ class TestGeneticTraining(ut.TestCase):
         """
 
         # Exploration policy
-        exploration_policy = srl.exploration_policies.RandomExploration(probability=0.1)
+        exploration_policy = srl.exploration_policies.RandomExploration(probability=0.0)
 
         # Sampling strategy
         sampling_strategy = srl.sampling_strategies.GumbelDistribution()
-
-        # Value function
-        value_function = srl.value_functions.ExpectedReturns(
-            gamma=0.99, standardize=True
-        )
 
         # Set the task
         task = srl.tasks.searching.GradientSensing(
@@ -111,7 +106,7 @@ class TestGeneticTraining(ut.TestCase):
         )
 
         # Define the loss model
-        loss = srl.losses.PolicyGradientLoss(value_function=value_function)
+        loss = srl.losses.ProximalPolicyLoss(n_epochs=2)
 
         network = srl.networks.FlaxModel(
             flax_model=Network(),

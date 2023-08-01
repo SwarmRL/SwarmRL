@@ -156,7 +156,7 @@ class Gym:
         """
         for type_, val in self.rl_protocols.items():
             val.network.restore_model_state(
-                filename=f"Model_{type_}", directory=directory
+                filename=f"Model{type_}", directory=directory
             )
 
     def initialize_models(self):
