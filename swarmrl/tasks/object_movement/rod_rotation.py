@@ -1,7 +1,7 @@
 """
 Class for rod rotation task.
 """
-from typing import List
+from typing import List, Union
 
 import jax
 import jax.numpy as np
@@ -22,6 +22,7 @@ class RotateRod(Task):
         partition: bool = True,
         rod_type: int = 1,
         particle_type: int = 0,
+        direction: Union[None, str] = None,
         angular_velocity_scale: int = 1,
     ):
         """
@@ -35,12 +36,19 @@ class RotateRod(Task):
                 Type of particle making up the rod.
         scale_factor : float (default=100.0)
                 The amount the velocity is scaled by to get the reward.
+        direction : Union[None, str] (default=None)
+                Direction of the rod to rotate. If None, the rod will
+                rotate arbitrarily.
         particle_type : int (default=0)
                 Type of particle receiving the reward.
         """
         super().__init__(particle_type=particle_type)
         self.partition = partition
         self.rod_type = rod_type
+
+        if direction == "CW":
+            angular_velocity_scale *= -1  # CW is negative
+
         self.angular_velocity_scale = angular_velocity_scale
 
         # Class only attributes
@@ -84,18 +92,22 @@ class RotateRod(Task):
         angular_velocity : float
                 Angular velocity of the rod
         """
-        # Compute the angular velocity
-        angular_velocity = np.arctan2(
+        # rotation direction is now enforced.
+        angular_velocity = self.angular_velocity_scale * np.arctan2(
             np.cross(self._historic_rod_director[:2], new_director[:2]),
             np.dot(self._historic_rod_director[:2], new_director[:2]),
         )
 
         # Update the historical rod director
         self._historic_rod_director = new_director
-        velocity_change = abs(angular_velocity) - abs(self._historic_velocity)
+
+        # Compute final reward / punishment.
+        velocity_change = angular_velocity - self._historic_velocity
+        change_ratio = velocity_change / self._historic_velocity
+
         self._historic_velocity = angular_velocity
 
-        return self.angular_velocity_scale * velocity_change
+        return angular_velocity * (1 + change_ratio)
 
     def partition_reward(
         self,
