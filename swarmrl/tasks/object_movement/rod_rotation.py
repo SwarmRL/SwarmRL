@@ -53,7 +53,7 @@ class RotateRod(Task):
 
         # Class only attributes
         self._historic_rod_director = None
-        self._historic_velocity = 0.0
+        self._historic_velocity = 0.1
 
         self.decomp_fn = jax.jit(compute_torque_partition_on_rod)
 
