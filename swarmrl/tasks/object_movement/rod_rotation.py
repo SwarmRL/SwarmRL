@@ -1,7 +1,7 @@
 """
 Class for rod rotation task.
 """
-from typing import List, Union
+from typing import List
 
 import jax
 import jax.numpy as np
@@ -22,7 +22,7 @@ class RotateRod(Task):
         partition: bool = True,
         rod_type: int = 1,
         particle_type: int = 0,
-        direction: Union[None, str] = None,
+        direction: str = "CCW",
         angular_velocity_scale: int = 1,
     ):
         """
