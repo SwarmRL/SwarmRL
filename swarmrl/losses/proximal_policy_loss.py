@@ -6,20 +6,24 @@ Notes
 https://spinningup.openai.com/en/latest/algorithms/ppo.html
 """
 from abc import ABC
-from functools import partial
 
 import jax
 import jax.numpy as jnp
 import optax
 from flax.core.frozen_dict import FrozenDict
-from jax import jit
 
+import swarmrl.observables.col_graph
 from swarmrl.losses.loss import Loss
 from swarmrl.networks.network import Network
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 from swarmrl.utils.utils import gather_n_dim_indices
 from swarmrl.value_functions.generalized_advantage_estimate import GAE
+
+# from functools import partial
+
+
+# from jax import jit
 
 
 class ProximalPolicyLoss(Loss, ABC):
@@ -58,7 +62,8 @@ class ProximalPolicyLoss(Loss, ABC):
         self.entropy_coefficient = entropy_coefficient
         self.eps = 1e-8
 
-    @partial(jit, static_argnums=(1, 2, 3, 4, 5, 6))
+    # @partial(jit, static_argnums=(2, 3, 4, 5, 6))
+
     def _calculate_loss(
         self,
         network_params: FrozenDict,
@@ -148,8 +153,10 @@ class ProximalPolicyLoss(Loss, ABC):
         -------
 
         """
+        feature_data = swarmrl.observables.col_graph.create_batch_graphs(
+            features=episode_data.features
+        )
         old_log_probs_data = jnp.array(episode_data.log_probs)
-        feature_data = jnp.array(episode_data.features)
         action_data = jnp.array(episode_data.actions)
         reward_data = jnp.array(episode_data.rewards)
 

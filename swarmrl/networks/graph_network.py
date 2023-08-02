@@ -15,6 +15,7 @@ from optax import GradientTransformation
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
 from swarmrl.networks.network import Network
 from swarmrl.observables.col_graph import GraphObservable
+from swarmrl.sampling_strategies import GumbelDistribution
 
 
 class EncodeNet(nn.Module):
@@ -70,6 +71,7 @@ class GraphNet(nn.Module):
     node_embedder: EmbedNet
     node_influence: InfluenceNet
     actress: ActNet
+    temperature: float = 10.0
 
     @nn.compact
     def __call__(self, graph: GraphObservable):
@@ -84,9 +86,9 @@ class GraphNet(nn.Module):
         # stack the last entry of the node features to the vodes.
         graph_representation = np.sum(vodes * attention, axis=0)
         graph_representation = self.node_embedder(graph_representation)
-        logits, vale = self.actress(graph_representation)
+        logits, value = self.actress(graph_representation)
 
-        return logits, vale
+        return logits / self.temperature, value
 
 
 def compute_pure_message(nodes, senders, receivers, n_nodes, message_passing_steps=2):
@@ -136,6 +138,7 @@ class GraphModel(Network, ABC):
         # criticer: CritNet = CritNet(),
         optimizer: GradientTransformation = optax.adam(1e-4),
         exploration_policy: ExplorationPolicy = None,
+        sampling_strategy=GumbelDistribution(),
         rng_key: int = 42,
         deployment_mode: bool = False,
     ):
@@ -157,7 +160,7 @@ class GraphModel(Network, ABC):
         )
 
         self.model_state = None
-
+        self.sampling_strategy = sampling_strategy
         if not deployment_mode:
             self.optimizer = optimizer
             self.exploration_policy = exploration_policy
@@ -168,8 +171,6 @@ class GraphModel(Network, ABC):
             self.model_state = self._create_train_state(subkey, init_graph)
 
             self.epoch_count = 0
-
-        self.kind = "network"
 
     def _create_train_state(
         self, init_rng: int, init_graph: GraphObservable
@@ -243,9 +244,6 @@ class GraphModel(Network, ABC):
             log_probs, indices.reshape(-1, 1), axis=1
         ).reshape(-1)
 
-        if explore_mode:
-            indices = self.exploration_policy(indices, 3)
-
         return indices, taken_log_probs
 
     def export_model(self, filename: str = "model", directory: str = "Models"):
@@ -295,7 +293,7 @@ class GraphModel(Network, ABC):
         )
         self.epoch_count = epoch
 
-    def __call__(self, sequenced_graph, params):
+    def __call__(self, params, sequenced_graph):
         """
         See parent class for full doc string.
 

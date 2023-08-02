@@ -205,3 +205,39 @@ class ColGraph(Observable):
         )
 
         return graph
+
+
+@jit
+def create_batch_graphs(features) -> GraphObservable:
+    """
+    Create a batch of graphs from a list of graphs.
+
+    Parameters
+    ----------
+    features : list(GraphObservable)
+            List of graphs.
+
+    Returns
+    -------
+    new_graph : GraphObservable
+            Batch of graphs.
+    """
+    new_nodes = np.array([graph.nodes for graph in features])
+    new_edges = np.array([graph.edges for graph in features])
+    new_destinations = np.array([graph.destinations for graph in features])
+    new_receivers = np.array([graph.receivers for graph in features])
+    new_senders = np.array([graph.senders for graph in features])
+    new_globals = np.array([graph.globals_ for graph in features])
+    new_n_node = np.array([graph.n_node for graph in features])
+    new_n_edge = np.array([graph.n_edge for graph in features])
+    new_graph = GraphObservable(
+        nodes=new_nodes,
+        edges=new_edges,
+        destinations=new_destinations.astype(int),
+        receivers=new_receivers.astype(int),
+        senders=new_senders.astype(int),
+        globals_=new_globals,
+        n_node=new_n_node.astype(int)[0],
+        n_edge=new_n_edge.astype(int),
+    )
+    return new_graph

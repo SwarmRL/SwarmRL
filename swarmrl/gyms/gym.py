@@ -1,7 +1,7 @@
 """
 Module to implement a simple multi-layer perceptron for the colloids.
 """
-# import time
+import time
 from typing import List, Tuple
 
 import numpy as np
@@ -225,17 +225,17 @@ class Gym:
                 visible=load_bar,
             )
             for _ in range(n_episodes):
-                # start = time.time()
+                start = time.time()
                 system_runner.integrate(episode_length, force_fn)
-                # end = time.time()
-                # print(f"Simulation time: {end - start}")
+                end = time.time()
+                print(f"Simulation time: {end - start}")
                 trajectory_data = force_fn.trajectory_data
-                # start = time.time()
+                start = time.time()
                 force_fn, current_reward = self.update_rl(
                     trajectory_data=trajectory_data
                 )
-                # end = time.time()
-                # print(f"Training time: {end - start}")
+                end = time.time()
+                print(f"Training time: {end - start}")
                 rewards.append(current_reward)
                 episode += 1
                 progress.update(

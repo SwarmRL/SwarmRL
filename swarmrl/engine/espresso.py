@@ -558,11 +558,9 @@ class EspressoMD(Engine):
             rotation=3 * [False],
             fix=[True, True, True],
         )
-        colloid_radius = self.ureg.Quantity(0.0, "micrometer")
+        colloid_radius = self.ureg.Quantity(0.0, "micrometer").m_as("sim_length")
         self.colloids.append(source_particle)
-        self.colloid_radius_register.update(
-            {source_particle_type: {"radius": colloid_radius}}
-        )
+        self.colloid_radius_register.update({source_particle_type: colloid_radius})
 
         if not reset:
             self.colloids_added_register["add_source"]["times"] += 1
