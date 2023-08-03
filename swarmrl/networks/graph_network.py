@@ -41,7 +41,7 @@ class ActNet(nn.Module):
         x = nn.Dense(128)(x)
         x = nn.relu(x)
         y = nn.Dense(1)(x)
-        x = nn.Dense(3)(x)
+        x = nn.Dense(4)(x)
 
         return x, y
 

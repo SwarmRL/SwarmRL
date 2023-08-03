@@ -1,6 +1,7 @@
 """
 Module to implement a simple multi-layer perceptron for the colloids.
 """
+import os
 import time
 from typing import List, Tuple
 
@@ -12,6 +13,7 @@ from swarmrl.losses.loss import Loss
 from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
 from swarmrl.models.ml_model import MLModel
 from swarmrl.rl_protocols.actor_critic import ActorCritic
+from swarmrl.utils.utils import save_rewards
 
 
 class Gym:
@@ -48,6 +50,12 @@ class Gym:
         # TODO: Maybe turn into a dataclass? Not sure if it helps yet.
         for protocol in rl_protocols:
             self.rl_protocols[str(protocol.particle_type)] = protocol
+
+        # check if reward file exists and delete it if it does
+        try:
+            os.remove("reward.txt")
+        except FileNotFoundError:
+            pass
 
     def initialize_training(self) -> MLModel:
         """
@@ -224,7 +232,7 @@ class Gym:
                 running_reward=np.mean(rewards),
                 visible=load_bar,
             )
-            for _ in range(n_episodes):
+            for k in range(n_episodes):
                 start = time.time()
                 system_runner.integrate(episode_length, force_fn)
                 end = time.time()
@@ -237,6 +245,10 @@ class Gym:
                 end = time.time()
                 print(f"Training time: {end - start}")
                 rewards.append(current_reward)
+                if k % 10 == 0 and k != 0:
+                    save_rewards(np.array(rewards), "reward")
+                if k % 100 == 0 and k != 0:
+                    self.export_models(f"Models_{k}")
                 episode += 1
                 progress.update(
                     task,

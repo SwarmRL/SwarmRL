@@ -96,7 +96,6 @@ class FlaxModel(Network, ABC):
                 initial state of model to then be trained.
         """
         params = self.model.init(init_rng, np.ones(list(self.input_shape)))["params"]
-
         return TrainState.create(
             apply_fn=self.model.apply, params=params, tx=self.optimizer
         )

@@ -153,9 +153,13 @@ class ProximalPolicyLoss(Loss, ABC):
         -------
 
         """
-        feature_data = swarmrl.observables.col_graph.create_batch_graphs(
-            features=episode_data.features
-        )
+        if isinstance(episode_data.features[0], list):
+            feature_data = jnp.array(episode_data.features)
+        else:
+            feature_data = swarmrl.observables.col_graph.create_batch_graphs(
+                features=episode_data.features
+            )
+
         old_log_probs_data = jnp.array(episode_data.log_probs)
         action_data = jnp.array(episode_data.actions)
         reward_data = jnp.array(episode_data.rewards)

@@ -330,6 +330,32 @@ def calc_signed_angle_between_directors(
     return angle
 
 
+def save_rewards(
+    rewards: np.ndarray,
+    file_name: str,
+):
+    """
+    Records the rewards of the simulation.
+
+    Parameters:
+    ----------
+    rewards : np.ndarray (n_timesteps, n_particles, 1)
+            Rewards collected during the simulation to be used in training.
+    file_name : str
+            Name of the file to be saved.
+
+    Returns
+    -------
+    Dumps a  file to disc to evaluate training.
+    """
+    try:
+        reloaded_rewards = np.load(file_name, allow_pickle=True)
+        reloaded_rewards = np.append(reloaded_rewards, rewards, axis=0)
+        np.save(file_name, reloaded_rewards, allow_pickle=True)
+    except FileNotFoundError:
+        np.save(file_name, rewards, allow_pickle=True)
+
+
 def create_colloids(
     n_cols: int,
     type_: int = 0,
