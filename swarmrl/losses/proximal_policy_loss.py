@@ -154,7 +154,9 @@ class ProximalPolicyLoss(Loss, ABC):
 
         """
 
-        if isinstance(episode_data.features[0], jnp.ndarray):
+        if isinstance(episode_data.features[0], jnp.ndarray) or isinstance(
+            episode_data.features[0], list
+        ):
             feature_data = jnp.array(episode_data.features)
         else:
             feature_data = swarmrl.observables.col_graph.create_batch_graphs(
