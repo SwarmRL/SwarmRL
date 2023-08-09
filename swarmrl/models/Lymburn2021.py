@@ -79,8 +79,8 @@ class MyForceModel(srl.models.InteractionModel):
             force_f = -colloid.velocity * (np.abs(colloid.velocity) - self.agent_speed) / self.agent_speed
 
             force = self.force_params["K_a"] * force_a + self.force_params["K_r"] * force_r \
-                + self.force_params["K_h"] * force_h \
-                + self.force_params["K_p"] * force_p + self.force_params["K_f"] * force_f
+                    + self.force_params["K_h"] * force_h \
+                    + self.force_params["K_p"] * force_p + self.force_params["K_f"] * force_f
 
             force_magnitude = np.linalg.norm(force)
             force_direction = force / force_magnitude
@@ -118,16 +118,26 @@ def pred_cos_x(t, pos, director, home_pos, params):
 
 def circle(t, pos, director, home_pos, params):
     r, alpha = params[0], params[1]
-    if np.linalg.norm(pos-home_pos) < r:
-        force_x, force_y, _ = 100*(pos - home_pos)
+    if np.linalg.norm(pos - home_pos) < r:
+        force_x, force_y, _ = 100 * (pos - home_pos)
     else:
-        force_x, force_y = 500*rotate_vector_clockwise(director[:-1], alpha)
+        force_x, force_y = 500 * rotate_vector_clockwise(director[:-1], alpha)
     return force_x, force_y, 0
 
 
 def circle2(t, pos, director, home_pos, params):
-    force_x = params[0]*np.cos(params[1]*t)
-    force_y = params[0]*np.sin(params[1]*t)
+    force_x = params[0] * np.cos(params[1] * t)
+    force_y = params[0] * np.sin(params[1] * t)
     return force_x, force_y, 0
 
-def lorent
+
+def lorenz(t, pos, director, home_pos, params):
+    """
+    Lorenz attractor https://en.wikipedia.org/wiki/Lorenz_system
+    values lorenz used: a=10,b=28,c=8/3
+    """
+    a, b, c = params
+    force_x = a*(pos[0] * (params[1] - pos[2]) - pos[1] - a*(pos[1] - pos[0]))
+    force_y = a*(pos[1] - pos[0])*(params[1] - pos[2]) + pos[0]*(params[1] - pos[0]*pos[1] - params[2])
+    force_z = a*(pos[1] - pos[0])*(pos[1]) + pos[0]*(pos[0]*(b - pos[2]) - pos[1]) - c*(pos[0]*pos[1] - c*pos[2])
+    return force_x, force_y, force_z

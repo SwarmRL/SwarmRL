@@ -82,6 +82,6 @@ class MultiSensing(Observable, ABC):
         observable = [[] for _ in range(n_colloids)]
         for i, item in enumerate(unshaped_observable):
             for j, colloid in enumerate(item):
-                observable[j].append(colloid)
+                observable[j].append(colloid[0])
 
         return onp.array(observable)

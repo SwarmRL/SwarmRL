@@ -28,8 +28,11 @@ class ClassicalNetwork(Network):
         self.box_length = box_length
 
     def compute_action(self, observables: List, explore_mode: bool = False):
+        """
+        observables : List (n_colloids, 2)
+        """
         self.t += 0.2 / 5
-        pos, director = observables[0]*self.box_length, observables[1]
+        pos, director = observables[0][0]*self.box_length, observables[0][1]
         force = self.eq_of_motion(self.t, pos, director, self.home_pos, self.params)
         nd = np.array([force[0], force[1], force[2]])
         new_direction = nd / np.linalg.norm(nd)

@@ -58,4 +58,8 @@ class ClassicalAlgorithm(RLProtocol):
                 actions[colloid.id] = chosen_actions[count]
                 count += 1
 
-        return observables_computed, rewards, actions
+        trajectory_data = {"obs": observables_computed,
+                           "action_indices": None,
+                           "log_probs": None,
+                           "rewards": rewards}
+        return observables_computed, rewards, actions, trajectory_data

@@ -69,5 +69,9 @@ class ActorCritic(RLProtocol):
             if str(colloid.type) == item:
                 actions[colloid.id] = chosen_actions[count]
                 count += 1
+        trajectory_data = {"obs": observables_computed,
+                           "action_indices": action_indices,
+                           "log_probs": log_probs,
+                           "rewards": rewards}
 
-        return observables_computed, rewards, actions
+        return observables_computed, rewards, actions, trajectory_data

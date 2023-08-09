@@ -63,32 +63,21 @@ class Gym:
         """
         # Collect the force models for the simulation runs.
         force_models = {}
-        observables = {}
-        tasks = {}
-        actions = {}
         for item, value in self.rl_protocols.items():
             if isinstance(value, ClassicalAlgorithm):
                 # Classical algorithms don't need to be trained.
                 force_models[item] = value.policy
-                observables[item] = value.observable
-                tasks[item] = value.task
-                actions[item] = value.actions
                 continue
 
             force_models[item] = value.actor
-            observables[item] = value.observable
-            tasks[item] = value.task
-            actions[item] = value.actions
 
         return MLModel(
+            protocols=self.rl_protocols,
             models=force_models,
-            observables=observables,
-            record_traj=True,
-            tasks=tasks,
-            actions=actions,
+            record_traj=True
         )
 
-    def update_rl(self) -> Tuple[MLModel, np.ndarray]:
+    def update_rl(self, trajectory_data) -> Tuple[MLModel, np.ndarray]:
         """
         Update the RL algorithm.
 
@@ -102,19 +91,13 @@ class Gym:
         reward = 0.0  # TODO: Separate between species and optimize visualization.
 
         force_models = {}
-        observables = {}
-        tasks = {}
-        actions = {}
         for item, val in self.rl_protocols.items():
             if isinstance(val, ClassicalAlgorithm):
                 # Classical algorithms don't need to be trained.
                 force_models[item] = val.policy
-                observables[item] = val.observable
-                tasks[item] = val.task
-                actions[item] = val.actions
                 continue
 
-            episode_data = np.load(f".traj_data_{item}.npy", allow_pickle=True)
+            #episode_data = np.load(f".traj_data_{item}.npy", allow_pickle=True)
 
             episode_data = trajectory_data[item]
 
@@ -128,17 +111,12 @@ class Gym:
             )
 
             force_models[item] = val.actor
-            observables[item] = val.observable
-            tasks[item] = val.task
-            actions[item] = val.actions
 
         # Create a new interaction model.
         interaction_model = MLModel(
+            protocols=self.rl_protocols,
             models=force_models,
-            observables=observables,
             record_traj=True,
-            tasks=tasks,
-            actions=actions,
         )
         return interaction_model, np.array(reward) / len(self.rl_protocols)
 
@@ -196,6 +174,9 @@ class Gym:
         Initialize all of the models in the gym.
         """
         for item, val in self.rl_protocols.items():
+            if isinstance(val, ClassicalAlgorithm):
+                # No need to restore Classical Algorithms.
+                continue
             val.actor.reinitialize_network()
             val.critic.reinitialize_network()
 
