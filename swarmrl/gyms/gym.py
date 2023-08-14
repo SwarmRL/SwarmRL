@@ -246,4 +246,10 @@ class Gym:
 
         system_runner.finalize()
 
+        # Remove the file at the end of the training.
+        for item in self.rl_protocols:
+            try:
+                os.remove(f".traj_data_{item}.npy")
+            except FileNotFoundError:
+                pass
         return np.array(rewards)

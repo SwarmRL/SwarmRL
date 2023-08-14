@@ -80,6 +80,8 @@ class MyForceModel(srl.models.InteractionModel):
 
             force = self.force_params["K_a"] * force_a + self.force_params["K_r"] * force_r \
                     + self.force_params["K_h"] * force_h \
+                    + self.force_params["K_p"] * force_p + self.force_params["K_f"] * force_f \
+                    + self.force_params["K_h"] * force_h \
                     + self.force_params["K_p"] * force_p + self.force_params["K_f"] * force_f
 
             force_magnitude = np.linalg.norm(force)
@@ -122,6 +124,10 @@ def circle(t, pos, director, home_pos, params):
         force_x, force_y, _ = 100 * (pos - home_pos)
     else:
         force_x, force_y = 500 * rotate_vector_clockwise(director[:-1], alpha)
+    if np.linalg.norm(pos-home_pos) < r:
+        force_x, force_y, _ = 100*(pos - home_pos)
+    else:
+        force_x, force_y = 500*rotate_vector_clockwise(director[:-1], alpha)
     return force_x, force_y, 0
 
 
@@ -141,3 +147,6 @@ def lorenz(t, pos, director, home_pos, params):
     force_y = a*(pos[1] - pos[0])*(params[1] - pos[2]) + pos[0]*(params[1] - pos[0]*pos[1] - params[2])
     force_z = a*(pos[1] - pos[0])*(pos[1]) + pos[0]*(pos[0]*(b - pos[2]) - pos[1]) - c*(pos[0]*pos[1] - c*pos[2])
     return force_x, force_y, force_z
+
+def lorenz_attractor():
+    pass

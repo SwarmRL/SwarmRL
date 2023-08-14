@@ -84,4 +84,4 @@ class MultiSensing(Observable, ABC):
             for j, colloid in enumerate(item):
                 observable[j].append(colloid[0])
 
-        return onp.array(observable)
+        return onp.squeeze(onp.array(observable))
