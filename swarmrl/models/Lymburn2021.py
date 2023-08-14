@@ -143,10 +143,7 @@ def lorenz(t, pos, director, home_pos, params):
     values lorenz used: a=10,b=28,c=8/3
     """
     a, b, c = params
-    force_x = a*(pos[0] * (params[1] - pos[2]) - pos[1] - a*(pos[1] - pos[0]))
-    force_y = a*(pos[1] - pos[0])*(params[1] - pos[2]) + pos[0]*(params[1] - pos[0]*pos[1] - params[2])
+    force_x = a*(pos[0] * (b - pos[2]) - pos[1] - a*(pos[1] - pos[0]))
+    force_y = a*(pos[1] - pos[0])*(b - pos[2]) + pos[0]*(b - pos[0]*pos[1] - c)
     force_z = a*(pos[1] - pos[0])*(pos[1]) + pos[0]*(pos[0]*(b - pos[2]) - pos[1]) - c*(pos[0]*pos[1] - c*pos[2])
     return force_x, force_y, force_z
-
-def lorenz_attractor():
-    pass
