@@ -33,7 +33,7 @@ class TestGradientSensing:
             return 1 - x
 
         cls.task = DrugDelivery(
-            destination=np.array([500, 500, 0.0]),
+            destination=np.array([800, 800, 0.0]),
             decay_fn=decay_fn,
             box_length=np.array([1000.0, 1000.0, 1000.0]),
             drug_type=1,
@@ -105,4 +105,27 @@ class TestGradientSensing:
 
         positive_reward = self.task(self.colloids)
 
+        old_drug_pos = self.task.historical_positions["drug"]
         npt.assert_almost_equal(positive_reward, 3 * np.ones_like(positive_reward))
+
+        drug_dest_vector = self.task.destination - self.colloids[10].pos
+        drug_dest_vector /= np.linalg.norm(drug_dest_vector)
+        new_new_drug = Colloid(
+            pos=new_drug[0].pos - 3 * drug_dest_vector,
+            director=new_drug[0].director,
+            id=new_drug[0].id,
+            type=new_drug[0].type,
+        )
+
+        self.colloids = extra_new_colloids + [new_new_drug]
+        drug_delivery_reward = self.task(self.colloids)
+
+        npt.assert_almost_equal(
+            drug_delivery_reward, 30 * np.ones_like(drug_delivery_reward), decimal=-1
+        )
+
+        new_drug_pos = self.task.historical_positions["drug"]
+
+        npt.assert_raises(
+            AssertionError, assert_array_equal, old_drug_pos, new_drug_pos
+        )

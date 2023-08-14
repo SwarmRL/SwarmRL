@@ -235,7 +235,9 @@ class Gym:
             )
             for k in range(n_episodes):
                 # start = time.time()
+
                 system_runner.integrate(episode_length, force_fn)
+
                 # end = time.time()
                 # print(f"Simulation time: {end - start}")
                 trajectory_data = force_fn.trajectory_data
@@ -259,7 +261,8 @@ class Gym:
                     running_reward=np.round(np.mean(rewards[-10:]), 2),
                 )
                 if episodic_training:
-                    self.reset(system_runner)
+                    if k % 60 == 0:
+                        self.reset(system_runner)
 
         system_runner.finalize()
 

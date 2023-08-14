@@ -568,7 +568,7 @@ class EspressoMD(Engine):
             args = [pos, source_particle_type]
             self.colloids_added_register["add_source"]["args"].append(args)
 
-    def add_confining_walls(self, wall_type: int, reset=False):
+    def add_confining_walls(self, wall_type: int):
         """
         Walls on the edges of the box, will interact with particles through WCA.
         Is NOT communicated to the interaction models, though.
