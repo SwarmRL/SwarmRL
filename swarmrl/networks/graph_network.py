@@ -29,7 +29,7 @@ class EncodeNet(nn.Module):
 class EmbedNet(nn.Module):
     @nn.compact
     def __call__(self, x):
-        x = nn.Dense(3)(x)
+        x = nn.Dense(12)(x)
         return x
 
 
@@ -53,6 +53,41 @@ class InfluenceNet(nn.Module):
     def __call__(self, x):
         x = nn.Dense(1)(x)
         return x
+
+
+class GraphNet2(nn.Module):
+    """
+    Graph network class.
+    Node features are encoded.
+    Weighted messages are computed between nodes and aggregated.
+    The network can learn to ignore messages from certain nodes.
+    The aggregated messages are added to the node features and then aggregated using
+    a softmax over the influence of each node.
+    The influence of each node is computed using a simple dense network and is
+    a measure of the importance of each node in the graph.
+    """
+
+    node_encoder: EncodeNet
+    node_embedder: EmbedNet
+    node_influence: InfluenceNet
+    actress: ActNet
+    temperature: float = 10.0
+
+    @nn.compact
+    def __call__(self, graph: GraphObservable):
+        nodes, _, destinations, receivers, senders, _, n_node, n_edge = graph
+
+        n_nodes = n_node[0]
+        vodes = self.node_encoder(nodes)
+        vodes = compute_pure_message(vodes, senders, receivers, n_nodes)
+        vodes = np.concatenate([vodes, nodes[:, -1:]], axis=1)
+        influence = self.node_influence(vodes)
+        attention = nn.softmax(influence, axis=0)
+        # stack the last entry of the node features to the vodes.
+        graph_representation = np.sum(self.node_embedder(nodes) * attention, axis=0)
+        logits, value = self.actress(graph_representation)
+
+        return logits / self.temperature, value
 
 
 class GraphNet(nn.Module):
@@ -142,7 +177,7 @@ class GraphModel(Network, ABC):
         rng_key: int = 42,
         deployment_mode: bool = False,
     ):
-        self.model = GraphNet(
+        self.model = GraphNet2(
             node_encoder=node_encoder,
             node_embedder=node_embedding,
             node_influence=node_influence,

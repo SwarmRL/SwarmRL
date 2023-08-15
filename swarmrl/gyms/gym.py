@@ -262,6 +262,7 @@ class Gym:
                 )
                 if episodic_training:
                     if k % 60 == 0:
+                        print(f"Resetting system at episode {k}")
                         self.reset(system_runner)
 
         system_runner.finalize()

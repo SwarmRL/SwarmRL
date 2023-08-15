@@ -6,11 +6,31 @@ import numpy.testing as npt
 from numpy.testing import assert_array_equal
 
 from swarmrl.models.interaction_model import Colloid
-from swarmrl.tasks.object_movement.drug_delivery import DrugDelivery
+from swarmrl.tasks.object_movement.drug_delivery import DrugDelivery, DrugTransport
 from swarmrl.utils.utils import create_colloids
 
 
-class TestGradientSensing:
+def move_col_to_drug(colloid: Colloid, drug: Colloid, delta=3, noise=True):
+    direction = drug.pos - colloid.pos
+    direction /= np.linalg.norm(direction)
+    if noise:
+        noise = np.random.normal(0, 3, 3)
+    else:
+        noise = np.zeros(3)
+    new_pos = colloid.pos + direction * delta + noise
+    return Colloid(
+        pos=new_pos, director=colloid.director, type=colloid.type, id=colloid.id
+    )
+
+
+def move_drug_to_dest(drug: Colloid, destination: np.ndarray, delta=3):
+    direction = destination - drug.pos
+    direction /= np.linalg.norm(direction)
+    new_pos = drug.pos + direction * delta
+    return Colloid(pos=new_pos, director=drug.director, type=drug.type, id=drug.id)
+
+
+class TestDrugDelivery:
     """
     Test suite for the run and tumble task.
     """
@@ -129,3 +149,84 @@ class TestGradientSensing:
         npt.assert_raises(
             AssertionError, assert_array_equal, old_drug_pos, new_drug_pos
         )
+
+
+class TestDrugTransport:
+    """
+    Test suite for the run and tumble task.
+    """
+
+    @classmethod
+    def setup_class(cls):
+        """
+        Prepare the test suite.
+        """
+
+        def decay_fn(x: float):
+            """
+            Scaling function for the test
+
+            Parameters
+            ----------
+            x : float
+                    Input value.
+            """
+            return 1 - x
+
+        cls.task = DrugTransport(
+            destination=np.array([800, 800, 0.0]),
+            decay_fn=decay_fn,
+            box_length=np.array([1000.0, 1000.0, 1000.0]),
+            drug_type=1,
+            particle_type=0,
+            scale_factor=1000,
+        )
+
+        cls.colloid = Colloid(
+            pos=np.array([0, 0, 0.0]),
+            director=np.array([1.0, 1.0, 0.0]) / np.sqrt(2),
+            id=0,
+            type=0,
+        )
+
+        cls.drug = Colloid(
+            pos=np.array([500, 500, 0.0]),
+            director=np.array([1.0, 1.0, 0.0]) / np.sqrt(2),
+            id=1,
+            type=1,
+        )
+
+    def test_init(self):
+        self.task.initialize(colloids=[self.colloid, self.drug])
+        assert_array_equal(self.task.destination, np.array([0.8, 0.8, 0.0]))
+        assert_array_equal(self.task.box_length, np.array([1000.0, 1000.0, 1000.0]))
+        npt.assert_array_equal(
+            self.task.historical_positions["transporter"][0], np.array([0.0, 0.0, 0.0])
+        )
+        npt.assert_array_equal(
+            self.task.historical_positions["drug"][0], np.array([0.5, 0.5, 0.0])
+        )
+
+    def test_call(self):
+        rewards = []
+        positions = []
+        self.task.initialize(colloids=[self.colloid, self.drug])
+        delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
+        drug_dest_dist = np.linalg.norm(self.drug.pos - self.task.destination)
+        while delta_dist > 8:
+            self.colloid = move_col_to_drug(self.colloid, self.drug)
+            delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
+            reward = self.task([self.colloid, self.drug])
+            rewards.append(reward)
+            positions.append([self.colloid.pos, self.drug.pos])
+
+        drug_dest_dist = np.linalg.norm(self.drug.pos - self.task.destination)
+        while drug_dest_dist > 8:
+            self.drug = move_drug_to_dest(self.drug, self.task.destination)
+            drug_dest_dist = np.linalg.norm(self.drug.pos - self.task.destination)
+            reward = self.task([self.colloid, self.drug])
+            rewards.append(reward)
+            positions.append(self.colloid.pos)
+        positions = np.array(positions)
+        np.save("positions.npy", positions, allow_pickle=True)
+        np.save("rewards.npy", rewards, allow_pickle=True)

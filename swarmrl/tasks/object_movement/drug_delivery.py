@@ -267,8 +267,10 @@ class DrugTransport(Task):
         reward1 = np.where(delta_dist > 0, delta_dist, 0)
         return r1_factor * reward1
 
-    def _compute_r2(self, new_part_drug_distance, r2_factor=1):
-        return r2_factor * (np.sqrt(2) - new_part_drug_distance)
+    def _compute_r2(self, new_part_drug_dist, a=20, b=1, c=0.15):
+        print("dist: :", new_part_drug_dist)
+        reward = b / (1 + np.exp(a * (new_part_drug_dist - c)))
+        return reward
 
     def _compute_r3(self, old_drug_dest_dist, new_drug_dest_dist, r3_factor=10):
         delta_delivery_dist = old_drug_dest_dist - new_drug_dest_dist
@@ -328,16 +330,28 @@ class DrugTransport(Task):
             old_drug_positions - old_transporter_positions, axis=1
         )
 
-        old_drug_dest_dist = np.linalg.norm(old_drug_positions - self.destination)
-        new_drug_dest_dist = np.linalg.norm(new_drug_position - self.destination)
+        # old_drug_dest_dist = np.linalg.norm(old_drug_positions - self.destination)
+        # new_drug_dest_dist = np.linalg.norm(new_drug_position - self.destination)
 
         reward1 = self._compute_r1(old_part_drug_dist, new_part_drug_dist)
         reward2 = self._compute_r2(new_part_drug_dist)
         # compute the distance between the drug and the destination
-        reward3 = self._compute_r3(old_drug_dest_dist, new_drug_dest_dist)
-        reward4 = self._compute_r4(new_drug_dest_dist)
+        # reward3 = self._compute_r3(old_drug_dest_dist, new_drug_dest_dist)
+        # reward4 = self._compute_r4(new_drug_dest_dist)
+        #
+        # ultimate_reward = np.where(new_drug_dest_dist < 0.04, 200, 0)
 
         self.historical_positions["drug"] = new_drug_position
         self.historical_positions["transporter"] = new_transporter_position
 
-        return self.scale_factor * (reward1 + reward2 + reward3 + reward4)
+        r1 = (1 - reward2) * self.scale_factor * reward1
+        r2 = 20 * reward2
+        r3 = 0
+        r4 = 0
+        # print(f"r1: {r1}")
+        # print(f"r2: {r2}")
+        # print(f"r3: {r3}")
+        # print(f"r4: {r4}")
+        # print(f"total reward: {r1 + r2 + r3 + r4}")
+
+        return r1 + r2 + r3 + r4
