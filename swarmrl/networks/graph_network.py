@@ -177,7 +177,7 @@ class GraphModel(Network, ABC):
         rng_key: int = 42,
         deployment_mode: bool = False,
     ):
-        self.model = GraphNet2(
+        self.model = GraphNet(
             node_encoder=node_encoder,
             node_embedder=node_embedding,
             node_influence=node_influence,

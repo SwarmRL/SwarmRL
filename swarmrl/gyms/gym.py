@@ -187,7 +187,7 @@ class Gym:
         n_episodes: int,
         episode_length: int,
         load_bar: bool = True,
-        episodic_training: bool = False,
+        episodic_training: str = None,
     ):
         """
         Perform the RL training.
@@ -260,10 +260,20 @@ class Gym:
                     current_reward=np.round(current_reward, 2),
                     running_reward=np.round(np.mean(rewards[-10:]), 2),
                 )
-                if episodic_training:
+                if episodic_training is None:
+                    pass
+
+                elif episodic_training == "episodic":
+                    self.reset(system_runner)
+
+                elif episodic_training == "semi_episodic":
                     if k % 60 == 0:
                         print(f"Resetting system at episode {k}")
                         self.reset(system_runner)
+                else:
+                    raise ValueError(
+                        "Episodic training must be 'episodic' or 'semi_episodic'"
+                    )
 
         system_runner.finalize()
 

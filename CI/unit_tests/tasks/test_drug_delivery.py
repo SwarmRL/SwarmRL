@@ -10,7 +10,7 @@ from swarmrl.tasks.object_movement.drug_delivery import DrugDelivery, DrugTransp
 from swarmrl.utils.utils import create_colloids
 
 
-def move_col_to_drug(colloid: Colloid, drug: Colloid, delta=3, noise=True):
+def move_col_to_drug(colloid: Colloid, drug: Colloid, delta=3, noise=False):
     direction = drug.pos - colloid.pos
     direction /= np.linalg.norm(direction)
     if noise:
@@ -23,10 +23,14 @@ def move_col_to_drug(colloid: Colloid, drug: Colloid, delta=3, noise=True):
     )
 
 
-def move_drug_to_dest(drug: Colloid, destination: np.ndarray, delta=3):
+def move_drug_to_dest(drug: Colloid, destination: np.ndarray, delta=3, noise=False):
     direction = destination - drug.pos
     direction /= np.linalg.norm(direction)
-    new_pos = drug.pos + direction * delta
+    if noise:
+        noise = np.random.normal(0, 3, 3)
+    else:
+        noise = np.zeros(3)
+    new_pos = drug.pos + direction * delta + noise
     return Colloid(pos=new_pos, director=drug.director, type=drug.type, id=drug.id)
 
 
@@ -212,7 +216,7 @@ class TestDrugTransport:
         positions = []
         self.task.initialize(colloids=[self.colloid, self.drug])
         delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
-        drug_dest_dist = np.linalg.norm(self.drug.pos - self.task.destination)
+
         while delta_dist > 8:
             self.colloid = move_col_to_drug(self.colloid, self.drug)
             delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
@@ -222,11 +226,19 @@ class TestDrugTransport:
 
         drug_dest_dist = np.linalg.norm(self.drug.pos - self.task.destination)
         while drug_dest_dist > 8:
-            self.drug = move_drug_to_dest(self.drug, self.task.destination)
-            drug_dest_dist = np.linalg.norm(self.drug.pos - self.task.destination)
+            self.drug = move_drug_to_dest(self.drug, self.task.destination * 1000)
+            self.colloid = move_col_to_drug(self.colloid, self.drug)
+            drug_dest_dist = np.linalg.norm(
+                self.drug.pos - self.task.destination * 1000
+            )
             reward = self.task([self.colloid, self.drug])
             rewards.append(reward)
-            positions.append(self.colloid.pos)
-        positions = np.array(positions)
+            positions.append([self.colloid.pos, self.drug.pos])
+
+        for i in range(20):
+            reward = self.task([self.colloid, self.drug])
+            rewards.append(reward)
+            positions.append([self.colloid.pos, self.drug.pos])
+
         np.save("positions.npy", positions, allow_pickle=True)
         np.save("rewards.npy", rewards, allow_pickle=True)

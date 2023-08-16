@@ -257,28 +257,21 @@ class DrugTransport(Task):
             ]
         )
 
-    # r1 is the reward for getting closer to the drug
-    # r2 is the reward for being at the drug
-    # r3 is the reward for getting the drug closer to the destination
-    # r4 is the reward for the drug being at the destination
-
     def _compute_r1(self, old_part_drug_distance, new_part_drug_distance, r1_factor=1):
         delta_dist = old_part_drug_distance - new_part_drug_distance
         reward1 = np.where(delta_dist > 0, delta_dist, 0)
         return r1_factor * reward1
 
-    def _compute_r2(self, new_part_drug_dist, a=20, b=1, c=0.15):
-        print("dist: :", new_part_drug_dist)
+    def _compute_r2_factor(self, new_part_drug_dist, a=200, b=1.35, c=0.04):
         reward = b / (1 + np.exp(a * (new_part_drug_dist - c)))
         return reward
 
-    def _compute_r3(self, old_drug_dest_dist, new_drug_dest_dist, r3_factor=10):
+    def _compute_r2(self, old_drug_dest_dist, new_drug_dest_dist, r3_factor=10):
         delta_delivery_dist = old_drug_dest_dist - new_drug_dest_dist
         reward3 = np.where(delta_delivery_dist > 0, delta_delivery_dist, 0)
-        return r3_factor * reward3
-
-    def _compute_r4(self, new_drug_dest_dist, r4_factor=1):
-        return r4_factor * (np.sqrt(2) - new_drug_dest_dist)
+        delivered = np.where(new_drug_dest_dist < 0.01, 0.2, 0)
+        print(delivered)
+        return r3_factor * reward3 + delivered
 
     def __call__(self, colloids: List[Colloid]):
         """
@@ -330,28 +323,19 @@ class DrugTransport(Task):
             old_drug_positions - old_transporter_positions, axis=1
         )
 
-        # old_drug_dest_dist = np.linalg.norm(old_drug_positions - self.destination)
-        # new_drug_dest_dist = np.linalg.norm(new_drug_position - self.destination)
+        old_drug_dest_dist = np.linalg.norm(
+            old_drug_positions - self.destination, axis=1
+        )
+
+        new_drug_dest_dist = np.linalg.norm(
+            new_drug_position - self.destination, axis=1
+        )
 
         reward1 = self._compute_r1(old_part_drug_dist, new_part_drug_dist)
-        reward2 = self._compute_r2(new_part_drug_dist)
-        # compute the distance between the drug and the destination
-        # reward3 = self._compute_r3(old_drug_dest_dist, new_drug_dest_dist)
-        # reward4 = self._compute_r4(new_drug_dest_dist)
-        #
-        # ultimate_reward = np.where(new_drug_dest_dist < 0.04, 200, 0)
+        reward2 = self._compute_r2(old_drug_dest_dist, new_drug_dest_dist)
+        r2_factor = self._compute_r2_factor(new_part_drug_dist)
 
         self.historical_positions["drug"] = new_drug_position
         self.historical_positions["transporter"] = new_transporter_position
 
-        r1 = (1 - reward2) * self.scale_factor * reward1
-        r2 = 20 * reward2
-        r3 = 0
-        r4 = 0
-        # print(f"r1: {r1}")
-        # print(f"r2: {r2}")
-        # print(f"r3: {r3}")
-        # print(f"r4: {r4}")
-        # print(f"total reward: {r1 + r2 + r3 + r4}")
-
-        return r1 + r2 + r3 + r4
+        return self.scale_factor * (reward1 + r2_factor * reward2)
