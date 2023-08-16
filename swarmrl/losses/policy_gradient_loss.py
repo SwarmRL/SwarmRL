@@ -75,9 +75,9 @@ class PolicyGradientLoss(Loss):
         loss : float
             The loss of the actor-critic network for the last episode.
         """
-
         # (n_timesteps, n_particles, n_possibilities)
         logits, predicted_values = network(network_params, feature_data)
+
         predicted_values = predicted_values.squeeze()
         probabilities = jax.nn.softmax(logits)  # get probabilities
         chosen_probabilities = gather_n_dim_indices(probabilities, action_indices)
@@ -90,7 +90,7 @@ class PolicyGradientLoss(Loss):
         logger.debug(f"{predicted_values.shape=}")
 
         # (n_timesteps, n_particles)
-        advantage = returns - predicted_values
+        advantage = returns - predicted_values.primal
         logger.debug(f"{advantage=}")
 
         actor_loss = -1 * ((log_probs * advantage).sum(axis=0)).mean()

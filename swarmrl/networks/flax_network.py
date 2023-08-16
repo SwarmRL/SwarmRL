@@ -66,7 +66,7 @@ class FlaxModel(Network, ABC):
         self.sampling_strategy = sampling_strategy
         self.model = flax_model
         self.apply_fn = jax.jit(jax.vmap(self.model.apply, in_axes=(None, 0)))
-        self.batch_apply_fn = jax.vmap(self.model.apply, in_axes=(None, 0))
+        self.batch_apply_fn = jax.jit(jax.vmap(self.model.apply, in_axes=(None, 0)))
         self.input_shape = input_shape
         self.model_state = None
 
@@ -163,9 +163,6 @@ class FlaxModel(Network, ABC):
         eps = 1e-8
         log_probs = np.log(jax.nn.softmax(logits) + eps)
 
-        indices = self.exploration_policy(
-            indices, logits.shape[-1], onp.random.randint(8759865)
-        )
         return (
             indices,
             np.take_along_axis(log_probs, indices.reshape(-1, 1), axis=1).reshape(-1),
