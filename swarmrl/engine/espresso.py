@@ -612,6 +612,27 @@ class EspressoMD(Engine):
         # the wall itself has no radius, only the particle radius counts
         self.colloid_radius_register.update({wall_type: 0.0})
 
+    def add_sphere(
+        self,
+        sphere_center: pint.Quantity,
+        radius: pint.Quantity,
+        sphere_type: int,
+    ):
+        sphere_center = sphere_center.m_as("sim_length")
+        radius = radius.m_as("sim_length")
+
+        sphere = espressomd.shapes.Sphere(
+            center=sphere_center,
+            radius=radius,
+            direction=-1,
+        )
+        constr = espressomd.constraints.ShapeBasedConstraint(
+            shape=sphere, particle_type=sphere_type, penetrable=False
+        )
+        self.system.constraints.add(constr)
+
+        self.colloid_radius_register.update({sphere_type: 0.0})
+
     def add_walls(
         self,
         wall_start_point: pint.Quantity,
