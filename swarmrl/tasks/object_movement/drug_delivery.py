@@ -338,4 +338,8 @@ class DrugTransport(Task):
         self.historical_positions["drug"] = new_drug_position
         self.historical_positions["transporter"] = new_transporter_position
 
-        return self.scale_factor * (reward1 + r2_factor * reward2)
+        reward = self._compute_reward(reward1, reward2, r2_factor)
+
+        reward = np.where(new_drug_dest_dist < 0.01, 1, reward)
+
+        return reward
