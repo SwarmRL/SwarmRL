@@ -101,13 +101,7 @@ class RotateRod(Task):
         # Update the historical rod director
         self._historic_rod_director = new_director
 
-        # Compute final reward / punishment.
-        velocity_change = angular_velocity - self._historic_velocity
-        change_ratio = velocity_change / self._historic_velocity
-
-        self._historic_velocity = angular_velocity
-
-        return angular_velocity * (1 + change_ratio)
+        return angular_velocity
 
     def partition_reward(
         self,
