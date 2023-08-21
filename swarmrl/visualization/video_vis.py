@@ -1,3 +1,4 @@
+import copy
 import inspect
 import os
 import pickle
@@ -123,6 +124,7 @@ class Animations:
         background_sites,
         background_colors,
         background_data_generator,
+        background_pixel_number,
         rod_rotation_chess_board_boolean,
         rod_length,
         rod_center_points,
@@ -167,7 +169,7 @@ class Animations:
         self.background_sites = background_sites
         self.background_colors = background_colors
         self.background_data_generator = background_data_generator
-        self.background_N = 200
+        self.background_N = background_pixel_number
 
         """
                 for i in range(len(self.ids)):
@@ -672,7 +674,7 @@ class Animations:
         )
 
         # copy the dictionary
-        self.background_color_map = self.background_colors
+        self.background_color_map = copy.deepcopy(self.background_colors)
         self.max_val_pcolormesh = {}
 
         # this holds a ditionary with the functions in the class
@@ -683,11 +685,12 @@ class Animations:
         )
 
         for key_idx, key in enumerate(self.background_sites):
+            # print(self.background_colors[key])
             cfade = colors.to_rgb(self.background_colors[key]) + (0.0,)
             self.background_color_map[key] = colors.LinearSegmentedColormap.from_list(
                 "my", [cfade, self.background_colors[key]]
             )
-            if "fixed_pos" in key:
+            if "fixed_pos" in key or "mazes_destination" in key:
                 source_pos = self.background_sites[key]
                 self.background_data_magnitude, self.max_val_pcolormesh[key] = (
                     self.background_data_sources["get_" + key + "_data"](
