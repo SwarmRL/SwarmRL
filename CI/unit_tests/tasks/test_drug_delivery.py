@@ -10,27 +10,21 @@ from swarmrl.tasks.object_movement.drug_delivery import DrugDelivery, DrugTransp
 from swarmrl.utils.utils import create_colloids
 
 
-def move_col_to_drug(colloid: Colloid, drug: Colloid, delta=3, noise=False):
+def move_col_to_drug(colloid: Colloid, drug: Colloid, delta=1, noise=0.1):
     direction = drug.pos - colloid.pos
     direction /= np.linalg.norm(direction)
-    if noise:
-        noise = np.random.normal(0, 3, 3)
-    else:
-        noise = np.zeros(3)
-    new_pos = colloid.pos + direction * delta + noise
+    noise_vec = noise * np.random.normal(0, 3, 3)
+    new_pos = colloid.pos + direction * delta + noise_vec
     return Colloid(
         pos=new_pos, director=colloid.director, type=colloid.type, id=colloid.id
     )
 
 
-def move_drug_to_dest(drug: Colloid, destination: np.ndarray, delta=3, noise=False):
+def move_drug_to_dest(drug: Colloid, destination: np.ndarray, delta=1, noise=0.1):
     direction = destination - drug.pos
     direction /= np.linalg.norm(direction)
-    if noise:
-        noise = np.random.normal(0, 3, 3)
-    else:
-        noise = np.zeros(3)
-    new_pos = drug.pos + direction * delta + noise
+    noise_vec = noise * np.random.normal(0, 3, 3)
+    new_pos = drug.pos + direction * delta + noise_vec
     return Colloid(pos=new_pos, director=drug.director, type=drug.type, id=drug.id)
 
 
@@ -187,7 +181,7 @@ class TestDrugTransport:
         )
 
         cls.colloid = Colloid(
-            pos=np.array([0, 0, 0.0]),
+            pos=np.array([350, 350, 0.0]),
             director=np.array([1.0, 1.0, 0.0]) / np.sqrt(2),
             id=0,
             type=0,
@@ -202,43 +196,81 @@ class TestDrugTransport:
 
     def test_init(self):
         self.task.initialize(colloids=[self.colloid, self.drug])
-        assert_array_equal(self.task.destination, np.array([0.8, 0.8, 0.0]))
+        assert_array_equal(self.task.destination, np.array([0.5, 0.5, 0.0]))
         assert_array_equal(self.task.box_length, np.array([1000.0, 1000.0, 1000.0]))
         npt.assert_array_equal(
-            self.task.historical_positions["transporter"][0], np.array([0.0, 0.0, 0.0])
+            self.task.historical_positions["transporter"][0],
+            np.array([0.35, 0.35, 0.0]),
         )
         npt.assert_array_equal(
-            self.task.historical_positions["drug"][0], np.array([0.5, 0.5, 0.0])
+            self.task.historical_positions["drug"][0], np.array([0.4, 0.4, 0.0])
         )
 
     def test_call(self):
         rewards = []
+        factors = []
         positions = []
         self.task.initialize(colloids=[self.colloid, self.drug])
         delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
+        drug_dist = np.linalg.norm(self.drug.pos - self.task.destination * 1000)
 
-        while delta_dist > 8:
-            self.colloid = move_col_to_drug(self.colloid, self.drug)
-            delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
-            reward = self.task([self.colloid, self.drug])
-            rewards.append(reward)
-            positions.append([self.colloid.pos, self.drug.pos])
-
-        drug_dest_dist = np.linalg.norm(self.drug.pos - self.task.destination)
-        while drug_dest_dist > 8:
-            self.drug = move_drug_to_dest(self.drug, self.task.destination * 1000)
-            self.colloid = move_col_to_drug(self.colloid, self.drug)
-            drug_dest_dist = np.linalg.norm(
-                self.drug.pos - self.task.destination * 1000
+        while delta_dist > 5:
+            self.colloid = move_col_to_drug(self.colloid, self.drug, delta=1)
+            self.drug = move_drug_to_dest(
+                self.drug, self.task.destination * 1000, delta=0
             )
-            reward = self.task([self.colloid, self.drug])
+            delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
+            reward, factor = self.task([self.colloid, self.drug])
             rewards.append(reward)
+            factors.append(factor)
             positions.append([self.colloid.pos, self.drug.pos])
 
-        for i in range(20):
-            reward = self.task([self.colloid, self.drug])
+        for k in range(20):
+            self.colloid = move_col_to_drug(self.colloid, self.drug, delta=1)
+            self.drug = move_drug_to_dest(
+                self.drug, self.task.destination * 1000, delta=0
+            )
+            reward, factor = self.task([self.colloid, self.drug])
             rewards.append(reward)
+            factors.append(factor)
             positions.append([self.colloid.pos, self.drug.pos])
 
+        while drug_dist > 5:
+            if delta_dist > 4:
+                self.colloid = move_col_to_drug(self.colloid, self.drug, delta=1)
+                self.drug = move_drug_to_dest(
+                    self.drug, self.task.destination * 1000, delta=0
+                )
+            else:
+                self.drug = move_drug_to_dest(
+                    self.drug, self.task.destination * 1000, delta=1
+                )
+                self.colloid = move_col_to_drug(self.colloid, self.drug, delta=1)
+
+            drug_dist = np.linalg.norm(self.drug.pos - self.task.destination * 1000)
+            reward, factor = self.task([self.colloid, self.drug])
+            rewards.append(reward)
+            factors.append(factor)
+            positions.append([self.colloid.pos, self.drug.pos])
+
+        # drug_dest_dist = np.linalg.norm(self.drug.pos - self.task.destination)
+        # while drug_dest_dist > 4:
+        #     if delta_dist > 4:
+        #         self.colloid = move_col_to_drug(self.colloid, self.drug)
+        #
+        #     else:
+        #         self.drug = move_drug_to_dest(self.drug, self.task.destination * 1000)
+        #         self.colloid = move_col_to_drug(self.colloid, self.drug)
+        #
+        #     delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
+        #     drug_dest_dist = np.linalg.norm(
+        #         self.drug.pos - self.task.destination * 1000
+        #     )
+        #     reward = self.task([self.colloid, self.drug])
+        #     rewards.append(reward)
+        #     positions.append([self.colloid.pos, self.drug.pos])
+        #
+
+        np.save("factors.npy", factors, allow_pickle=True)
         np.save("positions.npy", positions, allow_pickle=True)
         np.save("rewards.npy", rewards, allow_pickle=True)

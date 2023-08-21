@@ -257,21 +257,36 @@ class DrugTransport(Task):
             ]
         )
 
-    def _compute_r1(self, old_part_drug_distance, new_part_drug_distance, r1_factor=1):
-        delta_dist = old_part_drug_distance - new_part_drug_distance
-        reward1 = np.where(delta_dist > 0, delta_dist, 0)
-        return r1_factor * reward1
-
-    def _compute_r2_factor(self, new_part_drug_dist, a=200, b=1.35, c=0.04):
-        reward = b / (1 + np.exp(a * (new_part_drug_dist - c)))
+    def _compute_reward1(
+        self, old_part_drug_distance, new_part_drug_dist, a=200, b=1.35, c=0.04
+    ):
+        delta_dist = old_part_drug_distance - new_part_drug_dist
+        reward_gettin_there = np.where(delta_dist > 0, delta_dist, 0)
+        reward_being_there = b / (1 + np.exp(a * (new_part_drug_dist - c)))
+        reward = (
+            2 * reward_being_there
+            + (1.3 - reward_being_there) * 0.5 * self.scale_factor * reward_gettin_there
+        )
         return reward
 
-    def _compute_r2(self, old_drug_dest_dist, new_drug_dest_dist, r3_factor=10):
+    def _compute_part_drug_dist_factor(self, new_part_drug_dist, a=200, b=1.35, c=0.04):
+        factor = b / (1 + np.exp(a * (new_part_drug_dist - c)))
+        return factor
+
+    def _compute_r2(
+        self, old_drug_dest_dist, new_drug_dest_dist, a=200, b=1.35, c=0.04
+    ):
         delta_delivery_dist = old_drug_dest_dist - new_drug_dest_dist
-        reward3 = np.where(delta_delivery_dist > 0, delta_delivery_dist, 0)
-        delivered = np.where(new_drug_dest_dist < 0.01, 0.2, 0)
-        print(delivered)
-        return r3_factor * reward3 + delivered
+
+        reward_bringing_there = np.where(
+            delta_delivery_dist > 0, delta_delivery_dist, 0
+        )
+        reward_delivery = b / (1 + np.exp(a * (new_drug_dest_dist - c)))
+        reward = (
+            2 * reward_delivery
+            + (1.3 - reward_delivery) * 0.5 * self.scale_factor * reward_bringing_there
+        )
+        return reward
 
     def __call__(self, colloids: List[Colloid]):
         """
@@ -331,15 +346,15 @@ class DrugTransport(Task):
             new_drug_position - self.destination, axis=1
         )
 
-        reward1 = self._compute_r1(old_part_drug_dist, new_part_drug_dist)
-        reward2 = self._compute_r2(old_drug_dest_dist, new_drug_dest_dist)
-        r2_factor = self._compute_r2_factor(new_part_drug_dist)
+        reward1 = self._compute_reward1(old_part_drug_dist, new_part_drug_dist)
 
+        reward2 = self._compute_r2(old_drug_dest_dist, new_drug_dest_dist)
+
+        factor = self._compute_part_drug_dist_factor(new_part_drug_dist)
+
+        # update the historical positions
         self.historical_positions["drug"] = new_drug_position
         self.historical_positions["transporter"] = new_transporter_position
 
-        reward = self._compute_reward(reward1, reward2, r2_factor)
-
-        reward = np.where(new_drug_dest_dist < 0.01, 1, reward)
-
-        return reward
+        # self.scale_factor * reward1 +
+        return reward1 + factor * reward2
