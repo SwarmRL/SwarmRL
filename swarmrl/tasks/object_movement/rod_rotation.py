@@ -53,7 +53,7 @@ class RotateRod(Task):
 
         # Class only attributes
         self._historic_rod_director = None
-        self._historic_velocity = 0.1
+        self._historic_velocity = 1.0
 
         self.decomp_fn = jax.jit(compute_torque_partition_on_rod)
 
@@ -101,7 +101,10 @@ class RotateRod(Task):
         # Update the historical rod director
         self._historic_rod_director = new_director
 
-        return angular_velocity
+        scaled_velocity = angular_velocity / self._historic_velocity
+        self._historic_velocity = angular_velocity
+
+        return scaled_velocity
 
     def partition_reward(
         self,
