@@ -267,7 +267,7 @@ class Gym:
                     self.reset(system_runner)
 
                 elif episodic_training == "semi_episodic":
-                    if k % 60 == 0:
+                    if k % 100 == 0:
                         print(f"Resetting system at episode {k}")
                         self.reset(system_runner)
                 else:

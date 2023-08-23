@@ -208,7 +208,7 @@ class TestDrugTransport:
 
     def test_call(self):
         rewards = []
-        factors = []
+
         positions = []
         self.task.initialize(colloids=[self.colloid, self.drug])
         delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
@@ -220,9 +220,8 @@ class TestDrugTransport:
                 self.drug, self.task.destination * 1000, delta=0
             )
             delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
-            reward, factor = self.task([self.colloid, self.drug])
+            reward = self.task([self.colloid, self.drug])
             rewards.append(reward)
-            factors.append(factor)
             positions.append([self.colloid.pos, self.drug.pos])
 
         for k in range(20):
@@ -230,47 +229,27 @@ class TestDrugTransport:
             self.drug = move_drug_to_dest(
                 self.drug, self.task.destination * 1000, delta=0
             )
-            reward, factor = self.task([self.colloid, self.drug])
+            reward = self.task([self.colloid, self.drug])
             rewards.append(reward)
-            factors.append(factor)
             positions.append([self.colloid.pos, self.drug.pos])
 
         while drug_dist > 5:
-            if delta_dist > 4:
-                self.colloid = move_col_to_drug(self.colloid, self.drug, delta=1)
-                self.drug = move_drug_to_dest(
-                    self.drug, self.task.destination * 1000, delta=0
-                )
-            else:
-                self.drug = move_drug_to_dest(
-                    self.drug, self.task.destination * 1000, delta=1
-                )
-                self.colloid = move_col_to_drug(self.colloid, self.drug, delta=1)
+            # if delta_dist > 5:
+            #     self.colloid = move_col_to_drug(self.colloid, self.drug, delta=1)
+            #     self.drug = move_drug_to_dest(
+            #         self.drug, self.task.destination * 1000, delta=0
+            #     )
+            # else:
+            self.drug = move_drug_to_dest(
+                self.drug, self.task.destination * 1000, delta=1
+            )
+            self.colloid = move_col_to_drug(self.colloid, self.drug, delta=2)
 
             drug_dist = np.linalg.norm(self.drug.pos - self.task.destination * 1000)
-            reward, factor = self.task([self.colloid, self.drug])
+            reward = self.task([self.colloid, self.drug])
             rewards.append(reward)
-            factors.append(factor)
+
             positions.append([self.colloid.pos, self.drug.pos])
 
-        # drug_dest_dist = np.linalg.norm(self.drug.pos - self.task.destination)
-        # while drug_dest_dist > 4:
-        #     if delta_dist > 4:
-        #         self.colloid = move_col_to_drug(self.colloid, self.drug)
-        #
-        #     else:
-        #         self.drug = move_drug_to_dest(self.drug, self.task.destination * 1000)
-        #         self.colloid = move_col_to_drug(self.colloid, self.drug)
-        #
-        #     delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
-        #     drug_dest_dist = np.linalg.norm(
-        #         self.drug.pos - self.task.destination * 1000
-        #     )
-        #     reward = self.task([self.colloid, self.drug])
-        #     rewards.append(reward)
-        #     positions.append([self.colloid.pos, self.drug.pos])
-        #
-
-        np.save("factors.npy", factors, allow_pickle=True)
         np.save("positions.npy", positions, allow_pickle=True)
         np.save("rewards.npy", rewards, allow_pickle=True)

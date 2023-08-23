@@ -357,4 +357,4 @@ class DrugTransport(Task):
         self.historical_positions["transporter"] = new_transporter_position
 
         # self.scale_factor * reward1 +
-        return reward1 + factor * reward2
+        return reward1 + 5 * factor * reward2
