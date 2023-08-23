@@ -102,7 +102,7 @@ class RotateRod(Task):
         self._historic_rod_director = new_director
 
         scaled_velocity = angular_velocity / self._historic_velocity
-        self._historic_velocity = angular_velocity
+        self._historic_velocity = abs(angular_velocity)
 
         return scaled_velocity
 
