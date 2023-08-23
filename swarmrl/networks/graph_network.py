@@ -126,14 +126,14 @@ class GraphNet(nn.Module):
         return logits / self.temperature, value
 
 
-def compute_pure_message(nodes, senders, receivers, n_nodes, message_passing_steps=2):
+def compute_pure_message(nodes, senders, receivers, n_nodes, message_passing_steps=1):
     """Compute the message for each node based on the influence between
     sender and receiver.
     """
-    for _ in range(message_passing_steps):
-        send_messages = tree.tree_map(lambda n: n[senders], nodes)
-        message = utils.segment_sum(send_messages, receivers, n_nodes)
-        nodes = tree.tree_map(lambda n: n + message, nodes)
+    # for _ in range(message_passing_steps):
+    send_messages = tree.tree_map(lambda n: n[senders], nodes)
+    message = utils.segment_sum(send_messages, receivers, n_nodes)
+    nodes = tree.tree_map(lambda n: n + message, nodes)
 
     return nodes
 
