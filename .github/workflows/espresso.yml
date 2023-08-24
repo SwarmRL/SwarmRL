@@ -38,6 +38,7 @@ jobs:
           git clone https://github.com/espressomd/espresso.git
           cd espresso
           mkdir build && cd build
+          cp ../../myconfig.hpp .
           cmake ../ -D ESPRESSO_BUILD_WITH_FFTW=OFF
           cmake --build .
       - name: Run test suite
