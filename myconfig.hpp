@@ -5,3 +5,4 @@
 #define WCA
 #define VIRTUAL_SITES_RELATIVE
 #define GAY_BERNE
+#define PARTICLE_ANISOTROPY
