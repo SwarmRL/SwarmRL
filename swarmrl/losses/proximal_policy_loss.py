@@ -205,11 +205,10 @@ class ProximalPolicyLoss(Loss, ABC):
         model_tuple : tuple  FlaxModel, FlaxModel
             The updated actor and critic network.
         """
-        feature_data = episode_data.item().get("features")
-        old_log_probs_data = episode_data.item().get("log_probs")
-        action_data = episode_data.item().get("actions")
-        # will return the reward per particle.
-        reward_data = episode_data.item().get("rewards")
+        old_log_probs_data = episode_data.log_probs
+        feature_data = np.array(episode_data.features)
+        action_data = np.array(episode_data.actions)
+        reward_data = np.array(episode_data.rewards)
 
         for _ in range(self.n_epochs):
             # compute the advantages and returns (true_values) for that epoch
@@ -221,8 +220,8 @@ class ProximalPolicyLoss(Loss, ABC):
                 advantages=advantages, values=predicted_values
             )
 
-            actor_grad_fn = jax.value_and_grad(self.compute_actor_loss)
-            actor_loss, actor_grad = actor_grad_fn(
+            actor_grad_fn = jax.grad(self.compute_actor_loss)
+            actor_grad = actor_grad_fn(
                 actor.model_state.params,
                 actor=actor,
                 features=feature_data,

@@ -1,8 +1,8 @@
 """
 Espresso interaction model capable of handling a neural network as a function.
 """
-import os
 import typing
+from dataclasses import dataclass, field
 from typing import Dict
 
 import numpy as np
@@ -11,7 +11,19 @@ from swarmrl.models.interaction_model import Action, Colloid, InteractionModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-from swarmrl.utils.utils import record_trajectory
+
+
+@dataclass
+class TrajectoryInformation:
+    """
+    Helper dataclass for training RL models.
+    """
+
+    particle_type: int
+    features: list = field(default_factory=list)
+    actions: list = field(default_factory=list)
+    log_probs: list = field(default_factory=list)
+    rewards: list = field(default_factory=list)
 
 
 class MLModel(InteractionModel):
@@ -49,15 +61,15 @@ class MLModel(InteractionModel):
         self.tasks = tasks
         self.record_traj = record_traj
         self.eps = np.finfo(np.float32).eps.item()
-
         self.actions = actions
         # Used in the data saving.
         self.particle_types = [item for item in self.models]
-        for item in self.particle_types:
-            try:
-                os.remove(f".traj_data_{item}.npy")
-            except FileNotFoundError:
-                pass
+
+        # Trajectory data to be filled in after each action.
+        self.trajectory_data = {
+            item: TrajectoryInformation(particle_type=item)
+            for item in self.particle_types
+        }
 
     def calc_action(
         self, colloids: typing.List[Colloid], explore_mode: bool = False
@@ -81,30 +93,28 @@ class MLModel(InteractionModel):
         log_probs = {item: [] for item in self.particle_types}
         rewards = {item: [] for item in self.particle_types}
         observables = {item: [] for item in self.particle_types}
-        for item in self.particle_types:
-            observables[item] = self.observables[item].compute_observable(colloids)
-            rewards[item] = self.tasks[item](colloids)
-            action_indices[item], log_probs[item] = self.models[item].compute_action(
-                observables=observables[item], explore_mode=explore_mode
+        for _type in self.particle_types:
+            observables[_type] = self.observables[_type].compute_observable(colloids)
+            rewards[_type] = self.tasks[_type](colloids)
+            action_indices[_type], log_probs[_type] = self.models[_type].compute_action(
+                observables=observables[_type], explore_mode=explore_mode
             )
             chosen_actions = np.take(
-                list(self.actions[item].values()), action_indices[item], axis=-1
+                list(self.actions[_type].values()), action_indices[_type], axis=-1
             )
 
             count = 0  # Count the colloids of a specific species.
             for colloid in colloids:
-                if str(colloid.type) == item:
+                if str(colloid.type) == _type:
                     actions[colloid.id] = chosen_actions[count]
                     count += 1
-        actions = list(actions.values())  # convert to a list.
+
         # Record the trajectory if required.
-        if self.record_traj:
-            for item in self.particle_types:
-                record_trajectory(
-                    particle_type=item,
-                    features=np.array(observables[item]),
-                    actions=np.array(action_indices[item]),
-                    log_probs=np.array(log_probs[item]),
-                    rewards=np.array(rewards[item]),
-                )
-        return actions
+        # if self.record_traj:
+        for _type in self.particle_types:
+            self.trajectory_data[_type].features.append(observables[_type])
+            self.trajectory_data[_type].actions.append(action_indices[_type])
+            self.trajectory_data[_type].log_probs.append(log_probs[_type])
+            self.trajectory_data[_type].rewards.append(rewards[_type])
+
+        return list(actions.values())
