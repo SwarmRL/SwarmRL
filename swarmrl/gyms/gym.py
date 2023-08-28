@@ -1,7 +1,6 @@
 """
 Module to implement a simple multi-layer perceptron for the colloids.
 """
-import os
 from typing import List, Tuple
 
 import numpy as np
@@ -79,7 +78,7 @@ class Gym:
             actions=actions,
         )
 
-    def update_rl(self) -> Tuple[MLModel, np.ndarray]:
+    def update_rl(self, trajectory_data: dict) -> Tuple[MLModel, np.ndarray]:
         """
         Update the RL algorithm.
 
@@ -97,9 +96,9 @@ class Gym:
         tasks = {}
         actions = {}
         for item, val in self.rl_protocols.items():
-            episode_data = np.load(f".traj_data_{item}.npy", allow_pickle=True)
+            episode_data = trajectory_data[item]
 
-            reward += np.mean(episode_data.item().get("rewards"))
+            reward += np.mean(episode_data.rewards)
 
             # Compute loss for actor and critic.
             self.loss.compute_loss(
@@ -224,7 +223,10 @@ class Gym:
             )
             for _ in range(n_episodes):
                 system_runner.integrate(episode_length, force_fn)
-                force_fn, current_reward = self.update_rl()
+                trajectory_data = force_fn.trajectory_data
+                force_fn, current_reward = self.update_rl(
+                    trajectory_data=trajectory_data
+                )
                 rewards.append(current_reward)
                 episode += 1
                 progress.update(
@@ -236,12 +238,5 @@ class Gym:
                 )
 
         system_runner.finalize()
-
-        # Remove the file at the end of the training.
-        for item in self.rl_protocols:
-            try:
-                os.remove(f".traj_data_{item}.npy")
-            except FileNotFoundError:
-                pass
 
         return np.array(rewards)
