@@ -619,11 +619,11 @@ class EspressoMD(Engine):
         sphere_type: int,
     ):
         sphere_center = sphere_center.m_as("sim_length")
-        radius = radius.m_as("sim_length")
+        # radius = radius.m_as("sim_length")
 
         sphere = espressomd.shapes.Sphere(
             center=sphere_center,
-            radius=radius,
+            radius=self.system.box_l[0] / 2,
             direction=-1,
         )
         constr = espressomd.constraints.ShapeBasedConstraint(

@@ -36,7 +36,7 @@ class MLModel(InteractionModel):
         models: Dict[str, Network],
         observables: Dict[str, Observable],
         tasks: Dict[str, Task],
-        record_traj: bool = False,
+        record_traj: bool = True,
         actions: dict = None,
     ):
         """
@@ -110,11 +110,11 @@ class MLModel(InteractionModel):
                     count += 1
 
         # Record the trajectory if required.
-        # if self.record_traj:
-        for type_ in self.particle_types:
-            self.trajectory_data[type_].features.append(observables[type_])
-            self.trajectory_data[type_].actions.append(action_indices[type_])
-            self.trajectory_data[type_].log_probs.append(log_probs[type_])
-            self.trajectory_data[type_].rewards.append(rewards[type_])
+        if self.record_traj:
+            for type_ in self.particle_types:
+                self.trajectory_data[type_].features.append(observables[type_])
+                self.trajectory_data[type_].actions.append(action_indices[type_])
+                self.trajectory_data[type_].log_probs.append(log_probs[type_])
+                self.trajectory_data[type_].rewards.append(rewards[type_])
 
         return list(actions.values())

@@ -14,6 +14,7 @@ def move_col_to_drug(colloid: Colloid, drug: Colloid, delta=1, noise=0.1):
     direction = drug.pos - colloid.pos
     direction /= np.linalg.norm(direction)
     noise_vec = noise * np.random.normal(0, 3, 3)
+    noise_vec[2] = 0
     new_pos = colloid.pos + direction * delta + noise_vec
     return Colloid(
         pos=new_pos, director=colloid.director, type=colloid.type, id=colloid.id
@@ -24,6 +25,7 @@ def move_drug_to_dest(drug: Colloid, destination: np.ndarray, delta=1, noise=0.1
     direction = destination - drug.pos
     direction /= np.linalg.norm(direction)
     noise_vec = noise * np.random.normal(0, 3, 3)
+    noise_vec[2] = 0
     new_pos = drug.pos + direction * delta + noise_vec
     return Colloid(pos=new_pos, director=drug.director, type=drug.type, id=drug.id)
 
@@ -208,7 +210,6 @@ class TestDrugTransport:
 
     def test_call(self):
         rewards = []
-
         positions = []
         self.task.initialize(colloids=[self.colloid, self.drug])
         delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
@@ -234,16 +235,16 @@ class TestDrugTransport:
             positions.append([self.colloid.pos, self.drug.pos])
 
         while drug_dist > 5:
-            # if delta_dist > 5:
-            #     self.colloid = move_col_to_drug(self.colloid, self.drug, delta=1)
-            #     self.drug = move_drug_to_dest(
-            #         self.drug, self.task.destination * 1000, delta=0
-            #     )
-            # else:
-            self.drug = move_drug_to_dest(
-                self.drug, self.task.destination * 1000, delta=1
-            )
-            self.colloid = move_col_to_drug(self.colloid, self.drug, delta=2)
+            if delta_dist > 5:
+                self.colloid = move_col_to_drug(self.colloid, self.drug, delta=1)
+                self.drug = move_drug_to_dest(
+                    self.drug, self.task.destination * 1000, delta=0
+                )
+            else:
+                self.drug = move_drug_to_dest(
+                    self.drug, self.task.destination * 1000, delta=1
+                )
+                self.colloid = move_col_to_drug(self.colloid, self.drug, delta=2)
 
             drug_dist = np.linalg.norm(self.drug.pos - self.task.destination * 1000)
             reward = self.task([self.colloid, self.drug])
