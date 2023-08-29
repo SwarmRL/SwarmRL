@@ -53,7 +53,7 @@ class RotateRod(Task):
             angular_velocity_scale *= -1  # CW is negative
 
         self.angular_velocity_scale = angular_velocity_scale
-        self._velocity_history = 1 / np.zeros(velocity_history)
+        self._velocity_history = np.nan * np.ones(velocity_history)
         self._append_index = int(velocity_history - 1)
 
         # Class only attributes
