@@ -4,6 +4,7 @@ Test the utils module.
 import jax.numpy as np
 import numpy.testing as npt
 
+import swarmrl.utils as utils
 from swarmrl.utils.utils import (
     calc_signed_angle_between_directors,
     create_colloids,
@@ -149,3 +150,36 @@ class TestUtils:
             facing_dir = center - col.pos
             facing_dir /= np.linalg.norm(facing_dir)
             npt.assert_almost_equal(facing_dir, col.director, decimal=3)
+
+    def test_ellipsoid_friction_factors(self):
+        """
+        Warning: can only test qualitative behaviour, not the full formulae
+        """
+
+        # prolate ellipsoid
+        axial_semiaxis = 1.6
+        equatorial_semiaxis = 0.5
+        gamma_rot_ax, gamma_rot_eq = utils.calc_ellipsoid_friction_factors_rotation(
+            axial_semiaxis, equatorial_semiaxis, 5
+        )
+        assert gamma_rot_eq > gamma_rot_ax
+        gamma_trans_ax, gamma_trans_eq = (
+            utils.calc_ellipsoid_friction_factors_translation(
+                axial_semiaxis, equatorial_semiaxis, 5
+            )
+        )
+        assert gamma_trans_eq > gamma_trans_ax
+
+        # oblate ellipsoid
+        axial_semiaxis = 0.5
+        equatorial_semiaxis = 1.6
+        gamma_rot_ax, gamma_rot_eq = utils.calc_ellipsoid_friction_factors_rotation(
+            axial_semiaxis, equatorial_semiaxis, 5
+        )
+        assert gamma_rot_ax > gamma_rot_eq
+        gamma_trans_ax, gamma_trans_eq = (
+            utils.calc_ellipsoid_friction_factors_translation(
+                axial_semiaxis, equatorial_semiaxis, 5
+            )
+        )
+        assert gamma_trans_ax > gamma_trans_eq
