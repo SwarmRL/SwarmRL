@@ -113,9 +113,7 @@ class RotateRod(Task):
         )
 
         # Return the scaled average velocity.
-        return self.angular_velocity_scale * np.mean(
-            self._velocity_history[~np.isinf(self._velocity_history)]
-        )
+        return self.angular_velocity_scale * np.nanmean(self._velocity_history)
 
     def partition_reward(
         self,
