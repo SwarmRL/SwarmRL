@@ -24,6 +24,7 @@ class RotateRod(Task):
         particle_type: int = 0,
         direction: str = "CCW",
         angular_velocity_scale: int = 1,
+        velocity_history: int = 100,
     ):
         """
         Constructor for the find origin task.
@@ -41,6 +42,8 @@ class RotateRod(Task):
                 rotate arbitrarily.
         particle_type : int (default=0)
                 Type of particle receiving the reward.
+        velocity_history : int (default=100)
+                Number of steps to average the velocity over.
         """
         super().__init__(particle_type=particle_type)
         self.partition = partition
@@ -50,6 +53,8 @@ class RotateRod(Task):
             angular_velocity_scale *= -1  # CW is negative
 
         self.angular_velocity_scale = angular_velocity_scale
+        self._velocity_history = 1 / np.zeros(velocity_history)
+        self._append_index = int(velocity_history - 1)
 
         # Class only attributes
         self._historic_rod_director = None
@@ -92,19 +97,25 @@ class RotateRod(Task):
         angular_velocity : float
                 Angular velocity of the rod
         """
-        # rotation direction is now enforced.
-        angular_velocity = self.angular_velocity_scale * np.arctan2(
+        angular_velocity = np.arctan2(
             np.cross(self._historic_rod_director[:2], new_director[:2]),
             np.dot(self._historic_rod_director[:2], new_director[:2]),
         )
 
-        # Update the historical rod director
+        # Convert to degrees for better scaling.
+        angular_velocity = np.rad2deg(angular_velocity)
+
+        # Update the historical rod director and velocity.
         self._historic_rod_director = new_director
+        self._velocity_history = np.roll(self._velocity_history, -1)
+        self._velocity_history = self._velocity_history.at[self._append_index].set(
+            angular_velocity
+        )
 
-        scaled_velocity = angular_velocity / self._historic_velocity
-        self._historic_velocity = abs(angular_velocity)
-
-        return scaled_velocity
+        # Return the scaled average velocity.
+        return self.angular_velocity_scale * np.mean(
+            self._velocity_history[~np.isinf(self._velocity_history)]
+        )
 
     def partition_reward(
         self,

@@ -8,6 +8,24 @@ from swarmrl.models.interaction_model import Colloid
 from swarmrl.tasks.object_movement.rod_rotation import RotateRod
 
 
+def create_trajectory(direction_scale: int = 1):
+    """
+    Create a trajectory for the tests.
+    """
+    colloids = []
+    angle = 0.0
+
+    starting_director = np.array([1, 0, 0])
+    for _ in range(100):
+        angle += np.deg2rad(direction_scale * 45)
+        director = np.array([np.cos(angle), np.sin(angle), 0])
+        colloids.append(
+            Colloid(pos=np.array([0, 0, 0]), id=0, director=director, type=1)
+        )
+
+    return starting_director, colloids
+
+
 class TestRodRotation:
     """
     Test suite for the rod rotations.
@@ -18,65 +36,58 @@ class TestRodRotation:
         """
         Setup the test class.
         """
-        cls.task = RotateRod()
+        cls.reference_velocty = 45.0
 
-        # Colloid through time
-        a = 1 / np.sqrt(2)
-
-        cls.task._historic_rod_director = np.array([a, -a, 0])
-        colloid_1 = Colloid(
-            pos=np.array([0, 0, 0]), id=0, director=np.array([1, 0, 0]), type=1
-        )
-        colloid_2 = Colloid(
-            pos=np.array([0, 0, 0]), id=0, director=np.array([a, a, 0]), type=1
-        )
-        colloid_3 = Colloid(
-            pos=np.array([0, 0, 0]), id=0, director=np.array([0, 1, 0]), type=1
-        )
-        colloid_4 = Colloid(
-            pos=np.array([0, 0, 0]), id=0, director=np.array([-a, a, 0]), type=1
-        )
-        colloid_5 = Colloid(
-            pos=np.array([0, 0, 0]), id=0, director=np.array([-1, 0, 0]), type=1
-        )
-        colloid_6 = Colloid(
-            pos=np.array([0, 0, 0]), id=0, director=np.array([-a, -a, 0]), type=1
-        )
-        colloid_7 = Colloid(
-            pos=np.array([0, 0, 0]), id=0, director=np.array([0, -1, 0]), type=1
-        )
-        colloid_8 = Colloid(
-            pos=np.array([0, 0, 0]), id=0, director=np.array([a, -a, 0]), type=1
-        )
-        colloid_9 = Colloid(
-            pos=np.array([0, 0, 0]), id=0, director=np.array([1, 0, 0]), type=1
-        )
-        cls.colloids = [
-            colloid_1,
-            colloid_2,
-            colloid_3,
-            colloid_4,
-            colloid_5,
-            colloid_6,
-            colloid_7,
-            colloid_8,
-            colloid_9,
-        ]
-
-    def test_rotation_velocity(self):
+    def test_ccw_rotation(self):
         """
-        Test that the rod rotation velocity is correct.
+        Setup the test class.
         """
-        reference_velocity = np.deg2rad(45)
+        task = RotateRod(direction="CCW", angular_velocity_scale=1.0)
+
+        # Test positive rewards.
+        starting_director, colloids = create_trajectory(direction_scale=1)
+        task._historic_rod_director = starting_director
 
         # Test that the velocity is correct
-        for i, colloid in enumerate(self.colloids):
-            colloid_list = [colloid]
-            velocity = self.task._compute_angular_velocity(colloid_list[0].director)
+        for colloid in colloids:
+            velocity = task._compute_angular_velocity(colloid.director)
 
-            # Rod starts to move
-            if i == 0:
-                assert velocity == pytest.approx(reference_velocity)
-            # Now stays at the same velocity
-            else:
-                assert velocity == pytest.approx(0.0)
+            assert velocity == pytest.approx(self.reference_velocty)
+
+        # Test negative rewards.
+        task = RotateRod(direction="CCW", angular_velocity_scale=1.0)
+        starting_director, colloids = create_trajectory(direction_scale=-1)
+
+        task._historic_rod_director = starting_director
+
+        # Test that the velocity is correct
+        for colloid in colloids:
+            velocity = task._compute_angular_velocity(colloid.director)
+
+            assert velocity == pytest.approx(-1 * self.reference_velocty)
+
+    def test_cw_rotation(self):
+        """
+        Setup the test class.
+        """
+        task = RotateRod(direction="CW", angular_velocity_scale=1.0)
+
+        # Test positive rewards.
+        starting_director, colloids = create_trajectory(direction_scale=-1)
+        task._historic_rod_director = starting_director
+
+        # Test that the velocity is correct
+        for colloid in colloids:
+            velocity = task._compute_angular_velocity(colloid.director)
+
+            assert velocity == pytest.approx(self.reference_velocty)
+
+        # Test negative rewards.
+        task = RotateRod(direction="CW", angular_velocity_scale=1.0)
+        starting_director, colloids = create_trajectory(direction_scale=1)
+        task._historic_rod_director = starting_director
+
+        # Test that the velocity is correct
+        for colloid in colloids:
+            velocity = task._compute_angular_velocity(colloid.director)
+            assert velocity == pytest.approx(-1 * self.reference_velocty)
