@@ -157,15 +157,15 @@ class PolicyGradientLoss(Loss):
         loss_tuple : tuple
                 (actor_loss, critic_loss)
         """
-        feature_data = episode_data.item().get("features")
-        action_data = episode_data.item().get("actions")
-        reward_data = episode_data.item().get("rewards")
+        feature_data = np.array(episode_data.features)
+        action_data = np.array(episode_data.actions)
+        reward_data = np.array(episode_data.rewards)
 
         self.n_particles = np.shape(feature_data)[1]
         self.n_time_steps = np.shape(feature_data)[0]
 
-        actor_grad_fn = jax.value_and_grad(self._compute_actor_loss)
-        actor_loss, actor_grads = actor_grad_fn(
+        actor_grad_fn = jax.grad(self._compute_actor_loss)
+        actor_grads = actor_grad_fn(
             actor.model_state.params,
             feature_data,
             reward_data,
@@ -174,8 +174,8 @@ class PolicyGradientLoss(Loss):
             critic,
         )
 
-        critic_grad_fn = jax.value_and_grad(self._compute_critic_loss)
-        critic_loss, critic_grads = critic_grad_fn(
+        critic_grad_fn = jax.grad(self._compute_critic_loss)
+        critic_grads = critic_grad_fn(
             critic.model_state.params, feature_data, reward_data, critic
         )
 
