@@ -36,7 +36,7 @@ class EspressoTestAnisotropic(ut.TestCase):
             # radius for sphere comparison.
             # no semiaxis of the ellipsoid will have this radius
             radius = ureg.Quantity(1, "micrometer")
-            aspect_ratio = 1 / 3  # prolate because >1
+            aspect_ratio = 3  # prolate because >1
 
             # calculate semiaxes via volume equivalent
             equatorial_semiaxis = radius / np.cbrt(aspect_ratio)
