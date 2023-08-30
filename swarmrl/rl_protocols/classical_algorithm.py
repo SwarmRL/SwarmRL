@@ -12,12 +12,12 @@ class ClassicalAlgorithm(RLProtocol):
     """
 
     def __init__(
-        self,
-        particle_type: int,
-        policy: callable,
-        observable: Observable,
-        task: Task,
-        actions: dict,
+            self,
+            particle_type: int,
+            policy: callable,
+            observable: Observable,
+            task: Task,
+            actions: dict,
     ):
         """
         Constructor for the actor-critic protocol.
@@ -25,7 +25,7 @@ class ClassicalAlgorithm(RLProtocol):
         Parameters
         ----------
         policy : callable
-                Policy to use for the protocol.
+                Policy to use for the protocol. (analogous to the actor)
         task : Task
                 A metric for the classical algorithm.
         particle_type : int
@@ -45,7 +45,20 @@ class ClassicalAlgorithm(RLProtocol):
                              item,
                              colloids,
                              actions,
-    ):
+                             ):
+        """
+        Compute the next step of the episode.
+
+        Parameters
+        ----------
+        item : str
+                Type of colloid to compute the action for.
+        colloids : list
+                List of colloids in the system.
+        actions : dict
+                Dictionary of actions for the colloids.
+
+        """
 
         observables_computed = self.observable.compute_observable(colloids)
         rewards = self.task(colloids)

@@ -35,12 +35,12 @@ class MyForceModel(srl.models.InteractionModel):
                 pred_force = self.predator_movement_func(
                     self.t,
                     colloid.pos,
-                    colloid.director,
+                    colloid.velocity,
                     self.home_pos,
                     self.pred_params)
                 nd = np.array([pred_force[0], pred_force[1], pred_force[2]])
                 new_direction = nd / np.linalg.norm(nd)
-                actions.append(Action(force=50 * np.linalg.norm(nd), new_direction=new_direction))
+                actions.append(Action(force=np.linalg.norm(nd), new_direction=new_direction))
                 continue
 
             other_colloids = [c for c in colloids if c is not colloid and not c.type == 1]
@@ -120,10 +120,6 @@ def pred_cos_x(t, pos, director, home_pos, params):
 
 def circle(t, pos, director, home_pos, params):
     r, alpha = params[0], params[1]
-    if np.linalg.norm(pos - home_pos) < r:
-        force_x, force_y, _ = 100 * (pos - home_pos)
-    else:
-        force_x, force_y = 500 * rotate_vector_clockwise(director[:-1], alpha)
     if np.linalg.norm(pos-home_pos) < r:
         force_x, force_y, _ = 100*(pos - home_pos)
     else:
@@ -135,15 +131,3 @@ def circle2(t, pos, director, home_pos, params):
     force_x = params[0] * np.cos(params[1] * t)
     force_y = params[0] * np.sin(params[1] * t)
     return force_x, force_y, 0
-
-
-def lorenz(t, pos, director, home_pos, params):
-    """
-    Lorenz attractor https://en.wikipedia.org/wiki/Lorenz_system
-    values lorenz used: a=10,b=28,c=8/3
-    """
-    a, b, c = params
-    force_x = a*(pos[0] * (b - pos[2]) - pos[1] - a*(pos[1] - pos[0]))
-    force_y = a*(pos[1] - pos[0])*(b - pos[2]) + pos[0]*(b - pos[0]*pos[1] - c)
-    force_z = a*(pos[1] - pos[0])*(pos[1]) + pos[0]*(pos[0]*(b - pos[2]) - pos[1]) - c*(pos[0]*pos[1] - c*pos[2])
-    return force_x, force_y, force_z
