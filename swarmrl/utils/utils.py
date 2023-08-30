@@ -426,7 +426,7 @@ def calc_ellipsoid_friction_factors_translation(
             * dynamic_viscosity
             * a
             * e**3
-            / ((1 + 2 * e**2) * np.arcsin(e) - e * np.sqrt(1 - e**2))
+            / (-e * np.sqrt(1 - e**2) + (1 + 2 * e**2) * np.arcsin(e))
         )
 
     return gamma_ax, gamma_eq
