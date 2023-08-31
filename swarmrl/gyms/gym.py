@@ -202,10 +202,14 @@ class Gym:
                 Number of time steps in one episode.
         load_bar : bool (default=True)
                 If true, show a progress bar.
-        episodic_training : bool (default=False)
-                If true, perform episodic training. Otherwise, perform online training.
-                If true the system is reset after each episode.
+        episodic_training : str (default=None)
+                If not None, use the episodic training method specified.
+                Epsidisodic training methods are:
+                - None : no episodic training
+                - 'episodic' : reset after each episode
+                - 'semi_episodic k' : reset after k episodes
         """
+
         rewards = [0.0]
         current_reward = 0.0
         episode = 0
@@ -266,8 +270,8 @@ class Gym:
                 elif episodic_training == "episodic":
                     self.reset(system_runner)
 
-                elif episodic_training == "semi_episodic":
-                    if k % 100 == 0:
+                elif episodic_training.startswith("semi_episodic"):
+                    if k % int(episodic_training.split()[-1]) == 0:
                         print(f"Resetting system at episode {k}")
                         self.reset(system_runner)
                 else:
