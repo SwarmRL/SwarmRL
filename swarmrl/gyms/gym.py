@@ -255,7 +255,7 @@ class Gym:
                 )
 
                 if k % 10 == 0:
-                    save_rewards(np.array(rewards), "rewards.npy")
+                    save_rewards(np.array(rewards), "rewards")
 
                 if episodic_training is None:
                     pass
