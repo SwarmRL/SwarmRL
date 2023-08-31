@@ -253,6 +253,10 @@ class Gym:
                     current_reward=np.round(current_reward, 2),
                     running_reward=np.round(np.mean(rewards[-10:]), 2),
                 )
+
+                if k % 10 == 0:
+                    save_rewards(np.array(rewards), "rewards.npy")
+
                 if episodic_training is None:
                     pass
 
