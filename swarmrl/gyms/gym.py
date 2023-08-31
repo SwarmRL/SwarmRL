@@ -48,8 +48,14 @@ class Gym:
 
         # Add the protocols to an easily accessible internal dict.
         # TODO: Maybe turn into a dataclass? Not sure if it helps yet.
-        for item in rl_protocols:
-            self.rl_protocols[str(item.particle_type)] = item
+        for protocol in rl_protocols:
+            self.rl_protocols[str(protocol.particle_type)] = protocol
+
+        # check if reward file exists and delete it if it does
+        try:
+            os.remove("reward.txt")
+        except FileNotFoundError:
+            pass
 
     def initialize_training(self) -> MLModel:
         """
@@ -123,6 +129,12 @@ class Gym:
         )
         return interaction_model, np.array(reward) / len(self.rl_protocols)
 
+    def reset(self, system_runner):
+        system_runner.reset_system()
+        for item, val in self.rl_protocols.items():
+            val.observable.initialize(system_runner.colloids)
+            val.task.initialize(system_runner.colloids)
+
     def export_models(self, directory: str = "Models"):
         """
         Export the models to the specified directory.
@@ -180,6 +192,7 @@ class Gym:
         n_episodes: int,
         episode_length: int,
         load_bar: bool = True,
+        episodic_training: str = None,
     ):
         """
         Perform the RL training.
@@ -194,6 +207,12 @@ class Gym:
                 Number of time steps in one episode.
         load_bar : bool (default=True)
                 If true, show a progress bar.
+        episodic_training : str (default=None)
+                If not None, use the episodic training method specified.
+                Epsidisodic training methods are:
+                - None : no episodic training
+                - 'episodic' : reset after each episode
+                - 'semi_episodic k' : reset after k episodes
         """
         rewards = [0.0]
         current_reward = 0.0
@@ -222,7 +241,7 @@ class Gym:
                 running_reward=np.mean(rewards),
                 visible=load_bar,
             )
-            for _ in range(n_episodes):
+            for k in range(n_episodes):
                 system_runner.integrate(episode_length, force_fn)
                 force_fn, current_reward = self.update_rl()
                 rewards.append(current_reward)
@@ -234,6 +253,20 @@ class Gym:
                     current_reward=np.round(current_reward, 2),
                     running_reward=np.round(np.mean(rewards[-10:]), 2),
                 )
+                if episodic_training is None:
+                    pass
+
+                elif episodic_training == "episodic":
+                    self.reset(system_runner)
+
+                elif episodic_training.startswith("semi_episodic"):
+                    if k % int(episodic_training.split()[-1]) == 0:
+                        print(f"Resetting system at episode {k}")
+                        self.reset(system_runner)
+                else:
+                    raise ValueError(
+                        "Episodic training must be 'episodic' or 'semi_episodic'"
+                    )
 
         system_runner.finalize()
 
@@ -245,3 +278,29 @@ class Gym:
                 pass
 
         return np.array(rewards)
+
+
+def save_rewards(
+    rewards: np.ndarray,
+    file_name: str,
+):
+    """
+    Records the rewards of the simulation.
+
+    Parameters:
+    ----------
+    rewards : np.ndarray (n_timesteps, n_particles, 1)
+            Rewards collected during the simulation to be used in training.
+    file_name : str
+            Name of the file to be saved.
+
+    Returns
+    -------
+    Dumps a  file to disc to evaluate training.
+    """
+    try:
+        reloaded_rewards = np.load(file_name, allow_pickle=True)
+        reloaded_rewards = np.append(reloaded_rewards, rewards, axis=0)
+        np.save(file_name, reloaded_rewards, allow_pickle=True)
+    except FileNotFoundError:
+        np.save(file_name, rewards, allow_pickle=True)

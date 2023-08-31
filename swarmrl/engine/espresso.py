@@ -126,7 +126,15 @@ class EspressoMD(Engine):
         self.colloids = list()
 
         # register to lookup which type has which radius
-        self.colloid_radius_register = {}
+        self.colloid_radius_register = dict()
+
+        # register to lookup which colloids have been added to the system
+        self.colloids_added_register = {
+            "add_colloids": {"times": 0, "args": []},
+            "add_rod": {"times": 0, "args": []},
+            "add_source": {"times": 0, "args": []},
+            "add_colloid_on_point": {"times": 0, "args": []},
+        }
 
         # after the first call to integrate, no more changes to the engine are allowed
         self.integration_initialised = False
@@ -215,12 +223,43 @@ class EspressoMD(Engine):
                 "after the first call to integrate()"
             )
 
+    def reset_system(self):
+        """
+        Reset the system to its initial state.
+        """
+        # save the old register
+        # clear the system
+        self.colloid_radius_register = dict()
+        self.system.part.clear()
+        self.colloids = list()
+
+        for i in range(self.colloids_added_register["add_colloids"]["times"]):
+            self.add_colloids(
+                *self.colloids_added_register["add_colloids"]["args"][i], reset=True
+            )
+        for j in range(self.colloids_added_register["add_rod"]["times"]):
+            self.add_rod(
+                *self.colloids_added_register["add_rod"]["args"][j], reset=True
+            )
+        for k in range(self.colloids_added_register["add_source"]["times"]):
+            self.add_source(
+                *self.colloids_added_register["add_source"]["args"][k], reset=True
+            )
+        for m in range(self.colloids_added_register["add_colloid_on_point"]["times"]):
+            self.add_colloid_on_point(
+                *self.colloids_added_register["add_colloid_on_point"]["args"][m],
+                reset=True,
+            )
+
+        self._remove_overlap(relaxation_steps=1000)
+
     def add_colloid_on_point(
         self,
         radius_colloid: pint.Quantity,
         init_position: pint.Quantity,
         init_direction: np.array = [1, 0, 0],
         type_colloid=0,
+        reset=False,
     ):
         """
         Parameters
@@ -233,14 +272,15 @@ class EspressoMD(Engine):
             Multiple calls can be made with the same type_colloid.
             Interaction models need to be made aware if there are different types
             of colloids in the system if specific behaviour is desired.
+        reset
+            If True, the function is called to after resetting the system. In
+            that case the function does not add the colloids to the register.
 
         Returns
         -------
         colloid.
 
         """
-
-        self._check_already_initialised()
 
         if type_colloid in self.colloid_radius_register.keys():
             if self.colloid_radius_register[type_colloid] != radius_colloid.m_as(
@@ -299,6 +339,16 @@ class EspressoMD(Engine):
 
         self.colloid_radius_register.update({type_colloid: radius_simunits})
 
+        if not reset:
+            self.colloids_added_register["add_colloid_on_point"]["args"].append(
+                [
+                    radius_colloid,
+                    init_position,
+                    init_direction,
+                    type_colloid,
+                ]
+            )
+            self.colloids_added_register["add_colloid_on_point"]["times"] += 1
         return colloid
 
     def add_colloids(
@@ -308,6 +358,7 @@ class EspressoMD(Engine):
         random_placement_center: pint.Quantity,
         random_placement_radius: pint.Quantity,
         type_colloid=0,
+        reset=False,
     ):
         """
         Parameters
@@ -321,13 +372,13 @@ class EspressoMD(Engine):
             Multiple calls can be made with the same type_colloid.
             Interaction models need to be made aware if there are different types
             of colloids in the system if specific behaviour is desired.
-
+        reset
+            If True, the function is called to after resetting the system. In
+            that case the function does not add the colloids to the register.
         Returns
         -------
 
         """
-
-        self._check_already_initialised()
 
         init_center = random_placement_center.m_as("sim_length")
         init_rad = random_placement_radius.m_as("sim_length")
@@ -345,6 +396,7 @@ class EspressoMD(Engine):
                     init_position=start_pos,
                     init_direction=director,
                     type_colloid=type_colloid,
+                    reset=True,
                 )
             else:
                 # initialize with body-frame = lab-frame to set correct rotation flags
@@ -356,7 +408,19 @@ class EspressoMD(Engine):
                     init_position=start_pos,
                     init_direction=init_direction,
                     type_colloid=type_colloid,
+                    reset=True,
                 )
+
+        if not reset:
+            self.colloids_added_register["add_colloids"]["times"] += 1
+            args = [
+                n_colloids,
+                radius_colloid,
+                random_placement_center,
+                random_placement_radius,
+                type_colloid,
+            ]
+            self.colloids_added_register["add_colloids"]["args"].append(args)
 
     def add_rod(
         self,
@@ -369,6 +433,7 @@ class EspressoMD(Engine):
         friction_rot: pint.Quantity,
         rod_particle_type: int,
         fixed: bool = True,
+        reset=False,
     ):
         """
         Add a rod to the system.
@@ -391,12 +456,14 @@ class EspressoMD(Engine):
             The rod is made out of points so they get their own type.
         fixed
             Fixes the central particle of the rod.
-
+        reset
+            If True, the function is called to after resetting the system. In
+            that case the function does not add the rod to the register.
         Returns
         -------
         The espresso handle to the central particle. For debugging purposes only
         """
-        self._check_already_initialised()
+
         if self.n_dims != 2:
             raise ValueError("Rod can only be added in 2d")
         if rod_center[2].magnitude != 0:
@@ -452,6 +519,23 @@ class EspressoMD(Engine):
             self.colloids.append(virtual_partcl)
 
         self.colloid_radius_register.update({rod_particle_type: partcl_radius})
+
+        if not reset:
+            self.colloids_added_register["add_rod"]["times"] += 1
+            # put args of the function in a list and append it to the register
+            args = [
+                rod_center,
+                rod_length,
+                rod_thickness,
+                rod_start_angle,
+                n_particles,
+                friction_trans,
+                friction_rot,
+                rod_particle_type,
+                fixed,
+            ]
+            self.colloids_added_register["add_rod"]["args"].append(args)
+
         return center_part
 
     def add_confining_walls(self, wall_type: int):
@@ -732,12 +816,13 @@ class EspressoMD(Engine):
         logger.debug(f"wrote {n_new_timesteps} time steps to hdf5 file")
         self.h5_time_steps_written += n_new_timesteps
 
-    def _remove_overlap(self):
+    def _remove_overlap(self, relaxation_steps: int = 1000):
+        self.system.thermostat.turn_off()
         # remove overlap
         self.system.integrator.set_steepest_descent(
             f_max=0.0, gamma=0.1, max_displacement=0.1
         )
-        self.system.integrator.run(1000)
+        self.system.integrator.run(relaxation_steps)
 
         # set the brownian thermostat
         kT = (self.params.temperature * self.ureg.boltzmann_constant).m_as("sim_energy")
