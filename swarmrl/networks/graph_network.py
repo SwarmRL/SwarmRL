@@ -155,7 +155,8 @@ def compute_weighted_message(nodes, senders, receivers, n_nodes):
     send_messages = influences[:, np.newaxis] * sending_nodes
     # aggregate messages
     message = utils.segment_sum(send_messages, receivers, n_nodes)
-    return message
+    nodes = tree.tree_map(lambda n: n + message, nodes)
+    return nodes
 
 
 class GraphModel(Network, ABC):
