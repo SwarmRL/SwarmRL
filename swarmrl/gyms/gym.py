@@ -103,11 +103,11 @@ class Gym:
         observables = {}
         tasks = {}
         actions = {}
+        print(self.rl_protocols.items())
         for type_, val in self.rl_protocols.items():
             episode_data = trajectory_data[type_]
 
             reward += np.mean(episode_data.rewards)
-
             # Compute loss for actor and critic.
             self.loss.compute_loss(
                 network=val.network,

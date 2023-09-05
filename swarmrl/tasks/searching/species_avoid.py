@@ -4,9 +4,7 @@ Class for the species search task.
 import logging
 from typing import List
 
-import jax
 import jax.numpy as np
-import numpy as onp
 
 from swarmrl.models.interaction_model import Colloid
 from swarmrl.tasks.task import Task
@@ -14,17 +12,17 @@ from swarmrl.tasks.task import Task
 logger = logging.getLogger(__name__)
 
 
-class SpeciesSearch(Task):
+class SpeciesAvoid(Task):
     """
     Class for the species search task.
     """
 
     def __init__(
         self,
-        box_length: np.ndarray,
+        box_length: np.ndarray = np.array([1000.0, 1000.0, 1000.0]),
         sensing_type: int = 0,
-        scale_factor: int = 100,
-        particle_type: int = 0,
+        particle_type: int = 1,
+        cutoff: float = 0.1,
     ):
         """
         Constructor for the observable.
@@ -48,13 +46,7 @@ class SpeciesSearch(Task):
 
         self.box_length = box_length
         self.sensing_type = sensing_type
-        self.scale_factor = scale_factor
-
-        self.historical_positions = {}
-
-        self.task_fn = jax.vmap(
-            self.compute_single_particle_task, in_axes=(0, 0, None, 0)
-        )
+        self.cut_off = cutoff
 
     def initialize(self, colloids: List[Colloid]):
         """
@@ -69,63 +61,7 @@ class SpeciesSearch(Task):
         -------
         Updates the class state.
         """
-        reference_ids = self.get_colloid_indices(colloids)
-        historic_values = np.zeros(len(reference_ids))
-
-        positions = []
-        indices = []
-        for index in reference_ids:
-            indices.append(colloids[index].id)
-            positions.append(colloids[index].pos)
-
-        test_points = np.array(
-            [colloid.pos for colloid in colloids if colloid.type == self.sensing_type]
-        )
-
-        out_indices, _, field_values = self.task_fn(
-            np.array(indices), np.array(positions), test_points, historic_values
-        )
-
-        for index, value in zip(out_indices, onp.array(field_values)):
-            self.historical_field[str(index)] = value
-
-    def compute_single_particle_task(
-        self,
-        index: int,
-        reference_position: np.ndarray,
-        test_positions: np.ndarray,
-        historic_value: float,
-    ) -> tuple:
-        """
-        Compute the task for a single colloid.
-
-        Parameters
-        ----------
-        index : int
-                Index of the colloid to compute the observable for.
-        reference_position : np.ndarray (3,)
-                Position of the reference colloid.
-        test_positions : np.ndarray (n_colloids, 3)
-                Positions of the test colloids.
-        historic_value : float
-                Historic value of the observable.
-
-        Returns
-        -------
-        tuple (index, task_value)
-        index : int
-                Index of the colloid to compute the observable for.
-        task_value : float
-                Value of the task.
-        """
-        distances = np.linalg.norm(
-            (test_positions - reference_position) / self.box_length, axis=-1
-        )
-        indices = np.asarray(np.nonzero(distances, size=distances.shape[0] - 1))
-        distances = np.take(distances, indices, axis=0)
-        field_value = self.decay_fn(distances).sum()
-
-        return index, field_value - historic_value, field_value
+        pass
 
     def __call__(self, colloids: List[Colloid]):
         """
@@ -141,39 +77,36 @@ class SpeciesSearch(Task):
         rewards : List[float] (n_colloids, dimension)
                 List of rewards, one for each colloid.
         """
-        if self.historical_field == {}:
-            msg = (
-                f"{type(self).__name__} requires initialization. Please set the "
-                "initialize attribute of the gym to true and try again."
+
+        particle_pos = (
+            np.array(
+                [
+                    colloid.pos
+                    for colloid in colloids
+                    if colloid.type == self.particle_type
+                ]
             )
-            raise ValueError(msg)
-
-        reference_ids = self.get_colloid_indices(colloids)
-        positions = []
-        indices = []
-        historic_values = []
-        for index in reference_ids:
-            indices.append(colloids[index].id)
-            positions.append(colloids[index].pos)
-            historic_values.append(self.historical_field[str(colloids[index].id)])
-
-        test_points = np.array(
-            [colloid.pos for colloid in colloids if colloid.type == self.sensing_type]
+            / self.box_length
         )
 
-        out_indices, delta_values, field_values = self.task_fn(
-            np.array(indices),
-            np.array(positions),
-            test_points,
-            np.array(historic_values),
+        preditor_pos = (
+            np.array(
+                [
+                    colloid.pos
+                    for colloid in colloids
+                    if colloid.type == self.sensing_type
+                ]
+            )
+            / self.box_length
         )
 
-        for index, value in zip(out_indices, onp.array(field_values)):
-            self.historical_field[str(index)] = value
+        # compute distance between particles and all predators
+        dist = np.linalg.norm(
+            particle_pos[:, None, :] - preditor_pos[None, :, :], axis=-1
+        )
 
-        if self.avoid:
-            rewards = np.clip(delta_values, None, 0)
-        else:
-            rewards = np.clip(delta_values, 0, None)
-
-        return self.scale_factor * rewards
+        # compute reward
+        rewards = np.any(dist < self.cut_off, axis=-1)
+        rewards = np.where(rewards, -1.0, 0.0)
+        print(np.shape(rewards))
+        return rewards
