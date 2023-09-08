@@ -103,7 +103,6 @@ class Gym:
         observables = {}
         tasks = {}
         actions = {}
-        print(self.rl_protocols.items())
         for type_, val in self.rl_protocols.items():
             episode_data = trajectory_data[type_]
 
@@ -253,7 +252,7 @@ class Gym:
                 # print(f"Training time: {end - start}")
                 rewards.append(current_reward)
                 if k % 10 == 0 and k != 0:
-                    save_rewards(np.array(rewards), "reward")
+                    save_rewards(np.array(rewards), "reward_2")
                 if k % 100 == 0 and k != 0:
                     self.export_models(f"Models_{k}")
                 episode += 1

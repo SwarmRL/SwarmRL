@@ -349,10 +349,13 @@ def save_rewards(
     Dumps a  file to disc to evaluate training.
     """
     try:
+        print("try to load")
         reloaded_rewards = np.load(file_name, allow_pickle=True)
         reloaded_rewards = np.append(reloaded_rewards, rewards, axis=0)
         np.save(file_name, reloaded_rewards, allow_pickle=True)
+        print("loaded")
     except FileNotFoundError:
+        print("file not found")
         np.save(file_name, rewards, allow_pickle=True)
 
 

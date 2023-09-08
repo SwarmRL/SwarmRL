@@ -14,11 +14,11 @@
 # import swarmrl.engine.espresso as espresso
 # from swarmrl.gyms import Gym
 # from swarmrl.models.interaction_model import Action, Colloid
+# from swarmrl.networks import FlaxModel
 # from swarmrl.networks.graph_network import GraphModel
 # from swarmrl.observables.col_graph import ColGraph, GraphObservable
 # from swarmrl.rl_protocols.actor_critic import ActorCritic
 # from swarmrl.tasks.searching.species_avoid import SpeciesAvoid
-# from swarmrl.networks import FlaxModel
 #
 #
 # def build_circle_cols(n_cols, dist=300):
@@ -33,7 +33,7 @@
 #         direction = np.random.random(3)
 #         direction[-1] = 0
 #         direction = direction / np.linalg.norm(direction)
-#         cols.append(Colloid(pos=position, director=direction, type=0, id=i))
+#         cols.append(Colloid(pos=position, director=direction, type=1, id=i))
 #     return cols
 #
 #
@@ -44,7 +44,7 @@
 # temperature = 300
 #
 # n_episodes = 2000
-# episode_length = 20
+# episode_length = 100
 # ppo_epochs = 12
 #
 #
@@ -133,7 +133,10 @@
 #
 # # Define the observable
 # graph_observable = ColGraph(
-#     colloids=cols, cutoff=2.0, box_size=np.array([1000, 1000, 1000])
+#     colloids=cols,
+#     cutoff=2.0,
+#     box_size=np.array([1000, 1000, 1000]),
+#     particle_type=1,
 # )
 #
 # init_graph = graph_observable.compute_initialization_input(cols)
@@ -211,7 +214,7 @@
 #     system_runner=system_runner,
 #     n_episodes=n_episodes,
 #     episode_length=episode_length,
-#     episodic_training="episodic 100",
+#     episodic_training="semi_episodic 100",
 # )
 #
 # rl_trainer.export_models()

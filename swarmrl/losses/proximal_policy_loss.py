@@ -164,8 +164,6 @@ class ProximalPolicyLoss(Loss, ABC):
                 features=episode_data.features
             )
 
-        print(len(feature_data))
-
         old_log_probs_data = jnp.array(episode_data.log_probs)
         action_data = jnp.array(episode_data.actions)
         reward_data = jnp.array(episode_data.rewards)

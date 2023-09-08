@@ -108,5 +108,4 @@ class SpeciesAvoid(Task):
         # compute reward
         rewards = np.any(dist < self.cut_off, axis=-1)
         rewards = np.where(rewards, -1.0, 0.0)
-        print(np.shape(rewards))
         return rewards
