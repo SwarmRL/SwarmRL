@@ -94,7 +94,7 @@ class RotateRod2(Task):
         # Update the historical rod director
         self._historic_rod_director = new_director
 
-        return self.reward_scale * angle
+        return self.reward_scale * np.abs(angle)
 
     def __call__(self, colloids: List[Colloid]):
         """

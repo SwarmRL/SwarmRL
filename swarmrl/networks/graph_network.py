@@ -113,6 +113,7 @@ class GraphNet(nn.Module):
         nodes, _, destinations, receivers, senders, _, n_node, n_edge = graph
 
         n_nodes = n_node[0]
+
         vodes = self.node_encoder(nodes)
         vodes = compute_pure_message(vodes, senders, receivers, n_nodes)
         vodes = np.concatenate([vodes, nodes[:, -1:]], axis=1)
