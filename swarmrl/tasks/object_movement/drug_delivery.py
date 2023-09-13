@@ -491,7 +491,7 @@ class DrugTransport(Task):
         )
 
     def _compute_reward1(
-        self, old_part_drug_distance, new_part_drug_dist, a=200, b=1.35, c=0.04
+        self, old_part_drug_distance, new_part_drug_dist, a=200, b=1.35, c=0.09
     ):
         delta_dist = old_part_drug_distance - new_part_drug_dist
         reward_gettin_there = np.where(delta_dist > 0, delta_dist, 0)
