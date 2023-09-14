@@ -176,7 +176,7 @@ class GraphModel(Network, ABC):
         optimizer: GradientTransformation = optax.adam(1e-4),
         exploration_policy: ExplorationPolicy = None,
         sampling_strategy=GumbelDistribution(),
-        rng_key: int = 42,
+        rng_key: int = onp.random.randint(0, 2**32 - 1),
         deployment_mode: bool = False,
     ):
         self.model = GraphNet(
