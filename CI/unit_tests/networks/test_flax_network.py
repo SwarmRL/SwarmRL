@@ -88,8 +88,10 @@ class TestFlaxNetwork:
             sampling_strategy=self.sampling_strategy,
             exploration_policy=self.exploration_policy,
         )
-        input_vector = np.array([1.0, 2.0])
-        pre_save_output = pre_save_model(input_vector)
+        input_vector = np.array([[1.0, 2.0]])
+        pre_save_output = pre_save_model(
+            {"params": pre_save_model.model_state.params}, input_vector
+        )
         pre_save_model.export_model(filename="model", directory="Models")
 
         # Check if the model exists
@@ -103,7 +105,9 @@ class TestFlaxNetwork:
             sampling_strategy=self.sampling_strategy,
             exploration_policy=self.exploration_policy,
         )
-        post_save_output = post_save_model(input_vector)
+        post_save_output = post_save_model(
+            {"params": post_save_model.model_state.params}, input_vector
+        )
 
         # Check that the output is different
         np.testing.assert_raises(
@@ -115,7 +119,9 @@ class TestFlaxNetwork:
 
         # Load the model state
         post_save_model.restore_model_state(directory="Models", filename="model")
-        post_restore_output = post_save_model(input_vector)
+        post_restore_output = post_save_model(
+            {"params": post_save_model.model_state.params}, input_vector
+        )
         np.testing.assert_array_equal(pre_save_output, post_restore_output)
 
         # Check that the epoch counts are equal
