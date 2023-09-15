@@ -68,7 +68,7 @@ class TestFlaxNetwork:
         )
         input_data = np.array([[1.0, 2.0], [4.0, 5.0]])
 
-        data_from_call = model(input_data)
+        data_from_call = model({"params": model.model_state.params}, input_data)
         action_indices, action_logits = model.compute_action(input_data)
 
         # Check shapes
