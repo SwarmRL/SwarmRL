@@ -65,6 +65,7 @@ class FlaxModel(Network, ABC):
         self.sampling_strategy = sampling_strategy
         self.model = flax_model
         self.apply_fn = jax.jit(self.model.apply)
+        self.vapply_fn = jax.vmap(self.apply_fn, in_axes=(None, 0))
         self.input_shape = input_shape
         self.model_state = None
 
@@ -217,7 +218,7 @@ class FlaxModel(Network, ABC):
         )
         self.epoch_count = epoch
 
-    def __call__(self, feature_vector: np.ndarray):
+    def __call__(self, params, feature_vector: np.ndarray):
         """
         See parent class for full doc string.
 
@@ -233,6 +234,6 @@ class FlaxModel(Network, ABC):
         """
 
         try:
-            return self.apply_fn({"params": self.model_state.params}, feature_vector)
+            return self.vapply_fn(params, feature_vector)
         except AttributeError:  # We need this for loaded models.
-            return self.apply_fn({"params": self.model_state["params"]}, feature_vector)
+            return self.vapply_fn(params, feature_vector)

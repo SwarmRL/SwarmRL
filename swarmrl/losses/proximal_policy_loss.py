@@ -99,9 +99,8 @@ class ProximalPolicyLoss(Loss, ABC):
             Critic loss of an episode, summed over all time steps and meaned over
             all particles.
         """
-        predicted_values = critic.apply_fn({"params": critic_params}, features)
+        predicted_values = critic({"params": critic_params}, features)
         predicted_values = jnp.squeeze(predicted_values)
-
         value_loss = optax.huber_loss(predicted_values, true_values)
 
         particle_loss = jnp.sum(value_loss, 1)
@@ -154,9 +153,8 @@ class ProximalPolicyLoss(Loss, ABC):
         """
 
         # compute the probabilities of the old actions under the new policy
-        new_logits = actor.apply_fn({"params": actor_params}, features)
+        new_logits = actor({"params": actor_params}, features)
         new_probabilities = jax.nn.softmax(new_logits)
-
         # compute the entropy of the whole distribution
         entropy = jnp.sum(self.sampling_strategy.compute_entropy(new_probabilities))
         chosen_log_probs = jnp.log(
@@ -205,14 +203,16 @@ class ProximalPolicyLoss(Loss, ABC):
         model_tuple : tuple  FlaxModel, FlaxModel
             The updated actor and critic network.
         """
-        old_log_probs_data = episode_data.log_probs
+        old_log_probs_data = np.array(episode_data.log_probs)
         feature_data = np.array(episode_data.features)
         action_data = np.array(episode_data.actions)
         reward_data = np.array(episode_data.rewards)
 
         for _ in range(self.n_epochs):
             # compute the advantages and returns (true_values) for that epoch
-            predicted_values = np.squeeze(critic(feature_data))
+            predicted_values = np.squeeze(
+                critic({"params": critic.model_state.params}, feature_data)
+            )
             advantages = self.value_function(
                 rewards=reward_data, values=predicted_values
             )
