@@ -13,6 +13,11 @@ class DummyActor:
         log_probs = 2.0 * np.ones((out_shape[0], out_shape[1], 4))
         return log_probs
 
+    def __call__(self, params, features):
+        out_shape = np.shape(features)
+        log_probs = 2.0 * np.ones((out_shape[0], out_shape[1], 4))
+        return log_probs
+
 
 class DummyCritic:
     def __call__(self, features):
