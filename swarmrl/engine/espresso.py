@@ -122,6 +122,7 @@ class EspressoMD(Engine):
         self.write_chunk_size = write_chunk_size
 
         self.system = espressomd.System(box_l=3 * [1.0])
+        self.system.periodicity = [False, False, False]
         self._init_system()
         self.colloids = list()
 

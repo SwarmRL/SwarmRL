@@ -74,26 +74,11 @@ class TestDrugDelivery:
     def test_init(self):
         self.task.initialize(colloids=self.colloids)
 
-        assert_array_equal(self.task.destination, np.array([0.5, 0.5, 0.0]))
+        assert_array_equal(self.task.destination, np.array([0.8, 0.8, 0.0]))
         assert_array_equal(self.task.box_length, np.array([1000.0, 1000.0, 1000.0]))
         assert self.task.decay_fn(1) == 0
 
-        assert self.task.colloid_indices["drug"] == [10]
-        assert_array_equal(self.task.colloid_indices["transporter"], np.arange(10))
-
-        drug_pos = (
-            np.array([col.pos for col in self.colloids if col.type == 1])
-            / self.task.box_length
-        )
-        transporter_pos = (
-            np.array([col.pos for col in self.colloids if col.type == 0])
-            / self.task.box_length
-        )
-
-        assert_array_equal(drug_pos, self.task.historical_positions["drug"])
-        assert_array_equal(
-            transporter_pos, self.task.historical_positions["transporter"]
-        )
+        assert_array_equal(self.task.old_drug_pos, self.colloids[-1].pos / 1000)
 
     def test_call(self):
         self.task.initialize(self.colloids)
@@ -112,43 +97,23 @@ class TestDrugDelivery:
 
         assert np.shape(reward) == (10,)
 
-        extra_new_colloids = []
+    def test_call_drug_delivery(self):
+        self.task.initialize(self.colloids)
 
-        for col in new_colloids:
-            new_pos = col.pos + 3 * col.director
-            new_colloid = Colloid(
-                pos=new_pos, director=col.director, id=col.id, type=col.type
+        dist = np.linalg.norm(self.colloids[-1].pos / 1000 - self.task.destination)
+        print(dist * 1000)
+
+        while dist * 1000 > 5:
+            new_drug = move_drug_to_dest(
+                self.colloids[-1], 1000 * self.task.destination, delta=1, noise=0.1
             )
-            extra_new_colloids.append(new_colloid)
-
-        self.colloids = extra_new_colloids + new_drug
-
-        positive_reward = self.task(self.colloids)
-
-        old_drug_pos = self.task.historical_positions["drug"]
-        npt.assert_almost_equal(positive_reward, 3 * np.ones_like(positive_reward))
-
-        drug_dest_vector = self.task.destination - self.colloids[10].pos
-        drug_dest_vector /= np.linalg.norm(drug_dest_vector)
-        new_new_drug = Colloid(
-            pos=new_drug[0].pos - 3 * drug_dest_vector,
-            director=new_drug[0].director,
-            id=new_drug[0].id,
-            type=new_drug[0].type,
-        )
-
-        self.colloids = extra_new_colloids + [new_new_drug]
-        drug_delivery_reward = self.task(self.colloids)
-
-        npt.assert_almost_equal(
-            drug_delivery_reward, 30 * np.ones_like(drug_delivery_reward), decimal=-1
-        )
-
-        new_drug_pos = self.task.historical_positions["drug"]
-
-        npt.assert_raises(
-            AssertionError, assert_array_equal, old_drug_pos, new_drug_pos
-        )
+            self.colloids[-1] = new_drug
+            reward = self.task(self.colloids)
+            assert np.shape(reward) == (10,)
+            # check if all arrays get a positive reward
+            print(reward)
+            assert np.all(reward > 0)
+            dist = np.linalg.norm(self.colloids[-1].pos / 1000 - self.task.destination)
 
 
 class TestDrugTransport:
