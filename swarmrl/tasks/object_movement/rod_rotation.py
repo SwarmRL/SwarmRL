@@ -22,7 +22,9 @@ class RotateRod(Task):
         partition: bool = True,
         rod_type: int = 1,
         particle_type: int = 0,
+        direction: str = "CCW",
         angular_velocity_scale: int = 1,
+        velocity_history: int = 100,
     ):
         """
         Constructor for the find origin task.
@@ -35,17 +37,28 @@ class RotateRod(Task):
                 Type of particle making up the rod.
         scale_factor : float (default=100.0)
                 The amount the velocity is scaled by to get the reward.
+        direction : Union[None, str] (default=None)
+                Direction of the rod to rotate. If None, the rod will
+                rotate arbitrarily.
         particle_type : int (default=0)
                 Type of particle receiving the reward.
+        velocity_history : int (default=100)
+                Number of steps to average the velocity over.
         """
         super().__init__(particle_type=particle_type)
         self.partition = partition
         self.rod_type = rod_type
+
+        if direction == "CW":
+            angular_velocity_scale *= -1  # CW is negative
+
         self.angular_velocity_scale = angular_velocity_scale
+        self._velocity_history = np.nan * np.ones(velocity_history)
+        self._append_index = int(velocity_history - 1)
 
         # Class only attributes
         self._historic_rod_director = None
-        self._historic_velocity = 0.0
+        self._historic_velocity = 1.0
 
         self.decomp_fn = jax.jit(compute_torque_partition_on_rod)
 
@@ -84,18 +97,23 @@ class RotateRod(Task):
         angular_velocity : float
                 Angular velocity of the rod
         """
-        # Compute the angular velocity
         angular_velocity = np.arctan2(
             np.cross(self._historic_rod_director[:2], new_director[:2]),
             np.dot(self._historic_rod_director[:2], new_director[:2]),
         )
 
-        # Update the historical rod director
-        self._historic_rod_director = new_director
-        velocity_change = abs(angular_velocity) - abs(self._historic_velocity)
-        self._historic_velocity = angular_velocity
+        # Convert to degrees for better scaling.
+        angular_velocity = np.rad2deg(angular_velocity)
 
-        return self.angular_velocity_scale * velocity_change
+        # Update the historical rod director and velocity.
+        self._historic_rod_director = new_director
+        self._velocity_history = np.roll(self._velocity_history, -1)
+        self._velocity_history = self._velocity_history.at[self._append_index].set(
+            angular_velocity
+        )
+
+        # Return the scaled average velocity.
+        return self.angular_velocity_scale * np.nanmean(self._velocity_history)
 
     def partition_reward(
         self,
