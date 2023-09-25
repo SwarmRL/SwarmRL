@@ -219,9 +219,10 @@ class FlaxModel(Network, ABC):
         )
         self.epoch_count = epoch
 
-    def __call__(self, parmas: FrozenDict, episode_features):
+    def __call__(self, params: FrozenDict, episode_features):
         """
-        vmape
+        vmaped version of the model call function.
+        Operates on a batch of episodes.
 
         Parameters
         ----------
@@ -238,4 +239,4 @@ class FlaxModel(Network, ABC):
                 Output of the network.
         """
 
-        return self.batch_apply_fn({"params": parmas}, episode_features)
+        return self.batch_apply_fn({"params": params}, episode_features)

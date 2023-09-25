@@ -100,7 +100,7 @@ class PolicyGradientLoss(Loss):
 
         critic_loss = jnp.mean(critic_loss)
 
-        return actor_loss + 0.5 * critic_loss
+        return actor_loss + critic_loss
 
     def compute_loss(self, network: Network, episode_data):
         """

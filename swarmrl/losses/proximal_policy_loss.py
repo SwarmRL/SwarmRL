@@ -90,7 +90,7 @@ class ProximalPolicyLoss(Loss, ABC):
 
         Returns
         -------
-        los: float
+        loss: float
             The loss of the actor-critic network for the last episode.
         """
 
