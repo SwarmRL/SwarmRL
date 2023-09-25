@@ -9,6 +9,7 @@ import typing
 
 import jax.numpy as jnp
 import numpy as np
+import pint
 
 import swarmrl
 from swarmrl.models.interaction_model import Colloid
@@ -373,3 +374,101 @@ def create_colloids(
         direction = direction / np.linalg.norm(direction)
         cols.append(Colloid(pos=position, director=direction, type=type_, id=i))
     return cols
+
+
+def calc_ellipsoid_friction_factors_translation(
+    axial_semiaxis, equatorial_semiaxis, dynamic_viscosity
+):
+    """
+    https://link.springer.com/article/10.1007/BF02838005
+
+    Returns
+    -------
+
+    gamma_ax, gamma_eq
+        The friction coefficient for dragging the ellipsoid along its symmetry axis
+        and along one of the equatorial axes
+
+    """
+    if axial_semiaxis > equatorial_semiaxis:
+        # prolate spheroid
+        a = axial_semiaxis
+        b = equatorial_semiaxis
+        e = np.sqrt(1 - b**2 / a**2)
+        ll = np.log((1 + e) / (1 - e))
+        gamma_ax = (
+            16 * np.pi * dynamic_viscosity * a * e**3 / ((1 + e**2) * ll - 2 * e)
+        )
+        gamma_eq = (
+            32
+            * np.pi
+            * dynamic_viscosity
+            * a
+            * e**3
+            / (2 * e + (3 * e**2 - 1) * ll)
+        )
+    else:
+        # oblate spheroid
+        b = axial_semiaxis
+        a = equatorial_semiaxis
+        e = np.sqrt(1 - b**2 / a**2)
+        gamma_ax = (
+            8
+            * np.pi
+            * dynamic_viscosity
+            * a
+            * e**3
+            / (e * np.sqrt(1 - e**2) - (1 - 2 * e**2) * np.arcsin(e))
+        )
+        gamma_eq = (
+            16
+            * np.pi
+            * dynamic_viscosity
+            * a
+            * e**3
+            / (-e * np.sqrt(1 - e**2) + (1 + 2 * e**2) * np.arcsin(e))
+        )
+
+    return gamma_ax, gamma_eq
+
+
+def calc_ellipsoid_friction_factors_rotation(
+    axial_semiaxis, equatorial_semiaxis, dynamic_viscosity
+):
+    """
+    https://en.wikipedia.org/wiki/Perrin_friction_factors
+
+    Returns
+    -------
+
+    gamma_ax, gamma_eq:
+        The friction factors for rotation around the axial (symmetry) axis
+        and for rotation around one of the equatorial axes
+    """
+    p = axial_semiaxis / equatorial_semiaxis
+    xi = np.sqrt(np.abs(p**2 - 1)) / p
+
+    if p > 1:
+        S = 2 * np.arctanh(xi) / xi
+    else:
+        S = 2 * np.arctan(xi) / xi
+
+    f_ax = 4.0 / 3.0 * (p**2 - 1) / (2 * p**2 - S)
+    f_eq = 4.0 / 3.0 * (p**-2 - p**2) / (2 - S * (2 - p**-2))
+
+    gamma_sphere = (
+        8 * np.pi * dynamic_viscosity * axial_semiaxis * equatorial_semiaxis**2
+    )
+
+    return gamma_sphere * f_ax, gamma_sphere * f_eq
+
+
+def convert_array_of_pint_to_pint_of_array(array_of_pint, ureg: pint.UnitRegistry):
+    units = [val.units for val in array_of_pint]
+    # np.unique doesn't work so we have to do it manually
+    unit = units[0]
+    for u in units:
+        if u != unit:
+            raise ValueError(f"The values in the array have different units: {units}")
+
+    return ureg.Quantity(np.array([val.m_as(unit) for val in array_of_pint]), unit)

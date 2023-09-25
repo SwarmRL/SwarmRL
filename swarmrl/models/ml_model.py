@@ -7,7 +7,8 @@ from typing import Dict
 
 import numpy as np
 
-from swarmrl.models.interaction_model import Action, Colloid, InteractionModel
+from swarmrl.agents.colloid import Colloid
+from swarmrl.models.interaction_model import Action, InteractionModel
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task

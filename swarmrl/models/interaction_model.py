@@ -6,21 +6,7 @@ import typing
 
 import numpy as np
 
-
-@dataclasses.dataclass(frozen=True)
-class Colloid:
-    """
-    Wrapper class for a colloid object.
-    """
-
-    pos: np.ndarray
-    director: np.ndarray
-    id: int
-    velocity: np.ndarray = None
-    type: int = 0
-
-    def __eq__(self, other):
-        return self.id == other.id
+from swarmrl.agents.colloid import Colloid
 
 
 @dataclasses.dataclass

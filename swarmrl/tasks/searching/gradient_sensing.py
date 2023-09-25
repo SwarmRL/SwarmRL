@@ -13,7 +13,7 @@ from typing import List
 import jax.numpy as np
 import numpy as onp
 
-from swarmrl.models.interaction_model import Colloid
+from swarmrl.agents.colloid import Colloid
 from swarmrl.tasks.task import Task
 
 
