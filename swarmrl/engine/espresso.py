@@ -93,6 +93,7 @@ class EspressoMD(Engine):
         seed=42,
         out_folder=".",
         write_chunk_size=100,
+        periodic: bool = True,
     ):
         """
         Constructor for the espressoMD engine.
@@ -110,6 +111,8 @@ class EspressoMD(Engine):
                 reasonable amount of free space.
         write_chunk_size : int
                 Chunk size to use in the hdf5 writing.
+        periodic : bool
+                If False, do not use periodic boundary conditions.
         """
         self.params = md_params
         self.out_folder = out_folder
@@ -123,6 +126,11 @@ class EspressoMD(Engine):
         self.write_chunk_size = write_chunk_size
 
         self.system = espressomd.System(box_l=3 * [1.0])
+
+        # Turn off PBC.
+        if not periodic:
+            self.system.periodicity = [False, False, False]
+
         self._init_system()
         self.colloids = list()
 
