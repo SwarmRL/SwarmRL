@@ -12,6 +12,7 @@ import pint
 
 import swarmrl.models.interaction_model
 import swarmrl.utils.utils as utils
+from swarmrl.agents.colloid import Colloid
 
 from .engine import Engine
 
@@ -829,7 +830,7 @@ class EspressoMD(Engine):
         if force_model is not None:
             for col in self.colloids:
                 swarmrl_colloids.append(
-                    swarmrl.models.interaction_model.Colloid(
+                    Colloid(
                         pos=col.pos,
                         velocity=col.v,
                         director=col.director,
