@@ -38,8 +38,9 @@ class FlaxNet(nn.Module):
         x = nn.relu(x)
         x = nn.Dense(features=12)(x)
         x = nn.relu(x)
+        y = nn.Dense(features=1)(x)
         x = nn.Dense(features=4)(x)
-        return x
+        return x, y
 
 
 class DummyTask:

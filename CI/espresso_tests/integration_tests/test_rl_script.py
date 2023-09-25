@@ -89,32 +89,22 @@ class TestRLScript(ut.TestCase):
 
         # Define the force model.
 
-        class ActorNet(nn.Module):
+        class ActoCriticNet(nn.Module):
             """A simple dense model."""
 
             @nn.compact
             def __call__(self, x):
                 x = nn.Dense(features=128)(x)
                 x = nn.relu(x)
+                y = nn.Dense(features=1)(x)
                 x = nn.Dense(features=4)(x)
-                return x
-
-        class CriticNet(nn.Module):
-            """A simple dense model."""
-
-            @nn.compact
-            def __call__(self, x):
-                x = nn.Dense(features=128)(x)
-                x = nn.relu(x)
-                x = nn.Dense(features=1)(x)
-                return x
+                return x, y
 
         # Define networks
-        critic_stack = CriticNet()
-        actor_stack = ActorNet()
+        acto_critic = ActoCriticNet()
 
         # Define an exploration policy
-        exploration_policy = srl.exploration_policies.RandomExploration(probability=0.1)
+        exploration_policy = srl.exploration_policies.RandomExploration(probability=0.0)
 
         # Define a sampling_strategy
         sampling_strategy = srl.sampling_strategies.GumbelDistribution()
@@ -125,17 +115,12 @@ class TestRLScript(ut.TestCase):
         )
 
         # Define the models.
-        actor = srl.networks.FlaxModel(
-            flax_model=actor_stack,
+        network = srl.networks.FlaxModel(
+            flax_model=acto_critic,
             optimizer=optax.adam(learning_rate=0.001),
             input_shape=(1,),
             sampling_strategy=sampling_strategy,
             exploration_policy=exploration_policy,
-        )
-        critic = srl.networks.FlaxModel(
-            flax_model=critic_stack,
-            optimizer=optax.adam(learning_rate=0.001),
-            input_shape=(1,),
         )
 
         def scale_function(distance: float):
@@ -176,8 +161,7 @@ class TestRLScript(ut.TestCase):
         }
         protocol = srl.rl_protocols.ActorCritic(
             particle_type=0,
-            actor=actor,
-            critic=critic,
+            network=network,
             task=task,
             observable=observable,
             actions=actions,

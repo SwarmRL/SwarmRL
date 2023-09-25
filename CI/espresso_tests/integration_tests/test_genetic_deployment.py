@@ -56,26 +56,16 @@ def get_simulation_runner():
     return system_runner
 
 
-class ActorNet(nn.Module):
+class Network(nn.Module):
     """A simple dense model."""
 
     @nn.compact
     def __call__(self, x):
         x = nn.Dense(features=128)(x)
         x = nn.relu(x)
+        y = nn.Dense(features=1)(x)
         x = nn.Dense(features=4)(x)
-        return x
-
-
-class CriticNet(nn.Module):
-    """A simple dense model."""
-
-    @nn.compact
-    def __call__(self, x):
-        x = nn.Dense(features=128)(x)
-        x = nn.relu(x)
-        x = nn.Dense(features=1)(x)
-        return x
+        return x, y
 
 
 def scale_function(distance: float):
@@ -96,15 +86,10 @@ class TestGeneticTraining(ut.TestCase):
         """
 
         # Exploration policy
-        exploration_policy = srl.exploration_policies.RandomExploration(probability=0.1)
+        exploration_policy = srl.exploration_policies.RandomExploration(probability=0.0)
 
         # Sampling strategy
         sampling_strategy = srl.sampling_strategies.GumbelDistribution()
-
-        # Value function
-        value_function = srl.value_functions.ExpectedReturns(
-            gamma=0.99, standardize=True
-        )
 
         # Set the task
         task = srl.tasks.searching.GradientSensing(
@@ -121,20 +106,14 @@ class TestGeneticTraining(ut.TestCase):
         )
 
         # Define the loss model
-        loss = srl.losses.PolicyGradientLoss(value_function=value_function)
+        loss = srl.losses.ProximalPolicyLoss(n_epochs=2)
 
-        actor = srl.networks.FlaxModel(
-            flax_model=ActorNet(),
+        network = srl.networks.FlaxModel(
+            flax_model=Network(),
             optimizer=optax.adam(learning_rate=0.001),
             input_shape=(1,),
             sampling_strategy=sampling_strategy,
             exploration_policy=exploration_policy,
-        )
-
-        critic = srl.networks.FlaxModel(
-            flax_model=CriticNet(),
-            optimizer=optax.adam(learning_rate=0.001),
-            input_shape=(1,),
         )
 
         translate = Action(force=10.0)
@@ -151,8 +130,7 @@ class TestGeneticTraining(ut.TestCase):
 
         protocol = srl.rl_protocols.ActorCritic(
             particle_type=0,
-            actor=actor,
-            critic=critic,
+            network=network,
             task=task,
             observable=observable,
             actions=actions,
