@@ -11,7 +11,7 @@ https://spinningup.openai.com/en/latest/algorithms/vpg.html
 import logging
 
 import jax
-import jax.numpy as np
+import jax.numpy as jnp
 import optax
 from flax.core.frozen_dict import FrozenDict
 
@@ -44,139 +44,93 @@ class PolicyGradientLoss(Loss):
         self.n_particles = None
         self.n_time_steps = None
 
-    def _compute_actor_loss(
+    def _calculate_loss(
         self,
-        actor_params: FrozenDict,
-        feature_data: np.ndarray,
-        rewards: np.ndarray,
-        action_indices: np.ndarray,
-        actor: Network,
-        critic: Network,
-    ):
+        network_params: FrozenDict,
+        network: Network,
+        feature_data: jnp.ndarray,
+        action_indices: jnp.ndarray,
+        rewards: jnp.ndarray,
+    ) -> jnp.array:
         """
-        Compute the actor loss.
+        Compute the loss of the shared actor-critic network.
 
         Parameters
         ----------
-        actor_params : FrozenDict
-                Parameters of the actor model used.
-        feature_data : np.ndarray (n_timesteps, n_particles, feature_dimension)
-                Observable data for each time step and particle within the episode.
-        rewards : np.ndarray (n_timesteps, n_particles, reward_dimension)
-                Reward data for each time step and particle within the episode.
-        action_indices : np.ndarray (n_timesteps, n_particles)
-                Indices of the chosen actions at each time step so that exploration
-                is preserved in the model training.
-        actor : Network
-                Actor model to use in the analysis.
-        critic : Network
-                Critic model to use in the analysis.
+        network : FlaxModel
+            The actor-critic network that approximates the policy.
+        network_params : FrozenDict
+            Parameters of the actor-critic model used.
+        feature_data : np.ndarray (n_time_steps, n_particles, feature_dimension)
+            Observable data for each time step and particle within the episode.
+        action_indices : np.ndarray (n_time_steps, n_particles)
+            The actions taken by the policy for all time steps and particles during one
+            episode.
+        rewards : np.ndarray (n_time_steps, n_particles)
+            The rewards received for all time steps and particles during one episode.
+
 
         Returns
         -------
         loss : float
-                The loss for the episode.
+            The loss of the actor-critic network for the last episode.
         """
-        actor_apply_fn = jax.vmap(actor.apply_fn, in_axes=(None, 0))
+
         # (n_timesteps, n_particles, n_possibilities)
-        logits = actor_apply_fn({"params": actor_params}, feature_data)
+        logits, predicted_values = network(network_params, feature_data)
+        predicted_values = predicted_values.squeeze()
         probabilities = jax.nn.softmax(logits)  # get probabilities
         chosen_probabilities = gather_n_dim_indices(probabilities, action_indices)
-        log_probs = np.log(chosen_probabilities + 1e-8)
+        log_probs = jnp.log(chosen_probabilities + 1e-8)
         logger.debug(f"{log_probs.shape=}")
 
-        value_function_values = self.value_function(rewards)
-        logger.debug(f"{value_function_values.shape}")
+        returns = self.value_function(rewards)
+        logger.debug(f"{returns.shape}")
 
-        critic_values = critic({"params": critic.model_state.params}, feature_data)[
-            :, :, 0
-        ]  # zero for trivial dimension
-        logger.debug(f"{critic_values.shape=}")
+        logger.debug(f"{predicted_values.shape=}")
 
         # (n_timesteps, n_particles)
-        advantage = value_function_values - critic_values
+        advantage = returns - predicted_values
         logger.debug(f"{advantage=}")
 
-        loss = -1 * ((log_probs * advantage).sum(axis=0)).mean()
-        logger.debug(f"{loss=}")
+        actor_loss = -1 * ((log_probs * advantage).sum(axis=0)).mean()
+        logger.debug(f"{actor_loss=}")
 
-        return loss
+        critic_loss = jnp.sum(optax.huber_loss(predicted_values, returns), axis=0)
 
-    def _compute_critic_loss(
-        self,
-        critic_params: FrozenDict,
-        feature_data: np.ndarray,
-        rewards: np.ndarray,
-        critic: Network,
-    ):
+        critic_loss = jnp.mean(critic_loss)
+
+        return actor_loss + critic_loss
+
+    def compute_loss(self, network: Network, episode_data):
         """
-        Callable to be wrapped in grad for the critic loss.
+        Compute the loss and update the shared actor-critic network.
 
         Parameters
         ----------
-        critic_params : FrozenDict
-                Parameters of the critic model used.
-        feature_data : np.ndarray (n_timesteps, n_particles, feature_dimension)
+        network : Network
+                actor-critic model to use in the analysis.
+        episode_data : np.ndarray (n_timesteps, n_particles, feature_dimension)
                 Observable data for each time step and particle within the episode.
-        rewards : np.ndarray (n_timesteps, n_particles, reward_dimension)
-                Reward data for each time step and particle within the episode.
-        critic : Network
-                Critic model to use in the analysis.
 
         Returns
         -------
-        loss : float
-                Critic loss for the episode.
+
         """
-        critic_apply_fn = jax.vmap(critic.apply_fn, in_axes=(None, 0))
-        critic_values = critic_apply_fn({"params": critic_params}, feature_data)[
-            :, :, 0
-        ]
-        logger.debug(f"{critic_values.shape=}")
-        value_function_values = self.value_function(rewards)
-        logger.debug(f"{value_function_values.shape=}")
+        feature_data = jnp.array(episode_data.features)
+        action_data = jnp.array(episode_data.actions)
+        reward_data = jnp.array(episode_data.rewards)
 
-        loss = np.sum(optax.huber_loss(critic_values, value_function_values), axis=0)
+        self.n_particles = jnp.shape(feature_data)[1]
+        self.n_time_steps = jnp.shape(feature_data)[0]
 
-        loss = np.mean(loss)
-
-        return loss
-
-    def compute_loss(
-        self,
-        actor: Network,
-        critic: Network,
-        episode_data: np.ndarray,
-    ):
-        """
-        Compute the loss functions for the actor and critic based on the reward.
-
-        Returns
-        -------
-        loss_tuple : tuple
-                (actor_loss, critic_loss)
-        """
-        feature_data = np.array(episode_data.features)
-        action_data = np.array(episode_data.actions)
-        reward_data = np.array(episode_data.rewards)
-
-        self.n_particles = np.shape(feature_data)[1]
-        self.n_time_steps = np.shape(feature_data)[0]
-
-        actor_grad_fn = jax.grad(self._compute_actor_loss)
-        actor_grads = actor_grad_fn(
-            actor.model_state.params,
-            feature_data,
-            reward_data,
-            action_data,
-            actor,
-            critic,
+        network_grad_fn = jax.value_and_grad(self._calculate_loss)
+        network_loss, network_grads = network_grad_fn(
+            network.model_state.params,
+            network=network,
+            feature_data=feature_data,
+            action_indices=action_data,
+            rewards=reward_data,
         )
 
-        critic_grad_fn = jax.grad(self._compute_critic_loss)
-        critic_grads = critic_grad_fn(
-            critic.model_state.params, feature_data, reward_data, critic
-        )
-
-        actor.update_model(actor_grads)
-        critic.update_model(critic_grads)
+        network.update_model(network_grads)
