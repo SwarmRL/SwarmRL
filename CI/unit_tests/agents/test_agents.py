@@ -5,7 +5,7 @@ import jax.numpy as np
 from numpy.testing import assert_array_equal
 
 from swarmrl.agents.colloid import Colloid
-from swarmrl.agents.swarm import Swarm
+from swarmrl.agents.swarm import create_swarm
 
 
 class TestAgents:
@@ -76,7 +76,7 @@ class TestAgents:
             type=1,
         )
 
-        swarm = Swarm.create_swarm([colloid_1, colloid_2, colloid_3])
+        swarm = create_swarm([colloid_1, colloid_2, colloid_3])
 
         assert swarm.pos.shape == (3, 3)
         assert swarm.director.shape == (3, 3)
@@ -116,7 +116,7 @@ class TestAgents:
             type=1,
         )
 
-        swarm_full = Swarm.create_swarm([colloid_1, colloid_2, colloid_3])
+        swarm_full = create_swarm([colloid_1, colloid_2, colloid_3])
 
         swarm_large = swarm_full.get_species_swarm(0)
         swarm_small = swarm_full.get_species_swarm(1)

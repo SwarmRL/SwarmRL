@@ -64,12 +64,12 @@ class MLModel(InteractionModel):
         self.eps = np.finfo(np.float32).eps.item()
         self.actions = actions
         # Used in the data saving.
-        self.particle_types = [item for item in self.models]
+        self.particle_types = [type_ for type_ in self.models]
 
         # Trajectory data to be filled in after each action.
         self.trajectory_data = {
-            item: TrajectoryInformation(particle_type=item)
-            for item in self.particle_types
+            type_: TrajectoryInformation(particle_type=type_)
+            for type_ in self.particle_types
         }
 
     def calc_action(
@@ -92,10 +92,10 @@ class MLModel(InteractionModel):
         swarm = Swarm.create_swarm(colloids)
 
         actions = {int(np.copy(colloid.id)): Action() for colloid in colloids}
-        action_indices = {item: [] for item in self.particle_types}
-        log_probs = {item: [] for item in self.particle_types}
-        rewards = {item: [] for item in self.particle_types}
-        observables = {item: [] for item in self.particle_types}
+        action_indices = {_type: [] for _type in self.particle_types}
+        log_probs = {_type: [] for _type in self.particle_types}
+        rewards = {_type: [] for _type in self.particle_types}
+        observables = {_type: [] for _type in self.particle_types}
         for _type in self.particle_types:
             observables[_type] = self.observables[_type].compute_observable(swarm)
             rewards[_type] = self.tasks[_type](colloids)
@@ -114,10 +114,10 @@ class MLModel(InteractionModel):
 
         # Record the trajectory if required.
         # if self.record_traj:
-        for _type in self.particle_types:
-            self.trajectory_data[_type].features.append(observables[_type])
-            self.trajectory_data[_type].actions.append(action_indices[_type])
-            self.trajectory_data[_type].log_probs.append(log_probs[_type])
-            self.trajectory_data[_type].rewards.append(rewards[_type])
+        for type_ in self.particle_types:
+            self.trajectory_data[type_].features.append(observables[type_])
+            self.trajectory_data[type_].actions.append(action_indices[type_])
+            self.trajectory_data[type_].log_probs.append(log_probs[type_])
+            self.trajectory_data[type_].rewards.append(rewards[type_])
 
         return list(actions.values())

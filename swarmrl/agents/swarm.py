@@ -98,36 +98,36 @@ class Swarm:
         """
         return cls(*children)
 
-    @classmethod
-    def create_swarm(cls, colloids: List[Colloid]) -> Swarm:
-        """
-        Create a swarm from a list of colloid objects.
 
-        Parameters
-        ----------
-        colloid : List[Colloid]
-            List of colloid objects.
+def create_swarm(colloids: List[Colloid]) -> Swarm:
+    """
+    Create a swarm from a list of colloid objects.
 
-        Returns
-        -------
-        Swarm
-            Swarm object full of all colloids
-        """
-        # standard colloid attributes
-        pos = np.array([c.pos for c in colloids]).reshape(-1, colloids[0].pos.shape[0])
-        director = np.array([c.director for c in colloids]).reshape(
-            -1, colloids[0].director.shape[0]
-        )
-        id = np.array([c.id for c in colloids]).reshape(-1, 1)
-        velocity = np.array([c.velocity for c in colloids]).reshape(
-            -1, colloids[0].velocity.shape[0]
-        )
-        type = np.array([c.type for c in colloids]).reshape(-1, 1)
+    Parameters
+    ----------
+    colloid : List[Colloid]
+        List of colloid objects.
 
-        # add species indices to the colloid types.
-        type_indices = {}
-        types = onp.unique(type)
-        for t in types:
-            type_indices[t] = np.array(get_colloid_indices(colloids, t))
+    Returns
+    -------
+    Swarm
+        Swarm object full of all colloids
+    """
+    # standard colloid attributes
+    pos = np.array([c.pos for c in colloids]).reshape(-1, colloids[0].pos.shape[0])
+    director = np.array([c.director for c in colloids]).reshape(
+        -1, colloids[0].director.shape[0]
+    )
+    id = np.array([c.id for c in colloids]).reshape(-1, 1)
+    velocity = np.array([c.velocity for c in colloids]).reshape(
+        -1, colloids[0].velocity.shape[0]
+    )
+    type = np.array([c.type for c in colloids]).reshape(-1, 1)
 
-        return cls(pos, director, id, velocity, type, type_indices)
+    # add species indices to the colloid types.
+    type_indices = {}
+    types = onp.unique(type)
+    for t in types:
+        type_indices[t] = np.array(get_colloid_indices(colloids, t))
+
+    return Swarm(pos, director, id, velocity, type, type_indices)

@@ -15,8 +15,7 @@ class ActorCritic(RLProtocol):
     def __init__(
         self,
         particle_type: int,
-        actor: Network,
-        critic: Network,
+        network: Network,
         task: Task,
         observable: Observable,
         actions: dict,
@@ -26,10 +25,9 @@ class ActorCritic(RLProtocol):
 
         Parameters
         ----------
-        actor : Network
-                Actor network for the RL protocol.
-        critic : Network
-                Critic network for the RL protocol.
+        network : Network
+                Shared Actor-Critic Network for the RL protocol. The apply function
+                should return a tuple of (logits, value).
         particle_type : int
                 Particle ID this RL protocol applies to.
         observable : Observable
@@ -39,8 +37,7 @@ class ActorCritic(RLProtocol):
         actions : dict
                 Actions allowed for the particle.
         """
-        self.actor = actor
-        self.critic = critic
+        self.network = network
         self.particle_type = particle_type
         self.task = task
         self.observable = observable

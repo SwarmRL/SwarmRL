@@ -93,6 +93,7 @@ class EspressoMD(Engine):
         seed=42,
         out_folder=".",
         write_chunk_size=100,
+        periodic: bool = True,
     ):
         """
         Constructor for the espressoMD engine.
@@ -110,6 +111,8 @@ class EspressoMD(Engine):
                 reasonable amount of free space.
         write_chunk_size : int
                 Chunk size to use in the hdf5 writing.
+        periodic : bool
+                If False, do not use periodic boundary conditions.
         """
         self.params = md_params
         self.out_folder = out_folder
@@ -123,6 +126,11 @@ class EspressoMD(Engine):
         self.write_chunk_size = write_chunk_size
 
         self.system = espressomd.System(box_l=3 * [1.0])
+
+        # Turn off PBC.
+        if not periodic:
+            self.system.periodicity = [False, False, False]
+
         self._init_system()
         self.colloids = list()
 
@@ -153,9 +161,11 @@ class EspressoMD(Engine):
 
         # derived units
         self.ureg.define("sim_velocity = sim_length / sim_time")
+        self.ureg.define("sim_angular_velocity = 1 / sim_time")
         self.ureg.define("sim_mass = sim_energy / sim_velocity**2")
         self.ureg.define("sim_dyn_viscosity = sim_mass / (sim_length * sim_time)")
         self.ureg.define("sim_force = sim_mass * sim_length / sim_time**2")
+        self.ureg.define("sim_torque = sim_length * sim_force")
 
     def _init_system(self):
         """
@@ -220,8 +230,11 @@ class EspressoMD(Engine):
         self,
         radius_colloid: pint.Quantity,
         init_position: pint.Quantity,
-        init_direction: np.array = [1, 0, 0],
+        init_direction: np.array = np.array([1, 0, 0]),
         type_colloid=0,
+        gamma_translation: pint.Quantity = None,
+        gamma_rotation: pint.Quantity = None,
+        aspect_ratio: float = 1.0,
     ):
         """
         Parameters
@@ -234,6 +247,15 @@ class EspressoMD(Engine):
             Multiple calls can be made with the same type_colloid.
             Interaction models need to be made aware if there are different types
             of colloids in the system if specific behaviour is desired.
+        gamma_translation, gamma_rotation: optional
+            If None, calculate these quantities from the radius and the fluid viscosity.
+            You can provide friction coefficients as scalars or a 3-vector
+            (the diagonal elements of the friction tensor).
+        aspect_ratio
+            If you provide a value != 1, a gay-berne interaction will be set up
+            instead of purely repulsive lennard jones.
+            aspect_ratio > 1 will produce a cigar, aspect_ratio < 0 a disk
+            (both swimming in the direction of symmetry).
 
         Returns
         -------
@@ -244,46 +266,54 @@ class EspressoMD(Engine):
         self._check_already_initialised()
 
         if type_colloid in self.colloid_radius_register.keys():
-            if self.colloid_radius_register[type_colloid] != radius_colloid.m_as(
-                "sim_length"
-            ):
+            if self.colloid_radius_register[type_colloid][
+                "radius"
+            ] != radius_colloid.m_as("sim_length"):
                 raise ValueError(
                     f"The chosen type {type_colloid} is already taken and used with a"
-                    f" different radius {self.colloid_radius_register[type_colloid]} ."
-                    " Choose a new combination"
+                    " different radius"
+                    f" {self.colloid_radius_register[type_colloid]['radius']}. Choose a"
+                    " new combination"
                 )
         radius_simunits = radius_colloid.m_as("sim_length")
-        init_center = init_position.m_as("sim_length")
+        init_pos = init_position.m_as("sim_length")
         init_direction = init_direction / np.linalg.norm(init_direction)
 
         (
-            particle_gamma_translation,
-            particle_gamma_rotation,
+            gamma_translation_sphere,
+            gamma_rotation_sphere,
         ) = _calc_friction_coefficients(
             self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius_simunits
         )
+        if gamma_translation is None:
+            gamma_translation = gamma_translation_sphere
+        else:
+            gamma_translation = gamma_translation.m_as("sim_force/sim_velocity")
+        if gamma_rotation is None:
+            gamma_rotation = gamma_rotation_sphere
+        else:
+            gamma_rotation = gamma_rotation.m_as("sim_torque/sim_angular_velocity")
 
         if self.n_dims == 3:
             colloid = self.system.part.add(
-                pos=init_center,
+                pos=init_pos,
                 director=init_direction,
                 rotation=3 * [True],
-                gamma=particle_gamma_translation,
-                gamma_rot=particle_gamma_rotation,
+                gamma=gamma_translation,
+                gamma_rot=gamma_rotation,
                 fix=3 * [False],
                 type=type_colloid,
             )
         else:
             # initialize with body-frame = lab-frame to set correct rotation flags
             # allow all rotations to bring the particle to correct state
-            init_center[2] = 0  # get rid of z-coordinate in 2D coordinates
-            start_pos = init_center
+            init_pos[2] = 0  # get rid of z-coordinate in 2D coordinates
             colloid = self.system.part.add(
-                pos=start_pos,
+                pos=init_pos,
                 fix=[False, False, True],
                 rotation=3 * [True],
-                gamma=particle_gamma_translation,
-                gamma_rot=particle_gamma_rotation,
+                gamma=gamma_translation,
+                gamma_rot=gamma_rotation,
                 quat=[1, 0, 0, 0],
                 type=type_colloid,
             )
@@ -298,7 +328,9 @@ class EspressoMD(Engine):
 
         self.colloids.append(colloid)
 
-        self.colloid_radius_register.update({type_colloid: radius_simunits})
+        self.colloid_radius_register.update(
+            {type_colloid: {"radius": radius_simunits, "aspect_ratio": aspect_ratio}}
+        )
 
         return colloid
 
@@ -308,7 +340,10 @@ class EspressoMD(Engine):
         radius_colloid: pint.Quantity,
         random_placement_center: pint.Quantity,
         random_placement_radius: pint.Quantity,
-        type_colloid=0,
+        type_colloid: int = 0,
+        gamma_translation: pint.Quantity = None,
+        gamma_rotation: pint.Quantity = None,
+        aspect_ratio: float = 1.0,
     ):
         """
         Parameters
@@ -322,6 +357,16 @@ class EspressoMD(Engine):
             Multiple calls can be made with the same type_colloid.
             Interaction models need to be made aware if there are different types
             of colloids in the system if specific behaviour is desired.
+        gamma_translation, gamma_rotation: optional
+            If None, calculate these quantities from the radius and the fluid viscosity.
+            You can provide friction coefficients as scalars or a 3-vector
+            (the diagonal elements of the friction tensor)
+        aspect_ratio
+            If you provide a value != 1, a gay-berne interaction will be set up
+            instead of purely repulsive lennard jones.
+            aspect_ratio > 1 will produce a cigar, aspect_ratio < 0 a disk
+            (both swimming in the direction of symmetry).
+            The radius_colloid gives the radius perpendicular to the symmetry axis.
 
         Returns
         -------
@@ -346,6 +391,9 @@ class EspressoMD(Engine):
                     init_position=start_pos,
                     init_direction=director,
                     type_colloid=type_colloid,
+                    gamma_translation=gamma_translation,
+                    gamma_rotation=gamma_rotation,
+                    aspect_ratio=aspect_ratio,
                 )
             else:
                 # initialize with body-frame = lab-frame to set correct rotation flags
@@ -357,6 +405,9 @@ class EspressoMD(Engine):
                     init_position=start_pos,
                     init_direction=init_direction,
                     type_colloid=type_colloid,
+                    gamma_translation=gamma_translation,
+                    gamma_rotation=gamma_rotation,
+                    aspect_ratio=aspect_ratio,
                 )
 
     def add_rod(
@@ -452,7 +503,9 @@ class EspressoMD(Engine):
             virtual_partcl.vs_auto_relate_to(center_part)
             self.colloids.append(virtual_partcl)
 
-        self.colloid_radius_register.update({rod_particle_type: partcl_radius})
+        self.colloid_radius_register.update(
+            {rod_particle_type: {"radius": partcl_radius, "aspect_ratio": 1.0}}
+        )
         return center_part
 
     def add_confining_walls(self, wall_type: int):
@@ -497,7 +550,9 @@ class EspressoMD(Engine):
             self.system.constraints.add(constr)
 
         # the wall itself has no radius, only the particle radius counts
-        self.colloid_radius_register.update({wall_type: 0.0})
+        self.colloid_radius_register.update(
+            {wall_type: {"radius": 0.0, "aspect_ratio": 1.0}}
+        )
 
     def add_walls(
         self,
@@ -547,7 +602,7 @@ class EspressoMD(Engine):
                 raise ValueError(
                     f" The chosen type {wall_type} is already taken"
                     "and used with a different radius "
-                    f"{self.colloid_radius_register[wall_type]} ."
+                    f"{self.colloid_radius_register[wall_type]['radius']}."
                     " Choose a new combination"
                 )
 
@@ -584,17 +639,41 @@ class EspressoMD(Engine):
             self.system.constraints.add(constr)
 
         # the wall itself has no radius, only the particle radius counts
-        self.colloid_radius_register.update({wall_type: 0.0})
+        self.colloid_radius_register.update(
+            {wall_type: {"radius": 0.0, "aspect_ratio": 1.0}}
+        )
 
     def _setup_interactions(self):
-        for type_0, rad_0 in self.colloid_radius_register.items():
-            for type_1, rad_1 in self.colloid_radius_register.items():
+        aspect_ratios = [
+            d["aspect_ratio"] for d in self.colloid_radius_register.values()
+        ]
+        if len(np.unique(aspect_ratios)) > 1:
+            raise ValueError(
+                "All particles in the system must have the same aspect ratio."
+            )
+        for type_0, prop_dict_0 in self.colloid_radius_register.items():
+            for type_1, prop_dict_1 in self.colloid_radius_register.items():
                 if type_0 > type_1:
                     continue
-                self.system.non_bonded_inter[type_0, type_1].wca.set_params(
-                    sigma=(rad_0 + rad_1) * 2 ** (-1 / 6),
-                    epsilon=self.params.WCA_epsilon.m_as("sim_energy"),
-                )
+                if prop_dict_0["aspect_ratio"] == 1.0:
+                    self.system.non_bonded_inter[type_0, type_1].wca.set_params(
+                        sigma=(prop_dict_0["radius"] + prop_dict_1["radius"])
+                        * 2 ** (-1 / 6),
+                        epsilon=self.params.WCA_epsilon.m_as("sim_energy"),
+                    )
+                else:
+                    espressomd.assert_features(["GAY_BERNE"])
+                    aspect = prop_dict_0["aspect_ratio"]
+                    self.system.non_bonded_inter[type_0, type_1].gay_berne.set_params(
+                        sig=(prop_dict_0["radius"] + prop_dict_1["radius"])
+                        * 2 ** (-1 / 6),
+                        k1=prop_dict_0["aspect_ratio"],
+                        k2=1.0,
+                        nu=1,
+                        mu=2,
+                        cut=2 * prop_dict_0["radius"] * max([aspect, 1 / aspect]) * 2,
+                        eps=self.params.WCA_epsilon.m_as("sim_energy"),
+                    )
 
     def add_const_force_to_colloids(self, force: pint.Quantity, type: int):
         """
@@ -618,16 +697,17 @@ class EspressoMD(Engine):
     def get_friction_coefficients(self, type: int):
         """
         Returns both the translational and the rotational friction coefficient
-        of the desired in simulation units
+        of the desired type in simulation units
         """
-        radius = self.colloid_radius_register.get(type, None)
-        if radius is None:
+        property_dict = self.colloid_radius_register.get(type, None)
+        if property_dict is None:
             raise ValueError(
                 f"cannot get friction coefficient for type {type}. Did you actually add"
                 " that particle type?"
             )
         return _calc_friction_coefficients(
-            self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"), radius
+            self.params.fluid_dyn_viscosity.m_as("sim_dyn_viscosity"),
+            property_dict["radius"],
         )
 
     def _init_h5_output(self):
