@@ -216,9 +216,7 @@ class Gym:
                 visible=load_bar,
             )
             for _ in range(n_episodes):
-                start = time.time()
                 system_runner.integrate(episode_length, force_fn)
-                print(f"Episode {episode} took {time.time() - start} seconds")
                 trajectory_data = force_fn.trajectory_data
                 start = time.time()
                 force_fn, current_reward = self.update_rl(
