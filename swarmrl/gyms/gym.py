@@ -1,6 +1,7 @@
 """
 Module to implement a simple multi-layer perceptron for the colloids.
 """
+import os
 from typing import List, Tuple
 
 import numpy as np
@@ -120,51 +121,46 @@ class Gym:
         )
         return interaction_model, np.array(reward) / len(self.rl_protocols)
 
-    def export_models(self, directory: str = "Models"):
+    def export_models(self, directory: str = "ckpts", episode: int = 0):
         """
         Export the models to the specified directory.
 
         Parameters
         ----------
-        directory : str (default='Models')
+        directory : str (default='ckpts')
                 Directory in which to save the models.
+        episode : int (default=0)
+                Episode for which the weights are being saved.
 
         Returns
         -------
         Saves the actor and the critic to the specific directory.
-
-        Notes
-        -----
-        This is super lazy. We should add this to the rl protocol. Same with the
-        model restoration.
         """
-        for type_, val in self.rl_protocols.items():
-            val.network.export_model(filename=f"Model{type_}", directory=directory)
+        for protocol in self.rl_protocols.values():
+            protocol.save_model(directory, episode)
 
-    def restore_models(self, directory: str = "Models"):
+    def restore_models(self, directory: str = "ckpts"):
         """
         Export the models to the specified directory.
 
         Parameters
         ----------
-        directory : str (default='Models')
+        directory : str (default='ckpts')
                 Directory from which to load the objects.
 
         Returns
         -------
         Loads the actor and critic from the specific directory.
         """
-        for type_, val in self.rl_protocols.items():
-            val.network.restore_model_state(
-                filename=f"Model{type_}", directory=directory
-            )
+        for protocol in self.rl_protocols.values():
+            protocol.restore_parameters(directory=directory)
 
     def initialize_models(self):
         """
         Initialize all of the models in the gym.
         """
-        for _, val in self.rl_protocols.items():
-            val.network.reinitialize_network()
+        for protocol in self.rl_protocols.values():
+            protocol.network.reinitialize_network()
 
     def perform_rl_training(
         self,
@@ -172,7 +168,8 @@ class Gym:
         n_episodes: int,
         episode_length: int,
         load_bar: bool = True,
-    ):
+        callbacks: list = [],
+    ) -> np.ndarray:
         """
         Perform the RL training.
 
@@ -186,6 +183,12 @@ class Gym:
                 Number of time steps in one episode.
         load_bar : bool (default=True)
                 If true, show a progress bar.
+
+        Returns
+        -------
+        rewards : np.ndarray
+                A numpy array of the rewards over all of the
+                episodes performed.
         """
         rewards = [0.0]
         current_reward = 0.0
@@ -214,7 +217,7 @@ class Gym:
                 running_reward=np.mean(rewards),
                 visible=load_bar,
             )
-            for _ in range(n_episodes):
+            for episode in range(n_episodes):
                 # start = time.time()
                 system_runner.integrate(episode_length, force_fn)
                 trajectory_data = force_fn.trajectory_data
@@ -230,6 +233,17 @@ class Gym:
                     current_reward=np.round(current_reward, 2),
                     running_reward=np.round(np.mean(rewards[-10:]), 2),
                 )
+
+                # Check the callbacks
+                for operation in callbacks:
+                    decision, values = operation(episode)
+                    if decision:
+                        # Store new data.
+                        self.export_models(episode=episode)
+
+                        # Remove old data/
+                        if values is not None:
+                            os.remove(f"ckpts/*_{values}_*")
 
         system_runner.finalize()
 
