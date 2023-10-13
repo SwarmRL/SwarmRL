@@ -6,14 +6,14 @@ Notes
 Observable for sensing changes in some field value, or, the gradient.
 """
 import logging
+import time
 from abc import ABC
 from typing import List
 
 import jax
 import jax.numpy as np
-import numpy as onp
 
-from swarmrl.agents import Colloid, Swarm
+from swarmrl.agents import Colloid, Swarm, create_swarm
 from swarmrl.observables.observable import Observable
 
 logger = logging.getLogger(__name__)
@@ -88,13 +88,13 @@ class ConcentrationField(Observable, ABC):
         -------
         Updates the class state.
         """
-        for item in colloids:
-            index = onp.copy(item.id)
-            position = onp.copy(item.pos) / self.box_length
-            self._historic_positions[str(index)] = position
+        swarm = create_swarm(colloids)
+        partitioned_swarm = swarm.get_species_swarm(self.particle_type)
+        self.historic_fields = self.vmapped_fn(partitioned_swarm)
 
     def compute_single_observable(
-        self, colloid: Colloid, previous_position: dict
+        self,
+        colloid: Colloid,
     ) -> tuple:
         """
         Compute the observable for a single colloid.
@@ -107,15 +107,12 @@ class ConcentrationField(Observable, ABC):
                 List of colloids in the system.
         """
         position = colloid.pos / self.box_length
-        index = colloid.id
-        # previous_position = historic_positions[str(index)]
 
         current_distance = np.linalg.norm(self.source - position)
-        historic_distance = np.linalg.norm(self.source - previous_position)
 
-        delta = self.decay_fn(current_distance) - self.decay_fn(historic_distance)
+        delta = self.decay_fn(current_distance)
 
-        return self.scale_factor * delta, index, position
+        return self.scale_factor * delta
 
     def compute_observable(self, swarm: Swarm) -> np.ndarray:
         """
@@ -133,9 +130,9 @@ class ConcentrationField(Observable, ABC):
                 current field value minus to previous field value.
         """
         # reference_ids = self.get_colloid_indices(colloids)
-
+        start = time.time()
         partitioned_swarm = swarm.get_species_swarm(self.particle_type)
-
+        print(f"A: {time.time() - start}")
         if self._historic_positions == {}:
             msg = (
                 f"{type(self).__name__} requires initialization. Please set the "
@@ -143,18 +140,7 @@ class ConcentrationField(Observable, ABC):
             )
             raise ValueError(msg)
 
-        historic_positions = np.array(
-            [
-                self._historic_positions[str(item)]
-                for item in swarm.type_indices[self.particle_type]
-            ]
-        )
-
-        observables, indices, positions = self.vmapped_fn(
-            partitioned_swarm, historic_positions
-        )
-
-        for index, position in zip(indices, positions):
-            self._historic_positions[str(index)] = position
-
+        fields = self.vmapped_fn(partitioned_swarm)
+        observables = fields - self.historic_fields
+        self.historic_fields = fields
         return np.array(observables).reshape(-1, 1)
