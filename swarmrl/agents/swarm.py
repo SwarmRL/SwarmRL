@@ -119,9 +119,11 @@ def create_swarm(colloids: List[Colloid]) -> Swarm:
         -1, colloids[0].director.shape[0]
     )
     id = np.array([c.id for c in colloids]).reshape(-1, 1)
+
     velocity = np.array([c.velocity for c in colloids]).reshape(
         -1, colloids[0].velocity.shape[0]
     )
+
     type = np.array([c.type for c in colloids]).reshape(-1, 1)
 
     # add species indices to the colloid types.

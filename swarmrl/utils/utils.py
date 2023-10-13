@@ -375,7 +375,6 @@ def create_colloids(
         cols.append(Colloid(pos=position, director=direction, type=type_, id=i))
     return cols
 
-
 def calc_ellipsoid_friction_factors_translation(
     axial_semiaxis, equatorial_semiaxis, dynamic_viscosity
 ):

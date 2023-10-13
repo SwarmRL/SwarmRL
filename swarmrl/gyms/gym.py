@@ -1,11 +1,13 @@
 """
 Module to implement a simple multi-layer perceptron for the colloids.
 """
+import time
 from typing import List, Tuple
 
 import numpy as np
 from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
+from swarmrl.agents import Colloid
 from swarmrl.engine.engine import Engine
 from swarmrl.losses.loss import Loss
 from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
@@ -192,9 +194,21 @@ class Gym:
         episode = 0
         force_fn = self.initialize_training()
 
+        swarmrl_colloids = []
+        for col in system_runner.colloids:
+            swarmrl_colloids.append(
+                Colloid(
+                    pos=col.pos,
+                    velocity=col.v,
+                    director=col.director,
+                    id=col.id,
+                    type=col.type,
+                )
+            )
+
         # Initialize the tasks and observables.
         for _, val in self.rl_protocols.items():
-            val.observable.initialize(system_runner.colloids)
+            val.observable.initialize(swarmrl_colloids)
             val.task.initialize(system_runner.colloids)
 
         progress = Progress(
@@ -215,8 +229,9 @@ class Gym:
                 visible=load_bar,
             )
             for _ in range(n_episodes):
-                # start = time.time()
+                start = time.time()
                 system_runner.integrate(episode_length, force_fn)
+                print(time.time() - start)
                 trajectory_data = force_fn.trajectory_data
                 force_fn, current_reward = self.update_rl(
                     trajectory_data=trajectory_data
