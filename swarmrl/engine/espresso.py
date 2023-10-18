@@ -317,6 +317,19 @@ class EspressoMD(Engine):
                     "If you use the Langevin thermostat, you must set a particle"
                     " rotational inertia"
                 )
+        else:
+            # mass and moment of inertia can still be relevant when calculating
+            # the stochastic part of the particle velocity, see
+            # https://espressomd.github.io/doc/integration.html#brownian-thermostat.
+            # Provide defaults in case the user didn't set the values.
+            water_dens = self.params.ureg.Quantity(1000, "kg/meter**3")
+            if mass is None:
+                mass = water_dens * 4.0 / 3.0 * np.pi * radius_colloid**3
+            if rinertia is None:
+                rinertia = 2.0 / 5.0 * mass * radius_colloid**2
+                rinertia = utils.convert_array_of_pint_to_pint_of_array(
+                    3 * [rinertia], self.params.ureg
+                )
 
         if self.n_dims == 3:
             colloid = self.system.part.add(

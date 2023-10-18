@@ -1,7 +1,7 @@
 """
 Integration test for the genetic algorithm training.
 """
-import shutil
+import tempfile
 import unittest as ut
 
 import flax.linen as nn
@@ -14,11 +14,10 @@ from swarmrl.models.interaction_model import Action
 
 
 # Helper definitions.
-def get_simulation_runner():
+def get_simulation_runner(directory):
     """
     Collect a simulation runner.
     """
-    simulation_name = "training"
     seed = int(np.random.uniform(1, 100))
 
     temperature = 297.15
@@ -31,8 +30,8 @@ def get_simulation_runner():
         WCA_epsilon=ureg.Quantity(temperature, "kelvin") * ureg.boltzmann_constant,
         temperature=ureg.Quantity(300.0, "kelvin"),
         box_length=ureg.Quantity(1000, "micrometer"),
-        time_slice=ureg.Quantity(0.5, "second"),  # model timestep
-        time_step=ureg.Quantity(0.5, "second") / 5,  # integrator timestep
+        time_slice=ureg.Quantity(0.5, "second"),
+        time_step=ureg.Quantity(0.5, "second") / 5,
         write_interval=ureg.Quantity(2, "second"),
     )
 
@@ -40,7 +39,7 @@ def get_simulation_runner():
         md_params=md_params,
         n_dims=2,
         seed=seed,
-        out_folder=simulation_name,
+        out_folder=directory,
         write_chunk_size=100,
     )
 
@@ -80,88 +79,75 @@ class TestGeneticTraining(ut.TestCase):
     Test suite for the genetic training.
     """
 
-    def setUp(self):
-        """
-        Prepare the test.
-        """
+    def test_genetic_training(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            exploration_policy = srl.exploration_policies.RandomExploration(
+                probability=0.0
+            )
+            sampling_strategy = srl.sampling_strategies.GumbelDistribution()
 
-        # Exploration policy
-        exploration_policy = srl.exploration_policies.RandomExploration(probability=0.0)
+            # Set the task
+            task = srl.tasks.searching.GradientSensing(
+                source=np.array([500.0, 500.0, 0.0]),
+                decay_function=scale_function,
+                reward_scale_factor=10,
+                box_length=np.array([1000.0, 1000.0, 1000]),
+            )
+            observable = srl.observables.ConcentrationField(
+                source=np.array([500.0, 500.0, 0.0]),
+                decay_fn=scale_function,
+                scale_factor=10,
+                box_length=np.array([1000.0, 1000.0, 1000]),
+            )
 
-        # Sampling strategy
-        sampling_strategy = srl.sampling_strategies.GumbelDistribution()
+            # Define the loss model
+            loss = srl.losses.ProximalPolicyLoss(n_epochs=2)
 
-        # Set the task
-        task = srl.tasks.searching.GradientSensing(
-            source=np.array([500.0, 500.0, 0.0]),
-            decay_function=scale_function,
-            reward_scale_factor=10,
-            box_length=np.array([1000.0, 1000.0, 1000]),
-        )
-        observable = srl.observables.ConcentrationField(
-            source=np.array([500.0, 500.0, 0.0]),
-            decay_fn=scale_function,
-            scale_factor=10,
-            box_length=np.array([1000.0, 1000.0, 1000]),
-        )
+            network = srl.networks.FlaxModel(
+                flax_model=Network(),
+                optimizer=optax.adam(learning_rate=0.001),
+                input_shape=(1,),
+                sampling_strategy=sampling_strategy,
+                exploration_policy=exploration_policy,
+            )
 
-        # Define the loss model
-        loss = srl.losses.ProximalPolicyLoss(n_epochs=2)
+            translate = Action(force=10.0)
+            rotate_clockwise = Action(torque=np.array([0.0, 0.0, 10.0]))
+            rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -10.0]))
+            do_nothing = Action()
 
-        network = srl.networks.FlaxModel(
-            flax_model=Network(),
-            optimizer=optax.adam(learning_rate=0.001),
-            input_shape=(1,),
-            sampling_strategy=sampling_strategy,
-            exploration_policy=exploration_policy,
-        )
+            actions = {
+                "RotateClockwise": rotate_clockwise,
+                "Translate": translate,
+                "RotateCounterClockwise": rotate_counter_clockwise,
+                "DoNothing": do_nothing,
+            }
 
-        translate = Action(force=10.0)
-        rotate_clockwise = Action(torque=np.array([0.0, 0.0, 10.0]))
-        rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -10.0]))
-        do_nothing = Action()
+            protocol = srl.rl_protocols.ActorCritic(
+                particle_type=0,
+                network=network,
+                task=task,
+                observable=observable,
+                actions=actions,
+            )
 
-        actions = {
-            "RotateClockwise": rotate_clockwise,
-            "Translate": translate,
-            "RotateCounterClockwise": rotate_counter_clockwise,
-            "DoNothing": do_nothing,
-        }
+            rl_trainer = srl.gyms.Gym(
+                [protocol],
+                loss,
+            )
+            self.training_routine = srl.training_routines.GeneticTraining(
+                rl_trainer,
+                get_simulation_runner(temp_dir),
+                output_directory=temp_dir,
+                n_episodes=50,
+                episode_length=20,
+                number_of_generations=3,
+                population_size=10,
+                number_of_parents=3,
+                parallel_jobs=2,
+            )
 
-        protocol = srl.rl_protocols.ActorCritic(
-            particle_type=0,
-            network=network,
-            task=task,
-            observable=observable,
-            actions=actions,
-        )
-
-        rl_trainer = srl.gyms.Gym(
-            [protocol],
-            loss,
-        )
-        self.training_routine = srl.training_routines.GeneticTraining(
-            rl_trainer,
-            get_simulation_runner,
-            n_episodes=50,
-            episode_length=20,
-            number_of_generations=3,
-            population_size=10,
-            number_of_parents=3,
-            parallel_jobs=2,
-        )
-
-    def test_run(self):
-        """
-        Test that the code runs correctly.
-        """
-        self.training_routine.train_model()
-
-    def tearDown(self):
-        """
-        Clean up after running.
-        """
-        shutil.rmtree("genetic_algorithm")
+            self.training_routine.train_model()
 
 
 if __name__ == "__main__":
