@@ -35,7 +35,7 @@ class FlowTest(ut.TestCase):
 
             # create a 2d flowfield. Usually, this would be done in a
             # separate (lattice Boltzmann) simulation
-            # note that at swarmrl only supports cubic simulation boxes
+            # note that swarmrl only supports cubic simulation boxes
             n_cells = 100
             box_l = params.box_length.m_as("sim_length")
             agrid_SI = params.box_length / n_cells
