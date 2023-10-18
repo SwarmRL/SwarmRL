@@ -21,6 +21,14 @@ class ConstTorque(interaction_model.InteractionModel):
         return len(colloids) * [self.action]
 
 
+class ConstForceAndTorque(interaction_model.InteractionModel):
+    def __init__(self, force: float, torque: np.ndarray):
+        self.action = interaction_model.Action(force=force, torque=torque)
+
+    def calc_action(self, colloids) -> typing.List[interaction_model.Action]:
+        return len(colloids) * [self.action]
+
+
 class ToConstDirection(interaction_model.InteractionModel):
     def __init__(self, direction: np.ndarray):
         self.action = interaction_model.Action(new_direction=direction)

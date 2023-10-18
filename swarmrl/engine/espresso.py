@@ -38,6 +38,10 @@ class MDParams:
         MD runs with internal time step of time_step. The external force/torque from
         the force_model will not be updated at every single time step, instead every
         time_slice. Therefore, time_slice must be an integer multiple of time_step.
+    thermostat_type: optional
+        One of "brownian", "langevin",
+        see https://espressomd.github.io/doc/integration.html
+        for details of the algorithms.
     """
 
     ureg: pint.UnitRegistry
@@ -48,6 +52,7 @@ class MDParams:
     time_step: pint.Quantity
     time_slice: pint.Quantity
     write_interval: pint.Quantity
+    thermostat_type: str = "brownian"
 
 
 def _get_random_start_pos(
@@ -114,7 +119,7 @@ class EspressoMD(Engine):
         periodic : bool
                 If False, do not use periodic boundary conditions.
         """
-        self.params = md_params
+        self.params: MDParams = md_params
         self.out_folder = out_folder
         self.seed = seed
         self.rng = np.random.default_rng(self.seed)
@@ -163,6 +168,7 @@ class EspressoMD(Engine):
         self.ureg.define("sim_velocity = sim_length / sim_time")
         self.ureg.define("sim_angular_velocity = 1 / sim_time")
         self.ureg.define("sim_mass = sim_energy / sim_velocity**2")
+        self.ureg.define("sim_rinertia = sim_length**2 * sim_mass")
         self.ureg.define("sim_dyn_viscosity = sim_mass / (sim_length * sim_time)")
         self.ureg.define("sim_force = sim_mass * sim_length / sim_time**2")
         self.ureg.define("sim_torque = sim_length * sim_force")
@@ -235,6 +241,8 @@ class EspressoMD(Engine):
         gamma_translation: pint.Quantity = None,
         gamma_rotation: pint.Quantity = None,
         aspect_ratio: float = 1.0,
+        mass: pint.Quantity = None,
+        rinertia: pint.Quantity = None,
     ):
         """
         Parameters
@@ -247,15 +255,20 @@ class EspressoMD(Engine):
             Multiple calls can be made with the same type_colloid.
             Interaction models need to be made aware if there are different types
             of colloids in the system if specific behaviour is desired.
-        gamma_translation, gamma_rotation: optional
+        gamma_translation, gamma_rotation: pint.Quantity[np.array], optional
             If None, calculate these quantities from the radius and the fluid viscosity.
             You can provide friction coefficients as scalars or a 3-vector
             (the diagonal elements of the friction tensor).
-        aspect_ratio
+        aspect_ratio: float, optional
             If you provide a value != 1, a gay-berne interaction will be set up
             instead of purely repulsive lennard jones.
             aspect_ratio > 1 will produce a cigar, aspect_ratio < 0 a disk
             (both swimming in the direction of symmetry).
+        mass: optional
+            Particle mass. Only relevant for Langevin integrator.
+        rinertia: optional
+            Diagonal elements of the rotational moment of inertia tensor
+            of the particle, assuming the particle is oriented along z.
 
         Returns
         -------
@@ -294,6 +307,17 @@ class EspressoMD(Engine):
         else:
             gamma_rotation = gamma_rotation.m_as("sim_torque/sim_angular_velocity")
 
+        if self.params.thermostat_type == "langevin":
+            if mass is None:
+                raise ValueError(
+                    "If you use the Langevin thermostat, you must set a particle mass"
+                )
+            if rinertia is None:
+                raise ValueError(
+                    "If you use the Langevin thermostat, you must set a particle"
+                    " rotational inertia"
+                )
+
         if self.n_dims == 3:
             colloid = self.system.part.add(
                 pos=init_pos,
@@ -303,6 +327,8 @@ class EspressoMD(Engine):
                 gamma_rot=gamma_rotation,
                 fix=3 * [False],
                 type=type_colloid,
+                mass=mass.m_as("sim_mass"),
+                rinertia=rinertia.m_as("sim_rinertia"),
             )
         else:
             # initialize with body-frame = lab-frame to set correct rotation flags
@@ -316,6 +342,8 @@ class EspressoMD(Engine):
                 gamma_rot=gamma_rotation,
                 quat=[1, 0, 0, 0],
                 type=type_colloid,
+                mass=mass.m_as("sim_mass"),
+                rinertia=rinertia.m_as("sim_rinertia"),
             )
             theta, phi = utils.angles_from_vector(init_direction)
             if abs(theta - np.pi / 2) > 10e-6:
@@ -344,6 +372,8 @@ class EspressoMD(Engine):
         gamma_translation: pint.Quantity = None,
         gamma_rotation: pint.Quantity = None,
         aspect_ratio: float = 1.0,
+        mass: pint.Quantity = None,
+        rinertia: pint.Quantity = None,
     ):
         """
         Parameters
@@ -367,6 +397,12 @@ class EspressoMD(Engine):
             aspect_ratio > 1 will produce a cigar, aspect_ratio < 0 a disk
             (both swimming in the direction of symmetry).
             The radius_colloid gives the radius perpendicular to the symmetry axis.
+        mass: optional
+            Particle mass. Only relevant for Langevin integrator.
+        rinertia: optional
+            Diagonal elements of the rotational moment of inertia tensor
+            of the particle, assuming the particle is oriented along z.
+
 
         Returns
         -------
@@ -385,30 +421,23 @@ class EspressoMD(Engine):
             )
 
             if self.n_dims == 3:
-                director = utils.vector_from_angles(*utils.get_random_angles(self.rng))
-                self.add_colloid_on_point(
-                    radius_colloid=radius_colloid,
-                    init_position=start_pos,
-                    init_direction=director,
-                    type_colloid=type_colloid,
-                    gamma_translation=gamma_translation,
-                    gamma_rotation=gamma_rotation,
-                    aspect_ratio=aspect_ratio,
+                init_direction = utils.vector_from_angles(
+                    *utils.get_random_angles(self.rng)
                 )
             else:
-                # initialize with body-frame = lab-frame to set correct rotation flags
-                # allow all rotations to bring the particle to correct state
                 start_angle = 2 * np.pi * self.rng.random()
                 init_direction = utils.vector_from_angles(np.pi / 2, start_angle)
-                self.add_colloid_on_point(
-                    radius_colloid=radius_colloid,
-                    init_position=start_pos,
-                    init_direction=init_direction,
-                    type_colloid=type_colloid,
-                    gamma_translation=gamma_translation,
-                    gamma_rotation=gamma_rotation,
-                    aspect_ratio=aspect_ratio,
-                )
+            self.add_colloid_on_point(
+                radius_colloid=radius_colloid,
+                init_position=start_pos,
+                init_direction=init_direction,
+                type_colloid=type_colloid,
+                gamma_translation=gamma_translation,
+                gamma_rotation=gamma_rotation,
+                aspect_ratio=aspect_ratio,
+                mass=mass,
+                rinertia=rinertia,
+            )
 
     def add_rod(
         self,
@@ -694,6 +723,104 @@ class EspressoMD(Engine):
             )
         parts.ext_force = force_simunits
 
+    def add_flowfield(
+        self,
+        flowfield: pint.Quantity,
+        friction_coeff: pint.Quantity,
+        grid_spacings: pint.Quantity,
+    ):
+        """
+        Parameters
+        ----------
+        flowfield: pint.Quantity[np.array]
+            The flowfield to add, given as a pint Quantity of a numpy array
+            with units of velocity.
+            Must have shape (n_cells_x, n_cells_y, n_cells_z, 3)
+            The velocity values must be centered in the corresponding grid,
+            e.g. the [idx_x,idx_y,idx_z, :] value of the array contains the velocity at
+            np.dot([idx_x+0.5,idx_y+0.5,idx_z+0.5],[agrid_x,agrid_y,agrid_z]).
+            From these points, the velocity is interpolated to the particle positions.
+        friction_coeff: pint.Quantity[float]
+            The friction coefficient in units of mass/time.
+            Espresso does not yet support particle-specific or anisotropic
+            friction coefficients for flow coupling, so one scalar value has to be
+            provided here which will be used for all particles.
+        grid_spacings: pint.Quantity[np.array]
+            This grid spacing will be used to fit the flowfield into the simulation box.
+            If you run a 2d-simulation, choose grid_spacings[2]=box_l.
+        """
+
+        if not self.params.thermostat_type == "langevin":
+            raise RuntimeError(
+                "Coupling to a flowfield does not work with a Brownian thermostat. Use"
+                " 'langevin'."
+            )
+
+        flow = flowfield.m_as("sim_velocity")
+        gamma = friction_coeff.m_as("sim_mass/sim_time")
+        agrids = grid_spacings.m_as("sim_length")
+
+        if not flow.ndim == 4:
+            raise ValueError(
+                "flowfield must have shape (n_cells_x, n_cells_y, n_cells_z, 3)"
+            )
+        if not len(grid_spacings) == 3:
+            raise ValueError("Grid spacings must have length of 3")
+
+        # espresso constraint field must be one grid larger in all directions
+        # for interpolation. Apply periodic boundary conditions
+        flow_padded = np.stack(
+            [np.pad(flow[:, :, :, i], mode="wrap", pad_width=1) for i in range(3)],
+            axis=3,
+        )
+        flow_constraint = espressomd.constraints.FlowField(
+            field=flow_padded, gamma=gamma, grid_spacing=agrids
+        )
+        self.system.constraints.add(flow_constraint)
+
+    def add_external_potential(
+        self, potential: pint.Quantity, grid_spacings: pint.Quantity
+    ):
+        """
+        Parameters
+        ----------
+        potential: pint.Quantity[np.array]
+            The flowfield to add, given as a pint Quantity of a numpy array
+            with units of energy.
+            Must have shape (n_cells_x, n_cells_y, n_cells_z)
+            The potential values must be centered in the corresponding grid,
+            e.g. the [idx_x,idx_y,idx_z, :] value of the array contains the potential at
+            np.dot([idx_x+0.5, idx_y+0.5, idx_z+0.5], [agrid_x, agrid_y, agrid_z]).
+            From these points, the potential is interpolated to the particle positions.
+        grid_spacings: pint.Quantity[np.array]
+            This grid spacing will be used to fit the potential into the simulation box.
+            If you run a 2d-simulation, choose grid_spacings[2]=box_l.
+        """
+
+        pot = potential.m_as("sim_energy")
+        agrids = grid_spacings.m_as("sim_length")
+
+        if not pot.ndim == 3:
+            raise ValueError(
+                "potential must have shape (n_cells_x, n_cells_y, n_cells_z)"
+            )
+        if not len(grid_spacings) == 3:
+            raise ValueError("Grid spacings must have length of 3")
+
+        # Espresso constraint field must be one cell larger in all directions
+        # for interpolation. Apply periodic boundary conditions.
+        pot_padded = np.pad(
+            pot,
+            pad_width=1,
+            mode="wrap",
+        )
+        pot_constraint = espressomd.constraints.PotentialField(
+            field=pot_padded[:, :, :, np.newaxis],
+            grid_spacing=agrids,
+            default_scale=1.0,
+        )
+        self.system.constraints.add(pot_constraint)
+
     def get_friction_coefficients(self, type: int):
         """
         Returns both the translational and the rotational friction coefficient
@@ -820,18 +947,33 @@ class EspressoMD(Engine):
         )
         self.system.integrator.run(1000)
 
-        # set the brownian thermostat
+        # set the thermostat
         kT = (self.params.temperature * self.ureg.boltzmann_constant).m_as("sim_energy")
+
+        allowed_integrators = ["brownian", "langevin"]
+        if self.params.thermostat_type not in allowed_integrators:
+            raise ValueError(f"integrator_type must be one of {allowed_integrators}")
+
         # Dummy gamma values, we set them for each particle separately.
         # If we forget to do so, the simulation will explode as a gentle reminder
-        self.system.thermostat.set_brownian(
-            kT=kT,
-            gamma=1e-20,
-            gamma_rotation=1e-20,
-            seed=self.seed,
-            act_on_virtual=False,
-        )
-        self.system.integrator.set_brownian_dynamics()
+        if self.params.thermostat_type == "brownian":
+            self.system.thermostat.set_brownian(
+                kT=kT,
+                gamma=1e-20,
+                gamma_rotation=1e-20,
+                seed=self.seed,
+                act_on_virtual=False,
+            )
+            self.system.integrator.set_brownian_dynamics()
+        else:
+            self.system.thermostat.set_langevin(
+                kT=kT,
+                gamma=1e-20,
+                gamma_rotation=1e-20,
+                seed=self.seed,
+                act_on_virtual=False,
+            )
+            self.system.integrator.set_vv()
 
     def manage_forces(self, force_model: swarmrl.models.InteractionModel = None):
         swarmrl_colloids = []
