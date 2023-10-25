@@ -97,8 +97,7 @@ class Gym:
             episode_data = trajectory_data[type_]
 
             reward += np.mean(episode_data.rewards)
-            reward += np.mean(episode_data.rewards)
-
+            
             # Compute loss for actor and critic.
             self.loss.compute_loss(
                 network=val.network,
