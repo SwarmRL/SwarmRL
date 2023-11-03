@@ -1,6 +1,7 @@
 """
 Random exploration module.
 """
+
 from abc import ABC
 from functools import partial
 

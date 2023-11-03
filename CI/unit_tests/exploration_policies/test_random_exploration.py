@@ -1,6 +1,7 @@
 """
 Test the random exploration module.
 """
+
 import jax.numpy as np
 from numpy.testing import assert_array_equal, assert_raises
 

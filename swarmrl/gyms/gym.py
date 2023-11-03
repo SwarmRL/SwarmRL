@@ -1,6 +1,7 @@
 """
 Module to implement a simple multi-layer perceptron for the colloids.
 """
+
 from typing import List, Tuple
 
 import numpy as np

@@ -1,6 +1,7 @@
 """
 Module for the Actor-Critic RL protocol.
 """
+
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.rl_protocols.rl_protocol import RLProtocol

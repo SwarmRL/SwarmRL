@@ -1,6 +1,7 @@
 """
 Uni test for the Flax network
 """
+
 import os
 from pathlib import Path
 

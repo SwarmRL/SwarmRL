@@ -1,6 +1,7 @@
 """
 Parent class for the observable.
 """
+
 from typing import List
 
 from swarmrl.agents.colloid import Colloid

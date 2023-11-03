@@ -1,6 +1,7 @@
 """
 Run a unit test on the loss module.
 """
+
 import torch
 from torch.distributions import Categorical
 

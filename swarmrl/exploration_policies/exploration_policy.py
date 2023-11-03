@@ -1,6 +1,7 @@
 """
 Parent class for exploration modules.
 """
+
 import jax.numpy as np
 
 

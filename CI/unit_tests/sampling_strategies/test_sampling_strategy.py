@@ -1,6 +1,7 @@
 """
 Unit tests for the sampling strategy parent.
 """
+
 import numpy as np
 
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy

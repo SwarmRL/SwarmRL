@@ -6,6 +6,7 @@ Notes
 The reward classes handle the computation of the reward from an environment and
 compute the loss for the models to train on.
 """
+
 from typing import List
 
 from swarmrl.models.interaction_model import Colloid

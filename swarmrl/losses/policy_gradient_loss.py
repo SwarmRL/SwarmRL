@@ -8,6 +8,7 @@ Notes
 -----
 https://spinningup.openai.com/en/latest/algorithms/vpg.html
 """
+
 import logging
 
 import jax

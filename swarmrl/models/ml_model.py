@@ -1,6 +1,7 @@
 """
 Espresso interaction model capable of handling a neural network as a function.
 """
+
 import typing
 from dataclasses import dataclass, field
 from typing import Dict

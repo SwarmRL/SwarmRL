@@ -1,6 +1,7 @@
 """
 Module for the espressoMD simulations.
 """
+
 import dataclasses
 import logging
 import os
