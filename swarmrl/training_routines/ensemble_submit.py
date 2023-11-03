@@ -57,7 +57,7 @@ class EnsembleTraining:
 
         """
         self.simulation_runner_generator = simulation_runner_generator
-        self.output_dir = output_dir
+        self.output_dir = Path(output_dir)
         self.load_path = load_path
         self.episode_length = episode_length
         self.n_episodes = n_episodes
