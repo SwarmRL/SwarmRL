@@ -74,7 +74,7 @@ class EnsembleTraining:
         if cluster is None:
             cluster = LocalCluster(
                 processes=True,
-                threads_per_worker=1,
+                threads_per_worker=2,
                 silence_logs=logging.ERROR,
                 resources={"espresso": 1},
             )

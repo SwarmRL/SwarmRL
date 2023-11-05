@@ -41,14 +41,8 @@ class GeneticTraining:
         """
         Constructor for the genetic training routine.
 
-        Parameters  data,
-                            # first_atom_range=first_atom_range,
-                            # second_atom_range=second_atom_range,
-                            correlation_time=correlation_time,
-                            data_range=data_range,
-                            )able
-            A function that will returimport numpy as onp
-            esults to.
+        Parameters
+        ----------
         n_episodes : int
             Number of episodes in each lifespan
         number_of_generations : int (default: 10)
@@ -94,7 +88,7 @@ class GeneticTraining:
         if cluster is None:
             cluster = LocalCluster(
                 processes=True,
-                threads_per_worker=1,
+                threads_per_worker=2,
                 silence_logs=logging.ERROR,
                 resources={"espresso": 1},
             )
