@@ -66,8 +66,10 @@ class FlaxModel(Network, ABC):
             rng_key = onp.random.randint(0, 1027465782564)
         self.sampling_strategy = sampling_strategy
         self.model = flax_model
-        self.apply_fn = jax.vmap(self.model.apply, in_axes=(None, 0))  # Map over agents
-        self.batch_apply_fn = jax.vmap(self.apply_fn, in_axes=(None, 0))
+        self.apply_fn = jax.jit(
+            jax.vmap(self.model.apply, in_axes=(None, 0))
+        )  # Map over agents
+        self.batch_apply_fn = jax.jit(jax.vmap(self.apply_fn, in_axes=(None, 0)))
         self.input_shape = input_shape
         self.model_state = None
 

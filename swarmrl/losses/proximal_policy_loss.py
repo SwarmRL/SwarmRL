@@ -108,7 +108,7 @@ class ProximalPolicyLoss(Loss, ABC):
         new_probabilities = jax.nn.softmax(new_logits, axis=-1)
 
         # compute the entropy of the whole distribution
-        entropy = jnp.sum(self.sampling_strategy.compute_entropy(new_probabilities))
+        entropy = self.sampling_strategy.compute_entropy(new_probabilities).sum()
         chosen_log_probs = jnp.log(
             gather_n_dim_indices(new_probabilities, action_indices) + self.eps
         )
@@ -116,22 +116,24 @@ class ProximalPolicyLoss(Loss, ABC):
         # compute the ratio between old and new probs
         ratio = jnp.exp(chosen_log_probs - old_log_probs)
 
+        # Compute the actor loss
+
         # compute the clipped loss
         clipped_loss = -1 * jnp.minimum(
             ratio * advantages,
             jnp.clip(ratio, 1 - self.epsilon, 1 + self.epsilon) * advantages,
         )
-
-        # mean over the time steps
         particle_actor_loss = jnp.sum(clipped_loss, axis=0)
-
-        # mean over the particle losses
         actor_loss = jnp.sum(particle_actor_loss)
-        critic_loss = optax.huber_loss(predicted_values, returns)
 
-        particle_critic_loss = jnp.sum(critic_loss, 1)
-        total_critic_loss = jnp.sum(particle_critic_loss)
+        # Compute critic loss
+        total_critic_loss = (
+            optax.huber_loss(predicted_values, returns).sum(axis=0).sum()
+        )
+
+        # Compute combined loss
         loss = actor_loss - self.entropy_coefficient * entropy + 0.5 * total_critic_loss
+
         return loss
 
     def compute_loss(self, network: Network, episode_data):
