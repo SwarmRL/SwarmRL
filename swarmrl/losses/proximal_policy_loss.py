@@ -156,7 +156,7 @@ class ProximalPolicyLoss(Loss, ABC):
 
         for _ in range(self.n_epochs):
             network_grad_fn = jax.value_and_grad(self._calculate_loss)
-            network_loss, network_grad = network_grad_fn(
+            _, network_grad = network_grad_fn(
                 network.model_state.params,
                 network=network,
                 feature_data=feature_data,

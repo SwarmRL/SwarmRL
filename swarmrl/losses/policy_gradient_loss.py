@@ -126,7 +126,7 @@ class PolicyGradientLoss(Loss):
         self.n_time_steps = jnp.shape(feature_data)[0]
 
         network_grad_fn = jax.value_and_grad(self._calculate_loss)
-        network_loss, network_grads = network_grad_fn(
+        _, network_grads = network_grad_fn(
             network.model_state.params,
             network=network,
             feature_data=feature_data,

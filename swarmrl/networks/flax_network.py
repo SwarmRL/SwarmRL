@@ -66,8 +66,8 @@ class FlaxModel(Network, ABC):
             rng_key = onp.random.randint(0, 1027465782564)
         self.sampling_strategy = sampling_strategy
         self.model = flax_model
-        self.apply_fn = jax.jit(jax.vmap(self.model.apply, in_axes=(None, 0)))
-        self.batch_apply_fn = jax.vmap(self.model.apply, in_axes=(None, 0))
+        self.apply_fn = jax.vmap(self.model.apply, in_axes=(None, 0))  # Map over agents
+        self.batch_apply_fn = jax.vmap(self.apply_fn, in_axes=(None, 0))
         self.input_shape = input_shape
         self.model_state = None
 
@@ -111,10 +111,7 @@ class FlaxModel(Network, ABC):
         _, subkey = jax.random.split(init_rng)
         self.model_state = self._create_train_state(subkey)
 
-    def update_model(
-        self,
-        grads,
-    ):
+    def update_model(self, grads):
         """
         Train the model.
 
@@ -127,7 +124,7 @@ class FlaxModel(Network, ABC):
 
         self.epoch_count += 1
 
-    def compute_action(self, observables: List, explore_mode: bool = False):
+    def compute_action(self, observables: List):
         """
         Compute and action from the action space.
 
@@ -135,10 +132,8 @@ class FlaxModel(Network, ABC):
 
         Parameters
         ----------
-        observables : List
+        observables : List (n_agents, observable_dimension)
                 Observable for each colloid for which the action should be computed.
-        explore_mode : bool
-                If true, an exploration vs exploitation function is called.
 
         Returns
         -------
@@ -229,7 +224,7 @@ class FlaxModel(Network, ABC):
         ----------
         parmas : dict
                 Parameters of the model.
-        episode_features:
+        episode_features: np.ndarray (n_steps, n_agents, observable_dimension)
                 Features of the episode. This contains the features of all agents,
                 for all time steps in the episode.
 
