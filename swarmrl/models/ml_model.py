@@ -99,7 +99,7 @@ class MLModel(InteractionModel):
             observables[_type] = self.observables[_type].compute_observable(colloids)
             rewards[_type] = self.tasks[_type](colloids)
             action_indices[_type], log_probs[_type] = self.models[_type].compute_action(
-                observables=observables[_type], explore_mode=explore_mode
+                observables=observables[_type]
             )
             chosen_actions = np.take(
                 list(self.actions[_type].values()), action_indices[_type], axis=-1

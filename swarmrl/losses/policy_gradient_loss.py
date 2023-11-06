@@ -94,12 +94,11 @@ class PolicyGradientLoss(Loss):
         advantage = returns - predicted_values
         logger.debug(f"{advantage=}")
 
-        actor_loss = -1 * ((log_probs * advantage).sum(axis=0)).mean()
+        actor_loss = -1 * ((log_probs * advantage).sum(axis=0)).sum()
         logger.debug(f"{actor_loss=}")
 
-        critic_loss = jnp.sum(optax.huber_loss(predicted_values, returns), axis=0)
-
-        critic_loss = jnp.mean(critic_loss)
+        # Sum over time steps and average over agents.
+        critic_loss = optax.huber_loss(predicted_values, returns).sum(axis=0).sum()
 
         return actor_loss + critic_loss
 
@@ -126,7 +125,7 @@ class PolicyGradientLoss(Loss):
         self.n_time_steps = jnp.shape(feature_data)[0]
 
         network_grad_fn = jax.value_and_grad(self._calculate_loss)
-        network_loss, network_grads = network_grad_fn(
+        _, network_grads = network_grad_fn(
             network.model_state.params,
             network=network,
             feature_data=feature_data,
