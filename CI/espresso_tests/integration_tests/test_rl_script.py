@@ -118,7 +118,7 @@ class TestRLScript(ut.TestCase):
         network = srl.networks.FlaxModel(
             flax_model=acto_critic,
             optimizer=optax.adam(learning_rate=0.001),
-            input_shape=(1,),
+            input_shape=(1, 1),
             sampling_strategy=sampling_strategy,
             exploration_policy=exploration_policy,
         )
