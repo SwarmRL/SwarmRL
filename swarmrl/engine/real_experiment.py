@@ -1,6 +1,7 @@
 """
 Parent class for the engine.
 """
+
 import struct
 import typing
 

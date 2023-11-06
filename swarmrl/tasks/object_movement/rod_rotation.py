@@ -1,6 +1,7 @@
 """
 Class for rod rotation task.
 """
+
 from typing import List
 
 import jax

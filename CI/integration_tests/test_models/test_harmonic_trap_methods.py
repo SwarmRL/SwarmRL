@@ -1,6 +1,7 @@
 """
 Perform an integration test on the harmonic trap class.
 """
+
 import unittest as ut
 
 import numpy as np

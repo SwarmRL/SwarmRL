@@ -1,6 +1,7 @@
 """
 Class for the species search task.
 """
+
 import logging
 from typing import List
 

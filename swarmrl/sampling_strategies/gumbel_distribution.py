@@ -1,6 +1,7 @@
 """
 Module for the Gumbel distribution.
 """
+
 from abc import ABC
 
 import jax

@@ -1,6 +1,7 @@
 """
 Observable for particle sensing.
 """
+
 import logging
 from typing import List
 

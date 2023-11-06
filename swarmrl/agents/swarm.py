@@ -1,6 +1,7 @@
 """
 Class for the Swarm Pytree Agent
 """
+
 from __future__ import annotations
 
 import dataclasses

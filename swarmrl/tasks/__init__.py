@@ -1,6 +1,7 @@
 """
 __init__ for the tasks module.
 """
+
 from swarmrl.tasks import object_movement, searching
 from swarmrl.tasks.multi_tasking import MultiTasking
 from swarmrl.tasks.task import Task
