@@ -1,6 +1,7 @@
 """
 Position observable computer.
 """
+
 from abc import ABC
 from typing import List
 

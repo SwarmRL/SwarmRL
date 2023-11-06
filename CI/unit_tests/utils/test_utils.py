@@ -1,6 +1,7 @@
 """
 Test the utils module.
 """
+
 import jax.numpy as np
 import numpy.testing as npt
 

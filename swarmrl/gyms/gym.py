@@ -1,6 +1,7 @@
 """
 Module to implement a simple multi-layer perceptron for the colloids.
 """
+
 from typing import List, Tuple
 
 import numpy as np
@@ -96,7 +97,6 @@ class Gym:
         for type_, val in self.rl_protocols.items():
             episode_data = trajectory_data[type_]
 
-            reward += np.mean(episode_data.rewards)
             reward += np.mean(episode_data.rewards)
 
             # Compute loss for actor and critic.

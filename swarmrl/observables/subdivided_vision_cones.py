@@ -1,6 +1,7 @@
 """
 Computes vision cone(s).
 """
+
 from functools import partial
 from typing import List
 

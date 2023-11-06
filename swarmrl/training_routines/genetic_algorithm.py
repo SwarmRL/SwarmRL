@@ -1,6 +1,7 @@
 """
 Class for the genertic algorithm training routine.
 """
+
 import logging
 import os
 import webbrowser

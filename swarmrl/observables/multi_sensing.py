@@ -1,6 +1,7 @@
 """
 Class for an observable which computes several observables.
 """
+
 from abc import ABC
 from typing import List
 

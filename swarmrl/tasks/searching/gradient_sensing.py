@@ -7,6 +7,7 @@ Notes
 -----
 Requires a warm up step.
 """
+
 from abc import ABC
 from typing import List
 

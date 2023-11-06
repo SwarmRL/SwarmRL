@@ -5,6 +5,7 @@ Notes
 -----
 Observable for sensing changes in some field value, or, the gradient.
 """
+
 import logging
 from abc import ABC
 from typing import List

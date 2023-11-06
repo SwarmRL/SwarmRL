@@ -1,6 +1,7 @@
 """
 Module for the expected returns value function.
 """
+
 import logging
 from functools import partial
 

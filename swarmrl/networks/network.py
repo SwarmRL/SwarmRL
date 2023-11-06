@@ -1,6 +1,7 @@
 """
 Parent class for the networks.
 """
+
 from typing import List
 
 import jax.numpy as np
