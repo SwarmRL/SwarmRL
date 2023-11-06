@@ -1,6 +1,7 @@
 """
 Class for multi-tasking.
 """
+
 from typing import List
 
 import jax.numpy as np

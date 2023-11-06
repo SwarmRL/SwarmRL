@@ -1,6 +1,7 @@
 """
 Give position and angle.
 """
+
 from abc import ABC
 from typing import List
 

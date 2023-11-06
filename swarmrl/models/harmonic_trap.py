@@ -1,6 +1,7 @@
 """
 Example force computation.
 """
+
 from abc import ABC
 
 import jax.numpy as np

@@ -1,6 +1,7 @@
 """
 Test the ML based interaction model.
 """
+
 import flax.linen as nn
 import numpy as np
 import optax

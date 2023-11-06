@@ -1,6 +1,7 @@
 """
 Parent class for the engine.
 """
+
 from swarmrl.models.interaction_model import InteractionModel
 
 

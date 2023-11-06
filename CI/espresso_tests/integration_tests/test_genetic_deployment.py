@@ -1,6 +1,7 @@
 """
 Integration test for the genetic algorithm training.
 """
+
 import tempfile
 import unittest as ut
 

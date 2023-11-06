@@ -1,6 +1,7 @@
 """
 Class for submitting many jobs in parallel to a cluster.
 """
+
 import logging
 import os
 import webbrowser

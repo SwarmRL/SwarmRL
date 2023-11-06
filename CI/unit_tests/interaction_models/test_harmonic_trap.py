@@ -1,6 +1,7 @@
 """
 Test the harmonic trap potential.
 """
+
 import unittest as ut
 
 import jax.numpy as jnp

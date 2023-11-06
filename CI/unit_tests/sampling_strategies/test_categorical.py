@@ -1,6 +1,7 @@
 """
 Test the categorical distribution.
 """
+
 import jax.numpy as np
 import numpy as onp
 from numpy.testing import assert_array_almost_equal
