@@ -58,7 +58,6 @@ class TestFlaxNetwork:
             exploration_policy=self.exploration_policy,
         )
         input_data = np.array([[1.0, 2.0], [4.0, 5.0]])
-        print(input_data.shape)
 
         data_from_call, value_from_call = model.apply_fn(
             {"params": model.model_state.params}, input_data
@@ -70,6 +69,25 @@ class TestFlaxNetwork:
         assert value_from_call.shape == (2, 1)
         assert action_indices.shape == (2,)
         assert action_logits.shape == (2,)
+
+    def test_call_method(self):
+        """
+        Test that the call method works.
+        """
+        model = FlaxModel(
+            flax_model=self.network,
+            optimizer=optax.adam(learning_rate=0.001),
+            input_shape=(2,),
+            sampling_strategy=self.sampling_strategy,
+            exploration_policy=self.exploration_policy,
+        )
+        input_data = np.random.uniform(size=(10, 100, 2))
+
+        data_from_call, value_from_call = model(model.model_state.params, input_data)
+
+        # Check shapes
+        assert data_from_call.shape == (10, 100, 4)
+        assert value_from_call.shape == (10, 100, 1)
 
     def test_saving_and_reloading(self):
         """
