@@ -1,6 +1,7 @@
 """
 Module for the categorical distribution.
 """
+
 from abc import ABC
 
 import jax

@@ -1,6 +1,7 @@
 """
 Module for the loss parent class.
 """
+
 import jax.numpy as np
 
 from swarmrl.networks.network import Network

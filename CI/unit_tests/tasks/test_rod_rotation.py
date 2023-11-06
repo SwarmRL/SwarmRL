@@ -1,6 +1,7 @@
 """
 Unit test for the rod rotation task.
 """
+
 import numpy as np
 import pytest
 

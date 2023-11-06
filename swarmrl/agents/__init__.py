@@ -1,6 +1,7 @@
 """
 Model for agents.
 """
+
 from swarmrl.agents.colloid import Colloid
 from swarmrl.agents.swarm import Swarm
 

@@ -1,6 +1,7 @@
 """
 Module for special training routines.
 """
+
 from swarmrl.training_routines.ensemble_submit import EnsembleTraining
 from swarmrl.training_routines.genetic_algorithm import GeneticTraining
 

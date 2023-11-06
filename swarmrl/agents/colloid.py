@@ -1,6 +1,7 @@
 """
 Data class for the colloid agent.
 """
+
 import dataclasses
 
 import numpy as np

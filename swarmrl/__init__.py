@@ -1,6 +1,7 @@
 """
 __init__ file for the swarmrl package.
 """
+
 import logging
 
 from swarmrl import (
