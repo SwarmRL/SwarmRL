@@ -149,10 +149,10 @@ class TestEnsembleTraining(ut.TestCase):
                 rl_trainer,
                 get_simulation_runner,
                 output_dir=temp_dir,
-                number_of_ensembles=4,
-                n_episodes=5,
+                number_of_ensembles=6,
+                n_episodes=50,
                 n_parallel_jobs=2,
-                episode_length=5,
+                episode_length=20,
             )
 
             self.training_routine.train_ensemble()
