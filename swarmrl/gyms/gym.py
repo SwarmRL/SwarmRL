@@ -251,7 +251,7 @@ class Gym:
                 # end = time.time()
                 # print(f"Training time: {end - start}")
                 rewards.append(current_reward)
-                if k % 10 == 0 and k != 0:
+                if k % 50 == 0 and k != 0:
                     save_rewards(np.array(rewards), "rewards")
                 if k % 20 == 0:
                     self.export_models(f"Models_{k}")
