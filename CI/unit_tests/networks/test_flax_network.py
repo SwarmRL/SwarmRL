@@ -59,7 +59,9 @@ class TestFlaxNetwork:
         )
         input_data = np.array([[1.0, 2.0], [4.0, 5.0]])
 
-        data_from_call, value_from_call = model(model.model_state.params, input_data)
+        data_from_call, value_from_call = model.apply_fn(
+            {"params": model.model_state.params}, input_data
+        )
         action_indices, action_logits = model.compute_action(input_data)
 
         # Check shapes
@@ -67,6 +69,25 @@ class TestFlaxNetwork:
         assert value_from_call.shape == (2, 1)
         assert action_indices.shape == (2,)
         assert action_logits.shape == (2,)
+
+    def test_call_method(self):
+        """
+        Test that the call method works.
+        """
+        model = FlaxModel(
+            flax_model=self.network,
+            optimizer=optax.adam(learning_rate=0.001),
+            input_shape=(2,),
+            sampling_strategy=self.sampling_strategy,
+            exploration_policy=self.exploration_policy,
+        )
+        input_data = np.random.uniform(size=(10, 100, 2))
+
+        data_from_call, value_from_call = model(model.model_state.params, input_data)
+
+        # Check shapes
+        assert data_from_call.shape == (10, 100, 4)
+        assert value_from_call.shape == (10, 100, 1)
 
     def test_saving_and_reloading(self):
         """
@@ -81,8 +102,8 @@ class TestFlaxNetwork:
             exploration_policy=self.exploration_policy,
         )
         input_vector = np.array([[1.0, 2.0]])
-        pre_save_logits, pre_save_value = pre_save_model(
-            pre_save_model.model_state.params, input_vector
+        pre_save_logits, pre_save_value = pre_save_model.apply_fn(
+            {"params": pre_save_model.model_state.params}, input_vector
         )
         pre_save_model.export_model(filename="model", directory="Models")
 
@@ -97,8 +118,8 @@ class TestFlaxNetwork:
             sampling_strategy=self.sampling_strategy,
             exploration_policy=self.exploration_policy,
         )
-        post_save_logits, post_save_value = post_save_model(
-            post_save_model.model_state.params, input_vector
+        post_save_logits, post_save_value = post_save_model.apply_fn(
+            {"params": post_save_model.model_state.params}, input_vector
         )
         # Check that the logits are different
         np.testing.assert_raises(
@@ -118,8 +139,8 @@ class TestFlaxNetwork:
 
         # Load the model state
         post_save_model.restore_model_state(directory="Models", filename="model")
-        post_restore_logits, post_restore_value = post_save_model(
-            post_save_model.model_state.params, input_vector
+        post_restore_logits, post_restore_value = post_save_model.apply_fn(
+            {"params": post_save_model.model_state.params}, input_vector
         )
 
         np.testing.assert_array_equal(pre_save_logits, post_restore_logits)

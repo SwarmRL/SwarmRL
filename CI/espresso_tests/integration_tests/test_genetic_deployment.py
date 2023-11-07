@@ -80,11 +80,17 @@ class TestGeneticTraining(ut.TestCase):
     Test suite for the genetic training.
     """
 
-    def test_genetic_training(self):
+    def test_run(self):
+        """
+        Prepare the test.
+        """
         with tempfile.TemporaryDirectory() as temp_dir:
+            # Exploration policy
             exploration_policy = srl.exploration_policies.RandomExploration(
                 probability=0.0
             )
+
+            # Sampling strategy
             sampling_strategy = srl.sampling_strategies.GumbelDistribution()
 
             # Set the task
@@ -138,12 +144,12 @@ class TestGeneticTraining(ut.TestCase):
             )
             self.training_routine = srl.training_routines.GeneticTraining(
                 rl_trainer,
-                get_simulation_runner(temp_dir),
-                output_directory=temp_dir,
+                get_simulation_runner,
                 n_episodes=50,
+                output_directory=temp_dir,
                 episode_length=20,
-                number_of_generations=3,
-                population_size=10,
+                number_of_generations=5,
+                population_size=4,
                 number_of_parents=3,
                 parallel_jobs=2,
             )

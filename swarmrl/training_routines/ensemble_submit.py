@@ -58,7 +58,7 @@ class EnsembleTraining:
 
         """
         self.simulation_runner_generator = simulation_runner_generator
-        self.output_dir = output_dir
+        self.output_dir = Path(output_dir)
         self.load_path = load_path
         self.episode_length = episode_length
         self.n_episodes = n_episodes
@@ -75,7 +75,7 @@ class EnsembleTraining:
         if cluster is None:
             cluster = LocalCluster(
                 processes=True,
-                threads_per_worker=1,
+                threads_per_worker=2,
                 silence_logs=logging.ERROR,
                 resources={"espresso": 1},
             )
