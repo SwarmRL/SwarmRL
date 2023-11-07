@@ -15,10 +15,11 @@ from swarmrl.models.interaction_model import Action
 
 
 # Helper definitions.
-def get_simulation_runner(directory):
+def get_simulation_runner():
     """
     Collect a simulation runner.
     """
+    simulation_name = "training"
     seed = int(np.random.uniform(1, 100))
 
     temperature = 297.15
@@ -31,8 +32,8 @@ def get_simulation_runner(directory):
         WCA_epsilon=ureg.Quantity(temperature, "kelvin") * ureg.boltzmann_constant,
         temperature=ureg.Quantity(300.0, "kelvin"),
         box_length=ureg.Quantity(1000, "micrometer"),
-        time_slice=ureg.Quantity(0.5, "second"),
-        time_step=ureg.Quantity(0.5, "second") / 5,
+        time_slice=ureg.Quantity(0.5, "second"),  # model timestep
+        time_step=ureg.Quantity(0.5, "second") / 5,  # integrator timestep
         write_interval=ureg.Quantity(2, "second"),
     )
 
@@ -40,7 +41,7 @@ def get_simulation_runner(directory):
         md_params=md_params,
         n_dims=2,
         seed=seed,
-        out_folder=directory,
+        out_folder=simulation_name,
         write_chunk_size=100,
     )
 
