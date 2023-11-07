@@ -164,10 +164,11 @@ class TestUtils:
             axial_semiaxis, equatorial_semiaxis, 5
         )
         assert gamma_rot_eq > gamma_rot_ax
-        gamma_trans_ax, gamma_trans_eq = (
-            utils.calc_ellipsoid_friction_factors_translation(
-                axial_semiaxis, equatorial_semiaxis, 5
-            )
+        (
+            gamma_trans_ax,
+            gamma_trans_eq,
+        ) = utils.calc_ellipsoid_friction_factors_translation(
+            axial_semiaxis, equatorial_semiaxis, 5
         )
         assert gamma_trans_eq > gamma_trans_ax
 
@@ -178,9 +179,10 @@ class TestUtils:
             axial_semiaxis, equatorial_semiaxis, 5
         )
         assert gamma_rot_ax > gamma_rot_eq
-        gamma_trans_ax, gamma_trans_eq = (
-            utils.calc_ellipsoid_friction_factors_translation(
-                axial_semiaxis, equatorial_semiaxis, 5
-            )
+        (
+            gamma_trans_ax,
+            gamma_trans_eq,
+        ) = utils.calc_ellipsoid_friction_factors_translation(
+            axial_semiaxis, equatorial_semiaxis, 5
         )
         assert gamma_trans_ax > gamma_trans_eq

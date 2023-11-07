@@ -148,9 +148,9 @@ class TestGeneticTraining(ut.TestCase):
                 get_simulation_runner,
                 n_episodes=50,
                 output_directory=temp_dir,
-                episode_length=20,
+                episode_length=30,
                 number_of_generations=5,
-                population_size=4,
+                population_size=6,
                 number_of_parents=3,
                 parallel_jobs=2,
             )
