@@ -81,6 +81,21 @@ def _calc_friction_coefficients(
     return particle_gamma_translation, particle_gamma_rotation
 
 
+def _reset_system(system):
+    """
+    Reset system by removing all particles and
+    clearing all extensions and interactions.
+    """
+    system.part.clear()
+    system.thermostat.turn_off()
+    system.constraints.clear()
+    system.auto_update_accumulators.clear()
+    system.bonded_inter.clear()
+    system.non_bonded_inter.reset()
+    system.time = 0.0
+    return system
+
+
 class EspressoMD(Engine):
     """
     A class to manage the espressoMD environment.
@@ -100,13 +115,14 @@ class EspressoMD(Engine):
         out_folder=".",
         write_chunk_size=100,
         periodic: bool = True,
+        system: espressomd.System = None,
     ):
         """
         Constructor for the espressoMD engine.
 
         Parameters
         ----------
-        md_params : espressomd.MDParams
+        md_params : espresso.MDParams
                 Parameter class for the espresso simulation.
         n_dims : int (default = 3)
                 Number of dimensions to consider in the simulation
@@ -119,6 +135,12 @@ class EspressoMD(Engine):
                 Chunk size to use in the hdf5 writing.
         periodic : bool
                 If False, do not use periodic boundary conditions.
+        system : espressomd.System (optional)
+                Espresso system to use in this engine.
+                If not provided, a new system will be created.
+                Note: We try to clear the passed system of any previous contents,
+                but do not guarantee that everything is reset completely. Use at
+                own risk.
         """
         self.params: MDParams = md_params
         self.out_folder = out_folder
@@ -131,13 +153,12 @@ class EspressoMD(Engine):
         self._init_unit_system()
         self.write_chunk_size = write_chunk_size
 
-        self.system = espressomd.System(box_l=3 * [1.0])
+        if system is None:
+            self.system = espressomd.System(box_l=3 * [1.0])
+        else:
+            self.system = _reset_system(system)
+        self._init_system(periodic)
 
-        # Turn off PBC.
-        if not periodic:
-            self.system.periodicity = [False, False, False]
-
-        self._init_system()
         self.colloids = list()
 
         # register to lookup which type has which radius
@@ -174,7 +195,7 @@ class EspressoMD(Engine):
         self.ureg.define("sim_force = sim_mass * sim_length / sim_time**2")
         self.ureg.define("sim_torque = sim_length * sim_force")
 
-    def _init_system(self):
+    def _init_system(self, periodic):
         """
         Prepare the simulation box with the given parameters.
 
@@ -197,6 +218,7 @@ class EspressoMD(Engine):
         self.system.box_l = box_l
         self.system.time_step = time_step
         self.system.cell_system.skin = 0.4
+        self.system.periodicity = 3 * [periodic]
 
         # set writer params
         steps_per_write_interval = int(round(write_interval / time_step))
