@@ -131,7 +131,7 @@ class EspressoMD(Engine):
         self._init_unit_system()
         self.write_chunk_size = write_chunk_size
 
-        self.system =     espressomd.System(box_l=3 * [1.0])
+        self.system = espressomd.System(box_l=3 * [1.0])
 
         # Turn off PBC.
         if not periodic:
