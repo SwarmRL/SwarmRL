@@ -115,7 +115,7 @@ class EspressoMD(Engine):
         out_folder=".",
         write_chunk_size=100,
         periodic: bool = True,
-        system: espressomd.System = None,
+        system=None,
     ):
         """
         Constructor for the espressoMD engine.
