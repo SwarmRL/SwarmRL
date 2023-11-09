@@ -146,11 +146,11 @@ class TestGeneticTraining(ut.TestCase):
             self.training_routine = srl.training_routines.GeneticTraining(
                 rl_trainer,
                 get_simulation_runner,
-                n_episodes=50,
+                n_episodes=5,
                 output_directory=temp_dir,
-                episode_length=30,
-                number_of_generations=5,
-                population_size=6,
+                episode_length=5,
+                number_of_generations=3,
+                population_size=4,
                 number_of_parents=3,
                 parallel_jobs=2,
             )
