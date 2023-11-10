@@ -38,7 +38,7 @@ jobs:
           git clone https://github.com/espressomd/espresso.git
           cd espresso
           mkdir build && cd build
-          cp ../../myconfig.hpp .
+          cp ../maintainer/configs/maxset.hpp myconfig.hpp
           cmake ../ -D ESPRESSO_BUILD_WITH_FFTW=OFF
           cmake --build . -j 5
       - name: Run test suite
