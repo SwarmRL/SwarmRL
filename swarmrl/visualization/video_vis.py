@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation
 from matplotlib.collections import LineCollection
+from matplotlib.patches import FancyArrowPatch
 from matplotlib.widgets import Slider
 from scipy import optimize
 
@@ -116,6 +117,7 @@ class Animations:
         trace_fade_boolean,
         eyes_boolean,
         arrow_boolean,
+        arrow_eyes_alpha,
         body_color,
         body_color_based_on_action_for_type,
         body_color_alpha,
@@ -125,6 +127,9 @@ class Animations:
         background_colors,
         background_data_generator,
         background_pixel_number,
+        background_stream_boolean,
+        background_stream_sites,
+        background_stream_pixel_number,
         rod_rotation_chess_board_boolean,
         rod_length,
         rod_center_points,
@@ -163,6 +168,7 @@ class Animations:
         self.trace_fade_boolean = [False] * len(self.ids)
         self.eyes_boolean = [False] * len(self.ids)
         self.arrow_boolean = [False] * len(self.ids)
+        self.arrow_eyes_alpha = arrow_eyes_alpha
         self.radius_col = [0] * len(self.ids)
 
         self.background_boolean = background_boolean
@@ -170,6 +176,10 @@ class Animations:
         self.background_colors = background_colors
         self.background_data_generator = background_data_generator
         self.background_N = background_pixel_number
+
+        self.background_stream_boolean = background_stream_boolean
+        self.background_stream_sites = background_stream_sites
+        self.background_stream_N = background_stream_pixel_number
 
         """
                 for i in range(len(self.ids)):
@@ -199,6 +209,7 @@ class Animations:
         self.background = [0] * max(
             len(self.background_sites), 1
         )  # the dummy visual object needs this list
+        self.background_stream = [0]
         self.part_lefteye = [0] * len(self.ids)
         self.part_righteye = [0] * len(self.ids)
         self.part_arrow = [0] * len(self.ids)
@@ -399,6 +410,60 @@ class Animations:
                 patches.Circle(xy=(0, 0), radius=42, visible=False)
             )
 
+        # init background stream
+        if self.background_stream_boolean:
+            self.stream_X, self.stream_Y = np.meshgrid(
+                np.linspace(self.x_0, self.x_1, self.background_stream_N),
+                np.linspace(self.y_0, self.y_1, self.background_stream_N),
+            )
+
+            keys = list(self.background_stream_sites.keys())
+            if len(keys) > 1 or len(keys) == 0:
+                raise Exception(
+                    "Please use exactly one key in the background_stream_sites dict so"
+                    " we only make one stream in the background many streams look bad."
+                    " We don't do that."
+                )
+            key = keys[0]
+
+            self.testpos_stream = np.stack(
+                [self.stream_X.flatten(), self.stream_Y.flatten()], axis=-1
+            )
+            self.Z_shape = np.zeros(
+                (self.background_stream_N, self.background_stream_N)
+            )
+            # this holds a ditionary with the functions in the class
+            self.background_data_sources = dict(
+                inspect.getmembers(
+                    self.background_data_generator, predicate=inspect.ismethod
+                )
+            )
+            source_ids = self.background_stream_sites[key]
+            pos = self.positions[0, source_ids, :2].magnitude
+            self.Z_magnitude, _ = self.background_data_sources["get_" + key + "_data"](
+                pos, self.testpos_stream
+            )
+            self.Z_shape = self.Z_magnitude.reshape(
+                self.background_stream_N, self.background_stream_N
+            )
+
+            # Z =  np.exp(-((self.stream_X-100)**2+ (self.stream_Y-100)**2) /100)
+            self.stream_V = np.diff(self.Z_shape[1:, :], axis=1)
+            self.stream_U = np.diff(self.Z_shape[:, 1:], axis=0)
+            self.background_stream[0] = self.ax.streamplot(
+                self.stream_X[1:, 1:],
+                self.stream_Y[1:, 1:],
+                self.stream_V,
+                self.stream_U,
+                color="C2",
+                zorder=0,
+            )
+
+        else:
+            self.background_stream[0] = self.ax.add_patch(
+                patches.Circle(xy=(0, 0), radius=42, visible=False)
+            )
+
         n_parts = len(self.ids)
 
         self.time_annotate[0] = self.ax.annotate(
@@ -433,7 +498,7 @@ class Animations:
                     patches.Circle(
                         xy=(-27000, -27000),
                         radius=self.radius_col[i] / 5,
-                        alpha=0.7,
+                        alpha=self.arrow_eyes_alpha,
                         color="k",
                         zorder=n_parts * 2 + n_parts * self.n_cones + 2 * i,
                     )
@@ -442,7 +507,7 @@ class Animations:
                     patches.Circle(
                         xy=(-27000, -27000),
                         radius=self.radius_col[i] / 5,
-                        alpha=0.7,
+                        alpha=self.arrow_eyes_alpha,
                         color="k",
                         zorder=n_parts * 2 + n_parts * self.n_cones + 1 + 2 * i,
                     )
@@ -466,6 +531,7 @@ class Animations:
                         head_width=self.radius_col[i] * 0.95,
                         head_length=2 * self.radius_col[i] * 0.95,
                         length_includes_head=True,
+                        alpha=self.arrow_eyes_alpha,
                         color="k",
                         zorder=n_parts * 2 + n_parts * self.n_cones + 2 * i,
                     )
@@ -718,6 +784,7 @@ class Animations:
                 ] += self.background_data_magnitude.reshape(
                     self.background_N, self.background_N
                 )
+                print(key)
                 self.background_data_shape[key_idx, :, :] /= np.amax(
                     self.background_data_shape[key_idx, :, :]
                 )
@@ -838,6 +905,7 @@ class Animations:
 
         # Update the time counter
         t = round(self.times[frame], 0)
+        print("animating time:", str(self.times[frame]))
         self.time_annotate[0].set(text=f"time: ${t:g~L}$")
 
         # Updating the written Info
@@ -879,6 +947,43 @@ class Animations:
                     np.arctan(self.background_data_shape[key_idx, :, :] * 2.5)
                 )
 
+        # Updating the stream in the background
+        if self.background_stream_boolean:
+            self.background_stream[0].lines.remove()
+            for artist in self.ax.get_children():
+                if isinstance(artist, FancyArrowPatch):
+                    artist.remove()
+
+            keys = list(self.background_stream_sites.keys())
+            key = keys[0]
+
+            source_ids = self.background_stream_sites[key]
+            pos = self.positions[frame, source_ids, :2].magnitude
+            self.Z_magnitude, _ = self.background_data_sources["get_" + key + "_data"](
+                pos, self.testpos_stream
+            )
+            self.Z_shape = self.Z_magnitude.reshape(
+                self.background_stream_N, self.background_stream_N
+            )
+
+            self.stream_V = np.diff(self.Z_shape[1:, :], axis=1)
+            self.stream_U = np.diff(self.Z_shape[:, 1:], axis=0)
+            self.background_stream[0] = self.ax.streamplot(
+                self.stream_X[1:, 1:],
+                self.stream_Y[1:, 1:],
+                self.stream_V,
+                self.stream_U,
+                color="C2",
+                zorder=0,
+            )
+
+            # Z =  np.exp(-((self.stream_X-100)**2+ (self.stream_Y-100)**2) /100)
+            # self.stream_V = np.diff(Z[1:, :], axis=1)
+            # self.stream_U = np.diff(Z[:, 1:], axis=0)
+            # self.background_stream[0]=self.ax.streamplot(self.stream_X[1:, 1:],
+            # self.stream_Y[1:, 1:], self.stream_V, self.stream_U,color='C2',
+            # zorder=0)
+
         # Update objects for different ids
         for i in range(len(self.ids)):
             directors_angle = np.arctan2(
@@ -915,9 +1020,23 @@ class Animations:
             elif self.trace_boolean[i] and self.trace_fade_boolean[i]:
                 points = np.array([xdata, ydata]).T.reshape(-1, 1, 2)
                 segments = np.concatenate([points[:-1], points[1:]], axis=1)
+                maximal_segment_length = (
+                    min(self.x_1 - self.x_0, self.y_1 - self.y_0) / 2
+                )  # lines should be no longer than half of the image length
+                for seg_idx, seg in enumerate(
+                    segments
+                ):  # erase this if you want to see every
+                    # trace segment because of debugging
+                    if np.linalg.norm(seg[0, :] - seg[1, :]) > maximal_segment_length:
+                        segments[seg_idx, 1, :] = seg[0, :]
+                print("segments", np.shape(segments))
                 self.trace[i].set_segments(segments)
                 x = np.linspace(0, frame, frame + 1)  # might switch to self.time
-                alphas = 1 / 5 + 4 / 5 * np.exp((-x[-1] + x) / 100)
+                length_of_fading_trace = 30
+                remaining_alpha_of_fading_trace = 1 / 6
+                alphas = remaining_alpha_of_fading_trace + (
+                    1 - remaining_alpha_of_fading_trace
+                ) * np.exp((-x[-1] + x) / length_of_fading_trace)
                 self.trace[i].set_array(alphas)
             else:
                 pass
@@ -994,6 +1113,7 @@ class Animations:
                 + self.part_arrow
                 + self.time_annotate
                 + self.background
+                + self.background_stream
                 + self.written_info
                 + self.rod_rotation_chess_board_field
                 + self.maze
@@ -1008,6 +1128,7 @@ class Animations:
                 + self.part_arrow
                 + self.time_annotate
                 + self.background
+                + self.background_stream
                 + self.written_info
                 + self.rod_rotation_chess_board_field
             )
