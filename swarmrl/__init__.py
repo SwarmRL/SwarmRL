@@ -6,6 +6,7 @@ import logging
 
 from swarmrl import (
     agents,
+    callbacks,
     exploration_policies,
     gyms,
     losses,
@@ -43,4 +44,5 @@ __all__ = [
     value_functions.__name__,
     rl_protocols.__name__,
     training_routines.__name__,
+    callbacks.__name__,
 ]

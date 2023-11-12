@@ -190,10 +190,10 @@ class FlaxModel(Network, ABC):
 
         os.makedirs(directory, exist_ok=True)
 
-        with open(directory + "/" + filename + ".pkl", "wb") as f:
+        with open(os.path.join(directory, f"{filename}.pkl"), "wb") as f:
             pickle.dump((model_params, opt_state, opt_step, epoch), f)
 
-    def restore_model_state(self, filename, directory):
+    def restore_model_state(self, filename: str, directory: str):
         """
         Restore the model state from a file.
 
@@ -206,10 +206,11 @@ class FlaxModel(Network, ABC):
 
         Returns
         -------
-        Updates the model state.
+        Restores weights of networks based on stored
+        values.
         """
 
-        with open(directory + "/" + filename + ".pkl", "rb") as f:
+        with open(os.path.join(directory, f"{filename}.pkl"), "rb") as f:
             model_params, opt_state, opt_step, epoch = pickle.load(f)
 
         self.model_state = self.model_state.replace(
@@ -217,7 +218,7 @@ class FlaxModel(Network, ABC):
         )
         self.epoch_count = epoch
 
-    def __call__(self, params: FrozenDict, episode_features):
+    def __call__(self, params: FrozenDict, episode_features) -> np.ndarray:
         """
         vmaped version of the model call function.
         Operates on a batch of episodes.
@@ -229,7 +230,6 @@ class FlaxModel(Network, ABC):
         episode_features: np.ndarray (n_steps, n_agents, observable_dimension)
                 Features of the episode. This contains the features of all agents,
                 for all time steps in the episode.
-
 
         Returns
         -------
