@@ -15,7 +15,8 @@ import pint
 import swarmrl as srl
 import swarmrl.engine.espresso as espresso
 from swarmrl.models.interaction_model import Action
-from swarmrl.utils import utils
+
+# from swarmrl.utils import utils
 
 # class TestRLScript(ut.TestCase):
 #     simulation_name = "example_simulation"
@@ -29,15 +30,6 @@ def rl_simulation(outfolder):
     -------
 
     """
-    loglevel_terminal = "info"
-
-    # manually turn on or off, cannot be checked in a test case
-    logger = utils.setup_swarmrl_logger(
-        f"{outfolder}/test.log",
-        loglevel_terminal=loglevel_terminal,
-    )
-    logger.info("Starting simulation setup")
-
     ureg = pint.UnitRegistry()
     md_params = espresso.MDParams(
         ureg=ureg,
@@ -98,9 +90,6 @@ def rl_simulation(outfolder):
     # Define a sampling_strategy
     sampling_strategy = srl.sampling_strategies.GumbelDistribution()
 
-    # Value function to use
-    value_function = srl.value_functions.ExpectedReturns(gamma=0.99, standardize=True)
-
     # Define the models.
     network = srl.networks.FlaxModel(
         flax_model=acto_critic,
@@ -132,7 +121,7 @@ def rl_simulation(outfolder):
     )
 
     # Define the loss model
-    loss = srl.losses.PolicyGradientLoss(value_function=value_function)
+    loss = srl.losses.ProximalPolicyLoss()
     translate = Action(force=10.0)
     rotate_clockwise = Action(torque=np.array([0.0, 0.0, 10.0]))
     rotate_counter_clockwise = Action(torque=np.array([0.0, 0.0, -10.0]))
@@ -158,7 +147,6 @@ def rl_simulation(outfolder):
     )
 
     # Run the simulation.
-    logger.info("starting simulation")
     n_episodes = 200
     episode_length = 20
     system = espressomd.System(box_l=[1000, 1000, 1000])
