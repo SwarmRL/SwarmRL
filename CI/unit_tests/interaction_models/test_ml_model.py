@@ -126,9 +126,15 @@ class TestMLModel:
         """
         Test species and paricle actions are returned correctly.
         """
-        colloid_1 = Colloid(np.array([3, 7, 1]), np.array([0, 0, 1]), 0, 1)
-        colloid_2 = Colloid(np.array([1, 1, 0]), np.array([0, 0, -1]), 1, 0)
-        colloid_3 = Colloid(np.array([100, 27, 0.222]), np.array([0, 0, 1]), 2, 2)
+        colloid_1 = Colloid(
+            np.array([3, 7, 1]), np.array([0, 0, 1]), 0, np.array([0, 0, 0]), 1
+        )
+        colloid_2 = Colloid(
+            np.array([1, 1, 0]), np.array([0, 0, -1]), 1, np.array([0, 0, 0]), 0
+        )
+        colloid_3 = Colloid(
+            np.array([100, 27, 0.222]), np.array([0, 0, 1]), 2, np.array([0, 0, 0]), 2
+        )
 
         actions = self.multi_interaction.calc_action(
             [colloid_1, colloid_2, colloid_3],
@@ -154,9 +160,15 @@ class TestMLModel:
         """
         Test that classes are saved correctly.
         """
-        colloid_1 = Colloid(np.array([3, 7, 1]), np.array([0, 0, 1]), 0, 0)
-        colloid_2 = Colloid(np.array([1, 1, 0]), np.array([0, 0, -1]), 1, 0)
-        colloid_3 = Colloid(np.array([100, 27, 0.222]), np.array([0, 0, 1]), 2, 0)
+        colloid_1 = Colloid(
+            np.array([3, 7, 1]), np.array([0, 0, 1]), 0, np.array([0, 0, 0]), 0
+        )
+        colloid_2 = Colloid(
+            np.array([1, 1, 0]), np.array([0, 0, -1]), 1, np.array([0, 0, 0]), 0
+        )
+        colloid_3 = Colloid(
+            np.array([100, 27, 0.222]), np.array([0, 0, 1]), 2, np.array([0, 0, 0]), 0
+        )
 
         self.interaction.record_traj = True
         self.interaction.calc_action(
@@ -184,9 +196,19 @@ class TestMLModel:
         # assert_array_equal(data[0][2].director, colloid_3.director)
 
         # Check for additional colloid addition
-        colloid_1 = Colloid(np.array([9, 1, 6]), np.array([0, 0, -1.0]), 0, 0)
-        colloid_2 = Colloid(np.array([8, 8, 8]), np.array([0, 0, 1.0]), 1, 0)
-        colloid_3 = Colloid(np.array([-4.7, 3, -0.222]), np.array([0, 0, -1.0]), 2, 0)
+        colloid_1 = Colloid(
+            np.array([9, 1, 6]), np.array([0, 0, -1.0]), 0, np.array([0, 0, 0]), 0
+        )
+        colloid_2 = Colloid(
+            np.array([8, 8, 8]), np.array([0, 0, 1.0]), 1, np.array([0, 0, 0]), 0
+        )
+        colloid_3 = Colloid(
+            np.array([-4.7, 3, -0.222]),
+            np.array([0, 0, -1.0]),
+            2,
+            np.array([0, 0, 0]),
+            0,
+        )
         self.interaction.calc_action(
             [colloid_1, colloid_2, colloid_3], explore_mode=False
         )
