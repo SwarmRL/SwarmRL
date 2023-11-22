@@ -7,8 +7,8 @@ from typing import List, Tuple
 import numpy as np
 from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
-# from swarmrl.losses.loss import Loss
-# from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
+from swarmrl.losses.loss import Loss
+from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
 from swarmrl.models.ml_model import MLModel
 from swarmrl.rl_protocols.actor_critic import ActorCritic
 
@@ -28,7 +28,7 @@ class EpisodicTrainer:
     def __init__(
         self,
         rl_protocols: List[ActorCritic],
-        loss: object = None,
+        loss: Loss = ProximalPolicyLoss(),
     ):
         """
         Constructor for the MLP RL.
@@ -176,6 +176,7 @@ class EpisodicTrainer:
         system: object,
         n_episodes: int,
         episode_length: int,
+        reset_frequency: int = 1,
         load_bar: bool = True,
     ):
         """
@@ -191,12 +192,19 @@ class EpisodicTrainer:
                 Number of episodes to use in the training.
         episode_length : int
                 Number of time steps in one episode.
+        reset_frequency : int (default=1)
+                After how many episodes is the simulation reset.
         load_bar : bool (default=True)
                 If true, show a progress bar.
+
+        Notes
+        -----
+        If you are using semi-episodic training but your task kills the
+        simulation, the system will be reset.
         """
+        system_killed = False
         rewards = [0.0]
         current_reward = 0.0
-        episode = 0
         force_fn = self.initialize_training()
 
         progress = Progress(
@@ -211,37 +219,44 @@ class EpisodicTrainer:
             task = progress.add_task(
                 "Episodic Training",
                 total=n_episodes,
-                Episode=episode,
+                Episode=0,
                 current_reward=current_reward,
                 running_reward=np.mean(rewards),
                 visible=load_bar,
             )
-            for _ in range(n_episodes):
+            for episode in range(n_episodes):
 
-                if state == 0:
-                    engine = get_engine(system)
-                    engine_1 = None
-                    state = 1
+                # Check if the system should be reset.
+                if episode % reset_frequency == 0 or system_killed:
+                    if state == 0:
+                        engine = get_engine(system)
+                        engine_1 = None
+                        state = 1
 
-                    # Initialize the tasks and observables.
-                    for _, val in self.rl_protocols.items():
-                        val.observable.initialize(engine.colloids)
-                        val.task.initialize(engine.colloids)
+                        # Initialize the tasks and observables.
+                        for _, val in self.rl_protocols.items():
+                            val.observable.initialize(engine.colloids)
+                            val.task.initialize(engine.colloids)
 
-                    engine.integrate(episode_length, force_fn)
-                else:
-                    engine_1 = get_engine(system)
-                    engine = None
-                    state = 0
+                        engine.integrate(episode_length, force_fn)
+                    else:
+                        engine_1 = get_engine(system)
+                        engine = None
+                        state = 0
 
-                    # Initialize the tasks and observables.
-                    for _, val in self.rl_protocols.items():
-                        val.observable.initialize(engine_1.colloids)
-                        val.task.initialize(engine_1.colloids)
+                        # Initialize the tasks and observables.
+                        for _, val in self.rl_protocols.items():
+                            val.observable.initialize(engine_1.colloids)
+                            val.task.initialize(engine_1.colloids)
 
-                    engine_1.integrate(episode_length, force_fn)
+                        engine_1.integrate(episode_length, force_fn)
 
                 trajectory_data = force_fn.trajectory_data
+                switches = [item.killed for item in trajectory_data]
+                if any(switches):
+                    system_killed = True
+                else:
+                    system_killed = False
                 force_fn, current_reward = self.update_rl(
                     trajectory_data=trajectory_data
                 )

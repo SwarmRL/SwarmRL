@@ -26,6 +26,7 @@ class TrajectoryInformation:
     actions: list = field(default_factory=list)
     log_probs: list = field(default_factory=list)
     rewards: list = field(default_factory=list)
+    killed: bool = False
 
 
 class MLModel(InteractionModel):
@@ -125,5 +126,7 @@ class MLModel(InteractionModel):
             self.trajectory_data[type_].actions.append(action_indices[type_])
             self.trajectory_data[type_].log_probs.append(log_probs[type_])
             self.trajectory_data[type_].rewards.append(rewards[type_])
+            self.trajectory_data[type_].killed = self.tasks[_type].kill_switch
+            self.tasks[_type].kill_switch = False  # Set it back to False.
 
         return list(actions.values()), any(switches)

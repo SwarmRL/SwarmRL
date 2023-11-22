@@ -218,6 +218,10 @@ class Gym:
                 # start = time.time()
                 system_runner.integrate(episode_length, force_fn)
                 trajectory_data = force_fn.trajectory_data
+                switches = [item.killed for item in trajectory_data]
+                if any(switches):
+                    print("Simulation has been ended by the task, finishing training.")
+                    break
                 force_fn, current_reward = self.update_rl(
                     trajectory_data=trajectory_data
                 )
