@@ -27,4 +27,4 @@ class FindPoint(InteractionModel):
             else:
                 actions.append(Action())
 
-        return actions
+        return actions, False

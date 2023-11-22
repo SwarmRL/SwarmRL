@@ -47,7 +47,7 @@ class Lavergne2019(InteractionModel):
             else:
                 actions.append(Action())
 
-        return actions
+        return actions, False
 
 
 class Baeuerle2020(InteractionModel):
@@ -149,7 +149,7 @@ class Baeuerle2020(InteractionModel):
                 Action(force=self.act_force, torque=np.array([0, 0, torque_z]))
             )
 
-        return actions
+        return actions, False
 
 
 def get_colloids_in_vision(

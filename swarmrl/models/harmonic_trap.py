@@ -46,7 +46,7 @@ class HarmonicTrap(InteractionModel, ABC):
         forces : np.ndarray
                 Numpy array of forces to apply to the colloids. shape=(n_colloids, 3)
         """
-        return -self.stiffness * (colloids - self.center)
+        return -self.stiffness * (colloids - self.center), False
 
     def __call__(self, colloids: np.ndarray, state: np.ndarray = None) -> np.ndarray:
         """

@@ -1011,7 +1011,24 @@ class EspressoMD(Engine):
             )
             self.system.integrator.set_vv()
 
-    def manage_forces(self, force_model: swarmrl.models.InteractionModel = None):
+    def manage_forces(
+        self, force_model: swarmrl.models.InteractionModel = None
+    ) -> bool:
+        """
+        Manage external forces.
+
+        Collect the forces from the force function and apply them to the colloids.
+
+        Parameters
+        ----------
+        force_model : swarmrl.models.InteractionModel
+            Model with which to compute external forces.
+
+        Returns
+        -------
+        kill_switch : bool
+            A boolean flag that ends the simulation early.
+        """
         swarmrl_colloids = []
         if force_model is not None:
             for col in self.colloids:
@@ -1024,7 +1041,7 @@ class EspressoMD(Engine):
                         type=col.type,
                     )
                 )
-            actions = force_model.calc_action(swarmrl_colloids)
+            actions, kill_switch = force_model.calc_action(swarmrl_colloids)
             for action, coll in zip(actions, self.colloids):
                 coll.swimming = {"f_swim": action.force}
                 coll.ext_torque = action.torque
@@ -1043,6 +1060,8 @@ class EspressoMD(Engine):
                             rotation_axis = [0, 0, round(rotation_axis[2])]
                             coll.rotate(axis=rotation_axis, angle=rotation_angle)
 
+            return kill_switch
+
     def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel = None):
         """
         Integrate the system for n_slices steps.
@@ -1058,6 +1077,7 @@ class EspressoMD(Engine):
         -------
         Runs the simulation environment.
         """
+        kill_switch = False
 
         if not self.integration_initialised:
             self.slice_idx = 0
@@ -1079,9 +1099,13 @@ class EspressoMD(Engine):
                     for val in self.traj_holder.values():
                         val.clear()
 
+            # Break the simulaion if the kill switch is engaged.
+            if kill_switch:
+                break
+
             if self.step_idx == self.params.steps_per_slice * self.slice_idx:
                 self.slice_idx += 1
-                self.manage_forces(force_model)
+                kill_switch = self.manage_forces(force_model)
 
             steps_to_next_write = (
                 self.params.steps_per_write_interval * self.write_idx - self.step_idx

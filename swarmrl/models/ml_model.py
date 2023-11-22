@@ -89,12 +89,19 @@ class MLModel(InteractionModel):
         -------
         action: Action
                 Return the action the colloid should take.
+        kill_switch : bool
+                Flag capable of ending simulation.
         """
+        # Prepare the data storage.
         actions = {int(np.copy(colloid.id)): Action() for colloid in colloids}
         action_indices = {_type: [] for _type in self.particle_types}
         log_probs = {_type: [] for _type in self.particle_types}
         rewards = {_type: [] for _type in self.particle_types}
         observables = {_type: [] for _type in self.particle_types}
+
+        switches = []  # Hold the kill switches.
+
+        # Loop over particle types and compute actions.
         for _type in self.particle_types:
             observables[_type] = self.observables[_type].compute_observable(colloids)
             rewards[_type] = self.tasks[_type](colloids)
@@ -104,6 +111,7 @@ class MLModel(InteractionModel):
             chosen_actions = np.take(
                 list(self.actions[_type].values()), action_indices[_type], axis=-1
             )
+            switches.append(self.tasks[_type].kill_switch)
 
             count = 0  # Count the colloids of a specific species.
             for colloid in colloids:
@@ -111,12 +119,11 @@ class MLModel(InteractionModel):
                     actions[colloid.id] = chosen_actions[count]
                     count += 1
 
-        # Record the trajectory if required.
-        # if self.record_traj:
+        # Record the trajectory
         for type_ in self.particle_types:
             self.trajectory_data[type_].features.append(observables[type_])
             self.trajectory_data[type_].actions.append(action_indices[type_])
             self.trajectory_data[type_].log_probs.append(log_probs[type_])
             self.trajectory_data[type_].rewards.append(rewards[type_])
 
-        return list(actions.values())
+        return list(actions.values()), any(switches)

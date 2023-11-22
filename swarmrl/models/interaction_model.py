@@ -41,5 +41,7 @@ class InteractionModel:
         -------
         action : list
                 List of Actions for all Colloids in the same order as input colloids
+        kill_switch : bool
+                If true, the simulation is ended before the new actions are applied.
         """
         raise NotImplementedError("Interaction models must define a calc_action method")
