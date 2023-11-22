@@ -37,9 +37,9 @@ def rl_simulation(outfolder):
         WCA_epsilon=ureg.Quantity(297.0, "kelvin") * ureg.boltzmann_constant,
         temperature=ureg.Quantity(300.0, "kelvin"),
         box_length=ureg.Quantity(1000, "micrometer"),
-        time_slice=ureg.Quantity(0.5, "second"),  # model timestep
-        time_step=ureg.Quantity(0.5, "second") / 5,  # integrator timestep
-        write_interval=ureg.Quantity(2, "second"),
+        time_slice=ureg.Quantity(10.0, "second"),  # model timestep
+        time_step=ureg.Quantity(0.1, "second"),  # integrator timestep
+        write_interval=ureg.Quantity(1.0, "second"),
     )
 
     # from now on, no new parameters are introduced
@@ -47,19 +47,19 @@ def rl_simulation(outfolder):
         """
         Get the engine.
         """
-
+        seed = np.random.randint(89675392)
         system_runner = srl.espresso.EspressoMD(
             md_params=md_params,
             n_dims=2,
-            seed=42,
-            out_folder=outfolder,
+            seed=seed,
+            out_folder=f"episodic/{seed}",
             system=system,
-            write_chunk_size=100,
+            write_chunk_size=10,
         )
 
         coll_type = 0
         system_runner.add_colloids(
-            10,
+            50,
             ureg.Quantity(2.14, "micrometer"),
             ureg.Quantity(np.array([500, 500, 0]), "micrometer"),
             ureg.Quantity(400, "micrometer"),
@@ -75,7 +75,7 @@ def rl_simulation(outfolder):
 
         @nn.compact
         def __call__(self, x):
-            x = nn.Dense(features=128)(x)
+            x = nn.Dense(features=12)(x)
             x = nn.relu(x)
             y = nn.Dense(features=1)(x)
             x = nn.Dense(features=4)(x)
@@ -103,7 +103,7 @@ def rl_simulation(outfolder):
         """
         Scaling function for the task
         """
-        return 1 / distance
+        return 1 - distance
 
     task = srl.tasks.searching.GradientSensing(
         source=np.array([500.0, 500.0, 0.0]),
@@ -115,7 +115,7 @@ def rl_simulation(outfolder):
     observable = srl.observables.ConcentrationField(
         source=np.array([500.0, 500.0, 0.0]),
         decay_fn=scale_function,
-        scale_factor=10000,
+        scale_factor=1000,
         box_length=np.array([1000.0, 1000.0, 1000]),
         particle_type=0,
     )
@@ -147,8 +147,8 @@ def rl_simulation(outfolder):
     )
 
     # Run the simulation.
-    n_episodes = 200
-    episode_length = 20
+    n_episodes = 500
+    episode_length = 60
     system = espressomd.System(box_l=[1000, 1000, 1000])
     rl_trainer.perform_rl_training(
         get_engine=get_engine,

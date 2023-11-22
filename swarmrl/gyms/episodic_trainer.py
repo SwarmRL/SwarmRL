@@ -255,5 +255,9 @@ class EpisodicTrainer:
                     current_reward=np.round(current_reward, 2),
                     running_reward=np.round(np.mean(rewards[-10:]), 2),
                 )
+                try:
+                    engine.finalize()
+                except AttributeError:
+                    engine_1.finalize()
 
         return np.array(rewards)
