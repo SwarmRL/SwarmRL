@@ -199,7 +199,7 @@ class EspressoTestRLTrainers(ut.TestCase):
                 n_episodes=100,  # Should stop after 4
                 episode_length=5,
             )
-            assert rewards.shape == (4,)  # Should only have three steps.
+            assert rewards.shape == (4,)  # Should only have four steps.
 
     def test_fixed_episodic_training(self):
         """
@@ -253,7 +253,54 @@ class EspressoTestRLTrainers(ut.TestCase):
         """
         Test episodic training with engine killing tasks.
         """
-        pass
+        with tempfile.TemporaryDirectory() as temp_dir:
+
+            def get_engine(system):
+                """
+                Get the engine.
+                """
+                seed = np.random.randint(89675392)
+                system_runner = srl.espresso.EspressoMD(
+                    md_params=self.md_params,
+                    n_dims=2,
+                    seed=seed,
+                    out_folder=f"{temp_dir}/episodic/{seed}",
+                    system=self.system,
+                    write_chunk_size=10,
+                )
+
+                coll_type = 0
+                system_runner.add_colloids(
+                    5,
+                    self.ureg.Quantity(2.14, "micrometer"),
+                    self.ureg.Quantity(np.array([500, 500, 0]), "micrometer"),
+                    self.ureg.Quantity(400, "micrometer"),
+                    type_colloid=coll_type,
+                )
+
+                return system_runner
+
+            # We need a custom protoc0l for this test.
+            protocol = srl.rl_protocols.ActorCritic(
+                particle_type=0,
+                network=self.network,
+                task=KillTask(),
+                observable=self.observable,
+                actions=actions,
+            )
+
+            # Define the force model.
+            rl_trainer = srl.trainers.EpisodicTrainer(
+                [protocol],
+                self.loss,
+            )
+            rl_trainer.perform_rl_training(
+                get_engine=get_engine,
+                n_episodes=10,
+                reset_frequency=1000,  # Will only be reset after a failure.
+                system=self.system,
+                episode_length=10,
+            )
 
     def test_semi_episodic_training(self):
         """
