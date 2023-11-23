@@ -35,7 +35,7 @@ class TestHarmonicTrap(ut.TestCase):
         Asserts that all of the force outputs are correct.
         """
         actual = np.array([[-0.0, -0.0, -0.0], [-10, -30, -79], [36, -32, 1.0]])
-        prediction = self.model(np.array(self.colloids))
+        prediction, _ = self.model(np.array(self.colloids))
         np.testing.assert_array_equal(prediction, actual)
 
 

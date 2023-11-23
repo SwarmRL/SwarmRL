@@ -44,7 +44,7 @@ class FlaxNet(nn.Module):
         return x, y
 
 
-class DummyTask:
+class DummyTask(srl.tasks.Task):
     """
     Dummy task for the test
     """
@@ -56,7 +56,7 @@ class DummyTask:
         return [1.0 for item in data if item.type == 1]
 
 
-class SecondDummyTask:
+class SecondDummyTask(srl.tasks.Task):
     """
     Dummy task for the test
     """
@@ -141,7 +141,7 @@ class TestMLModel:
             np.array([100, 27, 0.222]), np.array([0, 0, 1]), 2, np.array([0, 0, 0]), 2
         )
 
-        actions = self.multi_interaction.calc_action(
+        actions, _ = self.multi_interaction.calc_action(
             [colloid_1, colloid_2, colloid_3],
         )
 

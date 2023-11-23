@@ -33,7 +33,7 @@ class TestLavergne(ut.TestCase):
 
         colloids = [test_coll, coll_front, coll_back, coll_side]
 
-        action = self.force_model.calc_action(colloids)
+        action, _ = self.force_model.calc_action(colloids)
         force_is = action[0].force
         # front colloid too far, back not visible
         self.assertAlmostEqual(force_is, 0)
@@ -43,7 +43,7 @@ class TestLavergne(ut.TestCase):
         )
         colloids.append(coll_front_close)
 
-        action = self.force_model.calc_action(colloids)
+        action, _ = self.force_model.calc_action(colloids)
         force_is = action[0].force
         # front close -> activity along orientation
         self.assertAlmostEqual(force_is, self.act_force)
@@ -86,8 +86,8 @@ class TestBaeuerle(ut.TestCase):
 
         colloids = [test_coll, front_coll, front_close_coll, front_far_coll, side_coll]
 
-        action = self.force_model.calc_action(colloids)[0]
-        torque = action.torque
+        action, _ = self.force_model.calc_action(colloids)
+        torque = action[0].torque
         torque_norm = np.linalg.norm(torque)
 
         # torque has maximum value of axt_torque

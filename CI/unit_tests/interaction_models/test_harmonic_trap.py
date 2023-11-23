@@ -41,7 +41,7 @@ class TestHarmonicTrapMethods(ut.TestCase):
         """
         self.model.center = np.array([0.0, 0.0, 0.0])
         actual = np.array([[-0.0, -0.0, -0.0], [-10, -30, -79], [36, -32, 1.0]])
-        prediction = self.model.compute_force(jnp.array(self.colloids))
+        prediction, _ = self.model.compute_force(jnp.array(self.colloids))
         np.testing.assert_array_equal(prediction, actual)
 
     def test_compute_force_shifted(self):
@@ -55,7 +55,7 @@ class TestHarmonicTrapMethods(ut.TestCase):
         self.model.center = np.array([1.0, 1.0, 1.0])
 
         actual = np.array([[10.0, 10.0, 10.0], [-0.0, -20.0, -69], [46.0, -22.0, 11.0]])
-        prediction = self.model.compute_force(jnp.array(self.colloids))
+        prediction, _ = self.model.compute_force(jnp.array(self.colloids))
         np.testing.assert_array_equal(prediction, actual)
 
     def test_compute_force_shifted_centers(self):
@@ -71,7 +71,7 @@ class TestHarmonicTrapMethods(ut.TestCase):
         )
 
         actual = np.array([[10.0, 10.0, 10.0], [-10, -30, -79], [46.0, -42.0, 1.0]])
-        prediction = self.model.compute_force(jnp.array(self.colloids))
+        prediction, _ = self.model.compute_force(jnp.array(self.colloids))
         np.testing.assert_array_equal(prediction, actual)
 
 
