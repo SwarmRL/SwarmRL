@@ -303,7 +303,6 @@ class EspressoTestRLTrainers(ut.TestCase):
             )
 
             dumped_files = glob.glob(f"{temp_dir}/episodic/*")
-            print(len(dumped_files))
             assert len(dumped_files) == 2
 
     def test_semi_episodic_training(self):
