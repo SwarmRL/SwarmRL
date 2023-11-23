@@ -1,11 +1,10 @@
 """
-Module for the EpisodicTrainer
+Module for the Trainer parent.
 """
 
 from typing import List, Tuple
 
 import numpy as np
-from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
 from swarmrl.losses.loss import Loss
 from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
@@ -13,9 +12,9 @@ from swarmrl.models.ml_model import MLModel
 from swarmrl.rl_protocols.actor_critic import ActorCritic
 
 
-class EpisodicTrainer:
+class Trainer:
     """
-    Class for the simple MLP RL implementation.
+    Parent class for the RL Trainer.
 
     Attributes
     ----------
@@ -165,114 +164,13 @@ class EpisodicTrainer:
         for _, val in self.rl_protocols.items():
             val.network.reinitialize_network()
 
-    def setup_engine(self):
-        """
-        Setup the engine for the simulation.
-        """
-
-    def perform_rl_training(
-        self,
-        get_engine: callable,
-        system: object,
-        n_episodes: int,
-        episode_length: int,
-        reset_frequency: int = 1,
-        load_bar: bool = True,
-    ):
+    def perform_rl_training(self, **kwargs):
         """
         Perform the RL training.
 
         Parameters
         ----------
-        get_engine : callable
-                Function to get the engine for the simulation.
-        system_runner : Engine
-                Engine used to perform steps for each agent.
-        n_episodes : int
-                Number of episodes to use in the training.
-        episode_length : int
-                Number of time steps in one episode.
-        reset_frequency : int (default=1)
-                After how many episodes is the simulation reset.
-        load_bar : bool (default=True)
-                If true, show a progress bar.
-
-        Notes
-        -----
-        If you are using semi-episodic training but your task kills the
-        simulation, the system will be reset.
+        **kwargs
+            All arguments related to the specific trainer.
         """
-        system_killed = False
-        rewards = [0.0]
-        current_reward = 0.0
-        force_fn = self.initialize_training()
-
-        progress = Progress(
-            "Episode: {task.fields[Episode]}",
-            BarColumn(),
-            "Episode reward: {task.fields[current_reward]} Running Reward:"
-            " {task.fields[running_reward]}",
-            TimeRemainingColumn(),
-        )
-        state = 0
-        with progress:
-            task = progress.add_task(
-                "Episodic Training",
-                total=n_episodes,
-                Episode=0,
-                current_reward=current_reward,
-                running_reward=np.mean(rewards),
-                visible=load_bar,
-            )
-            for episode in range(n_episodes):
-
-                # Check if the system should be reset.
-                if episode % reset_frequency == 0 or system_killed:
-                    if state == 0:
-                        engine = get_engine(system)
-                        engine_1 = None
-                        state = 1
-
-                        # Initialize the tasks and observables.
-                        for _, val in self.rl_protocols.items():
-                            val.observable.initialize(engine.colloids)
-                            val.task.initialize(engine.colloids)
-
-                        engine.integrate(episode_length, force_fn)
-                    else:
-                        engine_1 = get_engine(system)
-                        engine = None
-                        state = 0
-
-                        # Initialize the tasks and observables.
-                        for _, val in self.rl_protocols.items():
-                            val.observable.initialize(engine_1.colloids)
-                            val.task.initialize(engine_1.colloids)
-
-                        engine_1.integrate(episode_length, force_fn)
-
-                trajectory_data = force_fn.trajectory_data
-                switches = [item.killed for item in trajectory_data]
-                if any(switches):
-                    system_killed = True
-                else:
-                    system_killed = False
-                force_fn, current_reward = self.update_rl(
-                    trajectory_data=trajectory_data
-                )
-                rewards.append(current_reward)
-
-                episode += 1
-                progress.update(
-                    task,
-                    advance=1,
-                    Episode=episode,
-                    current_reward=np.round(current_reward, 2),
-                    running_reward=np.round(np.mean(rewards[-10:]), 2),
-                )
-                try:
-                    engine.finalize()
-                except AttributeError:
-                    engine_1.finalize()
-
-        return np.array(rewards)
+        raise NotImplementedError("Implemented in child class")

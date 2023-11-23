@@ -11,7 +11,7 @@ from typing import List
 from dask.distributed import Client, LocalCluster, wait
 from dask_jobqueue import JobQueueCluster
 
-from swarmrl.gyms.gym import Gym
+from swarmrl.trainers.continuous_trainer import ContinuousTrainer
 
 
 class EnsembleTraining:
@@ -21,7 +21,7 @@ class EnsembleTraining:
 
     def __init__(
         self,
-        gym: Gym,
+        gym: ContinuousTrainer,
         simulation_runner_generator: callable,
         number_of_ensembles: int,
         episode_length: int,
@@ -92,7 +92,7 @@ class EnsembleTraining:
     @staticmethod
     def _train_model(
         save_path: str,
-        gym: Gym,
+        gym: ContinuousTrainer,
         system_runner: callable,
         load_directory: str = None,
         episode_length: int = 100,

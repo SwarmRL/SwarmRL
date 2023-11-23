@@ -16,7 +16,7 @@ from dask_jobqueue import JobQueueCluster
 from rich import print
 from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
-from swarmrl.gyms.gym import Gym
+from swarmrl.trainers.continuous_trainer import ContinuousTrainer
 
 
 class GeneticTraining:
@@ -26,7 +26,7 @@ class GeneticTraining:
 
     def __init__(
         self,
-        gym: Gym,
+        gym: ContinuousTrainer,
         simulation_runner_generator: callable,
         n_episodes: int = 100,
         episode_length: int = 20,
@@ -122,7 +122,7 @@ class GeneticTraining:
     def _train_network(
         name: Path,
         load_directory: str = None,
-        gym: Gym = None,
+        gym: ContinuousTrainer = None,
         runner_generator: callable = None,
         select_fn: callable = None,
         episode_length: int = None,

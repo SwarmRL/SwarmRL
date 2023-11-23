@@ -13,7 +13,7 @@ import numpy as np
 import pint
 
 import swarmrl
-from swarmrl.models.interaction_model import Colloid
+from swarmrl.agents.colloid import Colloid
 
 
 def get_random_angles(rng: np.random.Generator):

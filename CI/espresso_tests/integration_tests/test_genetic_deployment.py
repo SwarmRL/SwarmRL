@@ -139,7 +139,7 @@ class TestGeneticTraining(ut.TestCase):
                 actions=actions,
             )
 
-            rl_trainer = srl.gyms.Gym(
+            rl_trainer = srl.trainers.ContinuousTrainer(
                 [protocol],
                 loss,
             )
