@@ -7,7 +7,7 @@ from typing import List
 import jax.numpy as np
 from flax.core.frozen_dict import FrozenDict
 
-from swarmrl.agents.colloid import Colloid
+from swarmrl.components.colloid import Colloid
 
 
 class Network:

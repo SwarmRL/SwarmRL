@@ -73,7 +73,7 @@ class EpisodicTrainer(Trainer):
         If you are using semi-episodic training but your task kills the
         simulation, the system will be reset.
         """
-        system_killed = False
+        killed = False
         rewards = [0.0]
         current_reward = 0.0
         force_fn = self.initialize_training()
@@ -98,26 +98,19 @@ class EpisodicTrainer(Trainer):
             for episode in range(n_episodes):
 
                 # Check if the system should be reset.
-                if episode % reset_frequency == 0 or system_killed:
+                if episode % reset_frequency == 0 or killed:
                     self.engine = None
                     self.engine = get_engine(system)
 
                     # Initialize the tasks and observables.
-                    for _, val in self.rl_protocols.items():
+                    for _, val in self.agents.items():
                         val.observable.initialize(self.engine.colloids)
                         val.task.initialize(self.engine.colloids)
 
                 self.engine.integrate(episode_length, force_fn)
 
-                trajectory_data = force_fn.trajectory_data
-                switches = [item.killed for item in trajectory_data.values()]
-                if any(switches):
-                    system_killed = True
-                else:
-                    system_killed = False
-                force_fn, current_reward = self.update_rl(
-                    trajectory_data=trajectory_data
-                )
+                force_fn, current_reward, killed = self.update_rl()
+
                 rewards.append(current_reward)
 
                 episode += 1

@@ -8,7 +8,7 @@ import jax
 import jax.numpy as jnp
 
 if TYPE_CHECKING:
-    from swarmrl.agents.colloid import Colloid
+    from swarmrl.components.colloid import Colloid
 
 
 @jax.jit

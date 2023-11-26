@@ -1,14 +1,13 @@
 """
-Module for the Actor-Critic RL protocol.
+Class for classical agents. These are agents not controlled by
+machine learning. They should also not be trainable.
 """
 
-from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
-from swarmrl.rl_protocols.rl_protocol import RLProtocol
 from swarmrl.tasks.task import Task
 
 
-class ActorCritic(RLProtocol):
+class ClassicalAgent:
     """
     Class to handle the actor-critic RL Protocol.
     """
@@ -16,7 +15,6 @@ class ActorCritic(RLProtocol):
     def __init__(
         self,
         particle_type: int,
-        network: Network,
         task: Task,
         observable: Observable,
         actions: dict,
@@ -38,7 +36,6 @@ class ActorCritic(RLProtocol):
         actions : dict
                 Actions allowed for the particle.
         """
-        self.network = network
         self.particle_type = particle_type
         self.task = task
         self.observable = observable

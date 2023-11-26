@@ -118,7 +118,7 @@ class EspressoTestRLTrainers(ut.TestCase):
 
     # Define the loss model
     loss = srl.losses.ProximalPolicyLoss()
-    protocol = srl.rl_protocols.ActorCritic(
+    protocol = srl.agents.ActorCriticAgent(
         particle_type=0,
         network=network,
         task=task,
@@ -181,7 +181,7 @@ class EspressoTestRLTrainers(ut.TestCase):
                 type_colloid=0,
             )
             # We need a custom protoc0l for this test.
-            protocol = srl.rl_protocols.ActorCritic(
+            protocol = srl.agents.ActorCriticAgent(
                 particle_type=0,
                 network=self.network,
                 task=KillTask(),
@@ -281,7 +281,7 @@ class EspressoTestRLTrainers(ut.TestCase):
                 return system_runner
 
             # We need a custom protoc0l for this test.
-            protocol = srl.rl_protocols.ActorCritic(
+            protocol = srl.agents.ActorCriticAgent(
                 particle_type=0,
                 network=self.network,
                 task=KillTask(),

@@ -7,7 +7,7 @@ import typing
 
 import numpy as np
 
-from swarmrl.agents.colloid import Colloid
+from swarmrl.components.colloid import Colloid
 
 
 @dataclasses.dataclass

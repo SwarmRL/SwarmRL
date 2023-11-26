@@ -6,12 +6,12 @@ import logging
 
 from swarmrl import (
     agents,
+    components,
     exploration_policies,
     losses,
     models,
     networks,
     observables,
-    rl_protocols,
     sampling_strategies,
     tasks,
     trainers,
@@ -32,7 +32,7 @@ __all__ = [
     espresso.__name__,
     utils.__name__,
     losses.__name__,
-    agents.__name__,
+    components.__name__,
     tasks.__name__,
     observables.__name__,
     networks.__name__,
@@ -41,6 +41,6 @@ __all__ = [
     trainers.__name__,
     sampling_strategies.__name__,
     value_functions.__name__,
-    rl_protocols.__name__,
+    agents.__name__,
     training_routines.__name__,
 ]

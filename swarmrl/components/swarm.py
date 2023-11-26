@@ -11,7 +11,7 @@ import jax.numpy as np
 import numpy as onp
 from jax.tree_util import register_pytree_node_class
 
-from swarmrl.agents.colloid import Colloid
+from swarmrl.components.colloid import Colloid
 from swarmrl.utils.colloid_utils import get_colloid_indices
 
 

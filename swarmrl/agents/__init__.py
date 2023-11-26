@@ -1,8 +1,8 @@
 """
-Model for agents.
+Package for RL Protocols
 """
 
-from swarmrl.agents.colloid import Colloid
-from swarmrl.agents.swarm import Swarm
+from swarmrl.agents.actor_critic import ActorCriticAgent
+from swarmrl.agents.classical_agent import ClassicalAgent
 
-__all__ = [Colloid.__name__, Swarm.__name__]
+__all__ = [ActorCriticAgent.__name__, ClassicalAgent.__name__]

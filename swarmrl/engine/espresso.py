@@ -13,7 +13,7 @@ import pint
 
 import swarmrl.models.interaction_model
 import swarmrl.utils.utils as utils
-from swarmrl.agents.colloid import Colloid
+from swarmrl.components.colloid import Colloid
 
 from .engine import Engine
 

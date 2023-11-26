@@ -48,7 +48,7 @@ class ContinuousTrainer(Trainer):
         force_fn = self.initialize_training()
 
         # Initialize the tasks and observables.
-        for _, val in self.rl_protocols.items():
+        for _, val in self.agents.items():
             val.observable.initialize(system_runner.colloids)
             val.task.initialize(system_runner.colloids)
 
@@ -70,16 +70,14 @@ class ContinuousTrainer(Trainer):
                 visible=load_bar,
             )
             for _ in range(n_episodes):
-                # start = time.time()
                 system_runner.integrate(episode_length, force_fn)
-                trajectory_data = force_fn.trajectory_data
-                switches = [item.killed for item in trajectory_data.values()]
-                if any(switches):
+                force_fn, current_reward, killed = self.update_rl()
+
+                if killed:
                     print("Simulation has been ended by the task, ending training.")
+                    system_runner.finalize()
                     break
-                force_fn, current_reward = self.update_rl(
-                    trajectory_data=trajectory_data
-                )
+
                 rewards.append(current_reward)
                 episode += 1
                 progress.update(
@@ -89,7 +87,5 @@ class ContinuousTrainer(Trainer):
                     current_reward=np.round(current_reward, 2),
                     running_reward=np.round(np.mean(rewards[-10:]), 2),
                 )
-
-        system_runner.finalize()
 
         return np.array(rewards)

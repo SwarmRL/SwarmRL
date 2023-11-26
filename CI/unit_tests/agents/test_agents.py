@@ -5,8 +5,8 @@ Test the SwarmRL agents
 import jax.numpy as np
 from numpy.testing import assert_array_equal
 
-from swarmrl.agents.colloid import Colloid
-from swarmrl.agents.swarm import create_swarm
+from swarmrl.components.colloid import Colloid
+from swarmrl.components.swarm import create_swarm
 
 
 class TestAgents:

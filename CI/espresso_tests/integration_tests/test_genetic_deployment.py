@@ -131,7 +131,7 @@ class TestGeneticTraining(ut.TestCase):
                 "DoNothing": do_nothing,
             }
 
-            protocol = srl.rl_protocols.ActorCritic(
+            protocol = srl.agents.ActorCriticAgent(
                 particle_type=0,
                 network=network,
                 task=task,
