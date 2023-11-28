@@ -34,4 +34,4 @@ class ToConstDirection(interaction_model.InteractionModel):
         self.action = interaction_model.Action(new_direction=direction)
 
     def calc_action(self, colloids) -> typing.List[interaction_model.Action]:
-        return len(colloids) * [self.action], False
+        return len(colloids) * [self.action]

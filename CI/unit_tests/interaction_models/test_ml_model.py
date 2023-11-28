@@ -141,7 +141,7 @@ class TestMLModel:
             np.array([100, 27, 0.222]), np.array([0, 0, 1]), 2, np.array([0, 0, 0]), 2
         )
 
-        actions, _ = self.multi_interaction.calc_action(
+        actions = self.multi_interaction.calc_action(
             [colloid_1, colloid_2, colloid_3],
         )
 
@@ -183,15 +183,12 @@ class TestMLModel:
 
         # Colloid 1
         assert_array_almost_equal(data[0][0], colloid_1.pos / 1000.0)
-        # assert_array_equal(data[0][0].director, colloid_1.director)
 
         # Colloid 2
         assert_array_almost_equal(data[0][1], colloid_2.pos / 1000.0)
-        # assert_array_equal(data[0][1].director, colloid_2.director)
 
         # Colloid 3
         assert_array_almost_equal(data[0][2], colloid_3.pos / 1000.0)
-        # assert_array_equal(data[0][2].director, colloid_3.director)
 
         # Check for additional colloid addition
         colloid_1 = Colloid(
@@ -218,12 +215,9 @@ class TestMLModel:
 
         # Colloid 1
         assert_array_almost_equal(data[1][0], colloid_1.pos / 1000.0)
-        # assert_array_equal(data[1][0].director, colloid_1.director)
 
         # Colloid 2
         assert_array_almost_equal(data[1][1], colloid_2.pos / 1000.0)
-        # assert_array_equal(data[1][1].director, colloid_2.director)
 
         # Colloid 3
         assert_array_almost_equal(data[1][2], colloid_3.pos / 1000.0)
-        # assert_array_equal(data[1][2].director, colloid_3.director)

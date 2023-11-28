@@ -24,7 +24,7 @@ class TestFindPoint(ut.TestCase):
 
         colloids = [test_coll_front]
 
-        action, _ = self.force_model.calc_action(colloids)
+        action = self.force_model.calc_action(colloids)
 
         force_is = action[0].force
         # front colloid too far, back not visible
@@ -35,7 +35,7 @@ class TestFindPoint(ut.TestCase):
         )
         colloids.append(test_coll_behind)
 
-        action, _ = self.force_model.calc_action(colloids)
+        action = self.force_model.calc_action(colloids)
         force_is = action[-1].force
         # front close -> activity along orientation
         self.assertAlmostEqual(force_is, self.act_force)

@@ -129,4 +129,7 @@ class MLModel(InteractionModel):
             self.trajectory_data[type_].killed = self.tasks[_type].kill_switch
             self.tasks[_type].kill_switch = False  # Set it back to False.
 
-        return list(actions.values()), any(switches)
+        if any(switches):
+            self.kill_switch = True
+
+        return list(actions.values())

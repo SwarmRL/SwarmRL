@@ -1041,7 +1041,7 @@ class EspressoMD(Engine):
                         type=col.type,
                     )
                 )
-            actions, kill_switch = force_model.calc_action(swarmrl_colloids)
+            actions = force_model.calc_action(swarmrl_colloids)
             for action, coll in zip(actions, self.colloids):
                 coll.swimming = {"f_swim": action.force}
                 coll.ext_torque = action.torque
@@ -1060,8 +1060,6 @@ class EspressoMD(Engine):
                             rotation_axis = [0, 0, round(rotation_axis[2])]
                             coll.rotate(axis=rotation_axis, angle=rotation_angle)
 
-            return kill_switch
-
     def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel = None):
         """
         Integrate the system for n_slices steps.
@@ -1077,7 +1075,6 @@ class EspressoMD(Engine):
         -------
         Runs the simulation environment.
         """
-        kill_switch = False
 
         if not self.integration_initialised:
             self.slice_idx = 0
@@ -1100,12 +1097,12 @@ class EspressoMD(Engine):
                         val.clear()
 
             # Break the simulaion if the kill switch is engaged.
-            if kill_switch:
+            if force_model.kill_switch:
                 break
 
             if self.step_idx == self.params.steps_per_slice * self.slice_idx:
                 self.slice_idx += 1
-                kill_switch = self.manage_forces(force_model)
+                self.manage_forces(force_model)
 
             steps_to_next_write = (
                 self.params.steps_per_write_interval * self.write_idx - self.step_idx
