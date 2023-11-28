@@ -10,7 +10,7 @@ class ConstForce(interaction_model.InteractionModel):
         self.action = interaction_model.Action(force=force)
 
     def calc_action(self, colloids) -> typing.List[interaction_model.Action]:
-        return len(colloids) * [self.action], False
+        return len(colloids) * [self.action]
 
 
 class ConstTorque(interaction_model.InteractionModel):
@@ -18,7 +18,7 @@ class ConstTorque(interaction_model.InteractionModel):
         self.action = interaction_model.Action(torque=torque)
 
     def calc_action(self, colloids) -> typing.List[interaction_model.Action]:
-        return len(colloids) * [self.action], False
+        return len(colloids) * [self.action]
 
 
 class ConstForceAndTorque(interaction_model.InteractionModel):
@@ -26,7 +26,7 @@ class ConstForceAndTorque(interaction_model.InteractionModel):
         self.action = interaction_model.Action(force=force, torque=torque)
 
     def calc_action(self, colloids) -> typing.List[interaction_model.Action]:
-        return len(colloids) * [self.action], False
+        return len(colloids) * [self.action]
 
 
 class ToConstDirection(interaction_model.InteractionModel):
