@@ -6,7 +6,7 @@ import unittest as ut
 
 import numpy as np
 
-from swarmrl.models.harmonic_trap import HarmonicTrap
+from swarmrl.agents.harmonic_trap import HarmonicTrap
 
 
 class TestHarmonicTrap(ut.TestCase):

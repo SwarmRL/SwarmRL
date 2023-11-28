@@ -7,7 +7,7 @@ import unittest as ut
 import jax.numpy as jnp
 import numpy as np
 
-from swarmrl.models.harmonic_trap import HarmonicTrap
+from swarmrl.agents.harmonic_trap import HarmonicTrap
 
 
 class TestHarmonicTrapMethods(ut.TestCase):
