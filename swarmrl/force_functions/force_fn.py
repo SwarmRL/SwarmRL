@@ -15,6 +15,8 @@ class ForceFunction(InteractionModel):
     Class for a NN based espresso interaction model.
     """
 
+    _kill_switch: bool = False
+
     def __init__(
         self,
         agents: dict,
@@ -33,6 +35,20 @@ class ForceFunction(InteractionModel):
 
         # Used in the data saving.
         self.particle_types = [type_ for type_ in self.agents]
+
+    @property
+    def kill_switch(self):
+        """
+        If true, kill the simulation.
+        """
+        return self._kill_switch
+
+    @kill_switch.setter
+    def kill_switch(self, value):
+        """
+        Set the kill switch.
+        """
+        self._kill_switch = value
 
     def calc_action(self, colloids: typing.List[Colloid]) -> typing.List[Action]:
         """

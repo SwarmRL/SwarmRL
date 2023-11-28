@@ -3,6 +3,11 @@ Class for classical agents. These are agents not controlled by
 machine learning. They should also not be trainable.
 """
 
+import typing
+
+import numpy as np
+
+from swarmrl.components.colloid import Colloid
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
 
@@ -15,9 +20,9 @@ class ClassicalAgent:
     def __init__(
         self,
         particle_type: int,
-        task: Task,
-        observable: Observable,
         actions: dict,
+        task: Task = None,
+        observable: Observable = None,
     ):
         """
         Constructor for the actor-critic protocol.
@@ -40,3 +45,38 @@ class ClassicalAgent:
         self.task = task
         self.observable = observable
         self.actions = actions
+
+    def compute_agent_action(self):
+        """
+        Function implemented by specific algorithm to compute the
+        action of the agent.
+        """
+        raise NotImplementedError("Implemented in Child class.")
+
+    def compute_agent_state(self, colloids: typing.List[Colloid]):
+        """
+        Copmute the new state for the agent.
+
+        Returns the chosen actions to the force function which
+        talks to the espresso engine.
+
+        Parameters
+        ----------
+        colloids : List[Colloid]
+                List of colloids in the system.
+        """
+        state_description = self.observable(colloids)
+        action_indices, log_probs = self.network.compute_action(
+            observables=state_description
+        )
+        chosen_actions = np.take(list(self.actions.values()), action_indices, axis=-1)
+
+        # Update the trajectory information.
+        if self.train:
+            self.trajectory.features.append(state_description)
+            self.trajectory.actions.append(action_indices)
+            self.trajectory.log_probs.append(log_probs)
+            self.trajectory.rewards.append(self.task(colloids))
+            self.trajectory.killed = self.task.kill_switch
+
+        return chosen_actions, self.task.kill_switch
