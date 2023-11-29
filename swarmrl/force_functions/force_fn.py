@@ -6,11 +6,11 @@ import typing
 
 import numpy as np
 
+from swarmrl.actions.actions import Action
 from swarmrl.components.colloid import Colloid
-from swarmrl.models.interaction_model import Action, InteractionModel
 
 
-class ForceFunction(InteractionModel):
+class ForceFunction:
     """
     Class for a NN based espresso interaction model.
     """

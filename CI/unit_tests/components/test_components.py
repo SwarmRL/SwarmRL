@@ -9,7 +9,7 @@ from swarmrl.components.colloid import Colloid
 from swarmrl.components.swarm import create_swarm
 
 
-class TestAgents:
+class TestComponents:
     """
     Test suite for agents.
     """

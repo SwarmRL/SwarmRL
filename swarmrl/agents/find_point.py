@@ -2,10 +2,11 @@ import typing
 
 import numpy as np
 
-from swarmrl.models.interaction_model import Action, InteractionModel
+from swarmrl.actions.actions import Action
+from swarmrl.agents.classical_agent import ClassicalAgent
 
 
-class FindPoint(InteractionModel):
+class FindPoint(ClassicalAgent):
     def __init__(
         self,
         act_force,
@@ -18,7 +19,7 @@ class FindPoint(InteractionModel):
         self.point = point
         self.cos = np.cos(vision_half_angle)
 
-    def calc_action(self, colloids) -> typing.List[Action]:
+    def compute_agent_state(self, colloids) -> typing.List[Action]:
         actions = []
         for colloid in colloids:
             to_point = self.point - colloid.pos

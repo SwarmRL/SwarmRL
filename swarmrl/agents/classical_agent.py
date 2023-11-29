@@ -5,6 +5,7 @@ machine learning. They should also not be trainable.
 
 import typing
 
+from swarmrl.actions.actions import Action
 from swarmrl.components.colloid import Colloid
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
@@ -44,14 +45,9 @@ class ClassicalAgent:
         self.observable = observable
         self.actions = actions
 
-    def compute_agent_action(self, **kwargs):
-        """
-        Function implemented by specific algorithm to compute the
-        action of the agent.
-        """
-        raise NotImplementedError("Implemented in Child class.")
-
-    def compute_agent_state(self, colloids: typing.List[Colloid]):
+    def compute_agent_state(
+        self, colloids: typing.List[Colloid]
+    ) -> typing.List[Action]:
         """
         Copmute the new state for the agent.
 
@@ -63,6 +59,4 @@ class ClassicalAgent:
         colloids : List[Colloid]
                 List of colloids in the system.
         """
-        chosen_actions = self.compute_agent_action()
-
-        return chosen_actions, self.task.kill_switch
+        raise NotImplementedError("Implement in subclass")

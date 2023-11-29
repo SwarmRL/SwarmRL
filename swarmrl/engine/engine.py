@@ -2,7 +2,7 @@
 Parent class for the engine.
 """
 
-from swarmrl.models.interaction_model import InteractionModel
+from swarmrl.force_functions import ForceFunction
 
 
 class Engine:
@@ -17,7 +17,7 @@ class Engine:
     def integrate(
         self,
         n_slices: int,
-        force_model: InteractionModel,
+        force_model: ForceFunction,
     ) -> None:
         """
 
@@ -26,7 +26,7 @@ class Engine:
         n_slices: int
             Number of time slices to integrate
         force_model
-            A an instance of swarmrl.models.interaction_model.InteractionModel
+            A an instance of ForceFunction
         """
         raise NotImplementedError
 
