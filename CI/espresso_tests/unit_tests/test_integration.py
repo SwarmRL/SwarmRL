@@ -8,7 +8,7 @@ import numpy as np
 import pint
 
 import swarmrl.engine.espresso as espresso
-from swarmrl.models import dummy_models
+from swarmrl.agents import dummy_models
 from swarmrl.utils import utils
 
 

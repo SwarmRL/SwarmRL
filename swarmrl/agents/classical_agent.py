@@ -6,12 +6,13 @@ machine learning. They should also not be trainable.
 import typing
 
 from swarmrl.actions.actions import Action
+from swarmrl.agents.agent import Agent
 from swarmrl.components.colloid import Colloid
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
 
 
-class ClassicalAgent:
+class ClassicalAgent(Agent):
     """
     Class to handle the actor-critic RL Protocol.
     """

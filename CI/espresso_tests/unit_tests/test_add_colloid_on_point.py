@@ -4,8 +4,9 @@ import unittest as ut
 import numpy as np
 import pint
 
+from swarmrl.agents import dummy_models
 from swarmrl.engine import espresso
-from swarmrl.models import dummy_models
+from swarmrl.force_functions import ForceFunction
 
 
 class AddColloidTest(ut.TestCase):
@@ -70,7 +71,8 @@ class AddColloidTest(ut.TestCase):
                 )
 
             const_force = dummy_models.ConstForce(force=0)
-            runner.integrate(1, const_force)
+            force_fn = ForceFunction({"0": const_force})
+            runner.integrate(1, force_fn)
 
             # without walls, the colloids would leave the primary box
             poss = runner.get_particle_data()["Unwrapped_Positions"]

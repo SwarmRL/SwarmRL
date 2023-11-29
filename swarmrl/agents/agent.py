@@ -13,6 +13,22 @@ class Agent:
     Parent class for a SwarmRL Agent.
     """
 
+    _killed = False
+
+    @property
+    def kill_switch(self):
+        """
+        If true, kill the simulation.
+        """
+        return self._killed
+
+    @kill_switch.setter
+    def kill_switch(self, value):
+        """
+        Set the kill switch.
+        """
+        self._killed = value
+
     def compute_agent_state(
         self, colloids: typing.List[Colloid]
     ) -> typing.Tuple[typing.List[Action]]:

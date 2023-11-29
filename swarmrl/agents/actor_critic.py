@@ -91,7 +91,7 @@ class ActorCriticAgent:
         colloids : List[Colloid]
                 List of colloids in the system.
         """
-        state_description = self.observable(colloids)
+        state_description = self.observable.compute_observable(colloids)
         action_indices, log_probs = self.network.compute_action(
             observables=state_description
         )
@@ -105,4 +105,6 @@ class ActorCriticAgent:
             self.trajectory.rewards.append(self.task(colloids))
             self.trajectory.killed = self.task.kill_switch
 
-        return chosen_actions, self.task.kill_switch
+        self.kill_switch = self.task.kill_switch
+
+        return chosen_actions

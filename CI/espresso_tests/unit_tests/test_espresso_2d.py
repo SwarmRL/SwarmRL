@@ -6,8 +6,9 @@ import numpy as np
 import pint
 
 import swarmrl.utils
+from swarmrl.agents import dummy_models
 from swarmrl.engine import espresso
-from swarmrl.models import dummy_models
+from swarmrl.force_functions import ForceFunction
 
 
 def assertNotArrayAlmostEqual(arr0, arr1, atol=1e-6):
@@ -68,7 +69,8 @@ class EspressoTest2D(ut.TestCase):
 
             no_force = dummy_models.ConstForce(force=0)
             # brownian motion in xy-plane and rotation around z
-            runner.integrate(10, no_force)
+            force_fn = ForceFunction({"3": no_force})
+            runner.integrate(10, force_fn)
             part_data_new = runner.get_particle_data()
             directors_new = part_data_new["Directors"]
             directors_new_z = directors_new[:, 2]
@@ -81,7 +83,8 @@ class EspressoTest2D(ut.TestCase):
             # test rotation from force model
             orientation = np.array([1 / np.sqrt(2), 1 / np.sqrt(2), 0])
             rotator = dummy_models.ToConstDirection(orientation)
-            runner.manage_forces(rotator)
+            force_fn = ForceFunction({"3": rotator})
+            runner.manage_forces(force_fn)
             runner.system.integrator.run(0)
             part_data_rot = runner.get_particle_data()
             directors_rot = part_data_rot["Directors"]
@@ -152,13 +155,13 @@ class EspressoTest2D(ut.TestCase):
 
             es_partcl = runner.system.part.by_id(0)
             dummy_model = dummy_models.ConstForce(force=0)
-
+            force_fn = ForceFunction({"0": dummy_model})
             es_partcl.ext_force = [
                 1,
                 1,
                 0,
             ]  # y is the axial, x the equatorial direction
-            runner.integrate(10, dummy_model)
+            runner.integrate(10, force_fn)
             np.testing.assert_almost_equal(
                 np.copy(es_partcl.v),
                 [
@@ -172,7 +175,8 @@ class EspressoTest2D(ut.TestCase):
             const_torque = dummy_models.ConstTorque(
                 torque=np.array([0, 0, 1])
             )  # equatorial rotation
-            runner.integrate(10, const_torque)
+            force_fn = ForceFunction({"0": const_torque})
+            runner.integrate(10, force_fn)
             np.testing.assert_almost_equal(
                 np.copy(es_partcl.omega_lab),
                 [0, 0, 1 / gamma_rot_eq.m_as("sim_torque/sim_angular_velocity")],

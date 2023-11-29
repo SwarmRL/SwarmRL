@@ -11,7 +11,7 @@ import optax
 import pint
 
 import swarmrl as srl
-from swarmrl.models.interaction_model import Action
+from swarmrl.actions import Action
 
 
 # Helper definitions.

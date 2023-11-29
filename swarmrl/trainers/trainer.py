@@ -34,8 +34,8 @@ class Trainer:
 
         Parameters
         ----------
-        rl_protocols : dict
-                A dictionary of RL protocols
+        agents : list
+                A list of RL agents
         loss : Loss
                 A loss model to use in the A-C loss computation.
         """

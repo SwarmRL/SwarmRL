@@ -4,8 +4,8 @@ import unittest as ut
 import numpy as np
 import pint
 
+from swarmrl.agents import dummy_models
 from swarmrl.engine import espresso
-from swarmrl.models import dummy_models
 
 
 class RodTest(ut.TestCase):

@@ -9,8 +9,8 @@ import optax
 import pint
 
 import swarmrl as srl
+from swarmrl.actions import Action
 from swarmrl.engine import espresso
-from swarmrl.models.interaction_model import Action
 
 
 class ActoCriticNet(nn.Module):
@@ -118,7 +118,7 @@ class EspressoTestRLTrainers(ut.TestCase):
 
     # Define the loss model
     loss = srl.losses.ProximalPolicyLoss()
-    protocol = srl.agents.ActorCriticAgent(
+    agent = srl.agents.ActorCriticAgent(
         particle_type=0,
         network=network,
         task=task,
@@ -150,7 +150,7 @@ class EspressoTestRLTrainers(ut.TestCase):
 
             # Define the force model.
             rl_trainer = srl.trainers.ContinuousTrainer(
-                [self.protocol],
+                [self.agent],
                 self.loss,
             )
             rl_trainer.perform_rl_training(
@@ -181,7 +181,7 @@ class EspressoTestRLTrainers(ut.TestCase):
                 type_colloid=0,
             )
             # We need a custom protoc0l for this test.
-            protocol = srl.agents.ActorCriticAgent(
+            agent = srl.agents.ActorCriticAgent(
                 particle_type=0,
                 network=self.network,
                 task=KillTask(),
@@ -191,7 +191,7 @@ class EspressoTestRLTrainers(ut.TestCase):
 
             # Define the force model.
             rl_trainer = srl.trainers.ContinuousTrainer(
-                [protocol],
+                [agent],
                 self.loss,
             )
             rewards = rl_trainer.perform_rl_training(
@@ -236,7 +236,7 @@ class EspressoTestRLTrainers(ut.TestCase):
 
             # Define the force model.
             rl_trainer = srl.trainers.EpisodicTrainer(
-                [self.protocol],
+                [self.agent],
                 self.loss,
             )
             rl_trainer.perform_rl_training(
@@ -281,7 +281,7 @@ class EspressoTestRLTrainers(ut.TestCase):
                 return system_runner
 
             # We need a custom protoc0l for this test.
-            protocol = srl.agents.ActorCriticAgent(
+            agent = srl.agents.ActorCriticAgent(
                 particle_type=0,
                 network=self.network,
                 task=KillTask(),
@@ -291,7 +291,7 @@ class EspressoTestRLTrainers(ut.TestCase):
 
             # Define the force model.
             rl_trainer = srl.trainers.EpisodicTrainer(
-                [protocol],
+                [agent],
                 self.loss,
             )
             rl_trainer.perform_rl_training(
@@ -340,7 +340,7 @@ class EspressoTestRLTrainers(ut.TestCase):
 
             # Define the force model.
             rl_trainer = srl.trainers.EpisodicTrainer(
-                [self.protocol],
+                [self.agent],
                 self.loss,
             )
             rl_trainer.perform_rl_training(
