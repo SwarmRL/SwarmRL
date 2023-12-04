@@ -8,7 +8,7 @@ import typing
 import numpy as np
 
 import swarmrl.engine.engine
-from swarmrl.models.interaction_model import Colloid
+from swarmrl.components import Colloid
 
 
 class ConnectionClosedError(Exception):
