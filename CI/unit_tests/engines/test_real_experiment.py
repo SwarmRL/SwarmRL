@@ -1,12 +1,3 @@
-import enum
-import struct
-import unittest as ut
-
-import numpy as np
-
-import swarmrl.agents.dummy_models
-import swarmrl.engine.real_experiment
-
 """
 Test the connection between simulation and experiment.
 To this end, set up a mock-connection that acts as the experiment does.
@@ -15,6 +6,16 @@ The assertions happen inside the mock-connections.
 If the experiment changes (i.e. the matlab code), the changes need to be reflected in
 MockConnection to ensure this test stays up-to-date.
 """
+
+import enum
+import struct
+import unittest as ut
+
+import numpy as np
+
+import swarmrl.engine.real_experiment
+from swarmrl.agents.dummy_models import ConstForce
+from swarmrl.force_functions import ForceFunction
 
 
 class MessageType(enum.Enum):
@@ -90,8 +91,9 @@ class TestRealExperiment(ut.TestCase):
         connection = MockConnection(n_partcl=17, box_l=8.765)
         runner = swarmrl.engine.real_experiment.RealExperiment(connection)
         runner.setup_simulation()
-        f_model = swarmrl.models.dummy_models.ConstForce(123)
-        runner.integrate(10, f_model)
+        agent = ConstForce(123)
+        force_fn = ForceFunction({"0": agent})
+        runner.integrate(10, force_fn)
         runner.finalize()
 
 
