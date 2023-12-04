@@ -78,17 +78,18 @@ class Trainer:
         switches = []
 
         for agent in self.agents.values():
-            episode_data = agent.trajectory
+            if agent.isinstance(ActorCriticAgent):
+                episode_data = agent.trajectory
 
-            reward += np.mean(episode_data.rewards)
+                reward += np.mean(episode_data.rewards)
 
-            # Compute loss for actor and critic.
-            self.loss.compute_loss(
-                network=agent.network,
-                episode_data=episode_data,
-            )
-            agent.reset_trajectory()
-            switches.append(episode_data.killed)
+                # Compute loss for actor and critic.
+                self.loss.compute_loss(
+                    network=agent.network,
+                    episode_data=episode_data,
+                )
+                agent.reset_trajectory()
+                switches.append(episode_data.killed)
 
         # Create a new interaction model.
         interaction_model = ForceFunction(agents=self.agents)
