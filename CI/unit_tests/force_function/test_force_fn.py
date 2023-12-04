@@ -9,8 +9,9 @@ from numpy.testing import assert_array_almost_equal, assert_array_equal
 
 import swarmrl as srl
 from swarmrl.actions import Action
+from swarmrl.agents import ActorCriticAgent
 from swarmrl.components import Colloid
-from swarmrl.models.ml_model import MLModel
+from swarmrl.force_functions import ForceFunction
 from swarmrl.networks.flax_network import FlaxModel
 from swarmrl.sampling_strategies.categorical_distribution import CategoricalDistribution
 
@@ -113,19 +114,32 @@ class TestMLModel:
             "RotateCounterClockwise": rotate_counter_clockwise,
             "DoNothing": do_nothing,
         }
-
-        cls.interaction = MLModel(
-            models={"0": network},
-            observables={"0": observable},
-            tasks={"0": DummyTask()},
-            actions={"0": cls.action_space},
+        agent_1 = ActorCriticAgent(
+            particle_type=0,
+            network=network,
+            actions=cls.action_space,
+            task=DummyTask(),
+            observable=observable,
         )
-        cls.multi_interaction = MLModel(
-            models={"0": network, "2": second_network},
-            observables={"0": observable, "2": observable},
-            tasks={"0": DummyTask(), "2": SecondDummyTask()},
-            actions={"0": cls.action_space, "2": cls.action_space},
-            record_traj=True,
+        agent_2 = ActorCriticAgent(
+            particle_type=1,
+            network=second_network,
+            actions=cls.action_space,
+            task=SecondDummyTask(),
+            observable=observable,
+        )
+
+        cls.interaction = ForceFunction(
+            agents={
+                "0": agent_1,
+            },
+        )
+
+        cls.multi_interaction = ForceFunction(
+            agents={
+                "0": agent_1,
+                "2": agent_2,
+            },
         )
 
     def test_species_and_order_handling(self):
@@ -151,8 +165,8 @@ class TestMLModel:
         assert_array_equal(actions[0].torque, np.array([0.0, 0.0, 0.0]))
 
         # Check reward data
-        loaded_data_0 = self.multi_interaction.trajectory_data["0"]
-        loaded_data_2 = self.multi_interaction.trajectory_data["2"]
+        loaded_data_0 = self.multi_interaction.agents["0"].trajectory
+        loaded_data_2 = self.multi_interaction.agents["2"].trajectory
 
         loaded_data_0 = loaded_data_0.rewards[0][0]
         loaded_data_2 = loaded_data_2.rewards[0][0]
@@ -174,12 +188,10 @@ class TestMLModel:
         )
 
         self.interaction.record_traj = True
-        self.interaction.calc_action(
-            [colloid_1, colloid_2, colloid_3], explore_mode=False
-        )
+        self.interaction.calc_action([colloid_1, colloid_2, colloid_3])
 
         # Check that data is stored correctly
-        data = self.interaction.trajectory_data["0"]
+        data = self.interaction.agents["0"].trajectory
         data = data.features
 
         # Colloid 1
@@ -206,12 +218,10 @@ class TestMLModel:
             0,
         )
 
-        self.interaction.calc_action(
-            [colloid_1, colloid_2, colloid_3], explore_mode=False
-        )
+        self.interaction.calc_action([colloid_1, colloid_2, colloid_3])
 
         # Check that data is stored correctly
-        data = self.interaction.trajectory_data["0"]
+        data = self.interaction.agents["0"].trajectory
         data = data.features
 
         # Colloid 1
