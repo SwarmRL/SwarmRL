@@ -2,8 +2,8 @@ import unittest as ut
 
 import numpy as np
 
-import swarmrl.models.find_point
-import swarmrl.models.interaction_model as int_mod
+import swarmrl.agents.find_point
+from swarmrl.components import Colloid
 
 
 class TestFindPoint(ut.TestCase):
@@ -18,9 +18,7 @@ class TestFindPoint(ut.TestCase):
 
     def test_force(self):
         orientation = np.array([1, 0, 0])
-        test_coll_front = int_mod.Colloid(
-            pos=np.array([2, 0, 0]), director=orientation, id=1
-        )
+        test_coll_front = Colloid(pos=np.array([2, 0, 0]), director=orientation, id=1)
 
         colloids = [test_coll_front]
 
@@ -30,9 +28,7 @@ class TestFindPoint(ut.TestCase):
         # front colloid too far, back not visible
         self.assertAlmostEqual(force_is, 0)
 
-        test_coll_behind = int_mod.Colloid(
-            pos=np.array([0, 0, 0]), director=orientation, id=5
-        )
+        test_coll_behind = Colloid(pos=np.array([0, 0, 0]), director=orientation, id=5)
         colloids.append(test_coll_behind)
 
         action = self.force_model.calc_action(colloids)

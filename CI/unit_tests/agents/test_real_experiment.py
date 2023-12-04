@@ -4,8 +4,8 @@ import unittest as ut
 
 import numpy as np
 
+import swarmrl.agents.dummy_models
 import swarmrl.engine.real_experiment
-import swarmrl.models.dummy_models
 
 """
 Test the connection between simulation and experiment.

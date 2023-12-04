@@ -8,7 +8,8 @@ import optax
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 
 import swarmrl as srl
-from swarmrl.models.interaction_model import Action, Colloid
+from swarmrl.actions import Action
+from swarmrl.components import Colloid
 from swarmrl.models.ml_model import MLModel
 from swarmrl.networks.flax_network import FlaxModel
 from swarmrl.sampling_strategies.categorical_distribution import CategoricalDistribution

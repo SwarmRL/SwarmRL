@@ -5,7 +5,7 @@ Unit test for the rod rotation task.
 import numpy as np
 import pytest
 
-from swarmrl.models.interaction_model import Colloid
+from swarmrl.components import Colloid
 from swarmrl.tasks.object_movement.rod_rotation import RotateRod
 
 
