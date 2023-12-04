@@ -34,7 +34,7 @@ class TestLavergne(ut.TestCase):
         colloids = [test_coll, coll_front, coll_back, coll_side]
 
         action = self.force_model.calc_action(colloids)
-        print(action)
+
         force_is = action[0].force
         # front colloid too far, back not visible
         self.assertAlmostEqual(force_is, 0)

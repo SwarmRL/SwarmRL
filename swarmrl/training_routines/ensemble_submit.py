@@ -21,7 +21,7 @@ class EnsembleTraining:
 
     def __init__(
         self,
-        gym: ContinuousTrainer,
+        trainer: ContinuousTrainer,
         simulation_runner_generator: callable,
         number_of_ensembles: int,
         episode_length: int,
@@ -36,8 +36,8 @@ class EnsembleTraining:
 
         Parameters
         ----------
-        gym : Gym
-            The gym to train.
+        trainer : Trainer
+            The trainer used to train.
         number_of_ensmbles : int
             The number of ensembles to train.
         episode_length : int
@@ -67,7 +67,7 @@ class EnsembleTraining:
         if n_parallel_jobs is None:
             n_parallel_jobs = number_of_ensembles
 
-        self.gym = gym
+        self.trainer = trainer
         self.number_of_ensembles = number_of_ensembles
         self.n_parallel_jobs = n_parallel_jobs
 
@@ -157,7 +157,7 @@ class EnsembleTraining:
             block = self.client.map(
                 self._train_model,
                 names[i * self.n_parallel_jobs : (i + 1) * self.n_parallel_jobs],
-                [self.gym] * self.n_parallel_jobs,
+                [self.trainer] * self.n_parallel_jobs,
                 [self.simulation_runner_generator] * self.n_parallel_jobs,
                 [self.load_path] * self.n_parallel_jobs,
                 [self.episode_length] * self.n_parallel_jobs,

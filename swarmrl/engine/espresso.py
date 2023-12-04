@@ -1011,9 +1011,7 @@ class EspressoMD(Engine):
             )
             self.system.integrator.set_vv()
 
-    def manage_forces(
-        self, force_model: swarmrl.models.InteractionModel = None
-    ) -> bool:
+    def manage_forces(self, force_model: swarmrl.models.InteractionModel = None):
         """
         Manage external forces.
 
@@ -1023,11 +1021,6 @@ class EspressoMD(Engine):
         ----------
         force_model : swarmrl.models.InteractionModel
             Model with which to compute external forces.
-
-        Returns
-        -------
-        kill_switch : bool
-            A boolean flag that ends the simulation early.
         """
         swarmrl_colloids = []
         if force_model is not None:
@@ -1060,7 +1053,9 @@ class EspressoMD(Engine):
                             rotation_axis = [0, 0, round(rotation_axis[2])]
                             coll.rotate(axis=rotation_axis, angle=rotation_angle)
 
-    def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel = None):
+    def integrate(
+        self, n_slices, force_model: swarmrl.models.InteractionModel = None
+    ) -> None:
         """
         Integrate the system for n_slices steps.
 
