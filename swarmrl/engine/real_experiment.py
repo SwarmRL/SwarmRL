@@ -115,7 +115,7 @@ class RealExperiment(swarmrl.engine.engine.Engine):
         """
         n_colloids = len(colloids)
         ret = np.zeros((n_colloids, 2))
-        actions, _ = force_model.calc_action(colloids)
+        actions = force_model.calc_action(colloids)
         for idx, coll in enumerate(colloids):
             action = actions[idx]
 

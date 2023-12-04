@@ -1021,11 +1021,6 @@ class EspressoMD(Engine):
         ----------
         force_model : ForceFunction
             Model with which to compute external forces.
-
-        Returns
-        -------
-        kill_switch : bool
-            A boolean flag that ends the simulation early.
         """
         swarmrl_colloids = []
         if force_model is not None:
