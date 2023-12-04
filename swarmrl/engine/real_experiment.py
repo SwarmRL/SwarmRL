@@ -9,6 +9,7 @@ import numpy as np
 
 import swarmrl.engine.engine
 from swarmrl.components import Colloid
+from swarmrl.force_functions.force_fn import ForceFunction
 
 
 class ConnectionClosedError(Exception):
@@ -93,7 +94,7 @@ class RealExperiment(swarmrl.engine.engine.Engine):
     def get_actions(
         self,
         colloids: typing.List[Colloid],
-        force_model: swarmrl.models.interaction_model.InteractionModel,
+        force_model: ForceFunction,
     ) -> np.array:
         """
         Collect the actions on the particles.
