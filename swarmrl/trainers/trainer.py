@@ -78,7 +78,7 @@ class Trainer:
         switches = []
 
         for agent in self.agents.values():
-            if agent.isinstance(ActorCriticAgent):
+            if isinstance(agent, ActorCriticAgent):
                 episode_data = agent.trajectory
 
                 reward += np.mean(episode_data.rewards)

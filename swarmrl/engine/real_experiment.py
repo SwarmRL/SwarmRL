@@ -72,7 +72,7 @@ class RealExperiment(swarmrl.engine.engine.Engine):
 
         data_size_int = struct.unpack("I", data_size)[0]
         print(f"Received data_size = {data_size_int}")
-        print("Waiting for receiving actual data")
+        print("Waiting to receive actual data")
         data = self.connection.recv(8 * data_size_int)
         while data and len(data) < 8 * data_size_int:
             data.extend(self.connection.recv(8 * data_size_int))
@@ -158,7 +158,7 @@ class RealExperiment(swarmrl.engine.engine.Engine):
     def integrate(
         self,
         n_slices: int,
-        force_model: swarmrl.models.interaction_model.InteractionModel,
+        force_model: ForceFunction,
     ) -> None:
         """
         Perform the real-experiment equivalent of an integration step.
