@@ -146,6 +146,11 @@ class TestMLModel:
         """
         Test species and paricle actions are returned correctly.
         """
+        for agent in self.interaction.agents.values():
+            agent.reset_trajectory()
+        for agent in self.multi_interaction.agents.values():
+            agent.reset_trajectory()
+
         colloid_1 = Colloid(
             np.array([3, 7, 1]), np.array([0, 0, 1]), 0, np.array([0, 0, 0]), 1
         )
@@ -177,6 +182,11 @@ class TestMLModel:
         """
         Test that classes are saved correctly.
         """
+        for agent in self.interaction.agents.values():
+            agent.reset_trajectory()
+        for agent in self.multi_interaction.agents.values():
+            agent.reset_trajectory()
+
         colloid_1 = Colloid(
             np.array([3, 7, 1]), np.array([0, 0, 1]), 0, np.array([0, 0, 0]), 0
         )
