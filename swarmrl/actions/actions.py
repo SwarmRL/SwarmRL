@@ -2,12 +2,12 @@
 Main module for actions.
 """
 
-import dataclasses
+from dataclasses import dataclass
 
 import numpy as np
 
 
-@dataclasses.dataclass
+@dataclass
 class Action:
     """
     Holds the 3 quantities that are applied to the colloid plus an identifier
@@ -15,5 +15,5 @@ class Action:
 
     id = 0
     force: float = 0.0
-    torque: np.ndarray = np.zeros((3,))
+    torque: np.ndarray = None
     new_direction: np.ndarray = None
