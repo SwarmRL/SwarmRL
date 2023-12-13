@@ -4,8 +4,9 @@ import unittest as ut
 import numpy as np
 import pint
 
+from swarmrl.agents import dummy_models
 from swarmrl.engine import espresso
-from swarmrl.models import dummy_models
+from swarmrl.force_functions import ForceFunction
 from swarmrl.utils import utils
 
 
@@ -147,7 +148,9 @@ class FlowTest(ut.TestCase):
                 active_force, [0, 0, active_torque]
             )
 
-            runner.integrate(1000, force_model=model)
+            force_fn = ForceFunction({"0": model})
+
+            runner.integrate(1000, force_model=force_fn)
 
             # particles should be advected to the right until they hit the boundary
             poss = runner.get_particle_data()["Unwrapped_Positions"]

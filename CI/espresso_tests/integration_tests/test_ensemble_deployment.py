@@ -11,7 +11,7 @@ import optax
 import pint
 
 import swarmrl as srl
-from swarmrl.models.interaction_model import Action
+from swarmrl.actions import Action
 
 
 # Helper definitions.
@@ -133,7 +133,7 @@ class TestEnsembleTraining(ut.TestCase):
                 "DoNothing": do_nothing,
             }
 
-            protocol = srl.rl_protocols.ActorCritic(
+            protocol = srl.agents.ActorCriticAgent(
                 particle_type=0,
                 network=network,
                 task=task,

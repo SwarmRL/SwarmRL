@@ -7,7 +7,7 @@ from typing import List
 
 import numpy as onp
 
-from swarmrl.agents.colloid import Colloid
+from swarmrl.components.colloid import Colloid
 from swarmrl.observables.observable import Observable
 
 

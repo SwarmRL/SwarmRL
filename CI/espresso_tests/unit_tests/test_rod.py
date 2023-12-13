@@ -4,8 +4,9 @@ import unittest as ut
 import numpy as np
 import pint
 
+from swarmrl.agents import dummy_models
 from swarmrl.engine import espresso
-from swarmrl.models import dummy_models
+from swarmrl.force_functions import ForceFunction
 
 
 class RodTest(ut.TestCase):
@@ -54,10 +55,11 @@ class RodTest(ut.TestCase):
             )
 
             no_force = dummy_models.ConstForce(force=0)
-            runner.integrate(1, no_force)
+            force_fn = ForceFunction(agents={"0": no_force})
+            runner.integrate(1, force_fn)
             center_before = np.copy(center_part.pos)
             director_before = np.copy(center_part.director)
-            runner.integrate(100, no_force)
+            runner.integrate(100, force_fn)
             center_after = np.copy(center_part.pos)
             director_after = np.copy(center_part.director)
 

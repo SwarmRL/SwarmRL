@@ -11,8 +11,8 @@ import numpy as np
 import optax
 
 import swarmrl as srl
+from swarmrl.agents.actor_critic import ActorCriticAgent
 from swarmrl.networks import FlaxModel
-from swarmrl.rl_protocols.actor_critic import ActorCritic
 
 
 class TestFlaxNetwork:
@@ -179,7 +179,7 @@ class TestFlaxNetwork:
                 exploration_policy=self.exploration_policy,
             )
 
-            protocol = ActorCritic(
+            protocol = ActorCriticAgent(
                 particle_type=i,
                 network=network,
                 task=None,

@@ -2,10 +2,11 @@ import typing
 
 import numpy as np
 
-from swarmrl.models.interaction_model import Action, InteractionModel
+from swarmrl.actions.actions import Action
+from swarmrl.agents.classical_agent import ClassicalAgent
 
 
-class FindPoint(InteractionModel):
+class FindPoint(ClassicalAgent):
     def __init__(
         self,
         act_force,

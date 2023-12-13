@@ -1,7 +1,10 @@
+# Custom folders
 .idea
 .vscode
 SwarmRL/docs/build
 espresso
+*.pkl
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -9,7 +9,7 @@ import jax
 import jax.numpy as np
 import numpy as onp
 
-from swarmrl.agents.colloid import Colloid
+from swarmrl.components.colloid import Colloid
 from swarmrl.observables.observable import Observable
 
 logger = logging.getLogger(__name__)

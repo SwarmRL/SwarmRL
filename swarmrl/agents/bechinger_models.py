@@ -2,10 +2,11 @@ import typing
 
 import numpy as np
 
-from swarmrl.models.interaction_model import Action, InteractionModel
+from swarmrl.actions.actions import Action
+from swarmrl.agents.classical_agent import ClassicalAgent
 
 
-class Lavergne2019(InteractionModel):
+class Lavergne2019(ClassicalAgent):
     """
     See doi/10.1126/science.aau5347
     """
@@ -50,7 +51,7 @@ class Lavergne2019(InteractionModel):
         return actions
 
 
-class Baeuerle2020(InteractionModel):
+class Baeuerle2020(ClassicalAgent):
     """
     See https://doi.org/10.1038/s41467-020-16161-4
     """

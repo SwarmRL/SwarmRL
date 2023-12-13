@@ -4,7 +4,7 @@ Tests for the MultiSensing class.
 
 import numpy as np
 
-from swarmrl.models.interaction_model import Colloid
+from swarmrl.components import Colloid
 from swarmrl.observables.concentration_field import ConcentrationField
 from swarmrl.observables.director import Director
 from swarmrl.observables.multi_sensing import MultiSensing

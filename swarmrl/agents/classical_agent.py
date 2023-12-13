@@ -1,14 +1,18 @@
 """
-Module for the Actor-Critic RL protocol.
+Class for classical agents. These are agents not controlled by
+machine learning. They should also not be trainable.
 """
 
-from swarmrl.networks.network import Network
+import typing
+
+from swarmrl.actions.actions import Action
+from swarmrl.agents.agent import Agent
+from swarmrl.components.colloid import Colloid
 from swarmrl.observables.observable import Observable
-from swarmrl.rl_protocols.rl_protocol import RLProtocol
 from swarmrl.tasks.task import Task
 
 
-class ActorCritic(RLProtocol):
+class ClassicalAgent(Agent):
     """
     Class to handle the actor-critic RL Protocol.
     """
@@ -16,10 +20,9 @@ class ActorCritic(RLProtocol):
     def __init__(
         self,
         particle_type: int,
-        network: Network,
-        task: Task,
-        observable: Observable,
         actions: dict,
+        task: Task = None,
+        observable: Observable = None,
     ):
         """
         Constructor for the actor-critic protocol.
@@ -38,8 +41,21 @@ class ActorCritic(RLProtocol):
         actions : dict
                 Actions allowed for the particle.
         """
-        self.network = network
         self.particle_type = particle_type
         self.task = task
         self.observable = observable
         self.actions = actions
+
+    def calc_action(self, colloids: typing.List[Colloid]) -> typing.List[Action]:
+        """
+        Copmute the new state for the agent.
+
+        Returns the chosen actions to the force function which
+        talks to the espresso engine.
+
+        Parameters
+        ----------
+        colloids : List[Colloid]
+                List of colloids in the system.
+        """
+        raise NotImplementedError("Implement in subclass")

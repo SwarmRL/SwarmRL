@@ -4,7 +4,7 @@ Parent class for the observable.
 
 from typing import List
 
-from swarmrl.agents.colloid import Colloid
+from swarmrl.components.colloid import Colloid
 
 
 class Observable:

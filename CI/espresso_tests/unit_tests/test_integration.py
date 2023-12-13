@@ -8,7 +8,8 @@ import numpy as np
 import pint
 
 import swarmrl.engine.espresso as espresso
-from swarmrl.models import dummy_models
+from swarmrl.agents import dummy_models
+from swarmrl.force_functions import ForceFunction
 from swarmrl.utils import utils
 
 
@@ -100,10 +101,11 @@ class Simulation:
             type_colloid=0,
         )
         force = 1
-        force_model = dummy_models.ConstForce(force)
+        agent = dummy_models.ConstForce(force)
+        force_fn = ForceFunction(agents={"0": agent})
 
         if self.test_number == 0:
-            system_runner.integrate(2, force_model)
+            system_runner.integrate(2, force_fn)
             np.testing.assert_equal(system_runner.step_idx, 10)
             np.testing.assert_equal(system_runner.slice_idx, 2)
             # should be ceil(steps/steps_per_slice)
@@ -113,7 +115,7 @@ class Simulation:
             np.testing.assert_equal(system_runner.params.steps_per_write_interval, 9)
             np.testing.assert_equal(system_runner.params.steps_per_slice, 5)
             np.testing.assert_equal(len(system_runner.traj_holder["Times"]), 2)
-            system_runner.integrate(3, force_model)
+            system_runner.integrate(3, force_fn)
             np.testing.assert_equal(system_runner.step_idx, 25)
             np.testing.assert_equal(system_runner.slice_idx, 5)
             np.testing.assert_equal(system_runner.write_idx, 3)
@@ -122,7 +124,7 @@ class Simulation:
             # Nothing is written to a file here because write_chunk_size is not reached
 
         if self.test_number == 1:
-            system_runner.integrate(4, force_model)
+            system_runner.integrate(4, force_fn)
             np.testing.assert_equal(system_runner.step_idx, 28)
             np.testing.assert_equal(system_runner.slice_idx, 4)
             np.testing.assert_equal(system_runner.write_idx, 10)
@@ -131,7 +133,7 @@ class Simulation:
             np.testing.assert_equal(system_runner.params.steps_per_slice, 7)
             np.testing.assert_equal(len(system_runner.traj_holder["Times"]), 0)
             # After write_chunk_size the holder is emptied
-            system_runner.integrate(2, force_model)
+            system_runner.integrate(2, force_fn)
             np.testing.assert_equal(system_runner.step_idx, 42)
             np.testing.assert_equal(system_runner.slice_idx, 6)
             np.testing.assert_equal(system_runner.write_idx, 14)
@@ -139,7 +141,7 @@ class Simulation:
             np.testing.assert_equal(len(system_runner.traj_holder["Times"]), 4)
 
         if self.test_number == 2:
-            system_runner.integrate(4, force_model)
+            system_runner.integrate(4, force_fn)
             np.testing.assert_equal(system_runner.step_idx, 8)
             np.testing.assert_equal(system_runner.slice_idx, 4)
             np.testing.assert_equal(system_runner.write_idx, 4)
@@ -147,7 +149,7 @@ class Simulation:
             np.testing.assert_equal(system_runner.params.steps_per_write_interval, 2)
             np.testing.assert_equal(system_runner.params.steps_per_slice, 2)
             np.testing.assert_equal(len(system_runner.traj_holder["Times"]), 4)
-            system_runner.integrate(2, force_model)
+            system_runner.integrate(2, force_fn)
             np.testing.assert_equal(system_runner.step_idx, 12)
             np.testing.assert_equal(system_runner.slice_idx, 6)
             np.testing.assert_equal(system_runner.write_idx, 6)

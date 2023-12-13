@@ -2,8 +2,8 @@ import unittest as ut
 
 import numpy as np
 
-import swarmrl.models.bechinger_models
-import swarmrl.models.interaction_model as int_mod
+import swarmrl.agents.bechinger_models
+from swarmrl.components import Colloid
 
 
 class TestLavergne(ut.TestCase):
@@ -12,7 +12,7 @@ class TestLavergne(ut.TestCase):
         self.vision_half_angle = np.pi / 4.0
         self.perception_threshold = 0.5
 
-        self.force_model = swarmrl.models.bechinger_models.Lavergne2019(
+        self.force_model = swarmrl.agents.bechinger_models.Lavergne2019(
             vision_half_angle=self.vision_half_angle,
             act_force=self.act_force,
             perception_threshold=self.perception_threshold,
@@ -20,26 +20,20 @@ class TestLavergne(ut.TestCase):
 
     def test_force(self):
         orientation = np.array([1, 0, 0])
-        test_coll = int_mod.Colloid(pos=np.array([0, 0, 0]), director=orientation, id=1)
-        coll_front = int_mod.Colloid(
-            pos=np.array([100, 0, 0]), director=orientation, id=2
-        )
-        coll_back = int_mod.Colloid(
-            pos=np.array([-0.01, 0, 0]), director=orientation, id=3
-        )
-        coll_side = int_mod.Colloid(
-            pos=np.array([0, 0.01, 0]), director=orientation, id=4
-        )
+        test_coll = Colloid(pos=np.array([0, 0, 0]), director=orientation, id=1)
+        coll_front = Colloid(pos=np.array([100, 0, 0]), director=orientation, id=2)
+        coll_back = Colloid(pos=np.array([-0.01, 0, 0]), director=orientation, id=3)
+        coll_side = Colloid(pos=np.array([0, 0.01, 0]), director=orientation, id=4)
 
         colloids = [test_coll, coll_front, coll_back, coll_side]
 
         action = self.force_model.calc_action(colloids)
-
         force_is = action[0].force
+
         # front colloid too far, back not visible
         self.assertAlmostEqual(force_is, 0)
 
-        coll_front_close = int_mod.Colloid(
+        coll_front_close = Colloid(
             pos=np.array([0.1, 0, 0]), director=orientation, id=5
         )
         colloids.append(coll_front_close)
@@ -59,7 +53,7 @@ class TestBaeuerle(ut.TestCase):
         self.detection_radius_orientation = 0.5
         self.angular_deviation = np.pi / 8.0
 
-        self.force_model = swarmrl.models.bechinger_models.Baeuerle2020(
+        self.force_model = swarmrl.agents.bechinger_models.Baeuerle2020(
             act_force=self.act_force,
             act_torque=self.act_torque,
             detection_radius_orientation=self.detection_radius_orientation,
@@ -69,19 +63,17 @@ class TestBaeuerle(ut.TestCase):
         )
 
     def test_torque(self):
-        test_coll = int_mod.Colloid(
-            pos=np.array([0, 0, 0]), director=np.array([1, 0, 0]), id=1
-        )
-        front_coll = int_mod.Colloid(
+        test_coll = Colloid(pos=np.array([0, 0, 0]), director=np.array([1, 0, 0]), id=1)
+        front_coll = Colloid(
             pos=np.array([1, 0.1, 0]), director=np.array([0, 1, 0]), id=2
         )
-        front_close_coll = int_mod.Colloid(
+        front_close_coll = Colloid(
             pos=np.array([0.2, 0.1, 0]), director=np.array([0, -1, 0]), id=3
         )
-        front_far_coll = int_mod.Colloid(
+        front_far_coll = Colloid(
             pos=np.array([10, 0, 0]), director=np.array([0, 1, 0]), id=4
         )
-        side_coll = int_mod.Colloid(
+        side_coll = Colloid(
             pos=np.array([0, 0.1, 0]), director=np.array([0, 1, 0]), id=5
         )
 
@@ -102,23 +94,21 @@ class TestBaeuerle(ut.TestCase):
 
 class TestUtils(ut.TestCase):
     def test_coll_in_vision(self):
-        test_coll = int_mod.Colloid(
-            pos=np.array([0, 0, 0]), director=np.array([1, 0, 0]), id=1
-        )
-        front_coll = int_mod.Colloid(
+        test_coll = Colloid(pos=np.array([0, 0, 0]), director=np.array([1, 0, 0]), id=1)
+        front_coll = Colloid(
             pos=np.array([1.1, 0, 0]), director=np.array([1, 0, 0]), id=2
         )
-        front_far_coll = int_mod.Colloid(
+        front_far_coll = Colloid(
             pos=np.array([100, 0, 0]), director=np.array([1, 0, 0]), id=3
         )
-        side_coll = int_mod.Colloid(
+        side_coll = Colloid(
             pos=np.array([0, 0.2, 0]), director=np.array([1, 0, 0]), id=4
         )
-        slight_offset_coll = int_mod.Colloid(
+        slight_offset_coll = Colloid(
             pos=np.array([1, 0, 0.1]), director=np.array([1, 0, 0]), id=5
         )
 
-        colls_in_range = swarmrl.models.bechinger_models.get_colloids_in_vision(
+        colls_in_range = swarmrl.agents.bechinger_models.get_colloids_in_vision(
             test_coll,
             [front_coll, front_far_coll, side_coll, slight_offset_coll],
             vision_half_angle=np.pi / 4.0,

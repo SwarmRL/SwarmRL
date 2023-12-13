@@ -9,7 +9,7 @@ compute the loss for the models to train on.
 
 from typing import List
 
-from swarmrl.models.interaction_model import Colloid
+from swarmrl.components import Colloid
 
 
 class Task:

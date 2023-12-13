@@ -11,9 +11,9 @@ import h5py
 import numpy as np
 import pint
 
-import swarmrl.models.interaction_model
 import swarmrl.utils.utils as utils
-from swarmrl.agents.colloid import Colloid
+from swarmrl.components.colloid import Colloid
+from swarmrl.force_functions import ForceFunction
 
 from .engine import Engine
 
@@ -1011,7 +1011,7 @@ class EspressoMD(Engine):
             )
             self.system.integrator.set_vv()
 
-    def manage_forces(self, force_model: swarmrl.models.InteractionModel = None):
+    def manage_forces(self, force_model: ForceFunction = None) -> bool:
         """
         Manage external forces.
 
@@ -1019,7 +1019,7 @@ class EspressoMD(Engine):
 
         Parameters
         ----------
-        force_model : swarmrl.models.InteractionModel
+        force_model : ForceFunction
             Model with which to compute external forces.
         """
         swarmrl_colloids = []
@@ -1053,9 +1053,7 @@ class EspressoMD(Engine):
                             rotation_axis = [0, 0, round(rotation_axis[2])]
                             coll.rotate(axis=rotation_axis, angle=rotation_angle)
 
-    def integrate(
-        self, n_slices, force_model: swarmrl.models.InteractionModel = None
-    ) -> None:
+    def integrate(self, n_slices, force_model: ForceFunction = None):
         """
         Integrate the system for n_slices steps.
 
@@ -1063,7 +1061,7 @@ class EspressoMD(Engine):
         ----------
         n_slices : int
                 Number of integration steps to run.
-        force_model : swarmrl.InteractionModel
+        force_model : ForceFunction
                 A SwarmRL interaction model to decide particle interaction rules.
 
         Returns
