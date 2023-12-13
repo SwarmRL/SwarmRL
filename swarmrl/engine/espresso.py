@@ -1012,6 +1012,16 @@ class EspressoMD(Engine):
             self.system.integrator.set_vv()
 
     def manage_forces(self, force_model: swarmrl.models.InteractionModel = None):
+        """
+        Manage external forces.
+
+        Collect the forces from the force function and apply them to the colloids.
+
+        Parameters
+        ----------
+        force_model : swarmrl.models.InteractionModel
+            Model with which to compute external forces.
+        """
         swarmrl_colloids = []
         if force_model is not None:
             for col in self.colloids:
@@ -1043,7 +1053,9 @@ class EspressoMD(Engine):
                             rotation_axis = [0, 0, round(rotation_axis[2])]
                             coll.rotate(axis=rotation_axis, angle=rotation_angle)
 
-    def integrate(self, n_slices, force_model: swarmrl.models.InteractionModel = None):
+    def integrate(
+        self, n_slices, force_model: swarmrl.models.InteractionModel = None
+    ) -> None:
         """
         Integrate the system for n_slices steps.
 
@@ -1078,6 +1090,10 @@ class EspressoMD(Engine):
                     self._write_traj_chunk_to_file()
                     for val in self.traj_holder.values():
                         val.clear()
+
+            # Break the simulaion if the kill switch is engaged.
+            if force_model.kill_switch:
+                break
 
             if self.step_idx == self.params.steps_per_slice * self.slice_idx:
                 self.slice_idx += 1

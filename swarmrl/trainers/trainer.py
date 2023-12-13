@@ -1,22 +1,20 @@
 """
-Module to implement a simple multi-layer perceptron for the colloids.
+Module for the Trainer parent.
 """
 
 from typing import List, Tuple
 
 import numpy as np
-from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
-from swarmrl.engine.engine import Engine
 from swarmrl.losses.loss import Loss
 from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
 from swarmrl.models.ml_model import MLModel
 from swarmrl.rl_protocols.actor_critic import ActorCritic
 
 
-class Gym:
+class Trainer:
     """
-    Class for the simple MLP RL implementation.
+    Parent class for the RL Trainer.
 
     Attributes
     ----------
@@ -166,71 +164,13 @@ class Gym:
         for _, val in self.rl_protocols.items():
             val.network.reinitialize_network()
 
-    def perform_rl_training(
-        self,
-        system_runner: Engine,
-        n_episodes: int,
-        episode_length: int,
-        load_bar: bool = True,
-    ):
+    def perform_rl_training(self, **kwargs):
         """
         Perform the RL training.
 
         Parameters
         ----------
-        system_runner : Engine
-                Engine used to perform steps for each agent.
-        n_episodes : int
-                Number of episodes to use in the training.
-        episode_length : int
-                Number of time steps in one episode.
-        load_bar : bool (default=True)
-                If true, show a progress bar.
+        **kwargs
+            All arguments related to the specific trainer.
         """
-        rewards = [0.0]
-        current_reward = 0.0
-        episode = 0
-        force_fn = self.initialize_training()
-
-        # Initialize the tasks and observables.
-        for _, val in self.rl_protocols.items():
-            val.observable.initialize(system_runner.colloids)
-            val.task.initialize(system_runner.colloids)
-
-        progress = Progress(
-            "Episode: {task.fields[Episode]}",
-            BarColumn(),
-            "Episode reward: {task.fields[current_reward]} Running Reward:"
-            " {task.fields[running_reward]}",
-            TimeRemainingColumn(),
-        )
-
-        with progress:
-            task = progress.add_task(
-                "RL Training",
-                total=n_episodes,
-                Episode=episode,
-                current_reward=current_reward,
-                running_reward=np.mean(rewards),
-                visible=load_bar,
-            )
-            for _ in range(n_episodes):
-                # start = time.time()
-                system_runner.integrate(episode_length, force_fn)
-                trajectory_data = force_fn.trajectory_data
-                force_fn, current_reward = self.update_rl(
-                    trajectory_data=trajectory_data
-                )
-                rewards.append(current_reward)
-                episode += 1
-                progress.update(
-                    task,
-                    advance=1,
-                    Episode=episode,
-                    current_reward=np.round(current_reward, 2),
-                    running_reward=np.round(np.mean(rewards[-10:]), 2),
-                )
-
-        system_runner.finalize()
-
-        return np.array(rewards)
+        raise NotImplementedError("Implemented in child class")

@@ -28,6 +28,27 @@ class Task:
         """
         self.particle_type = particle_type
 
+        self._kill_switch = False
+
+    @property
+    def kill_switch(self):
+        """
+        Kill switch property of the task
+        """
+        return self._kill_switch
+
+    @kill_switch.setter
+    def kill_switch(self, value: bool):
+        """
+        Set the kill switch property.
+
+        Parameters
+        ----------
+        value : bool
+            Value to set the kill switch to.
+        """
+        self._kill_switch = value
+
     def initialize(self, colloids: List[Colloid]):
         """
         Initialize the task with starting positions of the colloids.

@@ -28,6 +28,22 @@ class InteractionModel:
     Inherits from the module class of Torch.
     """
 
+    _kill_switch: bool = False
+
+    @property
+    def kill_switch(self):
+        """
+        If true, kill the simulation.
+        """
+        return self._kill_switch
+
+    @kill_switch.setter
+    def kill_switch(self, value):
+        """
+        Set the kill switch.
+        """
+        self._kill_switch = value
+
     def calc_action(self, colloids: typing.List[Colloid]) -> typing.List[Action]:
         """
         Compute the next action on colloid.

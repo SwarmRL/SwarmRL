@@ -7,7 +7,6 @@ import logging
 from swarmrl import (
     agents,
     exploration_policies,
-    gyms,
     losses,
     models,
     networks,
@@ -15,6 +14,7 @@ from swarmrl import (
     rl_protocols,
     sampling_strategies,
     tasks,
+    trainers,
     training_routines,
     value_functions,
 )
@@ -38,7 +38,7 @@ __all__ = [
     networks.__name__,
     models.__name__,
     exploration_policies.__name__,
-    gyms.__name__,
+    trainers.__name__,
     sampling_strategies.__name__,
     value_functions.__name__,
     rl_protocols.__name__,

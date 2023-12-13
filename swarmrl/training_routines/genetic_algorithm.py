@@ -16,7 +16,7 @@ from dask_jobqueue import JobQueueCluster
 from rich import print
 from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
-from swarmrl.gyms.gym import Gym
+from swarmrl.trainers.continuous_trainer import ContinuousTrainer
 
 
 class GeneticTraining:
@@ -26,7 +26,7 @@ class GeneticTraining:
 
     def __init__(
         self,
-        gym: Gym,
+        trainer: ContinuousTrainer,
         simulation_runner_generator: callable,
         n_episodes: int = 100,
         episode_length: int = 20,
@@ -72,7 +72,7 @@ class GeneticTraining:
         able to handle multiple threads and us not being able to force Dask to refresh
         a worker after each training is finished.
         """
-        self.gym = gym
+        self.trainer = trainer
         self.simulation_runner_generator = simulation_runner_generator
         self.n_episodes = n_episodes
         self.episode_length = episode_length
@@ -122,7 +122,7 @@ class GeneticTraining:
     def _train_network(
         name: Path,
         load_directory: str = None,
-        gym: Gym = None,
+        gym: ContinuousTrainer = None,
         runner_generator: callable = None,
         select_fn: callable = None,
         episode_length: int = None,
@@ -203,7 +203,7 @@ class GeneticTraining:
                 self._train_network,
                 child_names[i * self.parallel_jobs : (i + 1) * self.parallel_jobs],
                 load_paths[i * self.parallel_jobs : (i + 1) * self.parallel_jobs],
-                [deepcopy(self.gym)] * self.parallel_jobs,
+                [deepcopy(self.trainer)] * self.parallel_jobs,
                 [self.simulation_runner_generator] * self.parallel_jobs,
                 [self._select_fn] * self.parallel_jobs,
                 [self.episode_length] * self.parallel_jobs,
