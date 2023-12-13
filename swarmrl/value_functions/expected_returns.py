@@ -3,12 +3,10 @@ Module for the expected returns value function.
 """
 
 import logging
+from functools import partial
 
-# import jax
+import jax
 import jax.numpy as np
-
-# from functools import partial
-
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +38,7 @@ class ExpectedReturns:
         # Set by us to stabilize division operations.
         self.eps = np.finfo(np.float32).eps.item()
 
-    # @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnums=(0,))
     def __call__(self, rewards: np.ndarray):
         """
         Call function for the expected returns.

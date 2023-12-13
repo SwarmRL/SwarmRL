@@ -2,7 +2,7 @@
 Computes vision cone(s).
 """
 
-# from functools import partial
+from functools import partial
 from typing import List
 
 import jax.numpy as jnp
@@ -80,7 +80,7 @@ class SubdividedVisionCones(Observable):
                 all_types.append(c.type)
         self.detected_types = np.array(np.sort(all_types))
 
-    # @partial(jit, static_argnums=(0,))
+    @partial(jit, static_argnums=(0,))
     def _calculate_cones_single_object(
         self,
         my_pos: np.ndarray,

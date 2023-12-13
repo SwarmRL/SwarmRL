@@ -57,6 +57,7 @@ class MultiTasking(Task):
         rewards = np.zeros(len(species_indices))
         for task in self.tasks:
             ts = task(colloids)
+            print(ts)
             rewards += ts
 
         return rewards
