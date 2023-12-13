@@ -42,6 +42,7 @@ class ContinuousTrainer(Trainer):
         load_bar : bool (default=True)
                 If true, show a progress bar.
         """
+        self.engine = system_runner
         rewards = [0.0]
         current_reward = 0.0
         episode = 0
@@ -69,7 +70,7 @@ class ContinuousTrainer(Trainer):
                 visible=load_bar,
             )
             for _ in range(n_episodes):
-                system_runner.integrate(episode_length, force_fn)
+                self.engine.integrate(episode_length, force_fn)
                 force_fn, current_reward, killed = self.update_rl()
 
                 if killed:

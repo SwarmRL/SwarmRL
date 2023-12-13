@@ -24,6 +24,22 @@ class Trainer:
             An optimization method to compute the loss and update the model.
     """
 
+    _engine = None
+
+    @property
+    def engine(self):
+        """
+        Runner engine property.
+        """
+        return self._engine
+
+    @engine.setter
+    def engine(self, value):
+        """
+        Set the engine value.
+        """
+        self._engine = value
+
     def __init__(
         self,
         agents: List[ActorCriticAgent],
