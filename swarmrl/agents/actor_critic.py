@@ -75,6 +75,17 @@ class ActorCriticAgent(Agent):
         # Trajectory to be updated.
         self.trajectory = TrajectoryInformation(particle_type=self.particle_type)
 
+    def __name__(self) -> str:
+        """
+        Give the class a name.
+
+        Return
+        ------
+        name : str
+            Name of the class.
+        """
+        return "ActorCriticAgent"
+
     def update_agent(self) -> tuple:
         """
         Update the agents network.
