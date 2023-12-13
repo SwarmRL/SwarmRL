@@ -150,7 +150,7 @@ class ActorCriticAgent(Agent):
                 Location to save the models.
         """
         self.network.export_model(
-            filename=f"{self.__name__}_{self.particle_type}", directory=directory
+            filename=f"{self.__name__()}_{self.particle_type}", directory=directory
         )
 
     def restore_agent(self, directory: str):
