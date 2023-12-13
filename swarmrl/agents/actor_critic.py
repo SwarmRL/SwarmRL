@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from swarmrl.actions.actions import Action
+from swarmrl.agents.agent import Agent
 from swarmrl.components.colloid import Colloid
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
@@ -28,7 +29,7 @@ class TrajectoryInformation:
     killed: bool = False
 
 
-class ActorCriticAgent:
+class ActorCriticAgent(Agent):
     """
     Class to handle the actor-critic RL Protocol.
     """
@@ -77,9 +78,7 @@ class ActorCriticAgent:
 
         self.trajectory = TrajectoryInformation(particle_type=self.particle_type)
 
-    def compute_agent_state(
-        self, colloids: typing.List[Colloid]
-    ) -> typing.List[Action]:
+    def calc_action(self, colloids: typing.List[Colloid]) -> typing.List[Action]:
         """
         Copmute the new state for the agent.
 

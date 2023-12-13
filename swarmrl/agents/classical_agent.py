@@ -46,9 +46,7 @@ class ClassicalAgent(Agent):
         self.observable = observable
         self.actions = actions
 
-    def compute_agent_state(
-        self, colloids: typing.List[Colloid]
-    ) -> typing.List[Action]:
+    def calc_action(self, colloids: typing.List[Colloid]) -> typing.List[Action]:
         """
         Copmute the new state for the agent.
 

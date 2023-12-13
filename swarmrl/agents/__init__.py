@@ -1,5 +1,5 @@
 """
-Package for RL Protocols
+Package for Agents.
 """
 
 from swarmrl.agents import bechinger_models, dummy_models, find_point

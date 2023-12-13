@@ -12,7 +12,7 @@ from swarmrl.components.colloid import Colloid
 
 class ForceFunction:
     """
-    Class for a NN based espresso interaction model.
+    Class to bridge agents with an engine.
     """
 
     _kill_switch: bool = False
@@ -31,7 +31,6 @@ class ForceFunction:
         """
         super().__init__()
         self.agents = agents
-        self.eps = np.finfo(np.float32).eps.item()
 
         # Used in the data saving.
         self.particle_types = [type_ for type_ in self.agents]

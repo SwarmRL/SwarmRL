@@ -19,7 +19,7 @@ class FindPoint(ClassicalAgent):
         self.point = point
         self.cos = np.cos(vision_half_angle)
 
-    def compute_agent_state(self, colloids) -> typing.List[Action]:
+    def calc_action(self, colloids) -> typing.List[Action]:
         actions = []
         for colloid in colloids:
             to_point = self.point - colloid.pos
