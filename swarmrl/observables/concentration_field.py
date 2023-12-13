@@ -123,15 +123,20 @@ class ConcentrationField(Observable, ABC):
         """
         reference_ids = self.get_colloid_indices(colloids)
 
-        if self._historic_positions == {}:
-            msg = (
-                f"{type(self).__name__} requires initialization. Please set the "
-                "initialize attribute of the gym to true and try again."
-            )
-            raise ValueError(msg)
-
-        observables = [
-            self.compute_single_observable(index, colloids) for index in reference_ids
-        ]
+        # if self._historic_positions == {}:
+        #     msg = (
+        #         f"{type(self).__name__} requires initialization. Please set the "
+        #         "initialize attribute of the gym to true and try again."
+        #     )
+        #     raise ValueError(msg)
+        try:
+            observables = [
+                self.compute_single_observable(index, colloids) for index in reference_ids
+            ]
+        except:
+            self.initialize(colloids)
+            observables = [
+                self.compute_single_observable(index, colloids) for index in reference_ids
+            ]
 
         return np.array(observables).reshape(-1, 1)

@@ -88,7 +88,7 @@ class MLModel(InteractionModel):
                 observables=observables[item], explore_mode=explore_mode
             )
             chosen_actions = np.take(
-                list(self.actions[item].values()), action_indices[item], axis=-1
+                list(self.actions[item].values()), action_indices[item], axis=0
             )
 
             count = 0  # Count the colloids of a specific species.

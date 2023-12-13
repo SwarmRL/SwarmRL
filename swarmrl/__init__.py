@@ -17,6 +17,7 @@ from swarmrl import (
     value_functions,
 )
 from swarmrl.engine import espresso
+from swarmrl.engine import resobee
 from swarmrl.utils import utils
 
 # Setup a swarmrl logger but disable it.
@@ -28,6 +29,7 @@ _logger.setLevel(logging.NOTSET)
 
 __all__ = [
     espresso.__name__,
+    resobee.__name__,
     utils.__name__,
     losses.__name__,
     tasks.__name__,

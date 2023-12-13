@@ -195,16 +195,18 @@ class Gym:
         load_bar : bool (default=True)
                 If true, show a progress bar.
         """
+        # print("Starting training")
         rewards = [0.0]
         current_reward = 0.0
         episode = 0
         force_fn = self.initialize_training()
-
-        # Initialize the tasks and observables.
-        for item, val in self.rl_protocols.items():
-            val.observable.initialize(system_runner.colloids)
-            val.task.initialize(system_runner.colloids)
-
+        # print("Initializing")
+        # # Initialize the tasks and observables.
+        # colloids = system_runner.colloids
+        # for item, val in self.rl_protocols.items():
+        #     val.observable.initialize(colloids)
+        #     val.task.initialize(colloids)
+        # print("Finished initializing")
         progress = Progress(
             "Episode: {task.fields[Episode]}",
             BarColumn(),
@@ -222,7 +224,7 @@ class Gym:
                 running_reward=np.mean(rewards),
                 visible=load_bar,
             )
-            for _ in range(n_episodes):
+            for i in range(n_episodes):
                 system_runner.integrate(episode_length, force_fn)
                 force_fn, current_reward = self.update_rl()
                 rewards.append(current_reward)

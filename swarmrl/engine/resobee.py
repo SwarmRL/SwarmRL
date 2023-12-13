@@ -8,8 +8,9 @@ import numpy as np
 import zmq
 import yaml
 import os
+from dataclasses import dataclass
 import subprocess
-
+from swarmrl.models.interaction_model import Colloid
 
 class Population:
     def __init__(self, n_agents):
@@ -42,6 +43,11 @@ class ResoBee(Engine):
         self.socket.close()
         self.context.term()
 
+    @property
+    def colloids(self):
+        self.receive_state()
+        return self.get_particle_data()
+
     def receive_state(self):
         # print("Listening for requests from ResoBee client...")
         message = self.socket.recv_json()
@@ -64,10 +70,10 @@ class ResoBee(Engine):
 
     def compute_action(self, force_model) -> tuple[list, list]:
         # todo: implement this, for now this is random
-        forces_x = np.random.rand(self.config["n_agents"]).tolist()
-        forces_y = np.random.rand(self.config["n_agents"]).tolist()
+        colloids = self.get_particle_data()
+        actions = np.array(force_model.calc_action(colloids))
 
-        return forces_x, forces_y
+        return list(actions[:, 0]), list(actions[:, 1])
 
     def send_action(self, forces_x: list, forces_y: list):
         # print("Sending action (forces) to ResoBee client...")
@@ -107,7 +113,9 @@ class ResoBee(Engine):
             step = 0
 
             while simulation_is_finished is False:
-                simulation_is_finished = self.receive_state()
+                if step == n_slices:
+                    simulation_is_finished = True
+                _ = self.receive_state()
 
                 # compute a new action if we enter a new time slice
                 if step % self.population.time_slice == 0:
@@ -133,11 +141,16 @@ class ResoBee(Engine):
 
         The particle data is fetched from the C++ engine and converted to a dict.
         """
+        colloids = []
 
-        return {
-            "Id": self.population.indices,
-            "Type": self.population.types,
-            "Unwrapped_Positions": self.population.unwrapped_positions,
-            "Velocities": self.population.velocities,
-            "Directors": self.population.directors,
-        }
+        for i in range(len(self.population.indices)):
+            colloids.append(
+                Colloid(
+                    pos=np.array(self.population.unwrapped_positions)[i],
+                    director=np.array(self.population.directors)[i],
+                    id=np.array(self.population.indices)[i],
+                    velocity=np.array(self.population.velocities)[i],
+                    type=0
+                )
+            )
+        return colloids
