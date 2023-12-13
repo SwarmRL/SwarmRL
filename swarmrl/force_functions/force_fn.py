@@ -72,7 +72,7 @@ class ForceFunction:
 
         # Loop over particle types and compute actions.
         for agent in self.agents:
-            computed_actions = self.agents[agent].compute_agent_state(colloids=colloids)
+            computed_actions = self.agents[agent].calc_action(colloids=colloids)
             switches.append(self.agents[agent].kill_switch)
 
             count = 0  # Count the colloids of a specific species.
