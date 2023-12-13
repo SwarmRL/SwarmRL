@@ -103,9 +103,8 @@ class EpisodicTrainer(Trainer):
                     self.engine = get_engine(system)
 
                     # Initialize the tasks and observables.
-                    for _, val in self.agents.items():
-                        val.observable.initialize(self.engine.colloids)
-                        val.task.initialize(self.engine.colloids)
+                    for agent in self.agents.values():
+                        agent.reset_agent(self.engine.colloids)
 
                 self.engine.integrate(episode_length, force_fn)
 

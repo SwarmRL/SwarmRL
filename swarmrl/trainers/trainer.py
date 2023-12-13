@@ -79,17 +79,9 @@ class Trainer:
 
         for agent in self.agents.values():
             if isinstance(agent, ActorCriticAgent):
-                episode_data = agent.trajectory
-
-                reward += np.mean(episode_data.rewards)
-
-                # Compute loss for actor and critic.
-                self.loss.compute_loss(
-                    network=agent.network,
-                    episode_data=episode_data,
-                )
-                agent.reset_trajectory()
-                switches.append(episode_data.killed)
+                ag_reward, ag_killed = agent.update_agent()
+                reward += np.mean(ag_reward)
+                switches.append(ag_killed)
 
         # Create a new interaction model.
         interaction_model = ForceFunction(agents=self.agents)
@@ -107,14 +99,9 @@ class Trainer:
         Returns
         -------
         Saves the actor and the critic to the specific directory.
-
-        Notes
-        -----
-        This is super lazy. We should add this to the rl protocol. Same with the
-        model restoration.
         """
-        for type_, val in self.agents.items():
-            val.network.export_model(filename=f"Model{type_}", directory=directory)
+        for agent in self.agents.values():
+            agent.save_agent(directory)
 
     def restore_models(self, directory: str = "Models"):
         """
@@ -129,17 +116,15 @@ class Trainer:
         -------
         Loads the actor and critic from the specific directory.
         """
-        for type_, val in self.agents.items():
-            val.network.restore_model_state(
-                filename=f"Model{type_}", directory=directory
-            )
+        for agent in self.agents.values():
+            agent.restore_agent(directory)
 
     def initialize_models(self):
         """
         Initialize all of the models in the gym.
         """
-        for _, val in self.agents.items():
-            val.network.reinitialize_network()
+        for agent in self.agents.values():
+            agent.initialize_network()
 
     def perform_rl_training(self, **kwargs):
         """
