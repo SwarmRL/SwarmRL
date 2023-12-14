@@ -29,7 +29,7 @@ class Agent:
         """
         self._killed = value
 
-    def compute_agent_state(
+    def calc_action(
         self, colloids: typing.List[Colloid]
     ) -> typing.Tuple[typing.List[Action]]:
         """

@@ -25,7 +25,7 @@ class Lavergne2019(ClassicalAgent):
             acts_on_types = [0]
         self.acts_on_types = acts_on_types
 
-    def compute_agent_state(self, colloids) -> typing.List[Action]:
+    def calc_action(self, colloids) -> typing.List[Action]:
         # determine perception value
         actions = []
         for colloid in colloids:
@@ -76,7 +76,7 @@ class Baeuerle2020(ClassicalAgent):
             acts_on_types = [0]
         self.acts_on_types = acts_on_types
 
-    def compute_agent_state(self, colloids) -> typing.List[Action]:
+    def calc_action(self, colloids) -> typing.List[Action]:
         # get vector to center of mass
         actions = []
         for colloid in colloids:
