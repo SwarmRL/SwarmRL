@@ -122,7 +122,7 @@ class GeneticTraining:
     def _train_network(
         name: Path,
         load_directory: str = None,
-        gym: ContinuousTrainer = None,
+        trainer: ContinuousTrainer = None,
         runner_generator: callable = None,
         select_fn: callable = None,
         episode_length: int = None,
@@ -137,8 +137,8 @@ class GeneticTraining:
             Name of the network and where to save the data.
         load_directory : str (default: None)
             Directory to load the model from. If None, a new model will be created.
-        gym : Gym
-                Gym to use for training.
+        trainer : ContinuousTrainer
+                Trainer to use for training.
         runner_generator : callable
                 Function that returns a system_runner.
         select_fn : callable
@@ -163,17 +163,17 @@ class GeneticTraining:
         system_runner = runner_generator()  # get the runner
 
         if load_directory is None:
-            gym.initialize_models()
+            trainer.initialize_models()
         else:
-            gym.restore_models(load_directory)
+            trainer.restore_models(load_directory)
 
-        rewards = gym.perform_rl_training(
+        rewards = trainer.perform_rl_training(
             system_runner,
             episode_length=episode_length,
             n_episodes=n_episodes,
             load_bar=False,
         )
-        gym.export_models()
+        trainer.export_models()
 
         return (select_fn(rewards), model_id)
 

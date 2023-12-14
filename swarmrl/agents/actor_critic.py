@@ -10,6 +10,7 @@ import numpy as np
 from swarmrl.actions.actions import Action
 from swarmrl.agents.agent import Agent
 from swarmrl.components.colloid import Colloid
+from swarmrl.losses import Loss, ProximalPolicyLoss
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
@@ -41,6 +42,7 @@ class ActorCriticAgent(Agent):
         task: Task,
         observable: Observable,
         actions: dict,
+        loss: Loss = ProximalPolicyLoss(),
         train: bool = True,
     ):
         """
@@ -56,6 +58,8 @@ class ActorCriticAgent(Agent):
                 Task for this particle type to perform.
         actions : dict
                 Actions allowed for the particle.
+        loss : Loss (default=ProximalPolicyLoss)
+                Loss function to use to update the networks.
         train : bool (default=True)
                 Flag to indicate if the agent is training.
         """
@@ -66,17 +70,96 @@ class ActorCriticAgent(Agent):
         self.observable = observable
         self.actions = actions
         self.train = train
+        self.loss = loss
 
         # Trajectory to be updated.
         self.trajectory = TrajectoryInformation(particle_type=self.particle_type)
+
+    def __name__(self) -> str:
+        """
+        Give the class a name.
+
+        Return
+        ------
+        name : str
+            Name of the class.
+        """
+        return "ActorCriticAgent"
+
+    def update_agent(self) -> tuple:
+        """
+        Update the agents network.
+
+        Returns
+        -------
+        rewards : float
+                Net reward for the agent.
+        killed : bool
+                Whether or not this agent killed the
+                simulation.
+        """
+        # Collect data for returns.
+        rewards = self.trajectory.rewards
+        killed = self.trajectory.killed
+
+        # Compute loss for actor and critic.
+        self.loss.compute_loss(
+            network=self.network,
+            episode_data=self.trajectory,
+        )
+
+        # Reset the trajectory storage.
+        self.reset_trajectory()
+
+        return rewards, killed
+
+    def reset_agent(self, colloids: typing.List[Colloid]):
+        """
+        Reset several properties of the agent.
+
+        Reset the observables and tasks for the agent.
+
+        Parameters
+        ----------
+        colloids : typing.List[Colloid]
+                Colloids to use in the initialization.
+        """
+        self.observable.initialize(colloids)
+        self.task.initialize(colloids)
 
     def reset_trajectory(self):
         """
         Set all trajectory data to None.
         """
         self.task.kill_switch = False  # Reset here.
-
         self.trajectory = TrajectoryInformation(particle_type=self.particle_type)
+
+    def initialize_network(self):
+        """
+        Initialize all of the models in the gym.
+        """
+        self.network.reinitialize_network()
+
+    def save_agent(self, directory: str):
+        """
+        Save the agent network state.
+
+        Parameters
+        ----------
+        directory : str
+                Location to save the models.
+        """
+        self.network.export_model(
+            filename=f"{self.__name__()}_{self.particle_type}", directory=directory
+        )
+
+    def restore_agent(self, directory: str):
+        """
+        Restore the agent state from a directory.
+        """
+        self.network.restore_model_state(
+            filename=f"{self.__name__}_{self.particle_type}", directory=directory
+        )
 
     def calc_action(self, colloids: typing.List[Colloid]) -> typing.List[Action]:
         """

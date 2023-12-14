@@ -25,22 +25,6 @@ class EpisodicTrainer(Trainer):
             An optimization method to compute the loss and update the model.
     """
 
-    _engine = None
-
-    @property
-    def engine(self):
-        """
-        Runner engine property.
-        """
-        return self._engine
-
-    @engine.setter
-    def engine(self, value):
-        """
-        Set the engine value.
-        """
-        self._engine = value
-
     def perform_rl_training(
         self,
         get_engine: callable,
@@ -103,9 +87,8 @@ class EpisodicTrainer(Trainer):
                     self.engine = get_engine(system)
 
                     # Initialize the tasks and observables.
-                    for _, val in self.agents.items():
-                        val.observable.initialize(self.engine.colloids)
-                        val.task.initialize(self.engine.colloids)
+                    for agent in self.agents.values():
+                        agent.reset_agent(self.engine.colloids)
 
                 self.engine.integrate(episode_length, force_fn)
 

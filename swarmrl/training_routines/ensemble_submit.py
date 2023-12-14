@@ -92,7 +92,7 @@ class EnsembleTraining:
     @staticmethod
     def _train_model(
         save_path: str,
-        gym: ContinuousTrainer,
+        trainer: ContinuousTrainer,
         system_runner: callable,
         load_directory: str = None,
         episode_length: int = 100,
@@ -105,8 +105,8 @@ class EnsembleTraining:
         ----------
         ensemble_id : int
             The ensemble id.
-        gym : Gym
-            The gym to train.
+        trainer : Trainer
+            The trainer to use in training.
         load_directory : str
             The directory to load the models from.
         episode_length : int
@@ -122,18 +122,18 @@ class EnsembleTraining:
         # Get the system runner.
         system_runner = system_runner()
         if load_directory is not None:
-            gym.restore_models(directory=load_directory)
+            trainer.restore_models(directory=load_directory)
         else:
-            gym.initialize_models()
+            trainer.initialize_models()
 
         # Train the gym.
-        rewards = gym.perform_rl_training(
+        rewards = trainer.perform_rl_training(
             system_runner,
             n_episodes=n_episodes,
             episode_length=episode_length,
             load_bar=False,
         )
-        gym.export_models()
+        trainer.export_models()
 
         return rewards, model_id
 
