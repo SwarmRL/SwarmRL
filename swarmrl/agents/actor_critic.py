@@ -158,7 +158,7 @@ class ActorCriticAgent(Agent):
         Restore the agent state from a directory.
         """
         self.network.restore_model_state(
-            filename=f"{self.__name__}_{self.particle_type}", directory=directory
+            filename=f"{self.__name__()}_{self.particle_type}", directory=directory
         )
 
     def calc_action(self, colloids: typing.List[Colloid]) -> typing.List[Action]:
