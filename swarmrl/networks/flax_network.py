@@ -84,6 +84,12 @@ class FlaxModel(Network, ABC):
 
             self.epoch_count = 0
 
+    def _create_custom_train_state(self, optimizer: dict):
+        """
+        Deal with the optimizers in case of complex configuration.
+        """
+        return type("TrainState", (TrainState,), optimizer)
+
     def _create_train_state(self, init_rng: int) -> TrainState:
         """
         Create a training state of the model.
@@ -95,14 +101,22 @@ class FlaxModel(Network, ABC):
 
         Returns
         -------
-        state : TrainState
+        state : TrainState / CustomTrainState
                 initial state of model to then be trained.
+                If you have multiple optimizers, this will create a custom train state.
         """
         params = self.model.init(init_rng, np.ones(list(self.input_shape)))["params"]
 
-        return TrainState.create(
-            apply_fn=self.model.apply, params=params, tx=self.optimizer
-        )
+        if isinstance(self.optimizer, dict):
+            CustomTrainState = self._create_custom_train_state(self.optimizer)
+
+            return CustomTrainState.create(
+                apply_fn=self.model.apply, params=params, tx=self.optimizer
+            )
+        else:
+            return TrainState.create(
+                apply_fn=self.model.apply, params=params, tx=self.optimizer
+            )
 
     def reinitialize_network(self):
         """
@@ -119,9 +133,17 @@ class FlaxModel(Network, ABC):
 
         See the parent class for a full doc-string.
         """
+        # Logging for grads and pre-train model state
         logger.debug(f"{grads=}")
         logger.debug(f"{self.model_state=}")
-        self.model_state = self.model_state.apply_gradients(grads=grads)
+
+        if isinstance(self.optimizer, dict):
+            pass
+
+        else:
+            self.model_state = self.model_state.apply_gradients(grads=grads)
+
+        # Logging for post-train model state
         logger.debug(f"{self.model_state=}")
 
         self.epoch_count += 1
