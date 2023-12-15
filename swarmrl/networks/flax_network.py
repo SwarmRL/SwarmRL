@@ -6,7 +6,7 @@ import logging
 import os
 import pickle
 from abc import ABC
-from typing import List
+from typing import Dict, List, Union
 
 import jax
 import jax.numpy as np
@@ -37,7 +37,7 @@ class FlaxModel(Network, ABC):
         self,
         flax_model: nn.Module,
         input_shape: tuple,
-        optimizer: GradientTransformation = None,
+        optimizer: Union[GradientTransformation, Dict] = None,
         exploration_policy: ExplorationPolicy = None,
         sampling_strategy: SamplingStrategy = None,
         rng_key: int = None,
@@ -75,6 +75,7 @@ class FlaxModel(Network, ABC):
 
         if not deployment_mode:
             self.optimizer = optimizer
+
             self.exploration_policy = exploration_policy
 
             # initialize the model state
