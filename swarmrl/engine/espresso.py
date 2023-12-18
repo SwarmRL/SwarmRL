@@ -1049,7 +1049,13 @@ class EspressoMD(Engine):
             actions = force_model.calc_action(swarmrl_colloids)
             for action, coll in zip(actions, self.colloids):
                 coll.swimming = {"f_swim": action.force}
-                coll.ext_torque = action.torque
+                coll.ext_torque = (
+                    action.torque
+                    if action.torque is not None
+                    else np.zeros(
+                        3,
+                    )
+                )
                 new_direction = action.new_direction
                 if new_direction is not None:
                     if self.n_dims == 3:
