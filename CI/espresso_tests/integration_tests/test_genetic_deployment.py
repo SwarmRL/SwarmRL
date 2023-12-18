@@ -152,7 +152,7 @@ class TestGeneticTraining(ut.TestCase):
                 number_of_generations=3,
                 population_size=4,
                 number_of_parents=3,
-                parallel_jobs=1,
+                parallel_jobs=2,
             )
 
             self.training_routine.train_model()

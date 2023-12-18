@@ -151,7 +151,7 @@ class TestEnsembleTraining(ut.TestCase):
                 output_dir=temp_dir,
                 number_of_ensembles=4,
                 n_episodes=5,
-                n_parallel_jobs=1,
+                n_parallel_jobs=2,
                 episode_length=5,
             )
 
