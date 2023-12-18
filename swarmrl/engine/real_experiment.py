@@ -119,6 +119,13 @@ class RealExperiment(swarmrl.engine.engine.Engine):
         actions = force_model.calc_action(colloids)
         for idx, coll in enumerate(colloids):
             action = actions[idx]
+            action.torque = (
+                    action.torque
+                    if action.torque is not None
+                    else np.zeros(
+                        3,
+                    )
+                )
 
             if not action.force == 0.0:
                 action_id = experiment_actions["be_active"]

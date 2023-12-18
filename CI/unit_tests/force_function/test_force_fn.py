@@ -70,7 +70,7 @@ class SecondDummyTask(srl.tasks.Task):
         return [5.0 for item in data if item.type == 1]
 
 
-class TestMLModel:
+class TestForceFunction:
     """
     Test the ML interaction model to ensure it is functioning correctly.
     """
@@ -167,7 +167,7 @@ class TestMLModel:
 
         # Check that the second action is correct
         actions[1].force == 0.0
-        assert_array_equal(actions[0].torque, np.array([0.0, 0.0, 0.0]))
+        assert actions[0].torque == None
 
         # Check reward data
         loaded_data_0 = self.multi_interaction.agents["0"].trajectory
