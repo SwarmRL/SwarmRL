@@ -5,7 +5,7 @@ Test the ML based interaction model.
 import flax.linen as nn
 import numpy as np
 import optax
-from numpy.testing import assert_array_almost_equal, assert_array_equal
+from numpy.testing import assert_array_almost_equal
 
 import swarmrl as srl
 from swarmrl.actions import Action
@@ -167,7 +167,7 @@ class TestForceFunction:
 
         # Check that the second action is correct
         actions[1].force == 0.0
-        assert actions[0].torque == None
+        assert actions[0].torque is None
 
         # Check reward data
         loaded_data_0 = self.multi_interaction.agents["0"].trajectory
