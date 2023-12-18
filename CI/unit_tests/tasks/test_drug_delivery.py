@@ -10,7 +10,7 @@ from swarmrl.tasks.object_movement.drug_delivery import DrugDelivery, DrugTransp
 from swarmrl.utils.utils import create_colloids
 
 
-def move_col_to_drug(colloid: Colloid, drug: Colloid, delta=1, noise=0.1):
+def move_col_to_drug(colloid: Colloid, drug: Colloid, delta=1, noise=0.0):
     direction = drug.pos - colloid.pos
     direction /= np.linalg.norm(direction)
     noise_vec = noise * np.random.normal(0, 3, 3)
@@ -21,7 +21,7 @@ def move_col_to_drug(colloid: Colloid, drug: Colloid, delta=1, noise=0.1):
     )
 
 
-def move_drug_to_dest(drug: Colloid, destination: np.ndarray, delta=1, noise=0.1):
+def move_drug_to_dest(drug: Colloid, destination: np.ndarray, delta=1, noise=0.0):
     direction = destination - drug.pos
     direction /= np.linalg.norm(direction)
     noise_vec = noise * np.random.normal(0, 3, 3)
@@ -105,7 +105,7 @@ class TestDrugDelivery:
 
         while dist * 1000 > 5:
             new_drug = move_drug_to_dest(
-                self.colloids[-1], 1000 * self.task.destination, delta=1, noise=0.1
+                self.colloids[-1], 1000 * self.task.destination, delta=1, noise=0.0
             )
             self.colloids[-1] = new_drug
             reward = self.task(self.colloids)
@@ -179,9 +179,11 @@ class TestDrugTransport:
         self.task.initialize(colloids=[self.colloid, self.drug])
         delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
         drug_dist = np.linalg.norm(self.drug.pos - self.task.destination * 1000)
+        steps = 0
 
-        while delta_dist > 5:
-            self.colloid = move_col_to_drug(self.colloid, self.drug, delta=1)
+        for i in range(40):
+            steps += 1
+            self.colloid = move_col_to_drug(self.colloid, self.drug, delta=0)
             self.drug = move_drug_to_dest(
                 self.drug, self.task.destination * 1000, delta=0
             )
@@ -190,8 +192,24 @@ class TestDrugTransport:
             rewards.append(reward)
             positions.append([self.colloid.pos, self.drug.pos])
 
-        for k in range(20):
+        print("steps to start: ", steps)
+
+        while delta_dist > 5:
+            steps += 1
             self.colloid = move_col_to_drug(self.colloid, self.drug, delta=1)
+            self.drug = move_drug_to_dest(
+                self.drug, self.task.destination * 1000, delta=0, noise=0.01
+            )
+            delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
+            reward = self.task([self.colloid, self.drug])
+            rewards.append(reward)
+            positions.append([self.colloid.pos, self.drug.pos])
+
+        print("steps to reach drug: ", steps)
+
+        for k in range(50):
+            steps += 1
+            self.colloid = move_col_to_drug(self.colloid, self.drug, delta=0)
             self.drug = move_drug_to_dest(
                 self.drug, self.task.destination * 1000, delta=0
             )
@@ -199,15 +217,31 @@ class TestDrugTransport:
             rewards.append(reward)
             positions.append([self.colloid.pos, self.drug.pos])
 
+        print("steps at drug 2: ", steps)
+
+        for i in range(40):
+            steps += 1
+            self.colloid = move_col_to_drug(self.colloid, self.drug, delta=2)
+            self.drug = move_drug_to_dest(
+                self.drug, self.task.destination * 1000, delta=-1, noise=0.01
+            )
+            delta_dist = np.linalg.norm(self.colloid.pos - self.drug.pos)
+            reward = self.task([self.colloid, self.drug])
+            rewards.append(reward)
+            positions.append([self.colloid.pos, self.drug.pos])
+
+        print("steps to move away from destination: ", steps)
+
         while drug_dist > 5:
+            steps += 1
             if delta_dist > 5:
                 self.colloid = move_col_to_drug(self.colloid, self.drug, delta=1)
                 self.drug = move_drug_to_dest(
-                    self.drug, self.task.destination * 1000, delta=0
+                    self.drug, self.task.destination * 1000, delta=0, noise=0.01
                 )
             else:
                 self.drug = move_drug_to_dest(
-                    self.drug, self.task.destination * 1000, delta=1
+                    self.drug, self.task.destination * 1000, delta=1, noise=0.01
                 )
                 self.colloid = move_col_to_drug(self.colloid, self.drug, delta=2)
 
@@ -216,6 +250,8 @@ class TestDrugTransport:
             rewards.append(reward)
 
             positions.append([self.colloid.pos, self.drug.pos])
+
+        print("steps to reach destination: ", steps)
 
         np.save("positions.npy", positions, allow_pickle=True)
         np.save("rewards.npy", rewards, allow_pickle=True)

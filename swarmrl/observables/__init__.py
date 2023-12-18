@@ -3,6 +3,7 @@ Module for the different possible observables.
 """
 from swarmrl.observables.concentration_field import ConcentrationField
 from swarmrl.observables.director import Director
+from swarmrl.observables.drug_sensing import DrugField
 from swarmrl.observables.multi_sensing import MultiSensing
 from swarmrl.observables.observable import Observable
 from swarmrl.observables.particle_sensing import ParticleSensing
@@ -17,4 +18,5 @@ __all__ = [
     ConcentrationField.__name__,
     ParticleSensing.__name__,
     SubdividedVisionCones.__name__,
+    DrugField.__name__,
 ]

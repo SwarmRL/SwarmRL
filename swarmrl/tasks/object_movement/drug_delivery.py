@@ -425,13 +425,14 @@ class DrugTransport(Task):
         return factor
 
     def _compute_r2(
-        self, old_drug_dest_dist, new_drug_dest_dist, a=200, b=1.35, c=0.04
+        self, old_drug_dest_dist, new_drug_dest_dist, a=200, b=1.35, c=0.005
     ):
         delta_delivery_dist = old_drug_dest_dist - new_drug_dest_dist
 
-        reward_bringing_there = np.where(
-            delta_delivery_dist > 0, delta_delivery_dist, 0
-        )
+        # reward_bringing_there = np.where(
+        #     delta_delivery_dist > 0, delta_delivery_dist, 0
+        # )
+        reward_bringing_there = delta_delivery_dist
         reward_delivery = b / (1 + np.exp(a * (new_drug_dest_dist - c)))
         reward = (
             2 * reward_delivery
