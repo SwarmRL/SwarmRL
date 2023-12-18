@@ -42,15 +42,15 @@ class ContinuousTrainer(Trainer):
         load_bar : bool (default=True)
                 If true, show a progress bar.
         """
+        self.engine = system_runner
         rewards = [0.0]
         current_reward = 0.0
         episode = 0
         force_fn = self.initialize_training()
 
         # Initialize the tasks and observables.
-        for _, val in self.agents.items():
-            val.observable.initialize(system_runner.colloids)
-            val.task.initialize(system_runner.colloids)
+        for agent in self.agents.values():
+            agent.reset_agent(self.engine.colloids)
 
         progress = Progress(
             "Episode: {task.fields[Episode]}",
@@ -70,7 +70,7 @@ class ContinuousTrainer(Trainer):
                 visible=load_bar,
             )
             for _ in range(n_episodes):
-                system_runner.integrate(episode_length, force_fn)
+                self.engine.integrate(episode_length, force_fn)
                 force_fn, current_reward, killed = self.update_rl()
 
                 if killed:
