@@ -78,7 +78,7 @@ class EspressoTestRLTrainers(ut.TestCase):
         fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
         WCA_epsilon=ureg.Quantity(297.0, "kelvin") * ureg.boltzmann_constant,
         temperature=ureg.Quantity(300.0, "kelvin"),
-        box_length=ureg.Quantity(1000, "micrometer"),
+        box_length=ureg.Quantity(3 * [1000], "micrometer"),
         time_slice=ureg.Quantity(10.0, "second"),  # model timestep
         time_step=ureg.Quantity(0.1, "second"),  # integrator timestep
         write_interval=ureg.Quantity(1.0, "second"),

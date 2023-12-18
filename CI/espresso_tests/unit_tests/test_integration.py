@@ -81,7 +81,7 @@ class Simulation:
             fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
             WCA_epsilon=ureg.Quantity(293, "kelvin") * ureg.boltzmann_constant,
             temperature=ureg.Quantity(293, "kelvin"),
-            box_length=ureg.Quantity(10, "micrometer"),
+            box_length=ureg.Quantity(3 * [10], "micrometer"),
             time_step=time_step,
             time_slice=time_slice,
             write_interval=write_interval,
