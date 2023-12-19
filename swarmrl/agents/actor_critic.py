@@ -14,6 +14,7 @@ from swarmrl.losses import Loss, ProximalPolicyLoss
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
+from swarmrl.intrinsic_reward.intrinsic_reward import IntrinsicReward
 
 
 @dataclass
@@ -44,6 +45,7 @@ class ActorCriticAgent(Agent):
         actions: dict,
         loss: Loss = ProximalPolicyLoss(),
         train: bool = True,
+        intrinsic_reward: IntrinsicReward = None,
     ):
         """
         Constructor for the actor-critic protocol.
@@ -107,6 +109,10 @@ class ActorCriticAgent(Agent):
             network=self.network,
             episode_data=self.trajectory,
         )
+
+        # Update the intrinsic reward if set.
+        if self.task.intrinsic_reward:
+            self.task.intrinsic_reward.update(self.trajectory)
 
         # Reset the trajectory storage.
         self.reset_trajectory()
@@ -178,6 +184,14 @@ class ActorCriticAgent(Agent):
             observables=state_description
         )
         chosen_actions = np.take(list(self.actions.values()), action_indices, axis=-1)
+
+        # Compute extrinsic rewards.
+        rewards = self.task(colloids)
+        # Compute intrinsic rewards if set. 
+        if self.task.intrinsic_reward:
+            rewards += self.intrinsic_reward.compute_reward(
+                episode_data=self.trajectory
+            )
 
         # Update the trajectory information.
         if self.train:
