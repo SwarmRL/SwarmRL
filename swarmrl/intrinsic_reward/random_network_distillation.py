@@ -7,12 +7,13 @@ https://arxiv.org/abs/1810.12894
 """
 
 import jax.numpy as np
-from jax import jit
 from znnl.models.flax_model import FlaxModel
 from znnl.models.jax_model import JaxModel
 
-from swarmrl.agents.actor_critic import TrajectoryInformation
-from swarmrl.intrinsic_reward.intrinsic_reward import IntrinsicReward
+from swarmrl.intrinsic_reward.intrinsic_reward import (
+    IntrinsicReward,
+    TrajectoryInformation,
+)
 from swarmrl.intrinsic_reward.rnd_configs import RNDArchitecture, RNDConfig
 
 

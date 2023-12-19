@@ -3,10 +3,23 @@ Module for the intrinsic reward parent class.
 """
 
 from abc import ABC
+from dataclasses import dataclass, field
 
 import jax.numpy as np
 
-from swarmrl.agents.actor_critic import TrajectoryInformation
+
+@dataclass
+class TrajectoryInformation:
+    """
+    Helper dataclass for training RL models.
+    """
+
+    particle_type: int
+    features: list = field(default_factory=list)
+    actions: list = field(default_factory=list)
+    log_probs: list = field(default_factory=list)
+    rewards: list = field(default_factory=list)
+    killed: bool = False
 
 
 class IntrinsicReward(ABC):
