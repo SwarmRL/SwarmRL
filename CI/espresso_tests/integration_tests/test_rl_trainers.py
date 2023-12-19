@@ -124,6 +124,7 @@ class EspressoTestRLTrainers(ut.TestCase):
         task=task,
         observable=observable,
         actions=actions,
+        loss=loss,
     )
 
     def test_continuous_training(self):
@@ -151,7 +152,6 @@ class EspressoTestRLTrainers(ut.TestCase):
             # Define the force model.
             rl_trainer = srl.trainers.ContinuousTrainer(
                 [self.agent],
-                self.loss,
             )
             rl_trainer.perform_rl_training(
                 system_runner=system_runner,
@@ -187,12 +187,12 @@ class EspressoTestRLTrainers(ut.TestCase):
                 task=KillTask(),
                 observable=self.observable,
                 actions=actions,
+                loss=self.loss,
             )
 
             # Define the force model.
             rl_trainer = srl.trainers.ContinuousTrainer(
                 [agent],
-                self.loss,
             )
             rewards = rl_trainer.perform_rl_training(
                 system_runner=system_runner,
@@ -237,7 +237,6 @@ class EspressoTestRLTrainers(ut.TestCase):
             # Define the force model.
             rl_trainer = srl.trainers.EpisodicTrainer(
                 [self.agent],
-                self.loss,
             )
             rl_trainer.perform_rl_training(
                 get_engine=get_engine,
@@ -287,12 +286,12 @@ class EspressoTestRLTrainers(ut.TestCase):
                 task=KillTask(),
                 observable=self.observable,
                 actions=actions,
+                loss=self.loss,
             )
 
             # Define the force model.
             rl_trainer = srl.trainers.EpisodicTrainer(
                 [agent],
-                self.loss,
             )
             rl_trainer.perform_rl_training(
                 get_engine=get_engine,
@@ -341,7 +340,6 @@ class EspressoTestRLTrainers(ut.TestCase):
             # Define the force model.
             rl_trainer = srl.trainers.EpisodicTrainer(
                 [self.agent],
-                self.loss,
             )
             rl_trainer.perform_rl_training(
                 get_engine=get_engine,
