@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 try:
     import espressomd
     import espressomd.constraints
+    import espressomd.lb
     import espressomd.shapes
 except ModuleNotFoundError:
     logger.warning("Could not find espressomd. Features will not be available")
@@ -45,15 +46,43 @@ class MDParams:
         for details of the algorithms.
     """
 
-    ureg: pint.UnitRegistry
-    box_length: pint.Quantity
-    fluid_dyn_viscosity: pint.Quantity
-    WCA_epsilon: pint.Quantity
-    temperature: pint.Quantity
-    time_step: pint.Quantity
-    time_slice: pint.Quantity
-    write_interval: pint.Quantity
-    thermostat_type: str = "brownian"
+    def __init__(
+        self,
+        ureg: pint.UnitRegistry,
+        box_length: pint.Quantity = None,
+        fluid_dyn_viscosity: pint.Quantity = None,
+        WCA_epsilon: pint.Quantity = None,
+        temperature: pint.Quantity = None,
+        time_step: pint.Quantity = None,
+        time_slice: pint.Quantity = None,
+        write_interval: pint.Quantity = None,
+        thermostat_type: str = "brownian",
+    ):
+
+        if box_length is None:
+            box_length = ureg.Quantity(3 * [1000], "micrometer")
+        if fluid_dyn_viscosity is None:
+            fluid_dyn_viscosity = ureg.Quantity(1e-3, "pascal*second")
+        if WCA_epsilon is None:
+            WCA_epsilon = ureg.Quantity(300, "kelvin") * ureg.boltzmann_constant
+        if temperature is None:
+            temperature = ureg.Quantity(300, "kelvin")
+        if time_step is None:
+            time_step = ureg.Quantity(1e-3, "second")
+        if time_slice is None:
+            time_slice = ureg.Quantity(1e-1, "second")
+        if write_interval is None:
+            write_interval = ureg.Quantity(1, "second")
+
+        self.ureg: pint.UnitRegistry = ureg
+        self.box_length: pint.Quantity = box_length
+        self.fluid_dyn_viscosity: pint.Quantity = fluid_dyn_viscosity
+        self.WCA_epsilon: pint.Quantity = WCA_epsilon
+        self.temperature: pint.Quantity = temperature
+        self.time_step: pint.Quantity = time_step
+        self.time_slice: pint.Quantity = time_slice
+        self.write_interval: pint.Quantity = write_interval
+        self.thermostat_type: str = thermostat_type
 
 
 def _get_random_start_pos(
@@ -160,6 +189,7 @@ class EspressoMD(Engine):
         self._init_system(periodic)
 
         self.colloids = list()
+        self.lbf: espressomd.lb.LBFluidWalberla = None
 
         # register to lookup which type has which radius
         self.colloid_radius_register = {}
@@ -192,6 +222,7 @@ class EspressoMD(Engine):
         self.ureg.define("sim_mass = sim_energy / sim_velocity**2")
         self.ureg.define("sim_rinertia = sim_length**2 * sim_mass")
         self.ureg.define("sim_dyn_viscosity = sim_mass / (sim_length * sim_time)")
+        self.ureg.define("sim_kin_viscosity = sim_length**2 / sim_time")
         self.ureg.define("sim_force = sim_mass * sim_length / sim_time**2")
         self.ureg.define("sim_torque = sim_length * sim_force")
 
@@ -257,8 +288,8 @@ class EspressoMD(Engine):
 
     def add_colloid_on_point(
         self,
-        radius_colloid: pint.Quantity,
-        init_position: pint.Quantity,
+        radius_colloid: pint.Quantity = None,
+        init_position: pint.Quantity = None,
         init_direction: np.array = np.array([1, 0, 0]),
         type_colloid=0,
         gamma_translation: pint.Quantity = None,
@@ -271,8 +302,11 @@ class EspressoMD(Engine):
         Parameters
         ----------
         radius_colloid
+            default: 1 micrometer
         init_position
+            default: center of the box
         init_direction
+            default: along x
         type_colloid
             The colloids created from this method call will have this type.
             Multiple calls can be made with the same type_colloid.
@@ -301,6 +335,11 @@ class EspressoMD(Engine):
 
         self._check_already_initialised()
 
+        if radius_colloid is None:
+            radius_colloid = self.ureg.Quantity(1, "micrometer")
+        if init_position is None:
+            init_position = 0.5 * self.params.box_length
+
         if type_colloid in self.colloid_radius_register.keys():
             if self.colloid_radius_register[type_colloid][
                 "radius"
@@ -311,6 +350,7 @@ class EspressoMD(Engine):
                     f" {self.colloid_radius_register[type_colloid]['radius']}. Choose a"
                     " new combination"
                 )
+
         radius_simunits = radius_colloid.m_as("sim_length")
         init_pos = init_position.m_as("sim_length")
         init_direction = init_direction / np.linalg.norm(init_direction)
@@ -401,9 +441,9 @@ class EspressoMD(Engine):
     def add_colloids(
         self,
         n_colloids: int,
-        radius_colloid: pint.Quantity,
-        random_placement_center: pint.Quantity,
-        random_placement_radius: pint.Quantity,
+        radius_colloid: pint.Quantity = None,
+        random_placement_center: pint.Quantity = None,
+        random_placement_radius: pint.Quantity = None,
         type_colloid: int = 0,
         gamma_translation: pint.Quantity = None,
         gamma_rotation: pint.Quantity = None,
@@ -416,8 +456,11 @@ class EspressoMD(Engine):
         ----------
         n_colloids
         radius_colloid
+            default: 1 micrometer
         random_placement_center
+            default: center of the box
         random_placement_radius
+            default: half the box dimension
         type_colloid
             The colloids created from this method call will have this type.
             Multiple calls can be made with the same type_colloid.
@@ -446,6 +489,13 @@ class EspressoMD(Engine):
         """
 
         self._check_already_initialised()
+
+        if random_placement_center is None:
+            random_placement_center = self.ureg.Quantity(
+                3 * [0.5 * self.params.box_length.m_as("sim_length")], "sim_length"
+            )
+        if random_placement_radius is None:
+            random_placement_radius = 0.5 * self.params.box_length
 
         init_center = random_placement_center.m_as("sim_length")
         init_rad = random_placement_radius.m_as("sim_length")
@@ -477,14 +527,14 @@ class EspressoMD(Engine):
 
     def add_rod(
         self,
-        rod_center: pint.Quantity,
-        rod_length: pint.Quantity,
-        rod_thickness: pint.Quantity,
-        rod_start_angle: float,
-        n_particles: int,
-        friction_trans: pint.Quantity,
-        friction_rot: pint.Quantity,
-        rod_particle_type: int,
+        rod_center: pint.Quantity = None,
+        rod_length: pint.Quantity = None,
+        rod_thickness: pint.Quantity = None,
+        rod_start_angle: float = None,
+        n_particles: int = None,
+        friction_trans: pint.Quantity = None,
+        friction_rot: pint.Quantity = None,
+        rod_particle_type: int = None,
         fixed: bool = True,
     ):
         """
@@ -494,16 +544,23 @@ class EspressoMD(Engine):
         Parameters
         ----------
         rod_center
+            default: center of the box
         rod_length
+            default: 100 micrometer
         rod_thickness
+            default: 5 micrometer
             Make sure there are enough particles.
             If the thickness is too thin, the rod might get holes
         rod_start_angle
+            default: 0
         n_particles
+            default: 101
             Must be uneven number such that there always is a central particle
         friction_trans
             Irrelevant if fixed==True
+            must be provided
         friction_rot
+            must be provided
         rod_particle_type
             The rod is made out of points so they get their own type.
         fixed
@@ -514,6 +571,26 @@ class EspressoMD(Engine):
         The espresso handle to the central particle. For debugging purposes only
         """
         self._check_already_initialised()
+
+        if rod_center is None:
+            rod_center = self.params.box_length / 2.0
+        if rod_length is None:
+            rod_length = self.ureg.Quantity(100, "micrometer")
+        if rod_thickness is None:
+            rod_thickness = self.ureg.Quantity(5, "micrometer")
+        if rod_start_angle is None:
+            rod_start_angle = 0
+        if n_particles is None:
+            n_particles = 101
+        if friction_trans is None and not fixed:
+            raise ValueError(
+                "If you want the rod to move, you must provide a friction coefficient"
+            )
+        if friction_rot is None:
+            raise ValueError("You must provide a rotational friction coefficient")
+        if rod_particle_type is None:
+            raise ValueError("You must provide a particle type for the rod")
+
         if self.n_dims != 2:
             raise ValueError("Rod can only be added in 2d")
         if rod_center[2].magnitude != 0:
@@ -759,6 +836,88 @@ class EspressoMD(Engine):
             )
         parts.ext_force = force_simunits
 
+    def add_lattice_boltzmann(
+        self,
+        agrid: pint.Quantity = None,
+        lb_time_step: pint.Quantity = None,
+        dynamic_viscosity: pint.Quantity = None,
+        fluid_density: pint.Quantity = None,
+        boundary_mask: np.array = None,
+        ext_force_density: pint.Quantity = None,
+        use_GPU: bool = False,
+    ):
+        """
+        Add a lattice boltzmann fluid to the simulation.
+
+        Parameters:
+        -----------
+
+        agrid: pint.Quantity, scalar
+            The uniform grid spacing in all 3 dimensions.
+            Must be compatible with params.box_length.
+        lb_time_step: pint.Quantity, scalar, optional
+            Lb time step, must be integer multiple of params.time_step.
+            Default: params.time_step
+        dynamic_viscosity: pint.Quantity, scalar, optional
+            default: self.params.fluid_dyn_viscosity
+            only change if you know what you are doing
+        fluid_density: pint.Quantity, scalar, optional
+            default: 1000kg/m**3
+        boundary_mask: np.array, optional:
+            A 3D boolean array that defines the no-slip boundary cells of the fluid.
+            Must be compatible with the grid that gets generated
+            from params.box_length and agrid.
+        ext_force_density: pint.Quantity, 3d vector, optional.
+            default: [0,0,0] N/m**3
+        """
+        if not self.params.thermostat_type == "langevin":
+            raise RuntimeError(
+                "Coupling to lattice boltzmann does not work with a Brownian"
+                " thermostat. Use 'langevin'."
+            )
+
+        if agrid is None:
+            raise ValueError("agrid must be provided")
+        if lb_time_step is None:
+            lb_time_step = self.params.time_step
+        if dynamic_viscosity is None:
+            dynamic_viscosity = self.params.fluid_dyn_viscosity
+        if fluid_density is None:
+            fluid_density = self.ureg.Quantity(1000, "kg/m**3")
+        if ext_force_density is None:
+            ext_force_density = self.ureg.Quantity(np.zeros(3), "N/m**3")
+        if use_GPU:
+            raise NotImplementedError(
+                "GPU support is not yet implemented. Stay tuned tho"
+            )
+
+        lbf = espressomd.lb.LBFluidWalberla(
+            tau=lb_time_step.m_as("sim_time"),
+            kT=(self.params.temperature * self.ureg.boltzmann_constant).m_as(
+                "sim_energy"
+            ),
+            density=fluid_density.m_as("sim_mass/sim_length**3"),
+            kinematic_viscosity=(dynamic_viscosity / fluid_density).m_as(
+                "sim_kin_viscosity"
+            ),
+            agrid=agrid.m_as("sim_length"),
+            seed=self.seed,
+            ext_force_density=ext_force_density.m_as("sim_force/sim_length**3"),
+        )
+
+        if boundary_mask is not None:
+            from espressomd.script_interface import array_variant
+
+            lbf.call_method(
+                "add_boundary_from_shape",
+                raster=array_variant(boundary_mask.astype(int).flatten()),
+                values=array_variant(np.zeros(3, dtype=float).flatten()),
+            )
+
+        self.lbf = lbf
+
+        return lbf
+
     def add_flowfield(
         self,
         flowfield: pint.Quantity,
@@ -930,6 +1089,9 @@ class EspressoMD(Engine):
         self.h5_time_steps_written = 0
 
     def _update_traj_holder(self):
+        if len(self.colloids) == 0:
+            logger.warning("No colloids in the system. Not writing to hdf5")
+            return
         # need to add axes on the non-vectorial quantities
         self.traj_holder["Times"].append(np.array([self.system.time])[:, np.newaxis])
         self.traj_holder["Ids"].append(
@@ -1001,14 +1163,21 @@ class EspressoMD(Engine):
                 act_on_virtual=False,
             )
             self.system.integrator.set_brownian_dynamics()
-        else:
-            self.system.thermostat.set_langevin(
-                kT=kT,
-                gamma=1e-20,
-                gamma_rotation=1e-20,
-                seed=self.seed,
-                act_on_virtual=False,
-            )
+        elif self.params.thermostat_type == "langevin":
+            if self.lbf is None:
+                self.system.thermostat.set_langevin(
+                    kT=kT,
+                    gamma=1e-20,
+                    gamma_rotation=1e-20,
+                    seed=self.seed,
+                    act_on_virtual=False,
+                )
+            else:
+                self.system.lb = self.lbf
+                self.system.thermostat.set_lb(
+                    LB_fluid=self.lbf, gamma=1e300, seed=self.seed
+                )
+
             self.system.integrator.set_vv()
 
     def manage_forces(self, force_model: ForceFunction = None) -> bool:
@@ -1105,7 +1274,9 @@ class EspressoMD(Engine):
             )
             steps_to_next = min(steps_to_next_write, steps_to_next_slice)
 
-            self.system.integrator.run(steps_to_next)
+            self.system.integrator.run(
+                steps_to_next, reuse_forces=True, recalc_forces=False
+            )
             self.step_idx += steps_to_next
 
     def finalize(self):
