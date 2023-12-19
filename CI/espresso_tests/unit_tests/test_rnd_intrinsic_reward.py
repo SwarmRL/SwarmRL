@@ -7,6 +7,7 @@ import jax.numpy as np
 from jax import random, vmap
 
 import swarmrl
+from dataclasses import dataclass
 
 from swarmrl.intrinsic_reward.random_network_distillation import *
 
