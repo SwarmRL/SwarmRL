@@ -16,6 +16,7 @@ from swarmrl import (
     trainers,
     training_routines,
     value_functions,
+    intrinsic_reward,
 )
 from swarmrl.engine import espresso
 from swarmrl.utils import utils
@@ -41,4 +42,5 @@ __all__ = [
     value_functions.__name__,
     agents.__name__,
     training_routines.__name__,
+    intrinsic_reward.__name__,
 ]
