@@ -2,12 +2,12 @@
 Main module for actions.
 """
 
-import dataclasses
+from dataclasses import dataclass
 
 import numpy as np
 
 
-@dataclasses.dataclass
+@dataclass
 class Action:
     """
     Holds the 3 quantities that are applied to the colloid plus an identifier
