@@ -39,7 +39,7 @@ jobs:
           cd espresso
           mkdir build && cd build
           cp ../maintainer/configs/maxset.hpp myconfig.hpp
-          cmake ../ -D ESPRESSO_BUILD_WITH_FFTW=OFF
+          cmake ../ -D ESPRESSO_BUILD_WITH_WALBERLA=on -D ESPRESSO_BUILD_WITH_FFTW=OFF
           cmake --build . -j 5
       - name: Run test suite
         run: |
