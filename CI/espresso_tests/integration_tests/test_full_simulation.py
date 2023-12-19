@@ -41,7 +41,7 @@ class TestFullSim(ut.TestCase):
             fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
             WCA_epsilon=ureg.Quantity(293, "kelvin") * ureg.boltzmann_constant,
             temperature=ureg.Quantity(293, "kelvin"),
-            box_length=ureg.Quantity(1000, "micrometer"),
+            box_length=ureg.Quantity(3 * [1000], "micrometer"),
             time_slice=ureg.Quantity(0.2, "second"),  # model timestep
             time_step=ureg.Quantity(0.2, "second") / 5,  # integrator timestep
             write_interval=ureg.Quantity(2, "second"),
@@ -185,7 +185,7 @@ class TestFullSim(ut.TestCase):
             self.assertEqual(n_timesteps, np.shape(directors)[0])
             self.assertEqual(n_colloids, np.shape(positions)[1])
             self.assertEqual(n_colloids, np.shape(directors)[1])
-            self.assertLessEqual(positions[0, 0, 0], box_length)
+            np.testing.assert_array_less(positions[0, 0, 0], box_length)
 
 
 if __name__ == "__main__":

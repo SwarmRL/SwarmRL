@@ -33,7 +33,7 @@ class EspressoTest2D(ut.TestCase):
             fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
             WCA_epsilon=ureg.Quantity(1e-20, "joule"),
             temperature=ureg.Quantity(300, "kelvin"),
-            box_length=ureg.Quantity(10000, "micrometer"),
+            box_length=ureg.Quantity(3 * [10000], "micrometer"),
             time_step=ureg.Quantity(0.05, "second"),
             time_slice=ureg.Quantity(0.1, "second"),
             write_interval=ureg.Quantity(0.1, "second"),
@@ -101,7 +101,7 @@ class EspressoTest2D(ut.TestCase):
             temperature=ureg.Quantity(
                 0, "kelvin"
             ),  # to test the friction without noise
-            box_length=ureg.Quantity(10000, "micrometer"),
+            box_length=ureg.Quantity(3 * [10000], "micrometer"),
             time_step=ureg.Quantity(0.01, "second"),
             time_slice=ureg.Quantity(0.1, "second"),
             write_interval=ureg.Quantity(0.1, "second"),
