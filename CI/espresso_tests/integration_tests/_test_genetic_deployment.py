@@ -31,7 +31,7 @@ def get_simulation_runner():
         fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
         WCA_epsilon=ureg.Quantity(temperature, "kelvin") * ureg.boltzmann_constant,
         temperature=ureg.Quantity(300.0, "kelvin"),
-        box_length=ureg.Quantity(1000, "micrometer"),
+        box_length=ureg.Quantity(3 * [1000], "micrometer"),
         time_slice=ureg.Quantity(0.5, "second"),  # model timestep
         time_step=ureg.Quantity(0.5, "second") / 5,  # integrator timestep
         write_interval=ureg.Quantity(2, "second"),
