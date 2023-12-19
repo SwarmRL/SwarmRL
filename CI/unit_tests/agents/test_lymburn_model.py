@@ -1,17 +1,16 @@
-import unittest as ut
-import swarmrl.agents.lymburn_model
-import numpy as np
-from swarmrl.components.colloid import Colloid
 import logging
+import unittest as ut
+
+import numpy as np
+
+import swarmrl.agents.lymburn_model
+from swarmrl.components.colloid import Colloid
+
 
 class TestLymburnModel(ut.TestCase):
     def setUp(self):
         # Set up any necessary test data or objects
-        self.force_params = {"K_a": 0,
-                             "K_r": 0,
-                             "K_h": 0,
-                             "K_f": 0,
-                             "K_p": 0}
+        self.force_params = {"K_a": 0, "K_r": 0, "K_h": 0, "K_f": 0, "K_p": 0}
         self.pred_movement = swarmrl.agents.lymburn_model.harmonic_2d
 
         self.pred_params = [1000, 0.4, 0]
@@ -19,9 +18,9 @@ class TestLymburnModel(ut.TestCase):
             force_params=self.force_params,
             pred_movement=self.pred_movement,
             pred_params=self.pred_params,
-            detection_radius_position_colls=10.,
+            detection_radius_position_colls=10.0,
             detection_radius_position_pred=20,
-            home_pos=np.array([500, 500, 0])
+            home_pos=np.array([500, 500, 0]),
         )
 
         logging.basicConfig(level=logging.DEBUG)
@@ -37,26 +36,25 @@ class TestLymburnModel(ut.TestCase):
     def test_update_pred_movement(self):
         self.force_model.update_pred_movement(swarmrl.agents.lymburn_model.no_force)
         self.assertEqual(
-            self.force_model.pred_movement,
-            swarmrl.agents.lymburn_model.no_force
+            self.force_model.pred_movement, swarmrl.agents.lymburn_model.no_force
         )
 
     def test_alignment_force(self):
         # not really sure how to test this
         self.force_model.update_force_params(K_a=1, K_r=0, K_h=0, K_f=0, K_p=0)
         coll1 = Colloid(
-            pos=np.array([500., 500., 0]),
-            director=np.array([1., 0., 0.]),
+            pos=np.array([500.0, 500.0, 0]),
+            director=np.array([1.0, 0.0, 0.0]),
             id=1,
-            velocity=np.array([5., 0., 0.]),
-            type=0
+            velocity=np.array([5.0, 0.0, 0.0]),
+            type=0,
         )
         coll2 = Colloid(
-            pos=np.array([505., 500., 0.]),
-            director=np.array([0., 1., 0.]),
+            pos=np.array([505.0, 500.0, 0.0]),
+            director=np.array([0.0, 1.0, 0.0]),
             id=2,
-            velocity=np.array([5., 0., 0.]),
-            type=0
+            velocity=np.array([5.0, 0.0, 0.0]),
+            type=0,
         )
         action = self.force_model.calc_action([coll1, coll2])
         force_coll1 = action[0].force
@@ -66,26 +64,26 @@ class TestLymburnModel(ut.TestCase):
         self.force_model.update_force_params(K_a=0, K_r=1, K_h=0, K_f=0, K_p=0)
 
         left_coll = Colloid(
-            pos=np.array([496., 500., 0]),
-            director=np.array([1., 0., 0.]),
+            pos=np.array([496.0, 500.0, 0]),
+            director=np.array([1.0, 0.0, 0.0]),
             id=1,
-            velocity=np.array([10., 0., 0.]),
-            type=0
+            velocity=np.array([10.0, 0.0, 0.0]),
+            type=0,
         )
 
         right_coll = Colloid(
-            pos=np.array([504., 500., 0.]),
-            director=np.array([-1., 0., 0.]),
+            pos=np.array([504.0, 500.0, 0.0]),
+            director=np.array([-1.0, 0.0, 0.0]),
             id=2,
-            velocity=np.array([-10., 0., 0.]),
-            type=0
+            velocity=np.array([-10.0, 0.0, 0.0]),
+            type=0,
         )
-        far_right_coll = Colloid(   # should not be in range
-            pos=np.array([600., 500., 0.]),
-            director=np.array([-1., 0., 0.]),
+        far_right_coll = Colloid(  # should not be in range
+            pos=np.array([600.0, 500.0, 0.0]),
+            director=np.array([-1.0, 0.0, 0.0]),
             id=3,
-            velocity=np.array([-10., 0., 0.]),
-            type=0
+            velocity=np.array([-10.0, 0.0, 0.0]),
+            type=0,
         )
         action = self.force_model.calc_action([left_coll, right_coll, far_right_coll])
 
@@ -102,19 +100,19 @@ class TestLymburnModel(ut.TestCase):
         self.force_model.update_force_params(K_h=1)
 
         home_coll = Colloid(
-            pos=np.array([500., 500., 0]),
-            director=np.array([1., 0., 0.]),
+            pos=np.array([500.0, 500.0, 0]),
+            director=np.array([1.0, 0.0, 0.0]),
             id=1,
-            velocity=np.array([10., 0., 0.]),
-            type=0
+            velocity=np.array([10.0, 0.0, 0.0]),
+            type=0,
         )
 
         other_coll = Colloid(
-            pos=np.array([510., 500., 0.]),
-            director=np.array([1., 0., 0.]),
+            pos=np.array([510.0, 500.0, 0.0]),
+            director=np.array([1.0, 0.0, 0.0]),
             id=2,
-            velocity=np.array([0., 10., 0.]),
-            type=0
+            velocity=np.array([0.0, 10.0, 0.0]),
+            type=0,
         )
         action = self.force_model.calc_action([home_coll, other_coll])
         force_home_coll = action[0].force
@@ -134,40 +132,42 @@ class TestLymburnModel(ut.TestCase):
         self.force_model.update_force_params(K_a=0, K_r=0, K_h=0, K_f=1, K_p=0)
 
         coll = Colloid(
-            pos=np.array([500., 500., 0]),
-            director=np.array([1., 0., 0.]),
+            pos=np.array([500.0, 500.0, 0]),
+            director=np.array([1.0, 0.0, 0.0]),
             id=1,
-            velocity=np.array([30., 0., 0.]),
-            type=0
+            velocity=np.array([30.0, 0.0, 0.0]),
+            type=0,
         )
         action = self.force_model.calc_action([coll])
         force_coll = action[0].force
         self.assertGreater(force_coll, 0)
-        self.assertEqual(np.dot(action[0].new_direction, np.array([1., 0., 0.])), -1.0)
+        self.assertEqual(
+            np.dot(action[0].new_direction, np.array([1.0, 0.0, 0.0])), -1.0
+        )
 
     def test_predator_to_agent_force(self):
         self.force_model.update_force_params(K_a=0, K_r=0, K_h=0, K_f=0, K_p=1)
         self.force_model.update_pred_movement(swarmrl.agents.lymburn_model.no_force)
         coll = Colloid(
-            pos=np.array([500., 500., 0]),
-            director=np.array([1., 0., 0.]),
+            pos=np.array([500.0, 500.0, 0]),
+            director=np.array([1.0, 0.0, 0.0]),
             id=1,
-            velocity=np.array([10., 0., 0.]),
-            type=0
+            velocity=np.array([10.0, 0.0, 0.0]),
+            type=0,
         )
         coll2 = Colloid(
-            pos=np.array([510., 500., 0]),
-            director=np.array([-1., 0., 0.]),
+            pos=np.array([510.0, 500.0, 0]),
+            director=np.array([-1.0, 0.0, 0.0]),
             id=2,
-            velocity=np.array([-10., 0., 0.]),
-            type=0
+            velocity=np.array([-10.0, 0.0, 0.0]),
+            type=0,
         )
         pred = Colloid(
-            pos=np.array([511., 500., 0]),
-            director=np.array([1., 0., 0.]),
+            pos=np.array([511.0, 500.0, 0]),
+            director=np.array([1.0, 0.0, 0.0]),
             id=2,
-            velocity=np.array([-10., 0., 0.]),
-            type=1
+            velocity=np.array([-10.0, 0.0, 0.0]),
+            type=1,
         )
 
         action = self.force_model.calc_action([coll, coll2, pred])
@@ -175,6 +175,7 @@ class TestLymburnModel(ut.TestCase):
         force_pred = action[-1].force
         self.assertGreater(force_coll, 0)
         self.assertEqual(force_pred, 0)
+
 
 class TestUtils(ut.TestCase):
     def test_coll_in_vision(self):
@@ -204,5 +205,5 @@ class TestUtils(ut.TestCase):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     ut.main()

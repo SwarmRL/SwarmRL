@@ -1,21 +1,23 @@
-from swarmrl.actions.actions import Action
-from swarmrl.agents.classical_agent import ClassicalAgent
 import h5py as hf
 import numpy as np
 
+from swarmrl.actions.actions import Action
+from swarmrl.agents.classical_agent import ClassicalAgent
+
 
 class Lymburn(ClassicalAgent):
-    def __init__(self,
-                 force_params: dict,
-                 pred_movement: callable,
-                 pred_params: np.array,
-                 from_file: bool = False,
-                 detection_radius_position_colls=np.inf,
-                 detection_radius_position_pred=np.inf,
-                 home_pos=np.array([500, 500, 0]),
-                 agent_speed=10,
-                 time_slice: float = 0.01
-                 ):
+    def __init__(
+        self,
+        force_params: dict,
+        pred_movement: callable,
+        pred_params: np.array,
+        from_file: bool = False,
+        detection_radius_position_colls=np.inf,
+        detection_radius_position_pred=np.inf,
+        home_pos=np.array([500, 500, 0]),
+        agent_speed=10,
+        time_slice: float = 0.01,
+    ):
         """
         Parameters
         ----------
@@ -61,11 +63,7 @@ class Lymburn(ClassicalAgent):
         self.index_tracker = -1
 
     def update_force_params(self, K_a=None, K_r=None, K_h=None, K_f=None, K_p=None):
-        update_params = {"K_a": K_a,
-                             "K_r": K_r,
-                             "K_h": K_h,
-                             "K_f": K_f,
-                             "K_p": K_p}
+        update_params = {"K_a": K_a, "K_r": K_r, "K_h": K_h, "K_f": K_f, "K_p": K_p}
         for key, value in update_params.items():
             if value is not None:
                 self.force_params[key] = value
@@ -73,7 +71,9 @@ class Lymburn(ClassicalAgent):
     def update_pred_movement(self, pred_movement):
         self.pred_movement = pred_movement
 
-    def update_pred_params(self, pred_params0=None, pred_params1=None, pred_params2=None):
+    def update_pred_params(
+        self, pred_params0=None, pred_params1=None, pred_params2=None
+    ):
         update_params = [pred_params0, pred_params1, pred_params2]
         for i, value in enumerate(update_params):
             if value is not None:
@@ -89,32 +89,33 @@ class Lymburn(ClassicalAgent):
                     pred_force = traj_from_file(
                         self.wanted_pos[self.index_tracker],
                         self.wanted_pos[self.index_tracker + 1],
-                        colloid.velocity)
+                        colloid.velocity,
+                    )
                 else:
                     pred_force = self.pred_movement(
                         self.t,
                         colloid.pos,
                         colloid.velocity,
                         self.home_pos,
-                        self.pred_params)
+                        self.pred_params,
+                    )
 
                 nd = np.array([pred_force[0], pred_force[1], pred_force[2]])
                 new_direction = nd / np.linalg.norm(nd)
-                actions.append(Action(force=np.linalg.norm(nd),
-                                      new_direction=new_direction))
+                actions.append(
+                    Action(force=np.linalg.norm(nd), new_direction=new_direction)
+                )
                 continue
 
             other_colls = [c for c in colloids if c is not colloid and not c.type == 1]
             colls_in_vision = get_colloids_in_vision(
-                colloid,
-                other_colls,
-                vision_radius=self.detection_radius_position_colls)
+                colloid, other_colls, vision_radius=self.detection_radius_position_colls
+            )
             predator = [p for p in colloids if p.type == 1]
             # only one predator in the simulation
             pred_in_vision = get_colloids_in_vision(
-                colloid,
-                predator,
-                vision_radius=self.detection_radius_position_pred)
+                colloid, predator, vision_radius=self.detection_radius_position_pred
+            )
             colls_in_vision_position = np.array([c.pos for c in colls_in_vision])
             colls_in_vision_velocity = np.array([c.velocity for c in colls_in_vision])
 
@@ -136,13 +137,19 @@ class Lymburn(ClassicalAgent):
                 dist_norm_pred = np.linalg.norm(colloid.pos - pred_in_vision_position)
                 force_p = force_p_notnorm / dist_norm_pred
 
-            force_f = -colloid.velocity * (np.abs(colloid.velocity) - self.agent_speed) / self.agent_speed
+            force_f = (
+                -colloid.velocity
+                * (np.abs(colloid.velocity) - self.agent_speed)
+                / self.agent_speed
+            )
 
-            force = self.force_params["K_a"] * force_a + \
-                    self.force_params["K_r"] * force_r + \
-                    self.force_params["K_h"] * force_h + \
-                    self.force_params["K_p"] * force_p + \
-                    self.force_params["K_f"] * force_f
+            force = (
+                self.force_params["K_a"] * force_a
+                + self.force_params["K_r"] * force_r
+                + self.force_params["K_h"] * force_h
+                + self.force_params["K_p"] * force_p
+                + self.force_params["K_f"] * force_f
+            )
 
             force_magnitude = np.linalg.norm(force)
             force_direction = force / force_magnitude
@@ -178,6 +185,7 @@ def harmonic_2d(t, pos, director, home_pos, params):
     force_z = 0
     return force_x, force_y, force_z
 
+
 def no_force(t, pos, director, home_pos, params):
     return 0, 0, 0
 
@@ -187,6 +195,6 @@ def traj_from_file(pos, pos1, velocity):
     Function to get classical particle on a trajectory from given datafile
     """
     mass = 1
-    force = (pos1 - pos - velocity * 0.01) * 2 * mass / 0.01 ** 2
-    force = 0.0004 * 1e5 * 0.25 * force/50
+    force = (pos1 - pos - velocity * 0.01) * 2 * mass / 0.01**2
+    force = 0.0004 * 1e5 * 0.25 * force / 50
     return force[0], force[1], force[2]
