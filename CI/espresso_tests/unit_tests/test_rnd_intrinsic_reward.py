@@ -1,14 +1,12 @@
 import unittest as ut
-
-import optax
-
-from flax import linen as nn
-import jax.numpy as np
-from jax import random, vmap
-
-import swarmrl
 from dataclasses import dataclass
 
+import jax.numpy as np
+import optax
+from flax import linen as nn
+from jax import random
+
+import swarmrl
 from swarmrl.intrinsic_reward.random_network_distillation import *
 
 
