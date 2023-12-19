@@ -32,4 +32,4 @@ jobs:
           pip install .
       - name: Pytest
         run: |
-          pytest --ignore CI/espresso_tests
+          coverage run -a --source=./swarmrl -m pytest --ignore CI/espresso_tests
