@@ -18,7 +18,8 @@ failed = []
 total = len(test_files)
 for test_file in test_files:
     print(f"running {test_file}")
-    exit_cmd = os.system(f"python3 {test_file}")
+    # exit_cmd = os.system(f"python3 {test_file}")
+    exit_cmd = os.system(f"coverage run -a --source=../swarmrl {test_file}")
     if exit_cmd != 0:
         failed.append(test_file)
 
