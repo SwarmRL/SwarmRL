@@ -14,6 +14,7 @@ from swarmrl.losses import Loss, ProximalPolicyLoss
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
+
 from swarmrl.intrinsic_reward.intrinsic_reward import IntrinsicReward
 
 
@@ -114,8 +115,8 @@ class ActorCriticAgent(Agent):
         )
 
         # Update the intrinsic reward if set.
-        if self.task.intrinsic_reward:
-            self.task.intrinsic_reward.update(self.trajectory)
+        if self.intrinsic_reward:
+            self.intrinsic_reward.update(self.trajectory)
 
         # Reset the trajectory storage.
         self.reset_trajectory()
@@ -191,7 +192,7 @@ class ActorCriticAgent(Agent):
         # Compute extrinsic rewards.
         rewards = self.task(colloids)
         # Compute intrinsic rewards if set. 
-        if self.task.intrinsic_reward:
+        if self.intrinsic_reward:
             rewards += self.intrinsic_reward.compute_reward(
                 episode_data=self.trajectory
             )
@@ -201,7 +202,7 @@ class ActorCriticAgent(Agent):
             self.trajectory.features.append(state_description)
             self.trajectory.actions.append(action_indices)
             self.trajectory.log_probs.append(log_probs)
-            self.trajectory.rewards.append(self.task(colloids))
+            self.trajectory.rewards.append(rewards)
             self.trajectory.killed = self.task.kill_switch
 
         self.kill_switch = self.task.kill_switch
