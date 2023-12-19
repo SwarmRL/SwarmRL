@@ -126,6 +126,7 @@ def _reset_system(system):
     system.bonded_inter.clear()
     system.non_bonded_inter.reset()
     system.time = 0.0
+    system.lb = None
     return system
 
 
@@ -505,10 +506,10 @@ class EspressoMD(Engine):
 
         if random_placement_center is None:
             random_placement_center = self.ureg.Quantity(
-                3 * [0.5 * self.params.box_length.m_as("sim_length")], "sim_length"
+                0.5 * self.params.box_length.m_as("sim_length"), "sim_length"
             )
         if random_placement_radius is None:
-            random_placement_radius = 0.5 * self.params.box_length
+            random_placement_radius = 0.5 * min(self.params.box_length)
 
         init_center = random_placement_center.m_as("sim_length")
         init_rad = random_placement_radius.m_as("sim_length")
@@ -920,6 +921,11 @@ class EspressoMD(Engine):
 
         if boundary_mask is not None:
             from espressomd.script_interface import array_variant
+
+            if not np.all(lbf.shape == boundary_mask.shape):
+                raise ValueError(
+                    "boundary_mask must have the same shape as the fluid grid"
+                )
 
             lbf.call_method(
                 "add_boundary_from_shape",

@@ -18,7 +18,7 @@ class LatticeBoltzmannTest(ut.TestCase):
             ureg=ureg,
             fluid_dyn_viscosity=ureg.Quantity(8.9e-3, "pascal * second"),
             temperature=ureg.Quantity(0, "kelvin"),
-            box_length=ureg.Quantity(20, "micrometer"),
+            box_length=ureg.Quantity([5, 5, 25], "micrometer"),
             time_step=ureg.Quantity(0.0002, "second"),
             write_interval=ureg.Quantity(10, "second"),
             thermostat_type="langevin",
@@ -30,9 +30,7 @@ class LatticeBoltzmannTest(ut.TestCase):
 
             agrid = ureg.Quantity(1, "micrometer")
             n_cells = (
-                np.round(ureg.Quantity(3 * [20], "micrometer") / agrid)
-                .m_as("dimensionless")
-                .astype(int)
+                np.round(params.box_length / agrid).m_as("dimensionless").astype(int)
             )
 
             # poiseuille flow along x
@@ -42,7 +40,7 @@ class LatticeBoltzmannTest(ut.TestCase):
 
             target_mean_vel = ureg.Quantity(0.5, "micrometer/second")
 
-            channel_height = params.box_length - 2 * agrid
+            channel_height = params.box_length[2] - 2 * agrid
             dyn_visc = params.fluid_dyn_viscosity
 
             # scale up density to not have extremely small Re
@@ -69,10 +67,15 @@ class LatticeBoltzmannTest(ut.TestCase):
                 fluid_density=density,
                 boundary_mask=boundaries,
             )
+            # a proper simulation would set a potential on the particles using
+            # the boundary mask, see test_flow.py
+
             partcl_density = 10 * density
             partcl_radius = ureg.Quantity(0.1, "micrometer")  # smaller than agrid!
             runner.add_colloids(
                 50,
+                # large radius to get homogeneous filling across periodic boundaries
+                random_placement_radius=10 * params.box_length[2],
                 type_colloid=0,
                 radius_colloid=partcl_radius,
                 mass=partcl_density * 4 / 3 * np.pi * partcl_radius**3,
