@@ -16,14 +16,16 @@ from znnl.loss_functions import MeanPowerLoss
 from znnl.training_strategies.loss_aware_reservoir import LossAwareReservoir
 from znnl.training_strategies.simple_training import SimpleTraining
 
-from swarmrl.networks.network import Network
-
 
 class RNDArchitecture(nn.Module):
     @nn.compact
     def __call__(self, x):
         """
         Call function for the RND architecture.
+
+        This is an example architecture for the RND intrinsic reward.
+        It is used as a default architecture in the RNDConfig class, but can be changed
+        by passing a different architecture to the RNDConfig constructor.
 
         Parameters
         ----------
@@ -45,12 +47,15 @@ class RNDConfig:
 
     Parameters
     ----------
-    agent_network : Network
-            Model class for the agent network.
-    target_network : JaxModel
-            Model class for the target network using a ZnNL model.
-    predictor_network : JaXModel
-            Model class for the predictor network using a ZnNL model.
+    input_shape : tuple
+            Shape of the input to the network.
+            It is defined as the shape of the observation. 
+    target_architecture : nn.Module (default=RNDArchitecture)
+            Architecture of the target network. The default architecture is defined in
+            the RNDArchitecture class. 
+    predictor_architecture : nn.Module (default=RNDArchitecture)
+            Architecture of the predictor network. The default architecture is defined
+            in the RNDArchitecture class.
     training_strategy : SimpleTraining
             Training strategy for training the predictor model from ZnNL.
     distance_metric : DistanceMetric
@@ -65,7 +70,7 @@ class RNDConfig:
             Keyword arguments to pass to the training strategy.
     """
 
-    agent_network: Network
+    input_shape: tuple
     target_architecture: RNDArchitecture = RNDArchitecture()
     predictor_architecture: RNDArchitecture = RNDArchitecture()
     optimizer = optax.adam(1e-3)
@@ -88,8 +93,9 @@ class RNDLaRConfig:
 
     Parameters
     ----------
-    agent_network : Network
-            Model class for the agent network.
+    input_shape : tuple
+            Shape of the input to the network.
+            It is defined as the shape of the observation. 
     episode_length : int
             Length of the episode to use in the training. This value is used to
             initialize the reservoir. It defines the number points that have not been
@@ -98,10 +104,12 @@ class RNDLaRConfig:
             Size of the reservoir to use in the training.
             The reservoir size defines the number of points that are used as a memory
             buffer for the training.
-    target_network : JaxModel
-            Model class for the target network using a ZnNL model.
-    predictor_network : JaXModel
-            Model class for the predictor network using a ZnNL model.
+    target_architecture : nn.Module (default=RNDArchitecture)
+            Architecture of the target network. The default architecture is defined in
+            the RNDArchitecture class. 
+    predictor_architecture : nn.Module (default=RNDArchitecture)
+            Architecture of the predictor network. The default architecture is defined
+            in the RNDArchitecture class.
     distance_metric : DistanceMetric
             Metric to use in the representation comparison.
     n_epochs : int
@@ -114,7 +122,7 @@ class RNDLaRConfig:
             Keyword arguments to pass to the training strategy.
     """
 
-    agent_network: Network
+    input_shape: tuple
     episode_length: int
     reservoir_size: int
     target_architecture: RNDArchitecture = RNDArchitecture()
@@ -136,3 +144,4 @@ class RNDLaRConfig:
             reservoir_size=self.reservoir_size,
             latest_points=self.episode_length,
         )
+

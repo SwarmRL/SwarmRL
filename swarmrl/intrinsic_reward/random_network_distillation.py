@@ -47,12 +47,12 @@ class RNDReward(IntrinsicReward):
         self.target_network: JaxModel = FlaxModel(
             flax_module=RNDArchitecture(),
             optimizer=rnd_config.optimizer,
-            input_shape=(1, *rnd_config.agent_network.input_shape),
+            input_shape=(1, *rnd_config.input_shape),
         )
         self.predictor_network: JaxModel = FlaxModel(
             flax_module=RNDArchitecture(),
             optimizer=rnd_config.optimizer,
-            input_shape=(1, *rnd_config.agent_network.input_shape),
+            input_shape=(1, *rnd_config.input_shape),
         )
         self.training_strategy.set_model(self.predictor_network)
 
