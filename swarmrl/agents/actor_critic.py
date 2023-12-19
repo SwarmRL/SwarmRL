@@ -64,6 +64,8 @@ class ActorCriticAgent(Agent):
                 Loss function to use to update the networks.
         train : bool (default=True)
                 Flag to indicate if the agent is training.
+        intrinsic_reward : IntrinsicReward (default=None)
+                Intrinsic reward to use for the agent.
         """
         # Properties of the agent.
         self.network = network
@@ -73,6 +75,7 @@ class ActorCriticAgent(Agent):
         self.actions = actions
         self.train = train
         self.loss = loss
+        self.intrinsic_reward = intrinsic_reward
 
         # Trajectory to be updated.
         self.trajectory = TrajectoryInformation(particle_type=self.particle_type)
