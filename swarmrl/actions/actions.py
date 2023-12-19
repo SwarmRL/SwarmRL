@@ -15,5 +15,5 @@ class Action:
 
     id = 0
     force: float = 0.0
-    torque: np.ndarray = np.zeros((3,))
+    torque: np.ndarray = None
     new_direction: np.ndarray = None

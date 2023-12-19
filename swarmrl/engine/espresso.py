@@ -4,7 +4,7 @@ Module for the espressoMD simulations.
 
 import dataclasses
 import logging
-import os
+import pathlib
 import typing
 
 import h5py
@@ -40,6 +40,8 @@ class MDParams:
         MD runs with internal time step of time_step. The external force/torque from
         the force_model will not be updated at every single time step, instead every
         time_slice. Therefore, time_slice must be an integer multiple of time_step.
+    periodic: optional
+        Enable/disable periodic boundary conditions. Default: enabled
     thermostat_type: optional
         One of "brownian", "langevin",
         see https://espressomd.github.io/doc/integration.html
@@ -56,6 +58,7 @@ class MDParams:
         time_step: pint.Quantity = None,
         time_slice: pint.Quantity = None,
         write_interval: pint.Quantity = None,
+        periodic: bool = True,
         thermostat_type: str = "brownian",
     ):
 
@@ -82,6 +85,7 @@ class MDParams:
         self.time_step: pint.Quantity = time_step
         self.time_slice: pint.Quantity = time_slice
         self.write_interval: pint.Quantity = write_interval
+        self.periodic: bool = periodic
         self.thermostat_type: str = thermostat_type
 
 
@@ -143,7 +147,6 @@ class EspressoMD(Engine):
         seed=42,
         out_folder=".",
         write_chunk_size=100,
-        periodic: bool = True,
         system=None,
     ):
         """
@@ -157,13 +160,11 @@ class EspressoMD(Engine):
                 Number of dimensions to consider in the simulation
         seed : int
                 Seed number for any generators.
-        out_folder : str
+        out_folder : str or pathlib.Path
                 Path to an output folder to store data in. This file should have a
                 reasonable amount of free space.
         write_chunk_size : int
                 Chunk size to use in the hdf5 writing.
-        periodic : bool
-                If False, do not use periodic boundary conditions.
         system : espressomd.System (optional)
                 Espresso system to use in this engine.
                 If not provided, a new system will be created.
@@ -172,7 +173,7 @@ class EspressoMD(Engine):
                 own risk.
         """
         self.params: MDParams = md_params
-        self.out_folder = out_folder
+        self.out_folder = pathlib.Path(out_folder).resolve()
         self.seed = seed
         self.rng = np.random.default_rng(self.seed)
         if n_dims not in [2, 3]:
@@ -186,7 +187,7 @@ class EspressoMD(Engine):
             self.system = espressomd.System(box_l=3 * [1.0])
         else:
             self.system = _reset_system(system)
-        self._init_system(periodic)
+        self._init_system()
 
         self.colloids = list()
         self.lbf: espressomd.lb.LBFluidWalberla = None
@@ -226,7 +227,7 @@ class EspressoMD(Engine):
         self.ureg.define("sim_force = sim_mass * sim_length / sim_time**2")
         self.ureg.define("sim_torque = sim_length * sim_force")
 
-    def _init_system(self, periodic):
+    def _init_system(self):
         """
         Prepare the simulation box with the given parameters.
 
@@ -242,14 +243,26 @@ class EspressoMD(Engine):
 
         write_interval = self.params.write_interval.m_as("sim_time")
 
-        box_l = np.array(3 * [self.params.box_length.m_as("sim_length")])
+        box_l = np.array(self.params.box_length.m_as("sim_length"))
+        if np.isscalar(box_l):
+            raise ValueError(
+                "box_length must be a 3d vector (or 2d if you have a 2d system)"
+            )
+        if self.n_dims == 2 and len(box_l) == 2:
+            # if a 2d system is simulated, the third dimension does not
+            # matter but must still be set
+            box_l = np.array([box_l[0], box_l[1], box_l[0]])
+        if len(box_l) != 3:
+            raise ValueError(
+                f"box_length must be a 3d vector. You gave {self.params.box_length}"
+            )
 
         # system setup. Skin is a verlet list parameter that has to be set, but only
         # affects performance
         self.system.box_l = box_l
         self.system.time_step = time_step
         self.system.cell_system.skin = 0.4
-        self.system.periodicity = 3 * [periodic]
+        self.system.periodicity = 3 * [self.params.periodic]
 
         # set writer params
         steps_per_write_interval = int(round(write_interval / time_step))
@@ -424,7 +437,7 @@ class EspressoMD(Engine):
             theta, phi = utils.angles_from_vector(init_direction)
             if abs(theta - np.pi / 2) > 10e-6:
                 raise ValueError(
-                    "It seem like you want to have a 2D simulation"
+                    "It seems like you want to have a 2D simulation"
                     " with colloids that point some amount in Z-direction."
                     " Change something in your colloid setup."
                 )
@@ -1044,8 +1057,8 @@ class EspressoMD(Engine):
         -------
         Creates hdf5 database and updates class state.
         """
-        self.h5_filename = self.out_folder + "/trajectory.hdf5"
-        os.makedirs(self.out_folder, exist_ok=True)
+        self.h5_filename = self.out_folder / "trajectory.hdf5"
+        self.out_folder.mkdir(parents=True, exist_ok=True)
         self.traj_holder = {
             "Times": list(),
             "Ids": list(),
@@ -1057,7 +1070,7 @@ class EspressoMD(Engine):
 
         n_colloids = len(self.colloids)
 
-        with h5py.File(self.h5_filename, "a") as h5_outfile:
+        with h5py.File(self.h5_filename.as_posix(), "a") as h5_outfile:
             part_group = h5_outfile.require_group("colloids")
             dataset_kwargs = dict(compression="gzip")
             traj_len = self.write_chunk_size
@@ -1206,7 +1219,13 @@ class EspressoMD(Engine):
             actions = force_model.calc_action(swarmrl_colloids)
             for action, coll in zip(actions, self.colloids):
                 coll.swimming = {"f_swim": action.force}
-                coll.ext_torque = action.torque
+                coll.ext_torque = (
+                    action.torque
+                    if action.torque is not None
+                    else np.zeros(
+                        3,
+                    )
+                )
                 new_direction = action.new_direction
                 if new_direction is not None:
                     if self.n_dims == 3:
