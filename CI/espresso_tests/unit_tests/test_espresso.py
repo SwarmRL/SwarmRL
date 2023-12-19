@@ -28,7 +28,7 @@ class EspressoTest(ut.TestCase):
             fluid_dyn_viscosity=ureg.Quantity(8.9e-3, "pascal * second"),
             WCA_epsilon=ureg.Quantity(1e-20, "joule"),
             temperature=ureg.Quantity(0, "kelvin"),
-            box_length=ureg.Quantity(1000, "micrometer"),
+            box_length=ureg.Quantity(3 * [1000], "micrometer"),
             time_step=ureg.Quantity(0.05, "second"),
             time_slice=ureg.Quantity(0.1, "second"),
             write_interval=ureg.Quantity(0.1, "second"),
