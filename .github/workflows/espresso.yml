@@ -43,4 +43,4 @@ jobs:
           cmake --build . -j 5
       - name: Run test suite
         run: |
-          coverage run -a --source=./swarmrl -m espresso/build/pypresso CI/run_espresso_test_suite.py
+          espresso/build/pypresso -m coverage run -a --source=./swarmrl CI/run_espresso_test_suite.py
