@@ -60,6 +60,25 @@ class Lymburn(ClassicalAgent):
             self.wanted_pos = db["Wanted_Positions"][:]
         self.index_tracker = -1
 
+    def update_force_params(self, K_a=None, K_r=None, K_h=None, K_f=None, K_p=None):
+        update_params = {"K_a": K_a,
+                             "K_r": K_r,
+                             "K_h": K_h,
+                             "K_f": K_f,
+                             "K_p": K_p}
+        for key, value in update_params.items():
+            if value is not None:
+                self.force_params[key] = value
+
+    def update_pred_movement(self, pred_movement):
+        self.pred_movement = pred_movement
+
+    def update_pred_params(self, pred_params0=None, pred_params1=None, pred_params2=None):
+        update_params = [pred_params0, pred_params1, pred_params2]
+        for i, value in enumerate(update_params):
+            if value is not None:
+                self.pred_params[i] = value
+
     def calc_action(self, colloids):
         actions = []
         self.t += self.time_slice
@@ -90,8 +109,7 @@ class Lymburn(ClassicalAgent):
                 colloid,
                 other_colls,
                 vision_radius=self.detection_radius_position_colls)
-            print(colls_in_vision)
-            predator = [p for p in colloids if p is p.type == 1]
+            predator = [p for p in colloids if p.type == 1]
             # only one predator in the simulation
             pred_in_vision = get_colloids_in_vision(
                 colloid,
@@ -99,7 +117,7 @@ class Lymburn(ClassicalAgent):
                 vision_radius=self.detection_radius_position_pred)
             colls_in_vision_position = np.array([c.pos for c in colls_in_vision])
             colls_in_vision_velocity = np.array([c.velocity for c in colls_in_vision])
-            print(colls_in_vision_velocity, colls_in_vision_position)
+
             pred_in_vision_position = np.array([p.pos for p in pred_in_vision])
 
             force_a, force_r = np.array([0, 0, 0]), np.array([0, 0, 0])
@@ -159,6 +177,9 @@ def harmonic_2d(t, pos, director, home_pos, params):
     force_y = params[0] * np.sin(params[1] * t)
     force_z = 0
     return force_x, force_y, force_z
+
+def no_force(t, pos, director, home_pos, params):
+    return 0, 0, 0
 
 
 def traj_from_file(pos, pos1, velocity):
