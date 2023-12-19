@@ -1,5 +1,5 @@
 """
-Integration test for the genetic algorithm training.
+Test that ensembled deployment runs.
 """
 
 import tempfile
@@ -31,7 +31,7 @@ def get_simulation_runner():
         fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
         WCA_epsilon=ureg.Quantity(temperature, "kelvin") * ureg.boltzmann_constant,
         temperature=ureg.Quantity(300.0, "kelvin"),
-        box_length=ureg.Quantity(1000, "micrometer"),
+        box_length=ureg.Quantity(3 * [1000], "micrometer"),
         time_slice=ureg.Quantity(0.5, "second"),  # model timestep
         time_step=ureg.Quantity(0.5, "second") / 5,  # integrator timestep
         write_interval=ureg.Quantity(2, "second"),
@@ -41,7 +41,7 @@ def get_simulation_runner():
         md_params=md_params,
         n_dims=2,
         seed=seed,
-        out_folder=simulation_name,
+        out_folder="." + "/" + simulation_name,
         write_chunk_size=100,
     )
 
@@ -76,23 +76,25 @@ def scale_function(distance: float):
     return 1 - distance
 
 
-class TestGeneticTraining(ut.TestCase):
+class TestEnsembleTraining(ut.TestCase):
     """
     Test suite for the genetic training.
     """
 
     def test_run(self):
-        """
-        Prepare the test.
-        """
         with tempfile.TemporaryDirectory() as temp_dir:
             # Exploration policy
             exploration_policy = srl.exploration_policies.RandomExploration(
-                probability=0.0
+                probability=0.1
             )
 
             # Sampling strategy
             sampling_strategy = srl.sampling_strategies.GumbelDistribution()
+
+            # Value function
+            value_function = srl.value_functions.ExpectedReturns(
+                gamma=0.99, standardize=True
+            )
 
             # Set the task
             task = srl.tasks.searching.GradientSensing(
@@ -109,7 +111,7 @@ class TestGeneticTraining(ut.TestCase):
             )
 
             # Define the loss model
-            loss = srl.losses.ProximalPolicyLoss(n_epochs=2)
+            loss = srl.losses.PolicyGradientLoss(value_function=value_function)
 
             network = srl.networks.FlaxModel(
                 flax_model=Network(),
@@ -143,19 +145,17 @@ class TestGeneticTraining(ut.TestCase):
                 [protocol],
                 loss,
             )
-            self.training_routine = srl.training_routines.GeneticTraining(
+            self.training_routine = srl.training_routines.EnsembleTraining(
                 rl_trainer,
                 get_simulation_runner,
+                output_dir=temp_dir,
+                number_of_ensembles=4,
                 n_episodes=5,
-                output_directory=temp_dir,
+                n_parallel_jobs=1,
                 episode_length=5,
-                number_of_generations=3,
-                population_size=4,
-                number_of_parents=3,
-                parallel_jobs=1,
             )
 
-            self.training_routine.train_model()
+            self.training_routine.train_ensemble()
 
 
 if __name__ == "__main__":

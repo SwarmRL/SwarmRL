@@ -458,7 +458,7 @@ def calc_ellipsoid_friction_factors_rotation(
 
 
 def convert_array_of_pint_to_pint_of_array(array_of_pint, ureg: pint.UnitRegistry):
-    units = [val.units for val in array_of_pint]
+    units = [val.to_base_units().units for val in array_of_pint]
     # np.unique doesn't work so we have to do it manually
     unit = units[0]
     for u in units:
