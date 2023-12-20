@@ -131,17 +131,17 @@ class TestGeneticTraining(ut.TestCase):
                 "DoNothing": do_nothing,
             }
 
-            protocol = srl.agents.ActorCriticAgent(
+            agent = srl.agents.ActorCriticAgent(
                 particle_type=0,
                 network=network,
                 task=task,
                 observable=observable,
                 actions=actions,
+                loss=loss,
             )
 
             rl_trainer = srl.trainers.ContinuousTrainer(
-                [protocol],
-                loss,
+                [agent],
             )
             self.training_routine = srl.training_routines.GeneticTraining(
                 rl_trainer,
