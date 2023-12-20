@@ -2,6 +2,7 @@
 Module for the different possible observables.
 """
 
+from swarmrl.observables.col_graph import ColGraph
 from swarmrl.observables.concentration_field import ConcentrationField
 from swarmrl.observables.director import Director
 from swarmrl.observables.multi_sensing import MultiSensing
@@ -15,6 +16,7 @@ __all__ = [
     Director.__name__,
     MultiSensing.__name__,
     Observable.__name__,
+    ColGraph.__name__,
     ConcentrationField.__name__,
     ParticleSensing.__name__,
     SubdividedVisionCones.__name__,

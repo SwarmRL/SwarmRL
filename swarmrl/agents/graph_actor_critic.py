@@ -8,10 +8,11 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from swarmrl.actions.actions import Action
-from swarmrl.agents.trainable_agent import TrainableAgent
+from swarmrl.agents import TrainableAgent
 from swarmrl.components.colloid import Colloid
 from swarmrl.losses import Loss, ProximalPolicyLoss
 from swarmrl.networks.network import Network
+from swarmrl.observables.col_graph import create_batch_graphs
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
 
@@ -30,7 +31,7 @@ class TrajectoryInformation:
     killed: bool = False
 
 
-class ActorCriticAgent(TrainableAgent):
+class GraphActorCriticAgent(TrainableAgent):
     """
     Class to handle the actor-critic RL Protocol.
     """
@@ -84,7 +85,7 @@ class ActorCriticAgent(TrainableAgent):
         name : str
             Name of the class.
         """
-        return "ActorCriticAgent"
+        return "GraphActorCriticAgent"
 
     def update_agent(self) -> tuple:
         """
@@ -101,12 +102,10 @@ class ActorCriticAgent(TrainableAgent):
         # Collect data for returns.
         rewards = self.trajectory.rewards
         killed = self.trajectory.killed
-
-        self.trajectory.features = np.array(self.trajectory.features)
+        self.trajectory.features = create_batch_graphs(self.trajectory.features)
         self.trajectory.actions = np.array(self.trajectory.actions)
         self.trajectory.log_probs = np.array(self.trajectory.log_probs)
         self.trajectory.rewards = np.array(self.trajectory.rewards)
-
         # Compute loss for actor and critic.
         self.loss.compute_loss(
             network=self.network,
@@ -115,7 +114,6 @@ class ActorCriticAgent(TrainableAgent):
 
         # Reset the trajectory storage.
         self.reset_trajectory()
-
         return rewards, killed
 
     def reset_agent(self, colloids: typing.List[Colloid]):
@@ -184,6 +182,7 @@ class ActorCriticAgent(TrainableAgent):
         )
         chosen_actions = np.take(list(self.actions.values()), action_indices, axis=-1)
 
+        print(type(self.trajectory.features))
         # Update the trajectory information.
         if self.train:
             self.trajectory.features.append(state_description)

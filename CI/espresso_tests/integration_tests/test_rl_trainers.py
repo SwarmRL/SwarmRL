@@ -151,7 +151,6 @@ class EspressoTestRLTrainers(ut.TestCase):
             # Define the force model.
             rl_trainer = srl.trainers.ContinuousTrainer(
                 [self.agent],
-                self.loss,
             )
             rl_trainer.perform_rl_training(
                 system_runner=system_runner,
@@ -237,8 +236,8 @@ class EspressoTestRLTrainers(ut.TestCase):
             # Define the force model.
             rl_trainer = srl.trainers.EpisodicTrainer(
                 [self.agent],
-                self.loss,
             )
+
             rl_trainer.perform_rl_training(
                 get_engine=get_engine,
                 n_episodes=10,
@@ -292,8 +291,8 @@ class EspressoTestRLTrainers(ut.TestCase):
             # Define the force model.
             rl_trainer = srl.trainers.EpisodicTrainer(
                 [agent],
-                self.loss,
             )
+
             rl_trainer.perform_rl_training(
                 get_engine=get_engine,
                 n_episodes=10,

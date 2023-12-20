@@ -151,20 +151,16 @@ class ProximalPolicyLoss(Loss, ABC):
         -------
 
         """
-        old_log_probs_data = jnp.array(episode_data.log_probs)
-        feature_data = jnp.array(episode_data.features)
-        action_data = jnp.array(episode_data.actions)
-        reward_data = jnp.array(episode_data.rewards)
-
+        print(network.model_state.params["node_encoder"]["Dense_0"]["kernel"])
         for _ in range(self.n_epochs):
             network_grad_fn = jax.value_and_grad(self._calculate_loss)
             _, network_grad = network_grad_fn(
                 network.model_state.params,
                 network=network,
-                feature_data=feature_data,
-                action_indices=action_data,
-                rewards=reward_data,
-                old_log_probs=old_log_probs_data,
+                feature_data=episode_data.features,
+                action_indices=episode_data.actions,
+                rewards=episode_data.rewards,
+                old_log_probs=episode_data.log_probs,
             )
 
             network.update_model(network_grad)

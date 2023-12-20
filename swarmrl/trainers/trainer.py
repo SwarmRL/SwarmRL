@@ -6,7 +6,7 @@ from typing import List, Tuple
 
 import numpy as np
 
-from swarmrl.agents.actor_critic import ActorCriticAgent
+from swarmrl.agents.trainable_agent import TrainableAgent
 from swarmrl.force_functions.force_fn import ForceFunction
 from swarmrl.losses.loss import Loss
 from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
@@ -42,7 +42,7 @@ class Trainer:
 
     def __init__(
         self,
-        agents: List[ActorCriticAgent],
+        agents: List[TrainableAgent],
         loss: Loss = ProximalPolicyLoss(),
     ):
         """
@@ -94,7 +94,7 @@ class Trainer:
         switches = []
 
         for agent in self.agents.values():
-            if isinstance(agent, ActorCriticAgent):
+            if isinstance(agent, TrainableAgent):
                 ag_reward, ag_killed = agent.update_agent()
                 reward += np.mean(ag_reward)
                 switches.append(ag_killed)
