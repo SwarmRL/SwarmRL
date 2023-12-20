@@ -32,7 +32,7 @@ jobs:
           pip install .
       - name: Pytest
         run: |
-          coverage run -a --source=./swarmrl -m pytest --ignore CI/espresso_tests
+          coverage run -a --source=../swarmrl -m pytest --ignore CI/espresso_tests
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         env:
