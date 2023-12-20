@@ -139,11 +139,11 @@ class TestEnsembleTraining(ut.TestCase):
                 task=task,
                 observable=observable,
                 actions=actions,
+                loss=loss,
             )
 
             rl_trainer = srl.trainers.ContinuousTrainer(
                 [protocol],
-                loss,
             )
             self.training_routine = srl.training_routines.EnsembleTraining(
                 rl_trainer,

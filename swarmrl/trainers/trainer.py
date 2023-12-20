@@ -8,8 +8,6 @@ import numpy as np
 
 from swarmrl.agents.actor_critic import ActorCriticAgent
 from swarmrl.force_functions.force_fn import ForceFunction
-from swarmrl.losses.loss import Loss
-from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
 
 
 class Trainer:
@@ -43,7 +41,6 @@ class Trainer:
     def __init__(
         self,
         agents: List[ActorCriticAgent],
-        loss: Loss = ProximalPolicyLoss(),
     ):
         """
         Constructor for the MLP RL.
@@ -55,7 +52,6 @@ class Trainer:
         loss : Loss
                 A loss model to use in the A-C loss computation.
         """
-        self.loss = loss
         self.agents = {}
 
         # Add the protocols to an easily accessible internal dict.
