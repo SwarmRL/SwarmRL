@@ -1283,8 +1283,9 @@ class EspressoMD(Engine):
                         val.clear()
 
             # Break the simulaion if the kill switch is engaged.
-            if force_model.kill_switch:
-                break
+            if force_model is not None:
+                if force_model.kill_switch:
+                    break
 
             if self.step_idx == self.params.steps_per_slice * self.slice_idx:
                 self.slice_idx += 1

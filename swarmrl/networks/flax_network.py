@@ -17,7 +17,9 @@ from flax.training.train_state import TrainState
 from optax._src.base import GradientTransformation
 
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
+from swarmrl.exploration_policies.random_exploration import RandomExploration
 from swarmrl.networks.network import Network
+from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 
 logger = logging.getLogger(__name__)
@@ -38,8 +40,8 @@ class FlaxModel(Network, ABC):
         flax_model: nn.Module,
         input_shape: tuple,
         optimizer: GradientTransformation = None,
-        exploration_policy: ExplorationPolicy = None,
-        sampling_strategy: SamplingStrategy = None,
+        exploration_policy: ExplorationPolicy = RandomExploration(probability=0.0),
+        sampling_strategy: SamplingStrategy = GumbelDistribution(),
         rng_key: int = None,
         deployment_mode: bool = False,
     ):
