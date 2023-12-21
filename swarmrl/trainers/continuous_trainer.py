@@ -17,8 +17,6 @@ class ContinuousTrainer(Trainer):
     ----------
     rl_protocols : list(protocol)
             A list of RL protocols to use in the simulation.
-    loss : Loss
-            An optimization method to compute the loss and update the model.
     """
 
     def perform_rl_training(

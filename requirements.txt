@@ -2,7 +2,6 @@ markupsafe==2.0.1
 numpy~=1.22.2
 pint~=0.18
 h5py
-znvis
 tqdm~=4.62.3
 pytest~=6.2.5
 jax
