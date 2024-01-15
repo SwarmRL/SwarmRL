@@ -2,6 +2,7 @@
 Init file for object movement tasks.
 """
 
+from swarmrl.tasks.object_movement.drug_delivery import DrugTransport
 from swarmrl.tasks.object_movement.rod_rotation import RotateRod
 
-__all__ = [RotateRod.__name__]
+__all__ = [RotateRod.__name__, DrugTransport.__name__]

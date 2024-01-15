@@ -94,11 +94,9 @@ class ProximalPolicyLoss(Loss, ABC):
         loss: float
             The loss of the actor-critic network for the last episode.
         """
-
         # compute the probabilities of the old actions under the new policy
         new_logits, predicted_values = network(network_params, feature_data)
         predicted_values = predicted_values.squeeze()
-
         # compute the advantages and returns
         advantages, returns = self.value_function(
             rewards=rewards, values=predicted_values
@@ -151,7 +149,6 @@ class ProximalPolicyLoss(Loss, ABC):
         -------
 
         """
-        print(network.model_state.params["node_encoder"]["Dense_0"]["kernel"])
         for _ in range(self.n_epochs):
             network_grad_fn = jax.value_and_grad(self._calculate_loss)
             _, network_grad = network_grad_fn(
