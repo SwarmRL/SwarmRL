@@ -2,11 +2,10 @@ import unittest as ut
 from dataclasses import dataclass
 
 import jax.numpy as np
-import optax
 from flax import linen as nn
 from jax import random
 
-from swarmrl.intrinsic_reward.random_network_distillation import *
+from swarmrl.intrinsic_reward.random_network_distillation import RNDReward
 from swarmrl.intrinsic_reward.rnd_configs import RNDConfig
 
 
