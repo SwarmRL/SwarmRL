@@ -1,5 +1,5 @@
 markupsafe==2.0.1
-numpy~=1.22.2
+numpy~=1.26.1
 pint~=0.18
 h5py
 tqdm~=4.62.3
@@ -8,10 +8,10 @@ jax
 jaxlib
 flax>=0.6.1
 setuptools~=58.0.4
-optax~=0.1.2
+optax>=0.1.2
 rich
 dataclasses~=0.6
 dask
 distributed
 dask-jobqueue
-znnl @ git+https://github.com/zincware/ZnNL.git@Konsti_fix_requirements
+znnl @ git+https://github.com/zincware/ZnNL@main
