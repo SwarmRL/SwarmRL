@@ -10,12 +10,11 @@ import numpy as np
 from swarmrl.actions.actions import Action
 from swarmrl.agents.agent import Agent
 from swarmrl.components.colloid import Colloid
+from swarmrl.intrinsic_reward.intrinsic_reward import IntrinsicReward
 from swarmrl.losses import Loss, ProximalPolicyLoss
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-
-from swarmrl.intrinsic_reward.intrinsic_reward import IntrinsicReward
 
 
 @dataclass

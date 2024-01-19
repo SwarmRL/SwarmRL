@@ -8,6 +8,7 @@ from swarmrl import (
     agents,
     components,
     exploration_policies,
+    intrinsic_reward,
     losses,
     networks,
     observables,
@@ -16,7 +17,6 @@ from swarmrl import (
     trainers,
     training_routines,
     value_functions,
-    intrinsic_reward,
 )
 from swarmrl.engine import espresso
 from swarmrl.utils import utils
