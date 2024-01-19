@@ -14,3 +14,5 @@ dataclasses~=0.6
 dask
 distributed
 dask-jobqueue
+# Install python package from github repo: https://github.com/zincware/ZnNL
+znnl @ git+https://github.com/zincware/ZnNL.git@main
