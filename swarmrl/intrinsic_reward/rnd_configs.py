@@ -49,10 +49,10 @@ class RNDConfig:
     ----------
     input_shape : tuple
             Shape of the input to the network.
-            It is defined as the shape of the observation. 
+            It is defined as the shape of the observation.
     target_architecture : nn.Module (default=RNDArchitecture)
             Architecture of the target network. The default architecture is defined in
-            the RNDArchitecture class. 
+            the RNDArchitecture class.
     predictor_architecture : nn.Module (default=RNDArchitecture)
             Architecture of the predictor network. The default architecture is defined
             in the RNDArchitecture class.
@@ -95,7 +95,7 @@ class RNDLaRConfig:
     ----------
     input_shape : tuple
             Shape of the input to the network.
-            It is defined as the shape of the observation. 
+            It is defined as the shape of the observation.
     episode_length : int
             Length of the episode to use in the training. This value is used to
             initialize the reservoir. It defines the number points that have not been
@@ -106,7 +106,7 @@ class RNDLaRConfig:
             buffer for the training.
     target_architecture : nn.Module (default=RNDArchitecture)
             Architecture of the target network. The default architecture is defined in
-            the RNDArchitecture class. 
+            the RNDArchitecture class.
     predictor_architecture : nn.Module (default=RNDArchitecture)
             Architecture of the predictor network. The default architecture is defined
             in the RNDArchitecture class.
@@ -144,4 +144,3 @@ class RNDLaRConfig:
             reservoir_size=self.reservoir_size,
             latest_points=self.episode_length,
         )
-

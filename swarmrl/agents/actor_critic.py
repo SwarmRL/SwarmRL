@@ -191,7 +191,7 @@ class ActorCriticAgent(Agent):
 
         # Compute extrinsic rewards.
         rewards = self.task(colloids)
-        # Compute intrinsic rewards if set. 
+        # Compute intrinsic rewards if set.
         if self.intrinsic_reward:
             rewards += self.intrinsic_reward.compute_reward(
                 episode_data=self.trajectory
