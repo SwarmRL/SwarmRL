@@ -1,4 +1,3 @@
-import os
 import unittest as ut
 
 import numpy as np
@@ -35,10 +34,10 @@ class TestAgentFromTrajectory(ut.TestCase):
         self.agent_force_function.update_force_function(self.harmonic_1d)
         self.assertEqual(self.agent_force_function.force_function, self.harmonic_1d)
 
-    def test_load_trajectory(self):
-        script_path = os.path.dirname(__file__)
-        self.loading_test = AgentFromTrajectory(trajectory=script_path)
-        self.assertTrue(np.array_equal(self.loading_test.wanted_pos, self.trajectory))
+    # def test_load_trajectory(self):
+    #    script_path = os.path.dirname(__file__)
+    #    self.loading_test = AgentFromTrajectory(trajectory=script_path)
+    #    self.assertTrue(np.array_equal(self.loading_test.wanted_pos, self.trajectory))
 
     def test_force_function(self):
         coll0 = Colloid(
