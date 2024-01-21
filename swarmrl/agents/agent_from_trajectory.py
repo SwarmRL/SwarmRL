@@ -14,12 +14,13 @@ class AgentFromTrajectory(ClassicalAgent):
 
     def __init__(
         self,
-        trajectory: str or list = None,
+        trajectory: str or np.array = None,
         force_function: callable = None,
         time_slice: float = 0.01,
         gammas: typing.List[float] = None,
-        acts_on_types: int = 1,
+        acts_on_types: typing.List[float] = [1],
         params: np.array = None,
+        home_pos: np.array = np.array([0, 0, 0]),
     ):
         """
         Initialize the AgentFromTrajectory object.
@@ -42,6 +43,8 @@ class AgentFromTrajectory(ClassicalAgent):
         params : np.array, optional
             Parameters for the trajectory function.
             If trajectory_file is not None, params is ignored.
+        home_pos : np.array, optional (default: [0, 0, 0])
+            Home position of the agent.
 
         Raises
         ------
@@ -51,8 +54,9 @@ class AgentFromTrajectory(ClassicalAgent):
         if trajectory is not None and force_function is None:
             if isinstance(trajectory, str):
                 self.wanted_pos = self.load_trajectory(trajectory)
-            if isinstance(trajectory, list):
+            if isinstance(trajectory, (list, np.ndarray)):
                 self.wanted_pos = trajectory
+            self.force_function = None
         elif force_function is not None and trajectory is None:
             self.force_function = force_function
         else:
@@ -61,6 +65,7 @@ class AgentFromTrajectory(ClassicalAgent):
                 "not both or neither."
             )
         self.acts_on_types = acts_on_types
+        self.home_pos = home_pos
 
         self.params = params
         self.t = 0
@@ -74,14 +79,19 @@ class AgentFromTrajectory(ClassicalAgent):
         db = hf.File(f"{trajectory_file}/trajectory.hdf5")
         return db["Wanted_Positions"][:]
 
-    def change_force_function(self, force_function: callable):
+    def update_force_function(self, force_function: callable):
         """
         Change the force function.
         """
         self.force_function = force_function
 
     def calc_force_next_pos(self, pos, next_pos, velocity, time_slice):
+        """
+        Calculate the force needed to reach next_pos in time_slice.
+        """
         mass = 1
+        if velocity is None:
+            velocity = np.array([0, 0, 0])
         return (next_pos - pos - velocity * time_slice) * 2 * mass / time_slice**2
 
     def calc_action(self, colloids) -> typing.List[Action]:
@@ -96,11 +106,11 @@ class AgentFromTrajectory(ClassicalAgent):
 
             if self.force_function is not None:
                 force = self.force_function(
-                    self.t, colloid.pos, colloid.director, self.params
+                    self.t, colloid.pos, colloid.director, self.home_pos, self.params
                 )
                 force_value = np.linalg.norm(force)
                 new_direction = force / force_value
-                actions.append(Action(force=force, new_direction=new_direction))
+                actions.append(Action(force=force_value, new_direction=new_direction))
 
             else:
                 pos = self.wanted_pos[self.index_tracker]
@@ -124,7 +134,7 @@ def harmonic_1d(t, pos, director, home_pos, params):
     params[2]: offset in y-direction
     """
     force_x = params[0] * np.cos(params[1] * t)
-    force_y = params[2] - pos[1]
+    force_y = home_pos[1] - pos[1]
     force_z = 0
     return force_x, force_y, force_z
 

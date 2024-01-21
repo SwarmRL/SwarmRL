@@ -1,4 +1,3 @@
-import h5py as hf
 import numpy as np
 
 from swarmrl.actions.actions import Action
@@ -9,31 +8,19 @@ class Lymburn(ClassicalAgent):
     def __init__(
         self,
         force_params: dict,
-        pred_movement: callable,
-        pred_params: np.array,
-        from_file: bool = False,
         detection_radius_position_colls=np.inf,
         detection_radius_position_pred=np.inf,
         home_pos=np.array([500, 500, 0]),
         agent_speed=10,
-        time_slice: float = 0.01,
     ):
         """
         Parameters
         ----------
         force_params : dict
             Dictionary containing the force parameters.
+            a = alignment, r = repulsion, h = home, f = friction, p = predator
                 e.g.: force_params = {"K_a":K_a, "K_r":K_r,
                   "K_h":K_h, "K_f":K_f, "K_p":K_p}
-        pred_movement : callable
-            Function that describes the movement of the predator
-                input: t, pos, velocity, home_pos, pred_params
-        pred_params : np. array (3,1)
-            Parameters for the predator movement function
-                If FromFile=True, force_params[0] is the path to
-                    the trajectory file
-        from_file: bool
-            If True, the predator follows a trajectory from a trajectory file
         detection_radius_position_colls : float
             Radius in which the colloids are detected
         detection_radius_position_pred : float
@@ -42,71 +29,26 @@ class Lymburn(ClassicalAgent):
             Position of the home
         agent_speed : float
             Speed of the colloids (used for the friction force)
-        time_slice : float
         """
         self.force_params = force_params
-        self.pred_movement = pred_movement
-        self.pred_params = pred_params
         self.detection_radius_position_colls = detection_radius_position_colls
         # implies r_align=r_repulsion
         self.detection_radius_position_pred = detection_radius_position_pred
         self.home_pos = home_pos
         self.agent_speed = agent_speed
 
-        self.t = 0
-        self.time_slice = time_slice
-
-        self.from_file = from_file
-        if self.from_file:
-            db = hf.File(f"{self.pred_params[0]}/trajectory.hdf5")
-            self.wanted_pos = db["Wanted_Positions"][:]
-        self.index_tracker = -1
-
     def update_force_params(self, K_a=None, K_r=None, K_h=None, K_f=None, K_p=None):
+        """
+        Update the force parameters
+        """
         update_params = {"K_a": K_a, "K_r": K_r, "K_h": K_h, "K_f": K_f, "K_p": K_p}
         for key, value in update_params.items():
             if value is not None:
                 self.force_params[key] = value
 
-    def update_pred_movement(self, pred_movement):
-        self.pred_movement = pred_movement
-
-    def update_pred_params(
-        self, pred_params0=None, pred_params1=None, pred_params2=None
-    ):
-        update_params = [pred_params0, pred_params1, pred_params2]
-        for i, value in enumerate(update_params):
-            if value is not None:
-                self.pred_params[i] = value
-
     def calc_action(self, colloids):
         actions = []
-        self.t += self.time_slice
-        self.index_tracker += 1
         for colloid in colloids:
-            if colloid.type == 1:
-                if self.from_file:
-                    pred_force = traj_from_file(
-                        self.wanted_pos[self.index_tracker],
-                        self.wanted_pos[self.index_tracker + 1],
-                        colloid.velocity,
-                    )
-                else:
-                    pred_force = self.pred_movement(
-                        self.t,
-                        colloid.pos,
-                        colloid.velocity,
-                        self.home_pos,
-                        self.pred_params,
-                    )
-
-                nd = np.array([pred_force[0], pred_force[1], pred_force[2]])
-                new_direction = nd / np.linalg.norm(nd)
-                actions.append(
-                    Action(force=np.linalg.norm(nd), new_direction=new_direction)
-                )
-                continue
-
             other_colls = [c for c in colloids if c is not colloid and not c.type == 1]
             colls_in_vision = get_colloids_in_vision(
                 colloid, other_colls, vision_radius=self.detection_radius_position_colls
@@ -170,24 +112,6 @@ def get_colloids_in_vision(coll, other_coll, vision_radius):
         if in_range:
             colls_in_vision.append(other_p)
     return colls_in_vision
-
-
-def harmonic_1d(t, pos, director, home_pos, params):
-    force_x = params[0] * np.cos(params[1] * t)
-    force_y = home_pos[1] - pos[1]
-    force_z = 0
-    return force_x, force_y, force_z
-
-
-def harmonic_2d(t, pos, director, home_pos, params):
-    force_x = params[0] * np.cos(params[1] * t)
-    force_y = params[0] * np.sin(params[1] * t)
-    force_z = 0
-    return force_x, force_y, force_z
-
-
-def no_force(t, pos, director, home_pos, params):
-    return 0, 0, 0
 
 
 def traj_from_file(pos, pos1, velocity):
