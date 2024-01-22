@@ -21,4 +21,5 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     python_requires=">=3.9",
     install_requires=required,
+    extras_require={"rnd": ["znnl @ git+https://github.com/zincware/ZnNL.git"]},
 )

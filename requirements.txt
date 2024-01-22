@@ -14,4 +14,3 @@ dataclasses~=0.6
 dask
 distributed
 dask-jobqueue
-znnl @ git+https://github.com/zincware/ZnNL@main
