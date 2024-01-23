@@ -6,9 +6,10 @@ Notes
 The reward classes handle the computation of the reward from an environment and
 compute the loss for the models to train on.
 """
+
 from typing import List
 
-from swarmrl.models.interaction_model import Colloid
+from swarmrl.components import Colloid
 
 
 class Task:
@@ -26,6 +27,27 @@ class Task:
                 Particle type to compute the reward for.
         """
         self.particle_type = particle_type
+
+        self._kill_switch = False
+
+    @property
+    def kill_switch(self):
+        """
+        Kill switch property of the task
+        """
+        return self._kill_switch
+
+    @kill_switch.setter
+    def kill_switch(self, value: bool):
+        """
+        Set the kill switch property.
+
+        Parameters
+        ----------
+        value : bool
+            Value to set the kill switch to.
+        """
+        self._kill_switch = value
 
     def initialize(self, colloids: List[Colloid]):
         """

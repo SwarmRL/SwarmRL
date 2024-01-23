@@ -4,8 +4,9 @@ import unittest as ut
 import numpy as np
 import pint
 
+from swarmrl.agents import dummy_models
 from swarmrl.engine import espresso
-from swarmrl.models import dummy_models
+from swarmrl.force_functions import ForceFunction
 
 
 class AddColloidTest(ut.TestCase):
@@ -16,7 +17,7 @@ class AddColloidTest(ut.TestCase):
             fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
             WCA_epsilon=0.1 * ureg.Quantity(300, "kelvin") * ureg.boltzmann_constant,
             temperature=ureg.Quantity(0, "kelvin"),
-            box_length=ureg.Quantity(100, "micrometer"),
+            box_length=ureg.Quantity(3 * [100], "micrometer"),
             time_step=ureg.Quantity(0.0001, "second"),
             time_slice=ureg.Quantity(0.1, "second"),
             write_interval=ureg.Quantity(0.1, "second"),
@@ -70,7 +71,8 @@ class AddColloidTest(ut.TestCase):
                 )
 
             const_force = dummy_models.ConstForce(force=0)
-            runner.integrate(1, const_force)
+            force_fn = ForceFunction({"0": const_force})
+            runner.integrate(1, force_fn)
 
             # without walls, the colloids would leave the primary box
             poss = runner.get_particle_data()["Unwrapped_Positions"]

@@ -1,18 +1,19 @@
 """
 __init__ file for the swarmrl package.
 """
+
 import logging
 
 from swarmrl import (
+    agents,
+    components,
     exploration_policies,
-    gyms,
     losses,
-    models,
     networks,
     observables,
-    rl_protocols,
     sampling_strategies,
     tasks,
+    trainers,
     training_routines,
     value_functions,
 )
@@ -32,14 +33,14 @@ __all__ = [
     resobee.__name__,
     utils.__name__,
     losses.__name__,
+    components.__name__,
     tasks.__name__,
     observables.__name__,
     networks.__name__,
-    models.__name__,
     exploration_policies.__name__,
-    gyms.__name__,
+    trainers.__name__,
     sampling_strategies.__name__,
     value_functions.__name__,
-    rl_protocols.__name__,
+    agents.__name__,
     training_routines.__name__,
 ]

@@ -2,8 +2,13 @@
 Various functions for operating on colloids.
 """
 
+from typing import TYPE_CHECKING, List
+
 import jax
 import jax.numpy as jnp
+
+if TYPE_CHECKING:
+    from swarmrl.components.colloid import Colloid
 
 
 @jax.jit
@@ -95,3 +100,29 @@ def compute_torque_partition_on_rod(colloid_positions, rod_positions, rod_direct
     torque_partition = torque_magnitude / normalization_factors
 
     return torque_partition
+
+
+def get_colloid_indices(colloids: List["Colloid"], p_type: int) -> List[int]:
+    """
+    Get the indices of the colloids in the observable of a specific type.
+
+    Parameters
+    ----------
+    colloids : List[Colloid]
+            List of colloids from which to get the indices.
+    p_type : int (default=None)
+            Type of the colloids to get the indices for. If None, the
+            particle_type attribute of the class is used.
+
+
+    Returns
+    -------
+    indices : List[int]
+            List of indices for the colloids of a particular type.
+    """
+    indices = []
+    for i, colloid in enumerate(colloids):
+        if colloid.type == p_type:
+            indices.append(i)
+
+    return indices

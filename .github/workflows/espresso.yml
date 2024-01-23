@@ -38,8 +38,9 @@ jobs:
           git clone https://github.com/espressomd/espresso.git
           cd espresso
           mkdir build && cd build
-          cmake ../ -D ESPRESSO_BUILD_WITH_FFTW=OFF
-          cmake --build .
+          cp ../maintainer/configs/maxset.hpp myconfig.hpp
+          cmake ../ -D ESPRESSO_BUILD_WITH_WALBERLA=on -D ESPRESSO_BUILD_WITH_FFTW=OFF
+          cmake --build . -j 5
       - name: Run test suite
         run: |
           espresso/build/pypresso CI/run_espresso_test_suite.py

@@ -4,7 +4,7 @@ Unit test for the subdivided vision cones.
 
 import numpy as np
 
-from swarmrl.models.interaction_model import Colloid
+from swarmrl.components import Colloid
 from swarmrl.observables.subdivided_vision_cones import SubdividedVisionCones
 
 

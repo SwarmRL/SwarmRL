@@ -1,6 +1,7 @@
 """
 Jax model for reinforcement learning.
 """
+
 import logging
 import os
 import pickle
@@ -11,11 +12,14 @@ import jax
 import jax.numpy as np
 import numpy as onp
 from flax import linen as nn
+from flax.core.frozen_dict import FrozenDict
 from flax.training.train_state import TrainState
 from optax._src.base import GradientTransformation
 
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
+from swarmrl.exploration_policies.random_exploration import RandomExploration
 from swarmrl.networks.network import Network
+from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 
 logger = logging.getLogger(__name__)
@@ -36,8 +40,8 @@ class FlaxModel(Network, ABC):
         flax_model: nn.Module,
         input_shape: tuple,
         optimizer: GradientTransformation = None,
-        exploration_policy: ExplorationPolicy = None,
-        sampling_strategy: SamplingStrategy = None,
+        exploration_policy: ExplorationPolicy = RandomExploration(probability=0.0),
+        sampling_strategy: SamplingStrategy = GumbelDistribution(),
         rng_key: int = None,
         deployment_mode: bool = False,
     ):
@@ -64,7 +68,10 @@ class FlaxModel(Network, ABC):
             rng_key = onp.random.randint(0, 1027465782564)
         self.sampling_strategy = sampling_strategy
         self.model = flax_model
-        self.apply_fn = jax.jit(self.model.apply)
+        self.apply_fn = jax.jit(
+            jax.vmap(self.model.apply, in_axes=(None, 0))
+        )  # Map over agents
+        self.batch_apply_fn = jax.jit(jax.vmap(self.apply_fn, in_axes=(None, 0)))
         self.input_shape = input_shape
         self.model_state = None
 
@@ -79,6 +86,12 @@ class FlaxModel(Network, ABC):
 
             self.epoch_count = 0
 
+    def _create_custom_train_state(self, optimizer: dict):
+        """
+        Deal with the optimizers in case of complex configuration.
+        """
+        return type("TrainState", (TrainState,), optimizer)
+
     def _create_train_state(self, init_rng: int) -> TrainState:
         """
         Create a training state of the model.
@@ -90,14 +103,22 @@ class FlaxModel(Network, ABC):
 
         Returns
         -------
-        state : TrainState
+        state : TrainState / CustomTrainState
                 initial state of model to then be trained.
+                If you have multiple optimizers, this will create a custom train state.
         """
         params = self.model.init(init_rng, np.ones(list(self.input_shape)))["params"]
 
-        return TrainState.create(
-            apply_fn=self.apply_fn, params=params, tx=self.optimizer
-        )
+        if isinstance(self.optimizer, dict):
+            CustomTrainState = self._create_custom_train_state(self.optimizer)
+
+            return CustomTrainState.create(
+                apply_fn=self.model.apply, params=params, tx=self.optimizer
+            )
+        else:
+            return TrainState.create(
+                apply_fn=self.model.apply, params=params, tx=self.optimizer
+            )
 
     def reinitialize_network(self):
         """
@@ -108,23 +129,28 @@ class FlaxModel(Network, ABC):
         _, subkey = jax.random.split(init_rng)
         self.model_state = self._create_train_state(subkey)
 
-    def update_model(
-        self,
-        grads,
-    ):
+    def update_model(self, grads):
         """
         Train the model.
 
         See the parent class for a full doc-string.
         """
+        # Logging for grads and pre-train model state
         logger.debug(f"{grads=}")
         logger.debug(f"{self.model_state=}")
-        self.model_state = self.model_state.apply_gradients(grads=grads)
+
+        if isinstance(self.optimizer, dict):
+            pass
+
+        else:
+            self.model_state = self.model_state.apply_gradients(grads=grads)
+
+        # Logging for post-train model state
         logger.debug(f"{self.model_state=}")
 
         self.epoch_count += 1
 
-    def compute_action(self, observables: List, explore_mode: bool = False):
+    def compute_action(self, observables: List):
         """
         Compute and action from the action space.
 
@@ -132,10 +158,8 @@ class FlaxModel(Network, ABC):
 
         Parameters
         ----------
-        observables : List
+        observables : List (n_agents, observable_dimension)
                 Observable for each colloid for which the action should be computed.
-        explore_mode : bool
-                If true, an exploration vs exploitation function is called.
 
         Returns
         -------
@@ -147,11 +171,11 @@ class FlaxModel(Network, ABC):
         """
         # Compute state
         try:
-            logits = self.apply_fn(
+            logits, _ = self.apply_fn(
                 {"params": self.model_state.params}, np.array(observables)
             )
         except AttributeError:  # We need this for loaded models.
-            logits = self.apply_fn(
+            logits, _ = self.apply_fn(
                 {"params": self.model_state["params"]}, np.array(observables)
             )
         logger.debug(f"{logits=}")  # (n_colloids, n_actions)
@@ -217,14 +241,19 @@ class FlaxModel(Network, ABC):
         )
         self.epoch_count = epoch
 
-    def __call__(self, feature_vector: np.ndarray):
+    def __call__(self, params: FrozenDict, episode_features):
         """
-        See parent class for full doc string.
+        vmaped version of the model call function.
+        Operates on a batch of episodes.
 
         Parameters
         ----------
-        feature_vector : np.ndarray
-                Observable to be passed through the network on which a decision is made.
+        parmas : dict
+                Parameters of the model.
+        episode_features: np.ndarray (n_steps, n_agents, observable_dimension)
+                Features of the episode. This contains the features of all agents,
+                for all time steps in the episode.
+
 
         Returns
         -------
@@ -232,7 +261,4 @@ class FlaxModel(Network, ABC):
                 Output of the network.
         """
 
-        try:
-            return self.apply_fn({"params": self.model_state.params}, feature_vector)
-        except AttributeError:  # We need this for loaded models.
-            return self.apply_fn({"params": self.model_state["params"]}, feature_vector)
+        return self.batch_apply_fn({"params": params}, episode_features)

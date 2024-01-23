@@ -1,24 +1,30 @@
 import jax
 import jax.numpy as np
 import numpy.testing as tst
+import optax
 
 from swarmrl.losses.proximal_policy_loss import ProximalPolicyLoss
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.utils.utils import gather_n_dim_indices
 
 
-class DummyActor:
+class DummyNetwork:
     def apply_fn(self, params, features):
         out_shape = np.shape(features)
         log_probs = 2.0 * np.ones((out_shape[0], out_shape[1], 4))
-        return log_probs
-
-
-class DummyCritic:
-    def __call__(self, features):
-        out_shape = np.shape(features)
         values = np.array([np.ones((out_shape[0], out_shape[1]))])
-        return values
+        return log_probs, values
+
+    def __call__(self, params, features):
+        return self.apply_fn(params, features)
+
+
+def dummy_value_function(rewards, values):
+    advantages = np.ones_like(rewards)
+    sign = np.sign(rewards)
+
+    returns = 2 * np.array([np.ones_like(rewards)])
+    return advantages * sign, returns
 
 
 class TestProximalPolicyLoss:
@@ -39,7 +45,7 @@ class TestProximalPolicyLoss:
         n_particles = 10
         n_time_steps = 20
         observable_dimension = 4
-        value_function = False
+        value_function = dummy_value_function
         entropy_coefficient = 0.01
         sampling_strategy = GumbelDistribution()
 
@@ -48,11 +54,10 @@ class TestProximalPolicyLoss:
             value_function=value_function,
             sampling_strategy=sampling_strategy,
             entropy_coefficient=entropy_coefficient,
-            record_training=False,
         )
 
-        actor = DummyActor()
-        actor_params = 10
+        network = DummyNetwork()
+        network_params = 10
 
         features = np.ones((n_time_steps, n_particles, observable_dimension))
 
@@ -66,26 +71,26 @@ class TestProximalPolicyLoss:
         old_log_probs_2 = 3 * np.ones((n_time_steps, n_particles))
 
         # all advantages are 1
-        advantages = np.ones((n_time_steps, n_particles))
+        rewards = np.ones((n_time_steps, n_particles))
         # all advantages are -1
-        advantages2 = -np.ones((n_time_steps, n_particles))
+        rewards2 = np.ones((n_time_steps, n_particles))
 
         old_log_probs_list = [old_log_probs_0, old_log_probs_1, old_log_probs_2]
-        advantages_list = [advantages, advantages2]
+        rewards_list = [rewards, rewards2]
 
         results = []
 
         # use the PPO loss function to compute the loss.
         for probs in old_log_probs_list:
-            for advantages in advantages_list:
+            for rewards in rewards_list:
                 results.append(
-                    loss.compute_actor_loss(
-                        actor_params=actor_params,
-                        actor=actor,
-                        features=features,
-                        actions=actions,
+                    loss._calculate_loss(
+                        network_params=network_params,
+                        network=network,
+                        feature_data=features,
+                        action_indices=actions,
                         old_log_probs=probs,
-                        advantages=advantages,
+                        rewards=rewards,
                     )
                 )
 
@@ -93,10 +98,9 @@ class TestProximalPolicyLoss:
         def ratio(new_log_props, old_log_probs):
             return np.exp(new_log_props - old_log_probs)
 
+        new_logits, new_predicted_values = network.apply_fn(network_params, features)
         # the dummy_actor will return just 2
-        new_log_probs_all = np.log(
-            jax.nn.softmax(actor.apply_fn(actor_params, features))
-        )
+        new_log_probs_all = np.log(jax.nn.softmax(new_logits, axis=-1) + 1e-8)
         new_log_probs = gather_n_dim_indices(new_log_probs_all, actions)
         # calculate the entropy of the new_log_probs
         entropy = np.sum(sampling_strategy.compute_entropy(np.exp(new_log_probs_all)))
@@ -104,15 +108,18 @@ class TestProximalPolicyLoss:
         # These results will be compared to the results of the PPO loss function
         true_results = []
         for probs in old_log_probs_list:
-            for advantages in advantages_list:
+            for rewards in rewards_list:
                 ratios = ratio(new_log_probs, probs)
-
+                advantages, returns = value_function(rewards, None)
                 clipped_loss = -1 * np.minimum(
                     ratios * advantages,
                     np.clip(ratios, 1 - epsilon, 1 + epsilon) * advantages,
                 )
                 loss = np.sum(clipped_loss, 0)
-                loss = np.sum(loss) + entropy_coefficient * entropy
+
+                critic_loss = optax.huber_loss(new_predicted_values, returns)
+                critic_loss = np.sum(critic_loss)
+                loss = np.sum(loss) - entropy_coefficient * entropy + 0.5 * critic_loss
                 true_results.append(loss)
 
         # compare the results of the PPO loss function with the results computed by hand

@@ -1,6 +1,7 @@
 """
 Uni test for the Flax network
 """
+
 import os
 from pathlib import Path
 
@@ -10,8 +11,8 @@ import numpy as np
 import optax
 
 import swarmrl as srl
+from swarmrl.agents.actor_critic import ActorCriticAgent
 from swarmrl.networks import FlaxModel
-from swarmrl.rl_protocols.actor_critic import ActorCritic
 
 
 class TestFlaxNetwork:
@@ -26,41 +27,31 @@ class TestFlaxNetwork:
         """
         # Exploration policy
         cls.exploration_policy = srl.exploration_policies.RandomExploration(
-            probability=0.1
+            probability=0.0
         )
 
         # Sampling strategy
         cls.sampling_strategy = srl.sampling_strategies.GumbelDistribution()
 
-        class ActorNet(nn.Module):
+        class Network(nn.Module):
             """A simple dense model."""
 
             @nn.compact
             def __call__(self, x):
                 x = nn.Dense(features=128)(x)
                 x = nn.relu(x)
+                y = nn.Dense(features=1)(x)
                 x = nn.Dense(features=4)(x)
-                return x
+                return x, y
 
-        class CriticNet(nn.Module):
-            """A simple dense model."""
-
-            @nn.compact
-            def __call__(self, x):
-                x = nn.Dense(features=128)(x)
-                x = nn.relu(x)
-                x = nn.Dense(features=1)(x)
-                return x
-
-        cls.actor_network = ActorNet()
-        cls.critic_network = CriticNet()
+        cls.network = Network()
 
     def test_compute_action(self):
         """
         Test that the compute action method works.
         """
         model = FlaxModel(
-            flax_model=self.actor_network,
+            flax_model=self.network,
             optimizer=optax.adam(learning_rate=0.001),
             input_shape=(2,),
             sampling_strategy=self.sampling_strategy,
@@ -68,13 +59,35 @@ class TestFlaxNetwork:
         )
         input_data = np.array([[1.0, 2.0], [4.0, 5.0]])
 
-        data_from_call = model(input_data)
+        data_from_call, value_from_call = model.apply_fn(
+            {"params": model.model_state.params}, input_data
+        )
         action_indices, action_logits = model.compute_action(input_data)
 
         # Check shapes
         assert data_from_call.shape == (2, 4)
+        assert value_from_call.shape == (2, 1)
         assert action_indices.shape == (2,)
         assert action_logits.shape == (2,)
+
+    def test_call_method(self):
+        """
+        Test that the call method works.
+        """
+        model = FlaxModel(
+            flax_model=self.network,
+            optimizer=optax.adam(learning_rate=0.001),
+            input_shape=(2,),
+            sampling_strategy=self.sampling_strategy,
+            exploration_policy=self.exploration_policy,
+        )
+        input_data = np.random.uniform(size=(10, 100, 2))
+
+        data_from_call, value_from_call = model(model.model_state.params, input_data)
+
+        # Check shapes
+        assert data_from_call.shape == (10, 100, 4)
+        assert value_from_call.shape == (10, 100, 1)
 
     def test_saving_and_reloading(self):
         """
@@ -82,14 +95,16 @@ class TestFlaxNetwork:
         """
         # Create a model and export it.
         pre_save_model = FlaxModel(
-            flax_model=self.actor_network,
+            flax_model=self.network,
             optimizer=optax.adam(learning_rate=0.001),
             input_shape=(2,),
             sampling_strategy=self.sampling_strategy,
             exploration_policy=self.exploration_policy,
         )
-        input_vector = np.array([1.0, 2.0])
-        pre_save_output = pre_save_model(input_vector)
+        input_vector = np.array([[1.0, 2.0]])
+        pre_save_logits, pre_save_value = pre_save_model.apply_fn(
+            {"params": pre_save_model.model_state.params}, input_vector
+        )
         pre_save_model.export_model(filename="model", directory="Models")
 
         # Check if the model exists
@@ -97,26 +112,39 @@ class TestFlaxNetwork:
 
         # Create a new model
         post_save_model = FlaxModel(
-            flax_model=self.actor_network,
+            flax_model=self.network,
             optimizer=optax.adam(learning_rate=0.001),
             input_shape=(2,),
             sampling_strategy=self.sampling_strategy,
             exploration_policy=self.exploration_policy,
         )
-        post_save_output = post_save_model(input_vector)
-
-        # Check that the output is different
+        post_save_logits, post_save_value = post_save_model.apply_fn(
+            {"params": post_save_model.model_state.params}, input_vector
+        )
+        # Check that the logits are different
         np.testing.assert_raises(
             AssertionError,
             np.testing.assert_array_equal,
-            pre_save_output,
-            post_save_output,
+            pre_save_logits,
+            post_save_logits,
+        )
+
+        # Check that the values are different
+        np.testing.assert_raises(
+            AssertionError,
+            np.testing.assert_array_equal,
+            pre_save_value,
+            post_save_value,
         )
 
         # Load the model state
         post_save_model.restore_model_state(directory="Models", filename="model")
-        post_restore_output = post_save_model(input_vector)
-        np.testing.assert_array_equal(pre_save_output, post_restore_output)
+        post_restore_logits, post_restore_value = post_save_model.apply_fn(
+            {"params": post_save_model.model_state.params}, input_vector
+        )
+
+        np.testing.assert_array_equal(pre_save_logits, post_restore_logits)
+        np.testing.assert_array_equal(pre_save_value, post_restore_value)
 
         # Check that the epoch counts are equal
         pre_count = pre_save_model.epoch_count
@@ -143,25 +171,17 @@ class TestFlaxNetwork:
         rl_protocols = {}
 
         for i in range(4):
-            actor_model = FlaxModel(
-                flax_model=self.actor_network,
-                optimizer=optax.adam(learning_rate=0.001),
-                input_shape=(2,),
-                sampling_strategy=self.sampling_strategy,
-                exploration_policy=self.exploration_policy,
-            )
-            critic_model = FlaxModel(
-                flax_model=self.actor_network,
+            network = FlaxModel(
+                flax_model=self.network,
                 optimizer=optax.adam(learning_rate=0.001),
                 input_shape=(2,),
                 sampling_strategy=self.sampling_strategy,
                 exploration_policy=self.exploration_policy,
             )
 
-            protocol = ActorCritic(
+            protocol = ActorCriticAgent(
                 particle_type=i,
-                actor=actor_model,
-                critic=critic_model,
+                network=network,
                 task=None,
                 observable=None,
                 actions=None,
@@ -170,11 +190,8 @@ class TestFlaxNetwork:
             rl_protocols[f"{i}"] = protocol
 
         for item, val in rl_protocols.items():
-            val.actor.export_model(
+            val.network.export_model(
                 filename=f"ActorModel_{item}", directory="MultiModels"
-            )
-            val.critic.export_model(
-                filename=f"CriticModel_{item}", directory="MultiModels"
             )
 
         count = 0
@@ -183,4 +200,4 @@ class TestFlaxNetwork:
             # check if current path is a file
             if os.path.isfile(os.path.join("MultiModels", path)):
                 count += 1
-        np.testing.assert_equal(count, 8)
+        np.testing.assert_equal(count, 4)

@@ -7,8 +7,9 @@ import numpy as np
 import pint
 
 import swarmrl.utils
+from swarmrl.agents import dummy_models
 from swarmrl.engine import espresso
-from swarmrl.models import dummy_models
+from swarmrl.force_functions import ForceFunction
 
 
 class EspressoTest(ut.TestCase):
@@ -27,7 +28,7 @@ class EspressoTest(ut.TestCase):
             fluid_dyn_viscosity=ureg.Quantity(8.9e-3, "pascal * second"),
             WCA_epsilon=ureg.Quantity(1e-20, "joule"),
             temperature=ureg.Quantity(0, "kelvin"),
-            box_length=ureg.Quantity(1000, "micrometer"),
+            box_length=ureg.Quantity(3 * [1000], "micrometer"),
             time_step=ureg.Quantity(0.05, "second"),
             time_slice=ureg.Quantity(0.1, "second"),
             write_interval=ureg.Quantity(0.1, "second"),
@@ -69,7 +70,8 @@ class EspressoTest(ut.TestCase):
             # rotate all particles along one axis
             direc = np.array([1 / np.sqrt(3), 1 / np.sqrt(3), 1 / np.sqrt(3)])
             rotator = dummy_models.ToConstDirection(direc)
-            runner.integrate(1, rotator)
+            force_fn = ForceFunction({"1": rotator, "2": rotator})
+            runner.integrate(1, force_fn)
             runner.system.time = 0.0
             directors = runner.get_particle_data()["Directors"]
             for dir_ in directors:
@@ -78,7 +80,8 @@ class EspressoTest(ut.TestCase):
             n_slices = 15
             force = 1.234
             force_model = dummy_models.ConstForce(force)
-            runner.integrate(n_slices, force_model)
+            force_fn = ForceFunction({"1": force_model, "2": force_model})
+            runner.integrate(n_slices, force_fn)
 
             # save_current_state_to_file
             runner._update_traj_holder()  # take the last data

@@ -1,6 +1,7 @@
 """
 Class for submitting many jobs in parallel to a cluster.
 """
+
 import logging
 import os
 import webbrowser
@@ -10,7 +11,7 @@ from typing import List
 from dask.distributed import Client, LocalCluster, wait
 from dask_jobqueue import JobQueueCluster
 
-from swarmrl.gyms.gym import Gym
+from swarmrl.trainers.continuous_trainer import ContinuousTrainer
 
 
 class EnsembleTraining:
@@ -20,7 +21,7 @@ class EnsembleTraining:
 
     def __init__(
         self,
-        gym: Gym,
+        trainer: ContinuousTrainer,
         simulation_runner_generator: callable,
         number_of_ensembles: int,
         episode_length: int,
@@ -35,8 +36,8 @@ class EnsembleTraining:
 
         Parameters
         ----------
-        gym : Gym
-            The gym to train.
+        trainer : Trainer
+            The trainer used to train.
         number_of_ensmbles : int
             The number of ensembles to train.
         episode_length : int
@@ -57,7 +58,7 @@ class EnsembleTraining:
 
         """
         self.simulation_runner_generator = simulation_runner_generator
-        self.output_dir = output_dir
+        self.output_dir = Path(output_dir)
         self.load_path = load_path
         self.episode_length = episode_length
         self.n_episodes = n_episodes
@@ -66,7 +67,7 @@ class EnsembleTraining:
         if n_parallel_jobs is None:
             n_parallel_jobs = number_of_ensembles
 
-        self.gym = gym
+        self.trainer = trainer
         self.number_of_ensembles = number_of_ensembles
         self.n_parallel_jobs = n_parallel_jobs
 
@@ -74,7 +75,7 @@ class EnsembleTraining:
         if cluster is None:
             cluster = LocalCluster(
                 processes=True,
-                threads_per_worker=1,
+                threads_per_worker=2,
                 silence_logs=logging.ERROR,
                 resources={"espresso": 1},
             )
@@ -91,7 +92,7 @@ class EnsembleTraining:
     @staticmethod
     def _train_model(
         save_path: str,
-        gym: Gym,
+        trainer: ContinuousTrainer,
         system_runner: callable,
         load_directory: str = None,
         episode_length: int = 100,
@@ -104,8 +105,8 @@ class EnsembleTraining:
         ----------
         ensemble_id : int
             The ensemble id.
-        gym : Gym
-            The gym to train.
+        trainer : Trainer
+            The trainer to use in training.
         load_directory : str
             The directory to load the models from.
         episode_length : int
@@ -121,18 +122,18 @@ class EnsembleTraining:
         # Get the system runner.
         system_runner = system_runner()
         if load_directory is not None:
-            gym.restore_models(directory=load_directory)
+            trainer.restore_models(directory=load_directory)
         else:
-            gym.initialize_models()
+            trainer.initialize_models()
 
         # Train the gym.
-        rewards = gym.perform_rl_training(
+        rewards = trainer.perform_rl_training(
             system_runner,
             n_episodes=n_episodes,
             episode_length=episode_length,
             load_bar=False,
         )
-        gym.export_models()
+        trainer.export_models()
 
         return rewards, model_id
 
@@ -156,7 +157,7 @@ class EnsembleTraining:
             block = self.client.map(
                 self._train_model,
                 names[i * self.n_parallel_jobs : (i + 1) * self.n_parallel_jobs],
-                [self.gym] * self.n_parallel_jobs,
+                [self.trainer] * self.n_parallel_jobs,
                 [self.simulation_runner_generator] * self.n_parallel_jobs,
                 [self.load_path] * self.n_parallel_jobs,
                 [self.episode_length] * self.n_parallel_jobs,

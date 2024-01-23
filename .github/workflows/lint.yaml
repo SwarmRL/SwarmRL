@@ -4,36 +4,13 @@ on:
   push:
 
 jobs:
-  black:
+  precommit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Black Check
-        uses: psf/black@stable
-
-  isort:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
-        with:
-          python-version: '3.x'
-      - name: Install isort
-        run: |
-          pip install isort
-      - name: run isort
-        run: |
-          isort --check-only --quiet .
-  flake8:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
-        with:
-          python-version: '3.x'
-      - name: Install flake8
-        run: |
-          pip install flake8
-      - name: run flake8
-        run: |
-          flake8 . --count --show-source --statistics
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.x
+    - uses: pre-commit/action@v3.0.0
+    - uses: pre-commit-ci/lite-action@v1.0.1
+      if: always()

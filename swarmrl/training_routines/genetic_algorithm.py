@@ -1,6 +1,7 @@
 """
 Class for the genertic algorithm training routine.
 """
+
 import logging
 import os
 import webbrowser
@@ -15,7 +16,7 @@ from dask_jobqueue import JobQueueCluster
 from rich import print
 from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
-from swarmrl.gyms.gym import Gym
+from swarmrl.trainers.continuous_trainer import ContinuousTrainer
 
 
 class GeneticTraining:
@@ -25,7 +26,7 @@ class GeneticTraining:
 
     def __init__(
         self,
-        gym: Gym,
+        trainer: ContinuousTrainer,
         simulation_runner_generator: callable,
         n_episodes: int = 100,
         episode_length: int = 20,
@@ -41,14 +42,8 @@ class GeneticTraining:
         """
         Constructor for the genetic training routine.
 
-        Parameters  data,
-                            # first_atom_range=first_atom_range,
-                            # second_atom_range=second_atom_range,
-                            correlation_time=correlation_time,
-                            data_range=data_range,
-                            )able
-            A function that will returimport numpy as onp
-            esults to.
+        Parameters
+        ----------
         n_episodes : int
             Number of episodes in each lifespan
         number_of_generations : int (default: 10)
@@ -77,7 +72,7 @@ class GeneticTraining:
         able to handle multiple threads and us not being able to force Dask to refresh
         a worker after each training is finished.
         """
-        self.gym = gym
+        self.trainer = trainer
         self.simulation_runner_generator = simulation_runner_generator
         self.n_episodes = n_episodes
         self.episode_length = episode_length
@@ -94,7 +89,7 @@ class GeneticTraining:
         if cluster is None:
             cluster = LocalCluster(
                 processes=True,
-                threads_per_worker=1,
+                threads_per_worker=2,
                 silence_logs=logging.ERROR,
                 resources={"espresso": 1},
             )
@@ -127,7 +122,7 @@ class GeneticTraining:
     def _train_network(
         name: Path,
         load_directory: str = None,
-        gym: Gym = None,
+        trainer: ContinuousTrainer = None,
         runner_generator: callable = None,
         select_fn: callable = None,
         episode_length: int = None,
@@ -142,8 +137,8 @@ class GeneticTraining:
             Name of the network and where to save the data.
         load_directory : str (default: None)
             Directory to load the model from. If None, a new model will be created.
-        gym : Gym
-                Gym to use for training.
+        trainer : ContinuousTrainer
+                Trainer to use for training.
         runner_generator : callable
                 Function that returns a system_runner.
         select_fn : callable
@@ -168,17 +163,17 @@ class GeneticTraining:
         system_runner = runner_generator()  # get the runner
 
         if load_directory is None:
-            gym.initialize_models()
+            trainer.initialize_models()
         else:
-            gym.restore_models(load_directory)
+            trainer.restore_models(load_directory)
 
-        rewards = gym.perform_rl_training(
+        rewards = trainer.perform_rl_training(
             system_runner,
             episode_length=episode_length,
             n_episodes=n_episodes,
             load_bar=False,
         )
-        gym.export_models()
+        trainer.export_models()
 
         return (select_fn(rewards), model_id)
 
@@ -208,7 +203,7 @@ class GeneticTraining:
                 self._train_network,
                 child_names[i * self.parallel_jobs : (i + 1) * self.parallel_jobs],
                 load_paths[i * self.parallel_jobs : (i + 1) * self.parallel_jobs],
-                [deepcopy(self.gym)] * self.parallel_jobs,
+                [deepcopy(self.trainer)] * self.parallel_jobs,
                 [self.simulation_runner_generator] * self.parallel_jobs,
                 [self._select_fn] * self.parallel_jobs,
                 [self.episode_length] * self.parallel_jobs,

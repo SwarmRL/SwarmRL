@@ -9,8 +9,9 @@ import numpy as np
 import pint
 import tqdm
 
+import swarmrl.agents.bechinger_models as bechinger_models
 import swarmrl.engine.espresso as espresso
-import swarmrl.models.bechinger_models as bechinger_models
+from swarmrl.force_functions import ForceFunction
 from swarmrl.utils import utils
 
 
@@ -40,7 +41,7 @@ class TestFullSim(ut.TestCase):
             fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
             WCA_epsilon=ureg.Quantity(293, "kelvin") * ureg.boltzmann_constant,
             temperature=ureg.Quantity(293, "kelvin"),
-            box_length=ureg.Quantity(1000, "micrometer"),
+            box_length=ureg.Quantity(3 * [1000], "micrometer"),
             time_slice=ureg.Quantity(0.2, "second"),  # model timestep
             time_step=ureg.Quantity(0.2, "second") / 5,  # integrator timestep
             write_interval=ureg.Quantity(2, "second"),
@@ -93,7 +94,7 @@ class TestFullSim(ut.TestCase):
             "sim_length"
         )
 
-        force_model = bechinger_models.Baeuerle2020(
+        agent = bechinger_models.Baeuerle2020(
             act_force=act_force,
             act_torque=act_torque,
             detection_radius_position=detection_radius_pos,
@@ -109,7 +110,7 @@ class TestFullSim(ut.TestCase):
         md_params_without_ureg = copy.deepcopy(md_params)
         md_params_without_ureg.ureg = None
         params_to_write = {
-            "type": type(force_model),
+            "type": type(agent),
             "md_params": md_params_without_ureg,
             "model_params": model_params,
             "run_params": run_params,
@@ -121,6 +122,7 @@ class TestFullSim(ut.TestCase):
             params_to_write,
             write_espresso_version=True,
         )
+        force_function = ForceFunction({"0": agent})
 
         logger.info("Starting simulation")
         if self.visualize:
@@ -134,7 +136,7 @@ class TestFullSim(ut.TestCase):
 
             def run_and_update_vis(n_slices_: int, visualizer_):
                 for _ in tqdm.tqdm(range(n_slices_)):
-                    system_runner.integrate(1, force_model)
+                    system_runner.integrate(1, force_function)
                     visualizer_.update()
 
             visualizer = espressomd.visualization.openGLLive(system_runner.system)
@@ -149,7 +151,7 @@ class TestFullSim(ut.TestCase):
 
         else:
             for _ in tqdm.tqdm(range(100)):
-                system_runner.integrate(int(np.ceil(n_slices / 100)), force_model)
+                system_runner.integrate(int(np.ceil(n_slices / 100)), force_function)
 
         system_runner.finalize()
         logger.info("Simulation completed successfully")
@@ -183,7 +185,7 @@ class TestFullSim(ut.TestCase):
             self.assertEqual(n_timesteps, np.shape(directors)[0])
             self.assertEqual(n_colloids, np.shape(positions)[1])
             self.assertEqual(n_colloids, np.shape(directors)[1])
-            self.assertLessEqual(positions[0, 0, 0], box_length)
+            np.testing.assert_array_less(positions[0, 0, 0], box_length)
 
 
 if __name__ == "__main__":

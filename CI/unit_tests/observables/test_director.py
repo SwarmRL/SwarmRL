@@ -5,7 +5,7 @@ Unit test for the position-angle observable.
 import numpy as np
 from numpy.testing import assert_array_equal
 
-from swarmrl.models.interaction_model import Colloid
+from swarmrl.components import Colloid
 from swarmrl.observables.director import Director
 
 

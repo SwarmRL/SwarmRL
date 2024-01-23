@@ -1,6 +1,7 @@
 """
 Module for the loss parent class.
 """
+
 import jax.numpy as np
 
 from swarmrl.networks.network import Network
@@ -13,8 +14,7 @@ class Loss:
 
     def compute_loss(
         self,
-        actor: Network,
-        critic: Network,
+        network: Network,
         episode_data: np.ndarray,
     ):
         """
@@ -22,10 +22,8 @@ class Loss:
 
         Parameters
         ----------
-        actor : Network
-                Actor network to train
-        critic : Network
-                Critic network to train.
+        network : Network
+                Actor-critic network.
         episode_data : dict
                 A dictionary of episode data.
         """

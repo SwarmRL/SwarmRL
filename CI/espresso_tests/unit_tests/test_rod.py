@@ -4,8 +4,9 @@ import unittest as ut
 import numpy as np
 import pint
 
+from swarmrl.agents import dummy_models
 from swarmrl.engine import espresso
-from swarmrl.models import dummy_models
+from swarmrl.force_functions import ForceFunction
 
 
 class RodTest(ut.TestCase):
@@ -16,7 +17,7 @@ class RodTest(ut.TestCase):
             fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
             WCA_epsilon=0.1 * ureg.Quantity(300, "kelvin") * ureg.boltzmann_constant,
             temperature=ureg.Quantity(300, "kelvin"),
-            box_length=ureg.Quantity(50, "micrometer"),
+            box_length=ureg.Quantity(3 * [50], "micrometer"),
             time_step=ureg.Quantity(0.0001, "second"),
             time_slice=ureg.Quantity(0.1, "second"),
             write_interval=ureg.Quantity(0.1, "second"),
@@ -54,10 +55,11 @@ class RodTest(ut.TestCase):
             )
 
             no_force = dummy_models.ConstForce(force=0)
-            runner.integrate(1, no_force)
+            force_fn = ForceFunction(agents={"0": no_force})
+            runner.integrate(1, force_fn)
             center_before = np.copy(center_part.pos)
             director_before = np.copy(center_part.director)
-            runner.integrate(100, no_force)
+            runner.integrate(100, force_fn)
             center_after = np.copy(center_part.pos)
             director_after = np.copy(center_part.director)
 

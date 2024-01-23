@@ -1,6 +1,7 @@
 """
 Parent class for sampling strategies.
 """
+
 import jax.numpy as np
 
 

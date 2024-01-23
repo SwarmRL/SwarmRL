@@ -1,11 +1,12 @@
 """
 Test the Gumbel distribution.
 """
+
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
 
-from swarmrl.models.interaction_model import Colloid
+from swarmrl.components import Colloid
 from swarmrl.tasks.searching.gradient_sensing import GradientSensing
 
 

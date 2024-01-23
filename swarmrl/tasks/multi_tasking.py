@@ -1,11 +1,12 @@
 """
 Class for multi-tasking.
 """
+
 from typing import List
 
 import jax.numpy as np
 
-from swarmrl.models.interaction_model import Colloid
+from swarmrl.components import Colloid
 from swarmrl.tasks.task import Task
 
 

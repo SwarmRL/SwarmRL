@@ -7,13 +7,14 @@ Notes
 -----
 Requires a warm up step.
 """
+
 from abc import ABC
 from typing import List
 
 import jax.numpy as np
 import numpy as onp
 
-from swarmrl.models.interaction_model import Colloid
+from swarmrl.components.colloid import Colloid
 from swarmrl.tasks.task import Task
 
 

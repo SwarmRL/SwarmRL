@@ -1,6 +1,7 @@
 """
 Computes vision cone(s).
 """
+
 from functools import partial
 from typing import List
 
@@ -8,7 +9,7 @@ import jax.numpy as jnp
 import numpy as np
 from jax import jit, vmap
 
-from swarmrl.models.interaction_model import Colloid
+from swarmrl.components.colloid import Colloid
 from swarmrl.observables.observable import Observable
 from swarmrl.utils.utils import calc_signed_angle_between_directors
 

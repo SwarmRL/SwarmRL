@@ -1,13 +1,15 @@
 """
 Parent class for the engine.
 """
+
 import struct
 import typing
 
 import numpy as np
 
 import swarmrl.engine.engine
-from swarmrl.models.interaction_model import Colloid
+from swarmrl.components import Colloid
+from swarmrl.force_functions.force_fn import ForceFunction
 
 
 class ConnectionClosedError(Exception):
@@ -70,7 +72,7 @@ class RealExperiment(swarmrl.engine.engine.Engine):
 
         data_size_int = struct.unpack("I", data_size)[0]
         print(f"Received data_size = {data_size_int}")
-        print("Waiting for receiving actual data")
+        print("Waiting to receive actual data")
         data = self.connection.recv(8 * data_size_int)
         while data and len(data) < 8 * data_size_int:
             data.extend(self.connection.recv(8 * data_size_int))
@@ -92,7 +94,7 @@ class RealExperiment(swarmrl.engine.engine.Engine):
     def get_actions(
         self,
         colloids: typing.List[Colloid],
-        force_model: swarmrl.models.interaction_model.InteractionModel,
+        force_model: ForceFunction,
     ) -> np.array:
         """
         Collect the actions on the particles.
@@ -117,6 +119,13 @@ class RealExperiment(swarmrl.engine.engine.Engine):
         actions = force_model.calc_action(colloids)
         for idx, coll in enumerate(colloids):
             action = actions[idx]
+            action.torque = (
+                action.torque
+                if action.torque is not None
+                else np.zeros(
+                    3,
+                )
+            )
 
             if not action.force == 0.0:
                 action_id = experiment_actions["be_active"]
@@ -156,7 +165,7 @@ class RealExperiment(swarmrl.engine.engine.Engine):
     def integrate(
         self,
         n_slices: int,
-        force_model: swarmrl.models.interaction_model.InteractionModel,
+        force_model: ForceFunction,
     ) -> None:
         """
         Perform the real-experiment equivalent of an integration step.
