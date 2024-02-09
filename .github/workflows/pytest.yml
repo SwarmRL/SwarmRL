@@ -29,7 +29,7 @@ jobs:
           pip install -r dev-requirements.txt
       - name: Install package
         run: |
-          pip install .
+          pip install .[rnd]
       - name: Pytest
         run: |
           pytest --ignore CI/espresso_tests
