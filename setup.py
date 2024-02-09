@@ -22,7 +22,12 @@ setup(
     packages=find_packages(),
     python_requires=">=3.9",
     install_requires=required,
-    extras_require={"rnd": 
-                    ["znnl @ git+https://github.com/zincware/ZnNL.git@Konsti_fix_requirements#egg=znnl-0.0.1",]
-                    },
+    extras_require={
+        "rnd": [
+            (
+                "znnl @"
+                " git+https://github.com/zincware/ZnNL.git@Konsti_fix_requirements#egg=znnl-0.0.1"
+            ),
+        ]
+    },
 )
