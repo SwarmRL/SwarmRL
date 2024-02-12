@@ -30,7 +30,7 @@ jobs:
           pip install -r dev-requirements.txt
       - name: Install package
         run: |
-          pip install .
+          pip install .[rnd]
       - name: Install espresso
         run: |
           pip install cython==0.29.36
