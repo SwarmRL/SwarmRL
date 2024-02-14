@@ -112,13 +112,3 @@ def get_colloids_in_vision(coll, other_coll, vision_radius):
         if in_range:
             colls_in_vision.append(other_p)
     return colls_in_vision
-
-
-def traj_from_file(pos, pos1, velocity):
-    """
-    Function to get classical particle on a trajectory from given datafile
-    """
-    mass = 1
-    force = (pos1 - pos - velocity * 0.01) * 2 * mass / 0.01**2
-    force = 0.0004 * 1e5 * 0.25 * force / 50
-    return force[0], force[1], force[2]

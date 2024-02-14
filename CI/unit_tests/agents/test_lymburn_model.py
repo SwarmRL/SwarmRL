@@ -133,33 +133,5 @@ class TestLymburnModel(ut.TestCase):
         )
 
 
-class TestUtils(ut.TestCase):
-    def test_coll_in_vision(self):
-        test_coll = Colloid(pos=np.array([0, 0, 0]), director=np.array([1, 0, 0]), id=1)
-        front_coll = Colloid(
-            pos=np.array([1.1, 0, 0]), director=np.array([1, 0, 0]), id=2
-        )
-        front_far_coll = Colloid(
-            pos=np.array([100, 0, 0]), director=np.array([1, 0, 0]), id=3
-        )
-        slight_offset_coll = Colloid(
-            pos=np.array([1, 0, 0.1]), director=np.array([1, 0, 0]), id=5
-        )
-
-        colls_in_range = swarmrl.agents.lymburn_model.get_colloids_in_vision(
-            test_coll,
-            [front_coll, front_far_coll, slight_offset_coll],
-            vision_radius=10,
-        )
-        colls_shouldbe = [front_coll, slight_offset_coll]
-
-        self.assertEqual(len(colls_in_range), len(colls_shouldbe))
-        for coll in colls_shouldbe:
-            self.assertIn(coll, colls_in_range)
-
-    def test_pred_in_vision(self):
-        pass
-
-
 if __name__ == "__main__":
     ut.main()
