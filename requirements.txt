@@ -6,9 +6,9 @@ tqdm~=4.62.3
 pytest~=6.2.5
 jax
 jaxlib
-flax>=0.6.1
+flax
 setuptools~=58.0.4
-optax~=0.1.2
+optax
 rich
 dataclasses~=0.6
 dask
