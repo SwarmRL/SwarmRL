@@ -612,11 +612,6 @@ class EspressoMD(Engine):
         if n_particles % 2 != 1:
             raise ValueError(f"n_particles must be uneven. You gave {n_particles}")
 
-        espressomd.assert_features(["VIRTUAL_SITES_RELATIVE"])
-        import espressomd.virtual_sites as evs
-
-        self.system.virtual_sites = evs.VirtualSitesRelative(have_quaternion=True)
-
         center_pos = rod_center.m_as("sim_length")
         fric_trans = friction_trans.m_as("sim_force/sim_velocity")  # [F / v]
         fric_rot = friction_rot.m_as(
@@ -638,6 +633,7 @@ class EspressoMD(Engine):
         self.colloids.append(center_part)
 
         # place virtual
+        espressomd.assert_features(["VIRTUAL_SITES_RELATIVE"])
         point_span = rod_length.m_as("sim_length") - 2 * partcl_radius
         point_dist = point_span / (n_particles - 1)
         if point_dist > 2 * partcl_radius:
@@ -1179,7 +1175,6 @@ class EspressoMD(Engine):
                 gamma=1e-20,
                 gamma_rotation=1e-20,
                 seed=self.seed,
-                act_on_virtual=False,
             )
             self.system.integrator.set_brownian_dynamics()
         elif self.params.thermostat_type == "langevin":
@@ -1189,7 +1184,6 @@ class EspressoMD(Engine):
                     gamma=1e-20,
                     gamma_rotation=1e-20,
                     seed=self.seed,
-                    act_on_virtual=False,
                 )
             else:
                 self.system.lb = self.lbf
