@@ -3,10 +3,6 @@ numpy~=1.22.2
 pint~=0.18
 h5py
 tqdm~=4.62.3
-<<<<<<< HEAD
-matplotlib
-=======
->>>>>>> origin/master
 pytest~=6.2.5
 jax
 jaxlib
