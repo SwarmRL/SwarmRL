@@ -9,11 +9,11 @@ Some key features of SwarmRL include:
 
 * Integration with EspressoMD simulation engine
 * Support for experimental setups
-* Actor critic reinforcement learning strategies
+* Actor-critic reinforcement learning strategies
 
 ## Installation
 
-Currently SwamrRL is only available from source so it must be installed within the local
+Currently, SwamrRL is only available from source so it must be installed within the local
 directory.
 
 ```sh
@@ -22,7 +22,8 @@ directory.
    pip install .
 ```
 
-## Getting Started
+## Looking for a Starting Point?
 
-We are working on up-to-date documentation and examples and they will be made available
-in the coming weeks.
+Our documentation is a work in progress but can be found [here](swarmrl.github.io/SwarmRL.ai/).
+If you have questions about the code or find any problems, please create an issue so we can work on it as soon as possible.
+If you're feeling adventurous, you can check out our custom-built Swarm GPT, [here](https://chat.openai.com/g/g-3lniVEMpK-swarm-gpt) which has been conditioned on the SwarmRL repository and will be updated as more resources become available. Be careful though! It isn't perfect but not a bad place to start for general principles of reinforcement learning and pieces of the software.
