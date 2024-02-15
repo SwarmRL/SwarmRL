@@ -1158,7 +1158,9 @@ class EspressoMD(Engine):
         self.system.integrator.set_steepest_descent(
             f_max=0.0, gamma=0.1, max_displacement=0.1
         )
+        time = self.system.time
         self.system.integrator.run(1000)
+        self.system.time = time
 
         # set the thermostat
         kT = (self.params.temperature * self.ureg.boltzmann_constant).m_as("sim_energy")
