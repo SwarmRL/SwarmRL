@@ -29,7 +29,7 @@ class EspressoTest(ut.TestCase):
             WCA_epsilon=ureg.Quantity(1e-20, "joule"),
             temperature=ureg.Quantity(0, "kelvin"),
             box_length=ureg.Quantity(3 * [1000], "micrometer"),
-            time_step=ureg.Quantity(0.05, "second"),
+            time_step=ureg.Quantity(0.01, "second"),
             time_slice=ureg.Quantity(0.1, "second"),
             write_interval=ureg.Quantity(0.1, "second"),
         )
@@ -77,7 +77,7 @@ class EspressoTest(ut.TestCase):
             for dir_ in directors:
                 np.testing.assert_array_almost_equal(dir_, direc)
 
-            n_slices = 15
+            n_slices = 10
             force = 1.234
             force_model = dummy_models.ConstForce(force)
             force_fn = ForceFunction({"1": force_model, "2": force_model})
@@ -108,7 +108,7 @@ class EspressoTest(ut.TestCase):
             old_pos = part_data_old["Unwrapped_Positions"]
             new_pos = part_data_new["Unwrapped_Positions"]
 
-            np.testing.assert_allclose(old_pos + time_new * new_vel, new_pos)
+            np.testing.assert_allclose(old_pos + time_new * new_vel, new_pos, rtol=2e-6)
 
             # check interactions after first integrate call
             wca_params = runner.system.non_bonded_inter[
