@@ -61,7 +61,6 @@ class MDParams:
         periodic: bool = True,
         thermostat_type: str = "brownian",
     ):
-
         if box_length is None:
             box_length = ureg.Quantity(3 * [1000], "micrometer")
         if fluid_dyn_viscosity is None:

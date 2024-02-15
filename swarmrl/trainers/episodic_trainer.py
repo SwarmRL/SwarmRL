@@ -78,7 +78,6 @@ class EpisodicTrainer(Trainer):
                 visible=load_bar,
             )
             for episode in range(n_episodes):
-
                 # Check if the system should be reset.
                 if episode % reset_frequency == 0 or killed:
                     self.engine = None

@@ -9,7 +9,7 @@ jax
 jaxlib
 flax>=0.8.1
 setuptools~=58.0.4
-optax~=0.1.2
+optax
 rich
 dataclasses~=0.6
 dask==2024.2.0
