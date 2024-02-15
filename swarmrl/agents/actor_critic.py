@@ -3,7 +3,6 @@ Module for the Actor-Critic RL protocol.
 """
 
 import typing
-from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -15,20 +14,7 @@ from swarmrl.losses import Loss, ProximalPolicyLoss
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-
-
-@dataclass
-class TrajectoryInformation:
-    """
-    Helper dataclass for training RL models.
-    """
-
-    particle_type: int
-    features: list = field(default_factory=list)
-    actions: list = field(default_factory=list)
-    log_probs: list = field(default_factory=list)
-    rewards: list = field(default_factory=list)
-    killed: bool = False
+from swarmrl.utils.colloid_utils import TrajectoryInformation
 
 
 class ActorCriticAgent(Agent):

@@ -3,23 +3,10 @@ Module for the intrinsic reward parent class.
 """
 
 from abc import ABC
-from dataclasses import dataclass, field
 
 import jax.numpy as np
 
-
-@dataclass
-class TrajectoryInformation:
-    """
-    Helper dataclass for training RL models.
-    """
-
-    particle_type: int
-    features: list = field(default_factory=list)
-    actions: list = field(default_factory=list)
-    log_probs: list = field(default_factory=list)
-    rewards: list = field(default_factory=list)
-    killed: bool = False
+from swarmrl.utils.colloid_utils import TrajectoryInformation
 
 
 class IntrinsicReward(ABC):

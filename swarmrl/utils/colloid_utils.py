@@ -2,6 +2,7 @@
 Various functions for operating on colloids.
 """
 
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List
 
 import jax
@@ -9,6 +10,20 @@ import jax.numpy as jnp
 
 if TYPE_CHECKING:
     from swarmrl.components.colloid import Colloid
+
+
+@dataclass
+class TrajectoryInformation:
+    """
+    Helper dataclass for training RL models.
+    """
+
+    particle_type: int
+    features: list = field(default_factory=list)
+    actions: list = field(default_factory=list)
+    log_probs: list = field(default_factory=list)
+    rewards: list = field(default_factory=list)
+    killed: bool = False
 
 
 @jax.jit

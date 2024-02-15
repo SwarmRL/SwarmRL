@@ -10,11 +10,9 @@ import jax.numpy as np
 from znnl.models.flax_model import FlaxModel
 from znnl.models.jax_model import JaxModel
 
-from swarmrl.intrinsic_reward.intrinsic_reward import (
-    IntrinsicReward,
-    TrajectoryInformation,
-)
+from swarmrl.intrinsic_reward.intrinsic_reward import IntrinsicReward
 from swarmrl.intrinsic_reward.rnd_configs import RNDArchitecture, RNDConfig
+from swarmrl.utils.colloid_utils import TrajectoryInformation
 
 
 class RNDReward(IntrinsicReward):
