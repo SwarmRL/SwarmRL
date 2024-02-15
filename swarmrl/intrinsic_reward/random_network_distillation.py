@@ -57,7 +57,12 @@ class RNDReward(IntrinsicReward):
     @staticmethod
     def _reshape_data(x: np.ndarray) -> np.ndarray:
         """
-        Reshape the data to treat the n_steps and num_colloids equally.
+        Reshape the data for an equal treatment of time and ensemble.
+
+        Flatten the first two dimensions of the data into a single dimension to treat
+        the n_steps and num_colloids equally. This assumes that there is similar 
+        information available by means of the ensemble of colloids and the time
+        evolution of the system.
 
         Parameters
         ----------
