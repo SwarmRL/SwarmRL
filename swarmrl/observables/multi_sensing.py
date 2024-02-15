@@ -5,8 +5,6 @@ Class for an observable which computes several observables.
 from abc import ABC
 from typing import List
 
-import numpy as onp
-
 from swarmrl.components.colloid import Colloid
 from swarmrl.observables.observable import Observable
 
