@@ -1,5 +1,4 @@
 markupsafe==2.0.1
-numpy~=1.26.2
 pint~=0.18
 h5py>=3.10.0
 tqdm~=4.62.3
@@ -15,3 +14,4 @@ dask==2024.2.0
 dask-jobqueue==0.8.2
 distributed==2024.2.0
 chex>=0.1.85
+numpy~=1.26.2
