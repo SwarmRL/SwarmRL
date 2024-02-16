@@ -8,6 +8,7 @@ from swarmrl import (
     agents,
     components,
     exploration_policies,
+    intrinsic_reward,
     losses,
     networks,
     observables,
@@ -41,4 +42,5 @@ __all__ = [
     value_functions.__name__,
     agents.__name__,
     training_routines.__name__,
+    intrinsic_reward.__name__,
 ]

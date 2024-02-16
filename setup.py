@@ -2,7 +2,7 @@
 Configuration file for the package.
 """
 
-import setuptools
+from setuptools import find_packages, setup
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -10,7 +10,7 @@ with open("README.md", "r") as fh:
 with open("requirements.txt") as f:
     required = f.read().splitlines()
 
-setuptools.setup(
+setup(
     name="swarmrl",
     version="0.0.1",
     author="Samuel Tovey and Christoph Lohrmann",
@@ -18,7 +18,16 @@ setuptools.setup(
     description="A tool to study particle motion of reinforcement learning.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=setuptools.find_packages(),
-    python_requires=">=3.9",
+    packages=find_packages(),
+    python_requires=">=3.10",
     install_requires=required,
+    extras_require={
+        "rnd": [
+            (
+                "znnl @"
+                " git+https://github.com/zincware/ZnNL.git@"
+                "Konsti_fix_requirements#egg=znnl-0.0.1"
+            ),
+        ]
+    },
 )

@@ -1,3 +1,5 @@
+jax==0.4.23
+jaxlib==0.4.23
 markupsafe==2.0.1
 pint~=0.18
 h5py>=3.10.0
