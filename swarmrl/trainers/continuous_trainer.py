@@ -11,7 +11,7 @@ from swarmrl.trainers.trainer import Trainer
 
 class ContinuousTrainer(Trainer):
     """
-    Class for the simple MLP RL implementation.
+    Class for the simple MLP RL implementation. Behaves like epsiodic trainer for ResoBee.
 
     Attributes
     ----------
@@ -45,7 +45,7 @@ class ContinuousTrainer(Trainer):
         current_reward = 0.0
         episode = 0
         force_fn = self.initialize_training()
-        
+
         # Initialize the tasks and observables.
         
         # for agent in self.agents.values():
@@ -58,7 +58,7 @@ class ContinuousTrainer(Trainer):
             " {task.fields[running_reward]}",
             TimeRemainingColumn(),
         )
-       
+
         with progress:
             task = progress.add_task(
                 "RL Training",
@@ -69,9 +69,7 @@ class ContinuousTrainer(Trainer):
                 visible=load_bar,
             )
             for _ in range(n_episodes):
-
                 self.engine.integrate(episode_length, force_fn)
-
                 force_fn, current_reward, killed = self.update_rl()
 
                 if killed:
