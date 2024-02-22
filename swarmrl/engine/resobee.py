@@ -49,7 +49,7 @@ class ResoBee(Engine):
         return self.get_particle_data()
 
     def receive_state(self):
-
+        
         # print("Listening for requests from ResoBee client...")
         message = self.socket.recv_json()
 
@@ -59,12 +59,12 @@ class ResoBee(Engine):
             self.population.unwrapped_positions = np.array(list(zip(message["x"], message["y"])))
             self.population.velocities = np.array(list(zip(message["v_x"], message["v_y"])))
         except KeyError:
-            print("Received no or incomplete simulation state from ResoBee client.")
+            # print("Received no or incomplete simulation state from ResoBee client.")
             pass
         try:
             simulation_is_finished = message["is_finished"]
         except KeyError:
-            print("Received no simulation completion state from ResoBee client.")
+            # print("Received no simulation completion state from ResoBee client.")
             raise KeyError
 
         return simulation_is_finished
@@ -112,24 +112,22 @@ class ResoBee(Engine):
             # run the ResoBee engine until it finishes
             simulation_is_finished = False
             step = 0
-            
+
             while simulation_is_finished is False:
                 if step == n_slices:
                     simulation_is_finished = True
-                
                 _ = self.receive_state()
-                
+
                 # compute a new action if we enter a new time slice
                 if step % self.population.time_slice == 0:
                     f_x, f_y = self.compute_action(force_model)
-                    
                     self.send_action(f_x, f_y)
                 else:
                     self.send_nothing()
-                
+
                 # check if the ResoBee engine has finished
                 if simulation_is_finished:
-                    # print("ResoBee simulation successfully completed.")
+                    print("ResoBee simulation successfully completed.")
                     break
 
                 step += 1
