@@ -3,31 +3,18 @@ Module for the Actor-Critic RL protocol.
 """
 
 import typing
-from dataclasses import dataclass, field
 
 import numpy as np
 
 from swarmrl.actions.actions import Action
 from swarmrl.agents.agent import Agent
 from swarmrl.components.colloid import Colloid
+from swarmrl.intrinsic_reward.intrinsic_reward import IntrinsicReward
 from swarmrl.losses import Loss, ProximalPolicyLoss
 from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
-
-
-@dataclass
-class TrajectoryInformation:
-    """
-    Helper dataclass for training RL models.
-    """
-
-    particle_type: int
-    features: list = field(default_factory=list)
-    actions: list = field(default_factory=list)
-    log_probs: list = field(default_factory=list)
-    rewards: list = field(default_factory=list)
-    killed: bool = False
+from swarmrl.utils.colloid_utils import TrajectoryInformation
 
 
 class ActorCriticAgent(Agent):
@@ -44,6 +31,7 @@ class ActorCriticAgent(Agent):
         actions: dict,
         loss: Loss = ProximalPolicyLoss(),
         train: bool = True,
+        intrinsic_reward: IntrinsicReward = None,
     ):
         """
         Constructor for the actor-critic protocol.
@@ -62,6 +50,8 @@ class ActorCriticAgent(Agent):
                 Loss function to use to update the networks.
         train : bool (default=True)
                 Flag to indicate if the agent is training.
+        intrinsic_reward : IntrinsicReward (default=None)
+                Intrinsic reward to use for the agent.
         """
         # Properties of the agent.
         self.network = network
@@ -71,6 +61,7 @@ class ActorCriticAgent(Agent):
         self.actions = actions
         self.train = train
         self.loss = loss
+        self.intrinsic_reward = intrinsic_reward
 
         # Trajectory to be updated.
         self.trajectory = TrajectoryInformation(particle_type=self.particle_type)
@@ -107,6 +98,10 @@ class ActorCriticAgent(Agent):
             network=self.network,
             episode_data=self.trajectory,
         )
+
+        # Update the intrinsic reward if set.
+        if self.intrinsic_reward:
+            self.intrinsic_reward.update(self.trajectory)
 
         # Reset the trajectory storage.
         self.reset_trajectory()
@@ -179,12 +174,20 @@ class ActorCriticAgent(Agent):
         )
         chosen_actions = np.take(list(self.actions.values()), action_indices, axis=0)#for Resobee "0", for Espresso "-1"
 
+        # Compute extrinsic rewards.
+        rewards = self.task(colloids)
+        # Compute intrinsic rewards if set.
+        if self.intrinsic_reward:
+            rewards += self.intrinsic_reward.compute_reward(
+                episode_data=self.trajectory
+            )
+
         # Update the trajectory information.
         if self.train:
             self.trajectory.features.append(state_description)
             self.trajectory.actions.append(action_indices)
             self.trajectory.log_probs.append(log_probs)
-            self.trajectory.rewards.append(self.task(colloids))
+            self.trajectory.rewards.append(rewards)
             self.trajectory.killed = self.task.kill_switch
 
         self.kill_switch = self.task.kill_switch
