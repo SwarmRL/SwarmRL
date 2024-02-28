@@ -23,8 +23,8 @@ except ImportError:
     logger.info(
         "Could not find optional packages, certain features might be unavailable."
     )
-    pass
 
-__all__ = [
-    IntrinsicReward.__name__,
-]
+    __all__ = [
+        IntrinsicReward.__name__,
+    ]
+    pass
