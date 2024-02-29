@@ -68,8 +68,15 @@ class EpisodicTrainer(Trainer):
                 running_reward=np.mean(rewards),
                 visible=load_bar,
             )
-            for _ in range(n_episodes):
+            for episode in range(n_episodes):
+                # Check if the system should be reset.
+                if episode % reset_frequency == 0 or killed:
+                    self.engine = None
+                    self.engine = get_engine(system)
 
+                    # Initialize the tasks and observables.
+                    for agent in self.agents.values():
+                        agent.reset_agent(self.engine.colloids)
                 self.engine.integrate(episode_length, force_fn)
 
                 force_fn, current_reward, killed = self.update_rl()
