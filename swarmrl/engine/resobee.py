@@ -64,16 +64,14 @@ class ResoBee(Engine):
         try:
             simulation_is_finished = message["is_finished"]
         except KeyError:
-            # print("Received no simulation completion state from ResoBee client.")
+            print("Received no simulation completion state from ResoBee client.")
             raise KeyError
 
         return simulation_is_finished
 
     def compute_action(self, force_model) -> tuple[list, list]:
-        # todo: implement this, for now this is random
         colloids = self.get_particle_data()
         actions = np.array(force_model.calc_action(colloids))
-
         return list(actions[:, 0]), list(actions[:, 1])
 
     def send_action(self, forces_x: list, forces_y: list):
@@ -127,13 +125,14 @@ class ResoBee(Engine):
 
                 # check if the ResoBee engine has finished
                 if simulation_is_finished:
-                    print("ResoBee simulation successfully completed.")
+                    # print("ResoBee simulation successfully completed.")
                     break
 
                 step += 1
 
         finally:
             process.kill()
+           
 
     def get_particle_data(self) -> dict:
         """

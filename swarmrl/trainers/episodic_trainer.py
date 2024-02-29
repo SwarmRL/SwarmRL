@@ -89,4 +89,4 @@ class EpisodicTrainer(Trainer):
                     running_reward=np.round(np.mean(rewards[-10:]), 2),
                 )
 
-        return np.array(rewards)
+        return np.array(rewards), force_fn
