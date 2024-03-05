@@ -4,6 +4,7 @@ import unittest as ut
 
 import espressomd
 import flax.linen as nn
+import h5py
 import numpy as np
 import optax
 import pint
@@ -351,6 +352,63 @@ class EspressoTestRLTrainers(ut.TestCase):
 
             dumped_files = glob.glob(f"{temp_dir}/episodic/*")
             assert len(dumped_files) == 5
+
+    def test_semi_episodic_data_writing(self):
+        """
+        Test the episodic training for set episode length.
+
+        The training should dump 10 trajectories.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+
+            def get_engine(system, cycle_index=0):
+                """
+                Get the engine.
+                """
+
+                seed = np.random.randint(89675392)
+                system_runner = srl.espresso.EspressoMD(
+                    md_params=self.md_params,
+                    n_dims=2,
+                    seed=seed,
+                    out_folder=f"{temp_dir}/episodic/data_writing",
+                    system=self.system,
+                    write_chunk_size=10,
+                    h5_group_tag=cycle_index,
+                )
+
+                coll_type = 0
+                system_runner.add_colloids(
+                    5,
+                    self.ureg.Quantity(2.14, "micrometer"),
+                    self.ureg.Quantity(np.array([500, 500, 0]), "micrometer"),
+                    self.ureg.Quantity(400, "micrometer"),
+                    type_colloid=coll_type,
+                )
+
+                return system_runner
+
+            # Define the force model.
+            rl_trainer = srl.trainers.EpisodicTrainer(
+                [self.agent],
+            )
+            rl_trainer.perform_rl_training(
+                get_engine=get_engine,
+                n_episodes=10,
+                system=self.system,
+                episode_length=10,
+                save_episodic_data=True,
+            )
+
+            with h5py.File(
+                f"{temp_dir}/episodic/data_writing/trajectory.hdf5", "r"
+            ) as file:
+                keys = list(file.keys())
+
+            assert len(keys) == 10
+            assert keys == ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+            dumped_files = glob.glob(f"{temp_dir}/episodic/*")
+            assert len(dumped_files) == 1
 
 
 if __name__ == "__main__":
