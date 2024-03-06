@@ -1,5 +1,5 @@
 """
-Module to implement a simple multi-layer perceptron for the colloids.
+Module for the EpisodicTrainer
 """
 
 import numpy as np
@@ -69,23 +69,12 @@ class EpisodicTrainer(Trainer):
                 visible=load_bar,
             )
             for episode in range(n_episodes):
-                # Check if the system should be reset.
-                if episode % reset_frequency == 0 or killed:
-                    self.engine = None
-                    self.engine = get_engine(system)
-
-                    # Initialize the tasks and observables.
-                    for agent in self.agents.values():
-                        agent.reset_agent(self.engine.colloids)
                 self.engine.integrate(episode_length, force_fn)
-
                 force_fn, current_reward, killed = self.update_rl()
-
                 if killed:
                     print("Simulation has been ended by the task, ending training.")
                     system_runner.finalize()
                     break
-
                 rewards.append(current_reward)
                 episode += 1
                 progress.update(
