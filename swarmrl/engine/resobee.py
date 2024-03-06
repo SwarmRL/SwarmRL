@@ -13,7 +13,7 @@ import subprocess
 from swarmrl.components.colloid import Colloid
 
 class Population:
-    def __init__(self, n_agents):
+    def __init__(self, n_agents: int):
         self.indices = np.zeros(n_agents)
         self.types = np.zeros(n_agents)
         self.unwrapped_positions = np.zeros((n_agents, 2))
@@ -27,7 +27,14 @@ class ResoBee(Engine):
     Child class for the ResoBee Engine.
     """
 
-    def __init__(self, resobee_executable, config_dir):
+    def __init__(self, resobee_executable : str, config_dir: str)->None:
+        """
+        Intializes the ResoBee engine.
+
+        Args:
+            resobee_executable (str): path to the executable
+            config_dir (str): path to the directory containing "config.yaml"
+        """
         self.resobee_executable = resobee_executable
         self.config_dir = config_dir
         self.config = yaml.safe_load(open(os.path.join(config_dir, 'config.yaml'), 'r'))
@@ -39,17 +46,34 @@ class ResoBee(Engine):
         print("Binding to tcp address: ", self.config["tcp_address"])
         self.socket.bind(str(self.config["tcp_address"]))
 
-    def __del__(self):
+    def __del__(self)->None:
+        """
+        Closes connection to ResoBee
+        """
         self.socket.close()
         self.context.term()
 
     @property
-    def colloids(self):
+    def colloids(self)->dict:
+        """
+        Property particle data from ResoBee.
+
+        Returns:
+            dict: particle data
+        """ 
         self.receive_state()
         return self.get_particle_data()
 
-    def receive_state(self):
-        
+    def receive_state(self)->bool:
+        """
+        Fetches simulation state from ResoBee client.
+
+        Raises:
+            KeyError: Received no or incomplete simulation state from ResoBee client.
+
+        Returns:
+            bool: ResoBee client finished the simulation.
+        """
         # print("Listening for requests from ResoBee client...")
         message = self.socket.recv_json()
 
@@ -69,12 +93,30 @@ class ResoBee(Engine):
 
         return simulation_is_finished
 
-    def compute_action(self, force_model) -> tuple[list, list]:
-        colloids = self.get_particle_data()
-        actions = np.array(force_model.calc_action(colloids))
-        return list(actions[:, 0]), list(actions[:, 1])
+    def compute_action(self, force_model: ForceFunction) -> tuple[list, list]:
+        """
+        Determines the force in x and y coordinate for every particle.
 
-    def send_action(self, forces_x: list, forces_y: list):
+        Args:
+            force_model (ForceFunction): An instance of swarmrl.force_functions.ForceFunction
+
+        Returns:
+            tuple[list, list]: Force in x and y for every particle.
+        """
+        colloids = self.get_particle_data()
+        actions = force_model.calc_action(colloids)
+        forces_x = [action.force * np.cos(action.new_direction) for action in actions]
+        forces_y = [action.force * np.sin(action.new_direction) for action in actions]
+        return forces_x, forces_y
+
+    def send_action(self, forces_x: list, forces_y: list)->None:
+        """
+        Sends the calculated forces to the ResoBee client.
+
+        Args:
+            forces_x (list): Force in x for every particle.
+            forces_y (list): Force in y for every particle.
+        """
         # print("Sending action (forces) to ResoBee client...")
         ret = {
             "f_x": forces_x,
@@ -82,27 +124,25 @@ class ResoBee(Engine):
         }
         self.socket.send_json(ret)
 
-    def send_nothing(self):
+    def send_nothing(self)->None:
+        """
+        Sends nothing to the ResoBee client.
+        """
         # print("Sending nothing to ResoBee client...")
         ret = {}
         self.socket.send_json(ret)
 
     def integrate(
             self,
-            n_slices: int,
             force_model: ForceFunction,
     ) -> None:
         """
 
         Parameters
         ----------
-        n_slices: int
-            Number of time slices to integrate
         force_model
-            A an instance of swarmrl.models.interaction_model.InteractionModel
+            An instance of swarmrl.force_functions.ForceFunction
         """
-        # todo: n_slices is not used currently, the total time must be specified in the resobee config.yaml file
-
         # start the ResoBee engine
         try:
             process = subprocess.Popen([self.resobee_executable, self.config_dir])
@@ -112,9 +152,7 @@ class ResoBee(Engine):
             step = 0
 
             while simulation_is_finished is False:
-                if step == n_slices:
-                    simulation_is_finished = True
-                _ = self.receive_state()
+                simulation_is_finished = self.receive_state()
 
                 # compute a new action if we enter a new time slice
                 if step % self.population.time_slice == 0:
@@ -122,14 +160,11 @@ class ResoBee(Engine):
                     self.send_action(f_x, f_y)
                 else:
                     self.send_nothing()
-
                 # check if the ResoBee engine has finished
                 if simulation_is_finished:
                     # print("ResoBee simulation successfully completed.")
                     break
-
                 step += 1
-
         finally:
             process.kill()
            

@@ -172,8 +172,8 @@ class ActorCriticAgent(Agent):
         action_indices, log_probs = self.network.compute_action(
             observables=state_description
         )
-        chosen_actions = np.take(list(self.actions.values()), action_indices, axis=0)#for Resobee "0", for Espresso "-1"
-
+        chosen_actions = np.take(list(self.actions.values()), action_indices, axis=-1)
+        
         # Compute extrinsic rewards.
         rewards = self.task(colloids)
         # Compute intrinsic rewards if set.
