@@ -31,7 +31,7 @@ class EpisodicTrainer(Trainer):
         episode_length: int,
         reset_frequency: int = 1,
         load_bar: bool = True,
-        save_episodic_data: bool = False,
+        save_episodic_data: bool = True,
     ):
         """
         Perform the RL training.
@@ -52,7 +52,12 @@ class EpisodicTrainer(Trainer):
                 If true, show a progress bar.
         save_episodic_data : bool (default=False)
                 If true, save the episode data. If false, the data is of the
-                last episode is overwritten by the new data.
+                last episode is overwritten by the new data. Make sure that the
+                system runner supports episodic data saving. The get_engine function
+                should take a system and a str(cycle_index) as arguments. The
+                cycle_index is passed to the EsperessoMD engine as 'h5_group_tag'. See
+                the implementationin the test_semi_episodic_data_writing function in
+                CI/espresso_tests/integration_tests/test_rl_trainers.py
 
         Notes
         -----
@@ -81,9 +86,19 @@ class EpisodicTrainer(Trainer):
                 running_reward=np.mean(rewards),
                 visible=load_bar,
             )
+            # Since we do not reset the system in the first episode, we need to
+            # initialize the engine here.
+
+            if save_episodic_data:
+                self.engine = get_engine(system, f"{cycle_index}")
+                cycle_index += 1
+            else:
+                self.engine = get_engine(system)
+
             for episode in range(n_episodes):
                 # Check if the system should be reset.
-                if episode % reset_frequency == 0 and reset_frequency > 0 or killed:
+                if episode % reset_frequency == 0 and episode > 0 or killed:
+                    print(f"Resetting the system at episode {episode}")
                     self.engine = None
                     if save_episodic_data:
                         try:

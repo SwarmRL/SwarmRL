@@ -244,6 +244,7 @@ class EspressoTestRLTrainers(ut.TestCase):
                 n_episodes=10,
                 system=self.system,
                 episode_length=10,
+                save_episodic_data=False,
             )
 
             dumped_files = glob.glob(f"{temp_dir}/episodic/*")
@@ -300,6 +301,7 @@ class EspressoTestRLTrainers(ut.TestCase):
                 reset_frequency=1000,  # Will only be reset after a failure.
                 system=self.system,
                 episode_length=10,
+                save_episodic_data=False,
             )
 
             dumped_files = glob.glob(f"{temp_dir}/episodic/*")
@@ -348,6 +350,7 @@ class EspressoTestRLTrainers(ut.TestCase):
                 system=self.system,
                 reset_frequency=2,
                 episode_length=10,
+                save_episodic_data=False,
             )
 
             dumped_files = glob.glob(f"{temp_dir}/episodic/*")
@@ -359,6 +362,7 @@ class EspressoTestRLTrainers(ut.TestCase):
 
         The training should dump 10 trajectories.
         """
+        print("Running test_semi_episodic_data_writing")
         with tempfile.TemporaryDirectory() as temp_dir:
 
             def get_engine(system, cycle_index=0):
@@ -398,15 +402,22 @@ class EspressoTestRLTrainers(ut.TestCase):
                 system=self.system,
                 episode_length=10,
                 save_episodic_data=True,
+                reset_frequency=2,  # length of a cycle
             )
 
             with h5py.File(
                 f"{temp_dir}/episodic/data_writing/trajectory.hdf5", "r"
             ) as file:
                 keys = list(file.keys())
+                for key in keys:
+                    traj = file[str(key)]["Unwrapped_Positions"][:].shape
+                    # testing if each cycle is written correctly
+                    assert (
+                        traj[0] == 2 * 10 * 10
+                    )  # 2 episodes per cycle, 10 steps per episode, 10 writes per step
 
-            assert len(keys) == 10
-            assert keys == ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+            assert len(keys) == 5
+            assert keys == ["0", "1", "2", "3", "4"]
             dumped_files = glob.glob(f"{temp_dir}/episodic/*")
             assert len(dumped_files) == 1
 
