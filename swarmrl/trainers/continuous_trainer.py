@@ -11,7 +11,7 @@ from swarmrl.trainers.trainer import Trainer
 
 class ContinuousTrainer(Trainer):
     """
-    Class for the simple MLP RL implementation. Behaves like epsiodic trainer for ResoBee.
+    Class for the simple MLP RL implementation.
 
     Attributes
     ----------
