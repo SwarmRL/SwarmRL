@@ -54,14 +54,15 @@ class ResoBee(Engine):
         self.context.term()
 
     @property
-    def colloids(self)->dict:
+    def colloids(self, fetch_state: bool=False)->dict:
         """
         Property particle data from ResoBee.
 
         Returns:
             dict: particle data
         """ 
-        self.receive_state()
+        if fetch_state:
+            self.receive_state()
         return self.get_particle_data()
 
     def receive_state(self)->bool:
@@ -105,9 +106,10 @@ class ResoBee(Engine):
         """
         colloids = self.get_particle_data()
         actions = force_model.calc_action(colloids)
-        forces_x = [action.force * np.cos(action.new_direction) for action in actions]
-        forces_y = [action.force * np.sin(action.new_direction) for action in actions]
-        return forces_x, forces_y
+        forces_x = [action.force * action.new_direction[0]/np.linalg.norm(action.new_direction) for action in actions]
+        forces_y = [action.force * action.new_direction[1]/np.linalg.norm(action.new_direction) for action in actions]
+        return list(forces_x), list(forces_y)
+
 
     def send_action(self, forces_x: list, forces_y: list)->None:
         """
@@ -134,14 +136,15 @@ class ResoBee(Engine):
 
     def integrate(
             self,
+            n_slices: int,
             force_model: ForceFunction,
     ) -> None:
         """
+        ResoBee client performs simulation.
 
-        Parameters
-        ----------
-        force_model
-            An instance of swarmrl.force_functions.ForceFunction
+        Args:
+            n_slices (int): Not used.
+            force_model (ForceFunction): An instance of swarmrl.force_functions.ForceFunction.
         """
         # start the ResoBee engine
         try:
@@ -153,7 +156,6 @@ class ResoBee(Engine):
 
             while simulation_is_finished is False:
                 simulation_is_finished = self.receive_state()
-
                 # compute a new action if we enter a new time slice
                 if step % self.population.time_slice == 0:
                     f_x, f_y = self.compute_action(force_model)
@@ -167,7 +169,7 @@ class ResoBee(Engine):
                 step += 1
         finally:
             process.kill()
-           
+
 
     def get_particle_data(self) -> dict:
         """
