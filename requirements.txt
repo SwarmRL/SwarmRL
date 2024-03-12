@@ -12,6 +12,8 @@ setuptools~=58.0.4
 optax
 rich
 dataclasses~=0.6
+pyzmq  # requires libzmq3-dev to work
+pyyaml
 dask==2024.2.0
 dask-jobqueue==0.8.2
 distributed==2024.2.0

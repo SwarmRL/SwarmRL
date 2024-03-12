@@ -49,7 +49,6 @@ class ContinuousTrainer(Trainer):
         # Initialize the tasks and observables.
         for agent in self.agents.values():
             agent.reset_agent(self.engine.colloids)
-
         progress = Progress(
             "Episode: {task.fields[Episode]}",
             BarColumn(),
