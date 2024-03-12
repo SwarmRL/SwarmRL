@@ -46,6 +46,9 @@ class ContinuousTrainer(Trainer):
         episode = 0
         force_fn = self.initialize_training()
 
+        # Initialize the tasks and observables.
+        for agent in self.agents.values():
+            agent.reset_agent(self.engine.colloids)
         progress = Progress(
             "Episode: {task.fields[Episode]}",
             BarColumn(),
