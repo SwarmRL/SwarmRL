@@ -6,6 +6,8 @@ Notes
 https://spinningup.openai.com/en/latest/algorithms/ppo.html
 """
 
+import logging
+
 from abc import ABC
 from functools import partial
 
@@ -21,6 +23,8 @@ from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 from swarmrl.utils.utils import gather_n_dim_indices
 from swarmrl.value_functions.generalized_advantage_estimate import GAE
+
+logger = logging.getLogger(__name__)
 
 
 class ProximalPolicyLoss(Loss, ABC):
@@ -103,12 +107,16 @@ class ProximalPolicyLoss(Loss, ABC):
         advantages, returns = self.value_function(
             rewards=rewards, values=predicted_values
         )
+        logger.debug(f"{predicted_values.shape=}")
+        logger.debug(f"{returns.shape=}")
+        logger.debug(f"{advantages=}")
 
         # compute the probabilities of the old actions under the new policy
         new_probabilities = jax.nn.softmax(new_logits, axis=-1)
 
         # compute the entropy of the whole distribution
         entropy = self.sampling_strategy.compute_entropy(new_probabilities).sum()
+        logger.debug(f"{entropy=}")
         chosen_log_probs = jnp.log(
             gather_n_dim_indices(new_probabilities, action_indices) + self.eps
         )
@@ -125,6 +133,7 @@ class ProximalPolicyLoss(Loss, ABC):
         )
         particle_actor_loss = jnp.sum(clipped_loss, axis=0)
         actor_loss = jnp.sum(particle_actor_loss)
+        logger.debug(f"{actor_loss=}")
 
         # Compute critic loss
         total_critic_loss = (
@@ -133,6 +142,8 @@ class ProximalPolicyLoss(Loss, ABC):
 
         # Compute combined loss
         loss = actor_loss - self.entropy_coefficient * entropy + 0.5 * total_critic_loss
+        
+        logger.debug(f"{loss=}")
 
         return loss
 
