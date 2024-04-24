@@ -4,6 +4,7 @@ Test the utils module.
 
 import jax.numpy as np
 import numpy.testing as npt
+import pytest
 
 import swarmrl.utils as utils
 from swarmrl.utils.utils import (
@@ -108,10 +109,10 @@ class TestUtils:
         )
 
         assert angle1 == 0
-        assert angle2 == np.pi / 2
-        assert angle3 == np.pi / 3
-        assert angle4 == np.pi * 3 / 4
-        assert angle5 == -np.pi * 3 / 4
+        assert angle2 == pytest.approx(np.pi / 2)
+        assert angle3 == pytest.approx(np.pi / 3)
+        assert angle4 == pytest.approx(np.pi * 3 / 4)
+        assert angle5 == pytest.approx(-np.pi * 3 / 4)
         assert abs(angle6 + np.pi * 11 / 12) < 10e-6
         assert abs(angle7 - angle3) < 10e-6
         assert abs(angle8 - angle6) < 10e-6
