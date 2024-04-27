@@ -117,9 +117,11 @@ class PolicyGradientLoss(Loss):
         -------
 
         """
-        feature_data = jnp.array(episode_data.features)
-        action_data = jnp.array(episode_data.actions)
-        reward_data = jnp.array(episode_data.rewards)
+        # Restructure the data to shift the rewards to after the action
+        # is taken.
+        feature_data = jnp.array(episode_data.features)[:-1]
+        action_data = jnp.array(episode_data.actions)[:-1]
+        reward_data = jnp.array(episode_data.rewards)[1:]
 
         self.n_particles = jnp.shape(feature_data)[1]
         self.n_time_steps = jnp.shape(feature_data)[0]
