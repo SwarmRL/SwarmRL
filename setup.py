@@ -25,8 +25,7 @@ setup(
         "rnd": [
             (
                 "znnl @"
-                " git+https://github.com/zincware/ZnNL.git@"
-                "Konsti_fix_requirements#egg=znnl-0.0.1"
+                "git+https://github.com/zincware/ZnNL.git"
             ),
         ]
     },
