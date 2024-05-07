@@ -23,7 +23,7 @@ class FlowTest(ut.TestCase):
             fluid_dyn_viscosity=ureg.Quantity(8.9e-3, "pascal * second"),
             WCA_epsilon=ureg.Quantity(300, "kelvin") * ureg.boltzmann_constant,
             temperature=ureg.Quantity(300, "kelvin") / langevin_friction_scale,
-            box_length=ureg.Quantity(100, "micrometer"),
+            box_length=ureg.Quantity(3 * [100], "micrometer"),
             time_step=ureg.Quantity(0.1, "second") / 100,
             time_slice=ureg.Quantity(0.01, "second"),
             write_interval=ureg.Quantity(5, "second"),
@@ -39,10 +39,10 @@ class FlowTest(ut.TestCase):
             # note that swarmrl only supports cubic simulation boxes
             n_cells = 100
             box_l = params.box_length.m_as("sim_length")
-            agrid_SI = params.box_length / n_cells
-            agrid = box_l / n_cells
+            agrid_SI = params.box_length[0] / n_cells
+            agrid = box_l[0] / n_cells
             xs = np.linspace(
-                0.5 * agrid, box_l - 0.5 * agrid, num=n_cells, endpoint=True
+                0.5 * agrid, box_l[0] - 0.5 * agrid, num=n_cells, endpoint=True
             )
             ys = xs
             xv, yv = np.meshgrid(xs, ys)
@@ -54,8 +54,8 @@ class FlowTest(ut.TestCase):
             flow = ureg.Quantity(flow, "micrometer/second")
 
             # create binary mask of boundary: circular domain
-            rs = np.sqrt((xv - box_l / 2.0) ** 2 + (yv - box_l / 2.0) ** 2)
-            boundary_mask = rs > box_l / 2.0 - agrid
+            rs = np.sqrt((xv - box_l[0] / 2.0) ** 2 + (yv - box_l[0] / 2.0) ** 2)
+            boundary_mask = rs > box_l[0] / 2.0 - agrid
 
             # Before adding the flowfield, we need to know the coupling gamma
             coll_radius = ureg.Quantity(1, "micrometer")
@@ -66,7 +66,7 @@ class FlowTest(ut.TestCase):
                 flow[:, :, np.newaxis, :],
                 gamma,
                 utils.convert_array_of_pint_to_pint_of_array(
-                    [agrid_SI, agrid_SI, params.box_length], ureg
+                    [agrid_SI, agrid_SI, params.box_length[2]], ureg
                 ),
             )
 
@@ -84,7 +84,7 @@ class FlowTest(ut.TestCase):
             runner.add_external_potential(
                 potential[:, :, np.newaxis],
                 utils.convert_array_of_pint_to_pint_of_array(
-                    [agrid_SI, agrid_SI, params.box_length], ureg
+                    [agrid_SI, agrid_SI, params.box_length[2]], ureg
                 ),
             )
 
@@ -154,8 +154,8 @@ class FlowTest(ut.TestCase):
 
             # particles should be advected to the right until they hit the boundary
             poss = runner.get_particle_data()["Unwrapped_Positions"]
-            np.testing.assert_array_less(box_l / 2.0, np.mean(poss[:, 0]))
-            np.testing.assert_array_less(poss[:, 0], box_l)
+            np.testing.assert_array_less(box_l[0] / 2.0, np.mean(poss[:, 0]))
+            np.testing.assert_array_less(poss[:, 0], box_l[0])
 
 
 if __name__ == "__main__":

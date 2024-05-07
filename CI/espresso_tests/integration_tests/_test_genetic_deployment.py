@@ -31,7 +31,7 @@ def get_simulation_runner():
         fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
         WCA_epsilon=ureg.Quantity(temperature, "kelvin") * ureg.boltzmann_constant,
         temperature=ureg.Quantity(300.0, "kelvin"),
-        box_length=ureg.Quantity(1000, "micrometer"),
+        box_length=ureg.Quantity(3 * [1000], "micrometer"),
         time_slice=ureg.Quantity(0.5, "second"),  # model timestep
         time_step=ureg.Quantity(0.5, "second") / 5,  # integrator timestep
         write_interval=ureg.Quantity(2, "second"),
@@ -131,17 +131,17 @@ class TestGeneticTraining(ut.TestCase):
                 "DoNothing": do_nothing,
             }
 
-            protocol = srl.agents.ActorCriticAgent(
+            agent = srl.agents.ActorCriticAgent(
                 particle_type=0,
                 network=network,
                 task=task,
                 observable=observable,
                 actions=actions,
+                loss=loss,
             )
 
             rl_trainer = srl.trainers.ContinuousTrainer(
-                [protocol],
-                loss,
+                [agent],
             )
             self.training_routine = srl.training_routines.GeneticTraining(
                 rl_trainer,

@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-        - 3.9
+        - "3.10"
 
     steps:
       - uses: actions/checkout@v3
@@ -30,7 +30,7 @@ jobs:
           pip install -r dev-requirements.txt
       - name: Install package
         run: |
-          pip install .
+          pip install ".[rnd]"
       - name: Install espresso
         run: |
           pip install cython==0.29.36
@@ -39,7 +39,7 @@ jobs:
           cd espresso
           mkdir build && cd build
           cp ../maintainer/configs/maxset.hpp myconfig.hpp
-          cmake ../ -D ESPRESSO_BUILD_WITH_FFTW=OFF
+          cmake ../ -D ESPRESSO_BUILD_WITH_WALBERLA=on -D ESPRESSO_BUILD_WITH_FFTW=OFF
           cmake --build . -j 5
       - name: Run test suite
         run: |

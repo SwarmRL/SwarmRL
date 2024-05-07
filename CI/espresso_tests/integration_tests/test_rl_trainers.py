@@ -4,6 +4,7 @@ import unittest as ut
 
 import espressomd
 import flax.linen as nn
+import h5py
 import numpy as np
 import optax
 import pint
@@ -78,7 +79,7 @@ class EspressoTestRLTrainers(ut.TestCase):
         fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
         WCA_epsilon=ureg.Quantity(297.0, "kelvin") * ureg.boltzmann_constant,
         temperature=ureg.Quantity(300.0, "kelvin"),
-        box_length=ureg.Quantity(1000, "micrometer"),
+        box_length=ureg.Quantity(3 * [1000], "micrometer"),
         time_slice=ureg.Quantity(10.0, "second"),  # model timestep
         time_step=ureg.Quantity(0.1, "second"),  # integrator timestep
         write_interval=ureg.Quantity(1.0, "second"),
@@ -124,6 +125,7 @@ class EspressoTestRLTrainers(ut.TestCase):
         task=task,
         observable=observable,
         actions=actions,
+        loss=loss,
     )
 
     def test_continuous_training(self):
@@ -151,7 +153,6 @@ class EspressoTestRLTrainers(ut.TestCase):
             # Define the force model.
             rl_trainer = srl.trainers.ContinuousTrainer(
                 [self.agent],
-                self.loss,
             )
             rl_trainer.perform_rl_training(
                 system_runner=system_runner,
@@ -187,12 +188,12 @@ class EspressoTestRLTrainers(ut.TestCase):
                 task=KillTask(),
                 observable=self.observable,
                 actions=actions,
+                loss=self.loss,
             )
 
             # Define the force model.
             rl_trainer = srl.trainers.ContinuousTrainer(
                 [agent],
-                self.loss,
             )
             rewards = rl_trainer.perform_rl_training(
                 system_runner=system_runner,
@@ -237,13 +238,13 @@ class EspressoTestRLTrainers(ut.TestCase):
             # Define the force model.
             rl_trainer = srl.trainers.EpisodicTrainer(
                 [self.agent],
-                self.loss,
             )
             rl_trainer.perform_rl_training(
                 get_engine=get_engine,
                 n_episodes=10,
                 system=self.system,
                 episode_length=10,
+                save_episodic_data=False,
             )
 
             dumped_files = glob.glob(f"{temp_dir}/episodic/*")
@@ -287,12 +288,12 @@ class EspressoTestRLTrainers(ut.TestCase):
                 task=KillTask(),
                 observable=self.observable,
                 actions=actions,
+                loss=self.loss,
             )
 
             # Define the force model.
             rl_trainer = srl.trainers.EpisodicTrainer(
                 [agent],
-                self.loss,
             )
             rl_trainer.perform_rl_training(
                 get_engine=get_engine,
@@ -300,6 +301,7 @@ class EspressoTestRLTrainers(ut.TestCase):
                 reset_frequency=1000,  # Will only be reset after a failure.
                 system=self.system,
                 episode_length=10,
+                save_episodic_data=False,
             )
 
             dumped_files = glob.glob(f"{temp_dir}/episodic/*")
@@ -341,7 +343,6 @@ class EspressoTestRLTrainers(ut.TestCase):
             # Define the force model.
             rl_trainer = srl.trainers.EpisodicTrainer(
                 [self.agent],
-                self.loss,
             )
             rl_trainer.perform_rl_training(
                 get_engine=get_engine,
@@ -349,10 +350,76 @@ class EspressoTestRLTrainers(ut.TestCase):
                 system=self.system,
                 reset_frequency=2,
                 episode_length=10,
+                save_episodic_data=False,
             )
 
             dumped_files = glob.glob(f"{temp_dir}/episodic/*")
             assert len(dumped_files) == 5
+
+    def test_semi_episodic_data_writing(self):
+        """
+        Test the episodic training for set episode length.
+
+        The training should dump 10 trajectories.
+        """
+        print("Running test_semi_episodic_data_writing")
+        with tempfile.TemporaryDirectory() as temp_dir:
+
+            def get_engine(system, cycle_index=0):
+                """
+                Get the engine.
+                """
+
+                seed = np.random.randint(89675392)
+                system_runner = srl.espresso.EspressoMD(
+                    md_params=self.md_params,
+                    n_dims=2,
+                    seed=seed,
+                    out_folder=f"{temp_dir}/episodic/data_writing",
+                    system=self.system,
+                    write_chunk_size=10,
+                    h5_group_tag=cycle_index,
+                )
+
+                coll_type = 0
+                system_runner.add_colloids(
+                    5,
+                    self.ureg.Quantity(2.14, "micrometer"),
+                    self.ureg.Quantity(np.array([500, 500, 0]), "micrometer"),
+                    self.ureg.Quantity(400, "micrometer"),
+                    type_colloid=coll_type,
+                )
+
+                return system_runner
+
+            # Define the force model.
+            rl_trainer = srl.trainers.EpisodicTrainer(
+                [self.agent],
+            )
+            rl_trainer.perform_rl_training(
+                get_engine=get_engine,
+                n_episodes=10,
+                system=self.system,
+                episode_length=10,
+                save_episodic_data=True,
+                reset_frequency=2,  # length of a cycle
+            )
+
+            with h5py.File(
+                f"{temp_dir}/episodic/data_writing/trajectory.hdf5", "r"
+            ) as file:
+                keys = list(file.keys())
+                for key in keys:
+                    traj = file[str(key)]["Unwrapped_Positions"][:].shape
+                    # testing if each cycle is written correctly
+                    assert (
+                        traj[0] == 2 * 10 * 10
+                    )  # 2 episodes per cycle, 10 steps per episode, 10 writes per step
+
+            assert len(keys) == 5
+            assert keys == ["0", "1", "2", "3", "4"]
+            dumped_files = glob.glob(f"{temp_dir}/episodic/*")
+            assert len(dumped_files) == 1
 
 
 if __name__ == "__main__":

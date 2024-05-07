@@ -17,7 +17,7 @@ class RodTest(ut.TestCase):
             fluid_dyn_viscosity=ureg.Quantity(8.9e-4, "pascal * second"),
             WCA_epsilon=0.1 * ureg.Quantity(300, "kelvin") * ureg.boltzmann_constant,
             temperature=ureg.Quantity(300, "kelvin"),
-            box_length=ureg.Quantity(50, "micrometer"),
+            box_length=ureg.Quantity(3 * [50], "micrometer"),
             time_step=ureg.Quantity(0.0001, "second"),
             time_slice=ureg.Quantity(0.1, "second"),
             write_interval=ureg.Quantity(0.1, "second"),
