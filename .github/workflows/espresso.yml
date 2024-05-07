@@ -4,6 +4,7 @@
 name: Espresso Test
 
 on:
+  pull_request:
   push:
     branches:
 
@@ -15,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-        - 3.9
+        - "3.11"
 
     steps:
       - uses: actions/checkout@v3
@@ -30,7 +31,7 @@ jobs:
           pip install -r dev-requirements.txt
       - name: Install package
         run: |
-          pip install .
+          pip install ".[rnd]"
       - name: Install espresso
         run: |
           pip install cython==0.29.36

@@ -31,6 +31,7 @@ class EpisodicTrainer(Trainer):
         episode_length: int,
         reset_frequency: int = 1,
         load_bar: bool = True,
+        save_episodic_data: bool = True,
     ):
         """
         Perform the RL training.
@@ -49,6 +50,14 @@ class EpisodicTrainer(Trainer):
                 After how many episodes is the simulation reset.
         load_bar : bool (default=True)
                 If true, show a progress bar.
+        save_episodic_data : bool (default=False)
+                If true, save the episode data. If false, the data is of the
+                last episode is overwritten by the new data. Make sure that the
+                system runner supports episodic data saving. The get_engine function
+                should take a system and a str(cycle_index) as arguments. The
+                cycle_index is passed to the EsperessoMD engine as 'h5_group_tag'. See
+                the implementationin the test_semi_episodic_data_writing function in
+                CI/espresso_tests/integration_tests/test_rl_trainers.py
 
         Notes
         -----
@@ -59,7 +68,7 @@ class EpisodicTrainer(Trainer):
         rewards = [0.0]
         current_reward = 0.0
         force_fn = self.initialize_training()
-
+        cycle_index = 0
         progress = Progress(
             "Episode: {task.fields[Episode]}",
             BarColumn(),
@@ -77,12 +86,26 @@ class EpisodicTrainer(Trainer):
                 running_reward=np.mean(rewards),
                 visible=load_bar,
             )
-            for episode in range(n_episodes):
 
+            for episode in range(n_episodes):
                 # Check if the system should be reset.
                 if episode % reset_frequency == 0 or killed:
+                    print(f"Resetting the system at episode {episode}")
                     self.engine = None
-                    self.engine = get_engine(system)
+                    if save_episodic_data:
+                        try:
+                            self.engine = get_engine(system, f"{cycle_index}")
+                            cycle_index += 1
+                        except TypeError:
+                            raise ValueError(
+                                "The system runner does not support episodic data"
+                                " saving. Your get_engine function should take a system"
+                                " and a str(cycle_index) as arguments. The cycle_index"
+                                " is passed to the EsperessoMD engine as"
+                                " 'h5_group_tag'."
+                            )
+                    else:
+                        self.engine = get_engine(system)
 
                     # Initialize the tasks and observables.
                     for agent in self.agents.values():

@@ -4,6 +4,7 @@
 name: pytest
 
 on:
+  pull_request:
   push:
   schedule:
     - cron: '14 3 * * 1'  # at 03:14 on Monday.
@@ -15,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10"]
+        python-version: ["3.11"]
 
     steps:
       - uses: actions/checkout@v3
@@ -29,7 +30,7 @@ jobs:
           pip install -r dev-requirements.txt
       - name: Install package
         run: |
-          pip install .
+          pip install ".[rnd]"
       - name: Pytest
         run: |
           coverage run -a --source=../swarmrl -m pytest --ignore CI/espresso_tests

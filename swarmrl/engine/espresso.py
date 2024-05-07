@@ -61,7 +61,6 @@ class MDParams:
         periodic: bool = True,
         thermostat_type: str = "brownian",
     ):
-
         if box_length is None:
             box_length = ureg.Quantity(3 * [1000], "micrometer")
         if fluid_dyn_viscosity is None:
@@ -149,6 +148,7 @@ class EspressoMD(Engine):
         out_folder=".",
         write_chunk_size=100,
         system=None,
+        h5_group_tag=None,
     ):
         """
         Constructor for the espressoMD engine.
@@ -183,6 +183,11 @@ class EspressoMD(Engine):
 
         self._init_unit_system()
         self.write_chunk_size = write_chunk_size
+
+        if h5_group_tag is None:
+            self.h5_group_tag = "colloids"
+        else:
+            self.h5_group_tag = h5_group_tag
 
         if system is None:
             self.system = espressomd.System(box_l=3 * [1.0])
@@ -243,7 +248,6 @@ class EspressoMD(Engine):
         time_slice = self.params.time_slice.m_as("sim_time")
 
         write_interval = self.params.write_interval.m_as("sim_time")
-
         box_l = np.array(self.params.box_length.m_as("sim_length"))
         if np.isscalar(box_l):
             raise ValueError(
@@ -612,11 +616,6 @@ class EspressoMD(Engine):
         if n_particles % 2 != 1:
             raise ValueError(f"n_particles must be uneven. You gave {n_particles}")
 
-        espressomd.assert_features(["VIRTUAL_SITES_RELATIVE"])
-        import espressomd.virtual_sites as evs
-
-        self.system.virtual_sites = evs.VirtualSitesRelative(have_quaternion=True)
-
         center_pos = rod_center.m_as("sim_length")
         fric_trans = friction_trans.m_as("sim_force/sim_velocity")  # [F / v]
         fric_rot = friction_rot.m_as(
@@ -638,6 +637,7 @@ class EspressoMD(Engine):
         self.colloids.append(center_part)
 
         # place virtual
+        espressomd.assert_features(["VIRTUAL_SITES_RELATIVE"])
         point_span = rod_length.m_as("sim_length") - 2 * partcl_radius
         point_dist = point_span / (n_particles - 1)
         if point_dist > 2 * partcl_radius:
@@ -1077,7 +1077,7 @@ class EspressoMD(Engine):
         n_colloids = len(self.colloids)
 
         with h5py.File(self.h5_filename.as_posix(), "a") as h5_outfile:
-            part_group = h5_outfile.require_group("colloids")
+            part_group = h5_outfile.require_group(self.h5_group_tag)
             dataset_kwargs = dict(compression="gzip")
             traj_len = self.write_chunk_size
 
@@ -1142,7 +1142,8 @@ class EspressoMD(Engine):
             return
 
         with h5py.File(self.h5_filename, "a") as h5_outfile:
-            part_group = h5_outfile["colloids"]
+            part_group = h5_outfile[self.h5_group_tag]
+
             for key in self.traj_holder.keys():
                 dataset = part_group[key]
                 values = np.stack(self.traj_holder[key], axis=0)
@@ -1162,7 +1163,9 @@ class EspressoMD(Engine):
         self.system.integrator.set_steepest_descent(
             f_max=0.0, gamma=0.1, max_displacement=0.1
         )
+        time = self.system.time
         self.system.integrator.run(1000)
+        self.system.time = time
 
         # set the thermostat
         kT = (self.params.temperature * self.ureg.boltzmann_constant).m_as("sim_energy")
@@ -1179,7 +1182,6 @@ class EspressoMD(Engine):
                 gamma=1e-20,
                 gamma_rotation=1e-20,
                 seed=self.seed,
-                act_on_virtual=False,
             )
             self.system.integrator.set_brownian_dynamics()
         elif self.params.thermostat_type == "langevin":
@@ -1189,7 +1191,6 @@ class EspressoMD(Engine):
                     gamma=1e-20,
                     gamma_rotation=1e-20,
                     seed=self.seed,
-                    act_on_virtual=False,
                 )
             else:
                 self.system.lb = self.lbf
@@ -1312,6 +1313,8 @@ class EspressoMD(Engine):
         Method will write the last chunks of trajectory
         """
         self._write_traj_chunk_to_file()
+        for val in self.traj_holder.values():
+            val.clear()
 
     def get_particle_data(self):
         """
