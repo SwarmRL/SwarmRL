@@ -23,10 +23,7 @@ setup(
     install_requires=required,
     extras_require={
         "rnd": [
-            (
-                "znnl @"
-                "git+https://github.com/zincware/ZnNL.git"
-            ),
+            "znnl @git+https://github.com/zincware/ZnNL.git",
         ]
     },
 )
