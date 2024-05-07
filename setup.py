@@ -23,11 +23,7 @@ setup(
     install_requires=required,
     extras_require={
         "rnd": [
-            (
-                "znnl @"
-                " git+https://github.com/zincware/ZnNL.git@"
-                "Konsti_fix_requirements#egg=znnl-0.0.1"
-            ),
+            "znnl @git+https://github.com/zincware/ZnNL.git",
         ]
     },
 )
