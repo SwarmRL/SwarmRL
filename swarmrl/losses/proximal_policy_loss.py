@@ -142,7 +142,7 @@ class ProximalPolicyLoss(Loss, ABC):
 
         # Compute combined loss
         loss = actor_loss - self.entropy_coefficient * entropy + 0.5 * total_critic_loss
-        
+
         logger.debug(f"{loss=}")
 
         return loss
