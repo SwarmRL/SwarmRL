@@ -7,7 +7,6 @@ https://spinningup.openai.com/en/latest/algorithms/ppo.html
 """
 
 import logging
-
 from abc import ABC
 from functools import partial
 
