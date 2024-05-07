@@ -173,7 +173,7 @@ class ActorCriticAgent(Agent):
             observables=state_description
         )
         chosen_actions = np.take(list(self.actions.values()), action_indices, axis=-1)
-
+        
         # Compute extrinsic rewards.
         rewards = self.task(colloids)
         # Compute intrinsic rewards if set.
