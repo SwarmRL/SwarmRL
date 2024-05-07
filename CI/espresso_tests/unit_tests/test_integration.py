@@ -105,6 +105,7 @@ class Simulation:
         force_fn = ForceFunction(agents={"0": agent})
 
         if self.test_number == 0:
+            np.testing.assert_equal(system_runner.system.time, 0)
             system_runner.integrate(2, force_fn)
             np.testing.assert_equal(system_runner.step_idx, 10)
             np.testing.assert_equal(system_runner.slice_idx, 2)
@@ -124,6 +125,7 @@ class Simulation:
             # Nothing is written to a file here because write_chunk_size is not reached
 
         if self.test_number == 1:
+            np.testing.assert_equal(system_runner.system.time, 0)
             system_runner.integrate(4, force_fn)
             np.testing.assert_equal(system_runner.step_idx, 28)
             np.testing.assert_equal(system_runner.slice_idx, 4)
@@ -141,6 +143,7 @@ class Simulation:
             np.testing.assert_equal(len(system_runner.traj_holder["Times"]), 4)
 
         if self.test_number == 2:
+            np.testing.assert_equal(system_runner.system.time, 0)
             system_runner.integrate(4, force_fn)
             np.testing.assert_equal(system_runner.step_idx, 8)
             np.testing.assert_equal(system_runner.slice_idx, 4)
