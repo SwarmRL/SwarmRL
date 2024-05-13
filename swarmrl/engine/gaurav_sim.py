@@ -3,19 +3,24 @@ import pathlib
 import shelve
 import typing
 
+import h5py
 import numpy as np
-import scipy
+import scipy.integrate
 
 from .engine import Engine
 
 
 @dataclasses.dataclass
 class GauravSimParams:
+    """
+    time_step < snapshot_interval < time_slice, all multiples of time_step
+    """
+
     box_length: float
-    n_groves: int = 6
     time_step: float
+    time_slice: float
+    snapshot_interval: float
     raft_radius: float
-    raft_n_groves: int
     raft_repulsion_strength: float
     dynamic_viscosity: float
     fluid_density: float
@@ -26,52 +31,161 @@ class GauravSimParams:
 
 @dataclasses.dataclass
 class Raft:
-    x: float
-    y: float
     pos: np.array
     alpha: float  # in radians
     magnetic_moment: float
-    radius: float
 
     def get_director(self) -> np.array:
         return np.array([np.cos(self.alpha), np.sin(self.alpha)])
 
 
 @dataclasses.dataclass
-class BFieldCalculator:
+class GauravAction:
     amplitudes: np.array
     frequencies: np.array
     phases: np.array
     offsets: np.array
 
-    def calc_B_field(self, t):
-        return (
-            self.amplitudes * np.sin(2 * np.pi * self.frequencies * t + self.phases)
-            + self.offsets
-        )
+
+class Model:
+    def calc_action(self, rafts: typing.List[Raft]) -> GauravAction:
+        raise NotImplementedError
+
+
+class ConstantAction(Model):
+    def __init__(self, action: GauravAction) -> None:
+        self.action = action
+
+    def calc_action(self, rafts: typing.List[Raft]) -> GauravAction:
+        return self.action
+
+
+def calc_B_field(action, t):
+    return (
+        action.amplitudes * np.sin(2 * np.pi * action.frequencies * t + action.phases)
+        + action.offsets
+    )
 
 
 class GauravSim(Engine):
+    """
+    Based on Gaurav's implementation of raft motion described in
+    "Order and information in the patterns of spinning magnetic
+    micro-disks at the air-water interface"
+    doi:10.1126/sciadv.abk0685
+    """
+
     def __init__(
         self,
         params: GauravSimParams,
+        out_folder: typing.Union[str, pathlib.Path],
+        h5_group_tag: str = "rafts",
+        with_precalc_capillary: bool = True,
     ):
         self.params: GauravSimParams = params
         self.rafts: typing.List[Raft] = []
-        self.bfield_calculator: BFieldCalculator = None
 
-        cap_force, cap_torque = self._load_cap_forces()
-        self.capillary_force = cap_force
-        self.capillary_torque = cap_torque
+        self.out_folder: pathlib.Path = pathlib.Path(out_folder).resolve()
+        self.h5_group_tag = h5_group_tag
+        self.with_precalc_capillary = with_precalc_capillary
 
-    def add_raft(self, x, y, alpha):
-        self.rafts.append(Raft(x, y, alpha))
+        self.integration_initialised = False
+        self.slice_idx = None
+        self.current_action: GauravAction = None
 
-    def add_bfield(self, bfield_calculator: BFieldCalculator):
-        self.bfield_calculator = bfield_calculator
+        if self.with_precalc_capillary:
+            cap_force, cap_torque = self._load_cap_forces()
+            self.capillary_force = cap_force
+            self.capillary_torque = cap_torque
+
+    def add_raft(self, pos: np.array, alpha: float, magnetic_moment: float):
+        self._check_already_initialised()
+        self.rafts.append(Raft(pos, alpha, magnetic_moment))
 
     def _get_state_from_rafts(self):
-        return np.array([r.x, r.y, r.alpha] for r in self.rafts)
+        return np.array([[r.pos[0], r.pos[1], r.alpha] for r in self.rafts])
+
+    def _check_already_initialised(self):
+        if self.integration_initialised:
+            raise RuntimeError(
+                "You cannot change the system configuration "
+                "after the first call to integrate()"
+            )
+
+    def _init_h5_output(self):
+        """
+        Initialize the hdf5 output.
+
+        This method will create a directory for the data to be stored within. Follwing
+        this, a hdf5 database is constructed for storing of the simulation data.
+        """
+        self.h5_filename = self.out_folder / "trajectory.hdf5"
+        self.out_folder.mkdir(parents=True, exist_ok=True)
+
+        n_rafts = len(self.rafts)
+
+        self.h5_dataset_keys = ["Times", "Ids", "Alphas", "Unwrapped_Positions"]
+
+        # create datasets with 3 dimension regardless of data dimension to make
+        # data handling easier later
+        with h5py.File(self.h5_filename.as_posix(), "a") as h5_outfile:
+            part_group = h5_outfile.require_group(self.h5_group_tag)
+            dataset_kwargs = dict(compression="gzip")
+
+            part_group.require_dataset(
+                "Times",
+                shape=(0, 1, 1),
+                maxshape=(None, 1, 1),
+                dtype=float,
+                **dataset_kwargs,
+            )
+            for name in ["Ids", "Alphas"]:
+                part_group.require_dataset(
+                    name,
+                    shape=(0, n_rafts, 1),
+                    maxshape=(None, n_rafts, 1),
+                    dtype=int,
+                    **dataset_kwargs,
+                )
+            for name in ["Unwrapped_Positions"]:
+                part_group.require_dataset(
+                    name,
+                    shape=(0, n_rafts, 2),
+                    maxshape=(None, n_rafts, 2),
+                    dtype=float,
+                    **dataset_kwargs,
+                )
+
+    def write_to_h5(self, traj_state_flat: np.array, times: np.array):
+        # traj_state_flat.shape = (n_part*3, n_snapshots)
+        n_new_snapshots = len(times)
+        n_partcls = traj_state_flat.shape[0] // 3
+
+        traj_state_h5format = traj_state_flat.T
+        traj_state_h5format = np.reshape(
+            traj_state_h5format, (n_new_snapshots, n_partcls, 3)
+        )
+
+        # add dimensions to low-dim arrays
+        write_chunk = {
+            "Times": times[:, None, None],
+            "Ids": np.repeat(np.arange(n_partcls)[None, :], n_new_snapshots, axis=0)[
+                :, :, None
+            ],
+            "Alphas": traj_state_h5format[:, :, 2][:, :, None],
+            "Unwrapped_Positions": traj_state_h5format[:, :, :2],
+        }
+
+        with h5py.File(self.h5_filename, "a") as h5_outfile:
+            part_group = h5_outfile[self.h5_group_tag]
+            for key, values in write_chunk.items():
+                dataset = part_group[key]
+                n_snapshots_old = dataset.shape[0]
+                dataset.resize(n_snapshots_old + n_new_snapshots, axis=0)
+                dataset[
+                    n_snapshots_old : n_snapshots_old + n_new_snapshots,
+                    ...,
+                ] = values
 
     def _load_cap_forces(self):
         if not self.params.capillary_force_data_path.exists():
@@ -212,10 +326,12 @@ class GauravSim(Engine):
         omegas = np.zeros(n_rafts)
         mag_moments = [r.magnetic_moment for r in self.rafts]
         for i in range(n_rafts):
-            edge_edge_dists = []
-            for j in range(i, n_rafts):
-                r_ij_vec = state[j, :2] - state[i, :2]
-                r_ij_norm = np.linalg.norm(r_ij_vec)
+            r_ijs = state[:, :2] - state[i, :2][None, :]
+            r_ij_norms = np.linalg.norm(r_ijs, axis=1)
+            edge_edge_dists = r_ij_norms - 2 * self.params.raft_radius
+            for j in range(i + 1, n_rafts):
+                r_ij_vec = r_ijs[j, :]
+                r_ij_norm = r_ij_norms[j]
                 r_ij_angle = np.arctan2(r_ij_vec[1], r_ij_vec[0])
                 phi_i = state[i, 2] - r_ij_angle
                 phi_j = state[j, 2] - r_ij_angle
@@ -230,17 +346,17 @@ class GauravSim(Engine):
                 rot_mob = self._calc_rot_mobility(r_ij_norm)
                 omegas[i] += rot_mob * torque_dipole_dipole
                 omegas[j] += -rot_mob * torque_dipole_dipole
-
-                edge_edge_dist = r_ij_norm - 2 * self.params.raft_radius
-                edge_edge_dists.append(edge_edge_dists)
                 phi_ij = phi_i
-                torque_capill = self.capillary_torque[
-                    int(edge_edge_dist + 0.5), int(phi_ij + 0.5)
-                ]
+                if self.with_precalc_capillary:
+                    torque_capill = self.capillary_torque[
+                        int(edge_edge_dists[j] + 0.5), int(phi_ij + 0.5)
+                    ]
+                else:
+                    torque_capill = 0.0
                 omegas[i] += rot_mob * torque_capill
                 omegas[j] += -rot_mob * torque_capill
             omegas[i] += (
-                self._calc_rot_mobility(min(edge_edge_dists)) * b_field_torque[i]
+                self._calc_rot_mobility(np.min(edge_edge_dists)) * b_field_torque[i]
             )
 
         return omegas
@@ -257,7 +373,10 @@ class GauravSim(Engine):
             # distance to top right corner
             dist_top_right = self.params.box_length - dist_bot_left
             prefactor = (
-                self._calc_trans_mobility(2 * self.params.lubrication_threshold)
+                self._calc_trans_mobility(
+                    2 * self.params.raft_radius + 2 * self.params.lubrication_threshold,
+                    "none",
+                )
                 * self.params.fluid_density
                 * omegas[i] ** 2
                 * self.params.raft_radius**7
@@ -266,7 +385,7 @@ class GauravSim(Engine):
 
         # pair interactions
         for i in range(n_rafts):
-            for j in range(i, n_rafts):
+            for j in range(i + 1, n_rafts):
                 r_ij_vec = state[j, :2] - state[i, :2]
                 r_ij_norm = np.linalg.norm(r_ij_vec)
                 r_ij_angle = np.arctan2(r_ij_vec[1], r_ij_vec[0])
@@ -287,9 +406,12 @@ class GauravSim(Engine):
                 f_mag_on = self.calc_f_mag_on(r_ij_norm, phi_ij, f_mag_on_prefactor)
                 f_mag_off = self.calc_f_mag_off(r_ij_norm, phi_ij, f_mag_off_prefactor)
 
-                f_capillary = self.capillary_force[
-                    int(edge_edge_dist + 0.5), int(phi_ij + 0.5)
-                ]
+                if self.with_precalc_capillary:
+                    f_capillary = self.capillary_force[
+                        int(edge_edge_dist + 0.5), int(phi_ij + 0.5)
+                    ]
+                else:
+                    f_capillary = 0.0
 
                 r_7_force = (
                     self.params.fluid_density
@@ -336,24 +458,59 @@ class GauravSim(Engine):
                 vels[j, :] += -vel_ij_along_r_ij * r_ij_vec
                 vels[j, :] += -vel_ij_along_r_ij_cross_z * r_ij_cross_z
 
-    def get_rhs_new(self, t, state_flat):
+        return vels
+
+    def get_rhs(self, t, state_flat: np.array):
         state = state_flat.reshape((-1, 3))
 
-        b_field = self.bfield_calculator.calc_B_field(t)
+        b_field = calc_B_field(self.current_action, t)
 
         omega = self._get_omega(state, b_field)
         vel = self._get_vel(state, omega, b_field)
 
-        state_derivative = np.stack([vel, omega[:, np.newaxis]], axis=1)
+        state_derivative = np.concatenate([vel, omega[:, None]], axis=1)
         return state_derivative.flatten()
 
-    def integrate(self, n_slices: int):
-        def rhs(t, state):
-            # right_hand_side has self as the first argument so we write this
-            # small wrapper to remove it from the call signature
-            return self.get_rhs_new(t, state)
+    def integrate(self, n_slices: int, model: Model):
 
-        scipy.solve_ivp(rhs)
+        if not self.integration_initialised:
+            self.time = 0.0
+            self.slice_idx = 0
+            self._init_h5_output()
+            self.integration_initialised = True
+
+        def rhs(t, state):
+            # get_rhs has self as the first argument so we write this
+            # small wrapper to remove it from the call signature
+            return self.get_rhs(t, state)
+
+        state_flat = self._get_state_from_rafts().flatten()
+
+        n_snapshots_per_slice = int(
+            round(self.params.time_slice / self.params.snapshot_interval)
+        )
+        for _ in range(n_slices):
+            self.current_action = model.calc_action(self.rafts)
+            sol = scipy.integrate.solve_ivp(
+                rhs,
+                (self.time, self.time + self.params.time_slice),
+                state_flat,
+                first_step=self.params.time_step,
+                max_step=self.params.time_step,
+                t_eval=np.linspace(
+                    self.time + self.params.snapshot_interval,
+                    self.time + self.params.time_slice,
+                    num=n_snapshots_per_slice,
+                ),
+            )
+            if not sol.success:
+                raise RuntimeError(
+                    f"Integration crashed at time {self.time}. Reason: {sol.message}"
+                )
+            self.write_to_h5(sol.y, sol.t)
+
+            self.time = sol.t[-1]
+            state_flat = sol.y[:, -1]
 
     def calc_lubG(self, x):
         if x == 0:
