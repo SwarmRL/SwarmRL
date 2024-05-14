@@ -4,7 +4,9 @@ import shelve
 import typing
 
 import h5py
+import numba
 import numpy as np
+import pint
 import scipy.integrate
 
 from .engine import Engine
@@ -13,9 +15,14 @@ from .engine import Engine
 @dataclasses.dataclass
 class GauravSimParams:
     """
-    time_step < snapshot_interval < time_slice, all multiples of time_step
+    time_step < snapshot_interval < time_slice, all multiples of time_step.
+
+    capillary_force_data_path: path to the database that contains precalculated
+        force and torque data. Specify path **without** the file extension.
+        The shelve module will find all files needed to load the database.
     """
 
+    ureg: pint.UnitRegistry
     box_length: float
     time_step: float
     time_slice: float
@@ -27,6 +34,53 @@ class GauravSimParams:
     lubrication_threshold: float
     magnetic_constant: float
     capillary_force_data_path: pathlib.Path
+
+
+def setup_unit_system(ureg: pint.UnitRegistry):
+    """
+    In-place definition of the unit system for the simulation,
+    added to the ureg object.
+    """
+    # basis units
+    ureg.define("sim_length = 1 micrometer")
+    ureg.define("sim_time = 1 second")
+    ureg.define("sim_current = 1 ampere")
+    ureg.define("sim_force = 1e-6 newton")
+
+    # gaurav's original unit system isn't consistent, but this should
+    # only affect the water density
+
+    # derived units
+    ureg.define("sim_mass = sim_force * sim_time**2 / sim_length")
+    ureg.define("sim_velocity = sim_length / sim_time")
+    ureg.define("sim_angular_velocity = 1 / sim_time")
+    ureg.define("sim_dyn_viscosity = sim_mass / (sim_length * sim_time)")
+    ureg.define("sim_kin_viscosity = sim_length**2 / sim_time")
+    ureg.define("sim_torque = sim_length * sim_force")
+    ureg.define("sim_magnetic_field = sim_mass / sim_time**2 / sim_current")
+    ureg.define("sim_magnetic_permeability = sim_force / sim_current **2")
+    ureg.define("sim_magnetic_moment = sim_current * sim_length**2")
+
+    return ureg
+
+
+def convert_params_to_simunits(params: GauravSimParams):
+    ureg = params.ureg
+    params_simunits = GauravSimParams(
+        ureg=ureg,
+        box_length=params.box_length.m_as("sim_length"),
+        time_step=params.time_step.m_as("sim_time"),
+        time_slice=params.time_slice.m_as("sim_time"),
+        snapshot_interval=params.snapshot_interval.m_as("sim_time"),
+        raft_radius=params.raft_radius.m_as("sim_length"),
+        raft_repulsion_strength=params.raft_repulsion_strength.m_as("sim_force"),
+        dynamic_viscosity=params.dynamic_viscosity.m_as("sim_dyn_viscosity"),
+        fluid_density=params.fluid_density.m_as("sim_mass / sim_length**3"),
+        lubrication_threshold=params.lubrication_threshold.m_as("sim_length"),
+        magnetic_constant=params.magnetic_constant.m_as("sim_magnetic_permeability"),
+        capillary_force_data_path=params.capillary_force_data_path,
+    )
+    return params_simunits
 
 
 @dataclasses.dataclass
@@ -60,11 +114,90 @@ class ConstantAction(Model):
         return self.action
 
 
-def calc_B_field(action, t):
-    return (
-        action.amplitudes * np.sin(2 * np.pi * action.frequencies * t + action.phases)
-        + action.offsets
+def calc_B_field(action: GauravAction, t: float):
+    angles = 2 * np.pi * action.frequencies * t + action.phases
+    return action.amplitudes * np.sin(angles) + action.offsets
+
+
+@numba.jit
+def calc_f_dipole(
+    r_vec: np.array,
+    phi_1: float,
+    phi_2: float,
+    m_1: float,
+    m_2: float,
+    mag_const: float,
+):
+    """
+    eq. 42, "AN ANALYTIC SOLUTION FOR THE FORCE BETWEEN TWO MAGNETIC DIPOLES"
+    """
+    m1_vec = m_1 * np.array([np.cos(phi_1), np.sin(phi_1), 0])
+    m2_vec = m_2 * np.array([np.cos(phi_2), np.sin(phi_2), 0])
+    r = np.linalg.norm(r_vec)
+    r_hat = np.zeros(3)
+    r_hat[0] = r_vec[0] / r
+    r_hat[1] = r_vec[1] / r
+    f = (
+        3
+        * mag_const
+        / (4 * np.pi * r**4)
+        * (
+            np.cross(np.cross(r_hat, m1_vec), m2_vec)
+            + np.cross(np.cross(r_hat, m2_vec), m1_vec)
+            - 2 * np.dot(m1_vec, m2_vec) * r_hat
+            + 5 * r_hat * np.dot(np.cross(r_hat, m1_vec), np.cross(r_hat, m2_vec))
+        )
     )
+    return f[:2]
+
+
+@numba.jit
+def calc_lubG(x, radius):
+    if x == 0:
+        return 0.0212758 / radius**3
+    else:
+        logx = np.log(x)
+        return ((0.0212758 * (-logx) + 0.181089) * (-logx) + 0.381213) / (
+            radius**3 * ((-logx) * ((-logx) + 6.0425) + 6.32549)
+        )
+
+
+@numba.jit
+def calc_lubA(x, radius):
+    if x == 0:
+        return 0
+    else:
+        return x * (-0.285524 * x + 0.095493 * x * np.log(x) + 0.106103) / radius
+
+
+@numba.jit
+def calc_lubB(x: float, radius: float):
+    if x == 0.0:
+        return 0.0212764 / radius
+    else:
+        logx = np.log(x)
+        return ((0.0212764 * (-logx) + 0.157378) * (-logx) + 0.269886) / (
+            radius * (-logx) * ((-logx) + 6.0425) + 6.32549
+        )
+
+
+@numba.jit
+def calc_lubC(x, radius):
+    return -radius * calc_lubG(
+        x, radius
+    )  # Gaurav: in the paper that is not true (eq 13, 14)
+
+
+@numba.jit
+def calc_f_mag_on(r_ij, phi_ij, prefactor):
+    # eq 28
+    return prefactor / r_ij**4 * (1 - 3 * np.cos(phi_ij) ** 2)
+
+
+@numba.jit
+def calc_f_mag_off(r_ij, phi_ij, prefactor):
+    # eq 29
+    return prefactor / r_ij**4 * 2 * np.cos(phi_ij) * np.sin(phi_ij)
 
 
 class GauravSim(Engine):
@@ -82,7 +215,8 @@ class GauravSim(Engine):
         h5_group_tag: str = "rafts",
         with_precalc_capillary: bool = True,
     ):
-        self.params: GauravSimParams = params
+        setup_unit_system(params.ureg)
+        self.params: GauravSimParams = convert_params_to_simunits(params)
         self.rafts: typing.List[Raft] = []
 
         self.out_folder: pathlib.Path = pathlib.Path(out_folder).resolve()
@@ -94,16 +228,28 @@ class GauravSim(Engine):
         self.current_action: GauravAction = None
 
         if self.with_precalc_capillary:
-            cap_force, cap_torque = self._load_cap_forces()
+            cap_force, cap_torque, cap_distances = self._load_cap_forces()
             self.capillary_force = cap_force
             self.capillary_torque = cap_torque
+            self.max_cap_distance = cap_distances[-1]
 
     def add_raft(self, pos: np.array, alpha: float, magnetic_moment: float):
         self._check_already_initialised()
-        self.rafts.append(Raft(pos, alpha, magnetic_moment))
+        self.rafts.append(
+            Raft(
+                pos.m_as("sim_length"),
+                alpha,
+                magnetic_moment.m_as("sim_magnetic_moment"),
+            )
+        )
 
     def _get_state_from_rafts(self):
         return np.array([[r.pos[0], r.pos[1], r.alpha] for r in self.rafts])
+
+    def _update_rafts_from_state(self, state):
+        for r, s in zip(self.rafts, state):
+            r.pos = s[:2]
+            r.alpha = s[2]
 
     def _check_already_initialised(self):
         if self.integration_initialised:
@@ -139,12 +285,20 @@ class GauravSim(Engine):
                 dtype=float,
                 **dataset_kwargs,
             )
-            for name in ["Ids", "Alphas"]:
+            for name in ["Ids"]:
                 part_group.require_dataset(
                     name,
                     shape=(0, n_rafts, 1),
                     maxshape=(None, n_rafts, 1),
                     dtype=int,
+                    **dataset_kwargs,
+                )
+            for name in ["Alphas"]:
+                part_group.require_dataset(
+                    name,
+                    shape=(0, n_rafts, 1),
+                    maxshape=(None, n_rafts, 1),
+                    dtype=float,
                     **dataset_kwargs,
                 )
             for name in ["Unwrapped_Positions"]:
@@ -188,13 +342,7 @@ class GauravSim(Engine):
                 ] = values
 
     def _load_cap_forces(self):
-        if not self.params.capillary_force_data_path.exists():
-            raise FileNotFoundError(
-                "You must provide a path to a file that contains the precomputed"
-                " capillary interaction"
-            )
-
-        with shelve.open(self.params.capillary_force_data_path) as tempShelf:
+        with shelve.open(self.params.capillary_force_data_path.as_posix()) as tempShelf:
             capillaryEEDistances = tempShelf["eeDistanceCombined"]  # unit: m
             capillaryForcesDistancesAsRowsLoaded = tempShelf[
                 "forceCombinedDistancesAsRowsAll360"
@@ -202,6 +350,17 @@ class GauravSim(Engine):
             capillaryTorquesDistancesAsRowsLoaded = tempShelf[
                 "torqueCombinedDistancesAsRowsAll360"
             ]  # unit: N.m
+
+        # convert units
+        capillaryEEDistances = self.params.ureg.Quantity(
+            capillaryEEDistances, "meter"
+        ).m_as("sim_length")
+        capillaryForcesDistancesAsRowsLoaded = self.params.ureg.Quantity(
+            capillaryForcesDistancesAsRowsLoaded, "newton"
+        ).m_as("sim_force")
+        capillaryTorquesDistancesAsRowsLoaded = self.params.ureg.Quantity(
+            capillaryTorquesDistancesAsRowsLoaded, "newton * meter"
+        ).m_as("sim_torque")
 
         # further data treatment on capillary force profile
         # insert the force and torque at eeDistance = 1um
@@ -284,7 +443,11 @@ class GauravSim(Engine):
             capillaryTorquesDistancesAsRows, capillaryPeakOffset, axis=1
         )
 
-        return capillaryForcesDistancesAsRows, capillaryTorquesDistancesAsRows
+        return (
+            capillaryForcesDistancesAsRows,
+            capillaryTorquesDistancesAsRows,
+            capillaryEEDistances,
+        )
 
     def _calc_rot_mobility(self, r_ij):
         edge_edge_ij = r_ij - 2 * self.params.raft_radius
@@ -294,22 +457,22 @@ class GauravSim(Engine):
             )
         else:
             x = max([0, edge_edge_ij / self.params.raft_radius])
-            return self.calc_lubG(x) / self.params.dynamic_viscosity
+            return calc_lubG(x, self.params.raft_radius) / self.params.dynamic_viscosity
 
     def _calc_trans_mobility(self, r_ij, lub_option):
         edge_edge_ij = r_ij - 2 * self.params.raft_radius
-        if edge_edge_ij > self.params.lubrication_threshold:
+        if edge_edge_ij > self.params.lubrication_threshold or lub_option == "none":
             return 1 / (
                 6 * np.pi * self.params.dynamic_viscosity * self.params.raft_radius
             )
         else:
             x = max([0, edge_edge_ij / self.params.raft_radius])
             if lub_option == "A":
-                lub = self.calc_lubA(x)
+                lub = calc_lubA(x, self.params.raft_radius)
             elif lub_option == "B":
-                lub = self.calc_lubB(x)
+                lub = calc_lubB(x, self.params.raft_radius)
             elif lub_option == "C":
-                lub = self.calc_lubC(x)
+                lub = calc_lubC(x, self.params.raft_radius)
             else:
                 raise ValueError(f"Unknown lub option {lub_option}")
             return lub / self.params.dynamic_viscosity
@@ -328,6 +491,7 @@ class GauravSim(Engine):
         for i in range(n_rafts):
             r_ijs = state[:, :2] - state[i, :2][None, :]
             r_ij_norms = np.linalg.norm(r_ijs, axis=1)
+            r_ij_norms[i] = np.inf
             edge_edge_dists = r_ij_norms - 2 * self.params.raft_radius
             for j in range(i + 1, n_rafts):
                 r_ij_vec = r_ijs[j, :]
@@ -347,10 +511,13 @@ class GauravSim(Engine):
                 omegas[i] += rot_mob * torque_dipole_dipole
                 omegas[j] += -rot_mob * torque_dipole_dipole
                 phi_ij = phi_i
-                if self.with_precalc_capillary:
-                    torque_capill = self.capillary_torque[
-                        int(edge_edge_dists[j] + 0.5), int(phi_ij + 0.5)
-                    ]
+                if (
+                    self.with_precalc_capillary
+                    and edge_edge_dists[j] < self.max_cap_distance
+                ):
+                    angle_idx = int(360 / np.pi * phi_ij + 0.5) % 360
+                    dist_idx = max(0, int(edge_edge_dists[j] + 0.5))
+                    torque_capill = self.capillary_torque[dist_idx, angle_idx]
                 else:
                     torque_capill = 0.0
                 omegas[i] += rot_mob * torque_capill
@@ -374,7 +541,7 @@ class GauravSim(Engine):
             dist_top_right = self.params.box_length - dist_bot_left
             prefactor = (
                 self._calc_trans_mobility(
-                    2 * self.params.raft_radius + 2 * self.params.lubrication_threshold,
+                    0,
                     "none",
                 )
                 * self.params.fluid_density
@@ -385,31 +552,50 @@ class GauravSim(Engine):
 
         # pair interactions
         for i in range(n_rafts):
+            r_ijs = state[:, :2] - state[i, :2][None, :]
+            r_ij_norms = np.linalg.norm(r_ijs, axis=1)
+            r_ij_norms[i] = np.inf
+            edge_edge_dists = r_ij_norms - 2 * self.params.raft_radius
             for j in range(i + 1, n_rafts):
-                r_ij_vec = state[j, :2] - state[i, :2]
-                r_ij_norm = np.linalg.norm(r_ij_vec)
+                r_ij_vec = r_ijs[j, :]
+                r_ij_norm = r_ij_norms[j]
                 r_ij_angle = np.arctan2(r_ij_vec[1], r_ij_vec[0])
                 r_ij_unit_vec = r_ij_vec / r_ij_norm
                 r_ij_cross_z = np.array([r_ij_unit_vec[1], -r_ij_unit_vec[0]])
-                edge_edge_dist = r_ij_norm - 2 * self.params.raft_radius
+                edge_edge_dist = edge_edge_dists[j]
                 phi_i = state[i, 2] - r_ij_angle
                 phi_ij = phi_i
 
-                f_mag_on_prefactor = (
-                    3
-                    * self.params.magnetic_constant
-                    * mag_moments[i]
-                    * mag_moments[j]
-                    / (4 * np.pi)
-                )
-                f_mag_off_prefactor = f_mag_on_prefactor
-                f_mag_on = self.calc_f_mag_on(r_ij_norm, phi_ij, f_mag_on_prefactor)
-                f_mag_off = self.calc_f_mag_off(r_ij_norm, phi_ij, f_mag_off_prefactor)
+                # f_mag_on_prefactor = (
+                #     3
+                #     * self.params.magnetic_constant
+                #     * mag_moments[i]
+                #     * mag_moments[j]
+                #     / (4 * np.pi)
+                # )
+                # f_mag_off_prefactor = f_mag_on_prefactor
+                # f_mag_on = self.calc_f_mag_on(r_ij_norm, phi_ij, f_mag_on_prefactor)
+                # f_mag_off =
+                # self.calc_f_mag_off(r_ij_norm, phi_ij, f_mag_off_prefactor)
 
-                if self.with_precalc_capillary:
-                    f_capillary = self.capillary_force[
-                        int(edge_edge_dist + 0.5), int(phi_ij + 0.5)
-                    ]
+                f_dip_dip = calc_f_dipole(
+                    max(r_ij_norm, 2 * self.params.raft_radius) * r_ij_unit_vec,
+                    state[i, 2],
+                    state[j, 2],
+                    mag_moments[i],
+                    mag_moments[j],
+                    self.params.magnetic_constant,
+                )
+                f_mag_on = np.dot(f_dip_dip, r_ij_unit_vec)
+                f_mag_off = np.dot(f_dip_dip, r_ij_cross_z)
+
+                if (
+                    self.with_precalc_capillary
+                    and edge_edge_dist < self.max_cap_distance
+                ):
+                    angle_idx = int(360 / np.pi * phi_ij + 0.5) % 360
+                    dist_idx = max(0, int(edge_edge_dist + 0.5))
+                    f_capillary = self.capillary_force[dist_idx, angle_idx]
                 else:
                     f_capillary = 0.0
 
@@ -427,11 +613,9 @@ class GauravSim(Engine):
                 )
                 if edge_edge_dist < 0:
                     vel_ij_along_r_ij += (
-                        -self._calc_trans_mobility(
-                            2 * self.params.lubrication_threshold, "none"
-                        )
+                        self._calc_trans_mobility(0, "none")
                         * self.params.raft_repulsion_strength
-                        * edge_edge_dist
+                        * edge_edge_dist  # pretty sure this has to be positive
                         / self.params.raft_radius
                     )
 
@@ -453,23 +637,20 @@ class GauravSim(Engine):
                 else:
                     pass
 
-                vels[i, :] += vel_ij_along_r_ij * r_ij_vec
+                vels[i, :] += vel_ij_along_r_ij * r_ij_unit_vec
                 vels[i, :] += vel_ij_along_r_ij_cross_z * r_ij_cross_z
-                vels[j, :] += -vel_ij_along_r_ij * r_ij_vec
+                vels[j, :] += -vel_ij_along_r_ij * r_ij_unit_vec
                 vels[j, :] += -vel_ij_along_r_ij_cross_z * r_ij_cross_z
 
         return vels
 
     def get_rhs(self, t, state_flat: np.array):
         state = state_flat.reshape((-1, 3))
-
         b_field = calc_B_field(self.current_action, t)
-
         omega = self._get_omega(state, b_field)
         vel = self._get_vel(state, omega, b_field)
-
         state_derivative = np.concatenate([vel, omega[:, None]], axis=1)
-        return state_derivative.flatten()
+        return state_derivative.reshape(-1)
 
     def integrate(self, n_slices: int, model: Model):
 
@@ -495,8 +676,10 @@ class GauravSim(Engine):
                 rhs,
                 (self.time, self.time + self.params.time_slice),
                 state_flat,
+                method="RK23",
                 first_step=self.params.time_step,
                 max_step=self.params.time_step,
+                min_step=self.params.time_step,
                 t_eval=np.linspace(
                     self.time + self.params.snapshot_interval,
                     self.time + self.params.time_slice,
@@ -511,44 +694,4 @@ class GauravSim(Engine):
 
             self.time = sol.t[-1]
             state_flat = sol.y[:, -1]
-
-    def calc_lubG(self, x):
-        if x == 0:
-            return 0.0212758 / self.params.raft_radius**3
-        else:
-            logx = np.log(x)
-            return ((0.0212758 * (-logx) + 0.181089) * (-logx) + 0.381213) / (
-                self.params.raft_radius**3 * ((-logx) * ((-logx) + 6.0425) + 6.32549)
-            )
-
-    def calc_lubA(self, x):
-        if x == 0:
-            return 0
-        else:
-            return (
-                x
-                * (-0.285524 * x + 0.095493 * x * np.log(x) + 0.106103)
-                / self.params.raft_radius
-            )  # unit: 1/um
-
-    def calc_lubB(self, x):
-        if x == 0.0:
-            return 0.0212764 / self.params.raft_radius
-        else:
-            logx = np.log(x)
-            return ((0.0212764 * (-logx) + 0.157378) * (-logx) + 0.269886) / (
-                self.params.raft_radius * (-logx) * ((-logx) + 6.0425) + 6.32549
-            )  # unit: 1/um
-
-    def calc_lubC(self, x):
-        return -self.params.raft_radius * self.calc_lubG(
-            x
-        )  # Gaurav: in the paper that is not true (eq 13, 14)
-
-    def calc_f_mag_on(self, r_ij, phi_ij, prefactor):
-        # eq 28
-        return prefactor / r_ij**4 * (1 - 3 * np.cos(phi_ij) ** 2)
-
-    def calc_f_mag_off(self, r_ij, phi_ij, prefactor):
-        # eq 29
-        return prefactor / r_ij**4 * 2 * np.cos(phi_ij) * np.sin(phi_ij)
+            self._update_rafts_from_state(state_flat.reshape((-1, 3)))
