@@ -4,6 +4,7 @@
 name: pytest
 
 on:
+  pull_request:
   push:
   schedule:
     - cron: '14 3 * * 1'  # at 03:14 on Monday.
@@ -15,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.11"]
 
     steps:
       - uses: actions/checkout@v3
