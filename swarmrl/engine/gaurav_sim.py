@@ -9,7 +9,7 @@ import numpy as np
 import pint
 import scipy.integrate
 
-from .engine import Engine
+from swarmrl.engine import Engine
 
 
 @dataclasses.dataclass
