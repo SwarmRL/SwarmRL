@@ -671,6 +671,9 @@ class GauravSim(Engine):
             round(self.params.time_slice / self.params.snapshot_interval)
         )
         for _ in range(n_slices):
+            # Check for a model termination condition.
+            if model.kill_switch:
+                break
             self.current_action = model.calc_action(self.rafts)
             sol = scipy.integrate.solve_ivp(
                 rhs,
