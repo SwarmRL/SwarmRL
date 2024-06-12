@@ -8,7 +8,7 @@ https://spinningup.openai.com/en/latest/algorithms/ppo.html
 
 from abc import ABC
 from functools import partial
-import logging 
+import logging
 import sys
 import jax
 import jax.numpy as jnp
@@ -29,7 +29,7 @@ class LoggerWriter:
     def __init__(self, logger, level):
         self.logger = logger
         self.level = level
-        self.linebuf = ''
+        self.linebuf = ""
 
     def write(self, buf):
         for line in buf.rstrip().splitlines():
@@ -74,16 +74,13 @@ class ProximalPolicyLoss(Loss, ABC):
         self.epsilon = epsilon
         self.entropy_coefficient = entropy_coefficient
         self.eps = 1e-8
-        
-        
+
         # Instantiate the logger and create a LoggerWriter that outputs stdout to the logger out
         # This way jax.debug.print() will output to the logger
         self.original_stdout = sys.stdout
         self.logger = logging.getLogger(__name__)
 
         self.logger_stdout = LoggerWriter(self.logger, logging.DEBUG)
-        
-
 
     @partial(jit, static_argnums=(0, 2))
     def _calculate_loss(
@@ -120,36 +117,32 @@ class ProximalPolicyLoss(Loss, ABC):
         loss: float
             The loss of the actor-critic network for the last episode.
         """
-        
+
         # compute the probabilities of the old actions under the new policy
         new_logits, predicted_values = network(network_params, feature_data)
         predicted_values = predicted_values.squeeze()
 
-        jax.debug.print('predicted_values = {}', predicted_values, ordered=True)
-
-
-        
+        jax.debug.print("predicted_values = {}", predicted_values, ordered=True)
 
         # compute the advantages and returns
         rewards = rewards[1:]
         advantages, returns = self.value_function(
             rewards=rewards, values=predicted_values
         )
-        jax.debug.print('advantages = {}', advantages, ordered=True)
-        jax.debug.print('returns = {}', returns, ordered=True)
-
+        jax.debug.print("advantages = {}", advantages, ordered=True)
+        jax.debug.print("returns = {}", returns, ordered=True)
 
         new_logits = new_logits[:-1]
         action_indices = action_indices[:-1]
         old_log_probs = old_log_probs[:-1]
         predicted_values = predicted_values[:-1]
-        
+
         # compute the probabilities of the old actions under the new policy
         new_probabilities = jax.nn.softmax(new_logits, axis=-1)
 
         # compute the entropy of the whole distribution
         entropy = self.sampling_strategy.compute_entropy(new_probabilities).sum()
-        jax.debug.print('entropy = {}', entropy, ordered=True)
+        jax.debug.print("entropy = {}", entropy, ordered=True)
         chosen_log_probs = jnp.log(
             gather_n_dim_indices(new_probabilities, action_indices) + self.eps
         )
@@ -174,9 +167,9 @@ class ProximalPolicyLoss(Loss, ABC):
 
         # Compute combined loss
         loss = actor_loss - self.entropy_coefficient * entropy + 0.5 * total_critic_loss
-        jax.debug.print('actor_loss = {}', actor_loss, ordered=True)
-        jax.debug.print('total_critic_loss = {}', total_critic_loss, ordered=True)
-        jax.debug.print('loss = {}', loss, ordered=True)
+        jax.debug.print("actor_loss = {}", actor_loss, ordered=True)
+        jax.debug.print("total_critic_loss = {}", total_critic_loss, ordered=True)
+        jax.debug.print("loss = {}", loss, ordered=True)
 
         return loss
 
@@ -199,9 +192,9 @@ class ProximalPolicyLoss(Loss, ABC):
         feature_data = jnp.array(episode_data.features)
         action_data = jnp.array(episode_data.actions)
         reward_data = jnp.array(episode_data.rewards)
-        
+
         sys.stdout = self.logger_stdout
-        jax.debug.print('\n---------PROXIMAL POLICY LOSS LOG---------\n', ordered=True)
+        jax.debug.print("\n---------PROXIMAL POLICY LOSS LOG---------\n", ordered=True)
         for _ in range(self.n_epochs):
             network_grad_fn = jax.value_and_grad(self._calculate_loss)
             _, network_grad = network_grad_fn(
@@ -214,6 +207,8 @@ class ProximalPolicyLoss(Loss, ABC):
             )
 
             network.update_model(network_grad)
-        jax.debug.print('network_grad = {}', network_grad, ordered=True)
-        jax.debug.print('\n---------END PROXIMAL POLICY LOSS LOG---------\n', ordered=True)
+        jax.debug.print("network_grad = {}", network_grad, ordered=True)
+        jax.debug.print(
+            "\n---------END PROXIMAL POLICY LOSS LOG---------\n", ordered=True
+        )
         sys.stdout = self.original_stdout
