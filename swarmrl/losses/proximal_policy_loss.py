@@ -6,13 +6,13 @@ Notes
 https://spinningup.openai.com/en/latest/algorithms/ppo.html
 """
 
-from abc import ABC
-from functools import partial
 import logging
 import sys
+from abc import ABC
+from functools import partial
+
 import jax
 import jax.numpy as jnp
-
 import optax
 from flax.core.frozen_dict import FrozenDict
 from jax import jit
