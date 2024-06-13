@@ -27,16 +27,16 @@ from swarmrl.value_functions.generalized_advantage_estimate import GAE
 
 class LoggerWriter:
     """
-        Class that redirects stdout to a logger.
+    Class that redirects stdout to a logger.
 
-        Parameters
-        ----------
-        logger: Logger 
-            The logger object to redirect stdout to.
-        level: int
-            The logging level to use.
-        linebuf: str
-            Buffer to store the current line being written.
+    Parameters
+    ----------
+    logger: Logger
+        The logger object to redirect stdout to.
+    level: int
+        The logging level to use.
+    linebuf: str
+        Buffer to store the current line being written.
     """
 
     def __init__(self, logger, level):
@@ -50,7 +50,7 @@ class LoggerWriter:
 
         Parameters
         ----------
-            buf: str 
+            buf: str
                 The buffer to write.
 
         Returns
