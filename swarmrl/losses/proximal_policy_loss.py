@@ -26,17 +26,39 @@ from swarmrl.value_functions.generalized_advantage_estimate import GAE
 
 
 class LoggerWriter:
+    """
+        Class that redirects stdout to a logger.
+
+        Parameters
+        ----------
+        logger: Logger 
+            The logger object to redirect stdout to.
+        level: int
+            The logging level to use.
+        linebuf: str
+            Buffer to store the current line being written.
+    """
+
     def __init__(self, logger, level):
         self.logger = logger
         self.level = level
         self.linebuf = ""
 
     def write(self, buf):
+        """
+            Writes the given buffer to the logger.
+
+        Parameters
+        ----------
+            buf: str 
+                The buffer to write.
+
+        Returns
+        -------
+            None
+        """
         for line in buf.rstrip().splitlines():
             self.logger.log(self.level, line.rstrip())
-
-    def flush(self):
-        pass
 
 
 class ProximalPolicyLoss(Loss, ABC):
@@ -75,11 +97,9 @@ class ProximalPolicyLoss(Loss, ABC):
         self.entropy_coefficient = entropy_coefficient
         self.eps = 1e-8
 
-        # Instantiate the logger and create a LoggerWriter that outputs stdout to the logger out
-        # This way jax.debug.print() will output to the logger
+        # Store the original stdout, create a logger and the respective logger_stdout
         self.original_stdout = sys.stdout
         self.logger = logging.getLogger(__name__)
-
         self.logger_stdout = LoggerWriter(self.logger, logging.DEBUG)
 
     @partial(jit, static_argnums=(0, 2))
