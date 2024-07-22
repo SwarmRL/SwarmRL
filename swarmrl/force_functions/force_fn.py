@@ -79,7 +79,7 @@ class ForceFunction:
             for colloid in colloids:
                 if str(colloid.type) == agent:
                     actions[colloid.id] = computed_actions[count]
-                    count += 1
+                count += 1
 
         self.kill_switch = any(switches)
 
