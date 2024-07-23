@@ -38,7 +38,8 @@ class Agent:
         Returns
         -------
         actions: typing.List[Action]
-                Return the action the colloid should take.
+                Return the action the colloid should take. Only return actions for the
+                colloid types that the agent should act on.
         kill_switch : bool
                 Flag capable of ending simulation.
         """
