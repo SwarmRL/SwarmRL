@@ -664,6 +664,160 @@ class EspressoMD(Engine):
         )
         return center_part
 
+    def add_cross(
+        self,
+        cross_center: pint.Quantity = None,
+        cross_length: pint.Quantity = None,
+        cross_thickness: pint.Quantity = None,
+        cross_start_angle: float = None,
+        n_particles: int = None,
+        friction_trans: pint.Quantity = None,
+        friction_rot: pint.Quantity = None,
+        cross_particle_type: int = None,
+        fixed: bool = True,
+    ):
+        """
+        Add a cross to the system.
+        A cross consists of n_particles particles that are rigidly connected
+        and rotate/move as a whole
+        Parameters
+        ----------
+        cross_center
+            default: center of the cross
+        cross_length
+            default: 100 micrometer
+        cross_thickness
+            default: 5 micrometer
+            Make sure there are enough particles.
+            If the thickness is too thin, the cross might get holes
+        cross_start_angle
+            default: 0
+        n_particles
+            default: 101
+            Must be uneven number such that there always is a central particle
+        friction_trans
+            Irrelevant if fixed==True
+            must be provided
+        friction_rot
+            must be provided
+        cross_particle_type
+            The cross is made out of points so they get their own type.
+        fixed
+            Fixes the central particle of the cross.
+
+        Returns
+        -------
+        The espresso handle to the central particle. For debugging purposes only
+        """
+        self._check_already_initialised()
+
+        if cross_center is None:
+            cross_center = self.params.box_length / 2.0
+        if cross_length is None:
+            cross_length = self.ureg.Quantity(100, "micrometer")
+        if cross_thickness is None:
+            cross_thickness = self.ureg.Quantity(5, "micrometer")
+        if cross_start_angle is None:
+            rod_start_angle = 0
+        if n_particles is None:
+            n_particles = 101
+        if friction_trans is None and not fixed:
+            raise ValueError(
+                "If you want the cross to move, you must provide a friction coefficient"
+            )
+        if friction_rot is None:
+            raise ValueError("You must provide a rotational friction coefficient")
+        if cross_particle_type is None:
+            raise ValueError("You must provide a particle type for the cross")
+
+        if self.n_dims != 2:
+            raise ValueError("cross can only be added in 2d")
+        if cross_center[2].magnitude != 0:
+            raise ValueError(f"cross center z-component must be 0. You gave {cross_center}")
+        if n_particles % 2 != 1:
+            raise ValueError(f"n_particles must be uneven. You gave {n_particles}")
+
+        def create_orthonormal_vector(vec):
+            """
+            Creates a vector orthonormal to the given one. Notice, that the third dimension should always be 0
+            """
+            orthonormal = np.array([0.5,0.5,0])
+            if round(vec[0],15) == 0 and round(vec[1],15) == 0:
+                raise ValueError(f"Your vector can't be 0")
+            if round(vec[0], 15) == 0:
+                orthonormal[1] = (-orthonormal[0]*vec[0]) / vec[1]
+                return orthonormal / np.linalg.norm(orthonormal)
+            if round(vec[1], 15) == 0:
+                orthonormal[0] = (-orthonormal[1]*vec[1]) / vec[0]
+                return orthonormal / np.linalg.norm(orthonormal)
+            else:
+                orthonormal[0] = (-orthonormal[1]*vec[1]) / vec[0]
+                return orthonormal / np.linalg.norm(orthonormal)
+
+        center_pos = cross_center.m_as("sim_length")
+        fric_trans = friction_trans.m_as("sim_force/sim_velocity")  # [F / v]
+        fric_rot = friction_rot.m_as(
+            "sim_force * sim_length *  sim_time"
+        )  # [M / omega]
+        partcl_radius = cross_thickness.m_as("sim_length") / 2
+
+        # place the real particle
+        center_part = self.system.part.add(
+            pos=center_pos,
+            quat=[1, 0, 0, 0],
+            rotation=3 * [True],
+            fix=[fixed, fixed, True],
+            gamma=fric_trans,
+            gamma_rot=fric_rot,
+            type=cross_particle_type,
+        )
+        self._rotate_colloid_to_2d(center_part, cross_start_angle)
+        self.colloids.append(center_part)
+
+        # place virtual
+        espressomd.assert_features(["VIRTUAL_SITES_RELATIVE"])
+        point_span = cross_length.m_as("sim_length") - 2 * partcl_radius
+        point_dist = point_span / (n_particles - 1)
+        if point_dist > 2 * partcl_radius:
+            logger.warning(
+                "your cross has holes. "
+                f"Particle radius {partcl_radius} "
+                f"particle_distance {point_dist} "
+                "(both in simulation units)"
+            )
+
+        director = utils.vector_from_angles(np.pi / 2, cross_start_angle)
+
+        for k in range(n_particles - 1):
+            dist_to_center = (-1) ** k * (k // 2 + 1) * point_dist
+            pos_virt = center_pos + dist_to_center * director
+            virtual_partcl = self.system.part.add(
+                pos=pos_virt, director=director, virtual=True, type=cross_particle_type
+            )
+            virtual_partcl.vs_auto_relate_to(center_part)
+            self.colloids.append(virtual_partcl)
+
+        self.colloid_radius_register.update(
+            {cross_particle_type: {"radius": partcl_radius, "aspect_ratio": 1.0}}
+        )
+
+
+        director = create_orthonormal_vector(director)
+        for k in range(n_particles - 1):
+            dist_to_center = (-1) ** k * (k // 2 + 1) * point_dist
+            pos_virt = center_pos + dist_to_center * director
+            virtual_partcl = self.system.part.add(
+                pos=pos_virt, director=director, virtual=True, type=cross_particle_type
+            )
+            virtual_partcl.vs_auto_relate_to(center_part)
+            self.colloids.append(virtual_partcl)
+
+        self.colloid_radius_register.update(
+            {cross_particle_type: {"radius": partcl_radius, "aspect_ratio": 1.0}}
+        )
+        return center_part
+
+
     def add_confining_walls(self, wall_type: int):
         """
         Walls on the edges of the box, will interact with particles through WCA.
