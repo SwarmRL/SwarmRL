@@ -81,6 +81,7 @@ class RodTorque(Task):
     def _torque_on_rod(
         self,
         colloid_positions: np.ndarray,
+        colloid_directors: np.ndarray,
         rod_positions: np.ndarray,
         rod_directors: np.ndarray,
     )-> np.ndarray:
@@ -91,6 +92,8 @@ class RodTorque(Task):
         ----------
         colloid_positions : np.ndarray (n_colloids, 3)
                 Positions of the colloids.
+        colloid_directors : np.ndarray (n_colloids, 3)
+                Directors of the colloids.
         rod_positions : np.ndarray (n_rod, 3)
                 Positions of the rod particles.
         rod_directors : np.ndarray (n_rod, 3)
@@ -101,7 +104,7 @@ class RodTorque(Task):
         torques : np.ndarray (n_colloids, )
                 Torques on the rod for each colloid.
         """
-        torques = self.decomp_fn(colloid_positions, rod_positions, rod_directors)[:,2]
+        torques = self.decomp_fn(colloid_positions, colloid_directors, rod_positions, rod_directors)[:,2]
         return torques
 
     def _torque_partition(
@@ -155,9 +158,10 @@ class RodTorque(Task):
             colloid for colloid in colloids if colloid.type == self.particle_type
         ]
         colloid_positions = np.array([colloid.pos for colloid in chosen_colloids])
+        colloid_directors = np.array([colloid.director for colloid in chosen_colloids])
 
-        colloids_torque_on_rod = self._torque_on_rod(colloid_positions, rod_positions, rod_directors)
-
+        colloids_torque_on_rod = self._torque_on_rod(colloid_positions, colloid_directors, rod_positions, rod_directors)
+        
         torques_in_turning_direction = self._torque_partition(colloids_torque_on_rod)
 
         return torques_in_turning_direction
