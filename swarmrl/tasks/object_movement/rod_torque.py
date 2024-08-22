@@ -23,7 +23,7 @@ class RodTorque(Task):
         rod_type: int = 1,
         particle_type: int = 0,
         direction: str = "CCW",
-        angular_velocity_scale: int = 1,
+        angular_velocity_scale: int = 100,
     ):
         """
         Constructor for the find origin task.

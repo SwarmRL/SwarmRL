@@ -52,7 +52,7 @@ def compute_forces(r: jnp.ndarray, director: jnp.ndarray) -> jnp.ndarray:
     """
 
     def _sub_compute(r):
-        return 1 / jnp.linalg.norm(r) ** 2
+        return 1 / jnp.linalg.norm(r) ** 12
 
     force_fn = jax.grad(_sub_compute)
 
