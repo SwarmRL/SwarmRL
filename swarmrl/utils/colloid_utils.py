@@ -32,8 +32,8 @@ def compute_forces(r: jnp.ndarray, director: jnp.ndarray) -> jnp.ndarray:
     Compute the energy between two colloids.
 
     Use this function with caution, as too big values in r can result
-    in NaN-Values after the jax.grad() calculation. This can happen if
-    the norm of these entries surpasses 1.5e+03.
+    in NaN-Values after the jax.grad() calculation in line 61. 
+    This can happen if the norm of these entries surpasses 1.5e+03.
 
     This uses a WCA potential to compute a relative force between
     two colloids. It is not physical.
