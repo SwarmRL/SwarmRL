@@ -83,7 +83,6 @@ class RodTorque(Task):
         colloid_positions: np.ndarray,
         colloid_directors: np.ndarray,
         rod_positions: np.ndarray,
-        rod_directors: np.ndarray,
     )-> np.ndarray:
         """
         Compute the torques on the rod.
@@ -96,21 +95,19 @@ class RodTorque(Task):
                 Directors of the colloids.
         rod_positions : np.ndarray (n_rod, 3)
                 Positions of the rod particles.
-        rod_directors : np.ndarray (n_rod, 3)
-                Directors of the rod particles.
 
         Returns
         -------
         torques : np.ndarray (n_colloids, )
                 Torques on the rod for each colloid.
         """
-        torques = self.decomp_fn(colloid_positions, colloid_directors, rod_positions, rod_directors)[:,2]
+        torques = self.decomp_fn(colloid_positions, colloid_directors, rod_positions)[:,2]
         return torques
 
     def _torque_partition(
         self,
         colloids_torques_on_rod: np.ndarray,
-        )-> np.ndarray:                                       # Negative Torques entsprechen CCW-Rotation Also muss das Vorzeichen fuer Belohnungen einmal umgedreht werden
+        )-> np.ndarray:                                       
         """
         Remove rewards for torque in the wrong direction and apply the scaling.
 
@@ -122,14 +119,14 @@ class RodTorque(Task):
         Returns
         -------
         torques_in_direction : np.ndarray (n_colloids, )
-                Torques on the rod for each colloid with wrong directions set to 0.
+                Torques on the rod for each colloid with wrong directions set to 0 and scaled accordig to the angular_velocity_scale.
         """
         if self.angular_velocity_scale > 0.0:
             torques_in_direction = colloids_torques_on_rod.at[colloids_torques_on_rod > 0.0].set(0.0)
         else:
             torques_in_direction = colloids_torques_on_rod.at[colloids_torques_on_rod < 0.0].set(0.0)
 
-        return torques_in_direction * -1 * self.angular_velocity_scale
+        return torques_in_direction * -1 * self.angular_velocity_scale  # Sign of the torques has to be inverted to avoid negativ rewards
 
     def __call__(self, colloids: List[Colloid]):
         """
@@ -160,8 +157,8 @@ class RodTorque(Task):
         colloid_positions = np.array([colloid.pos for colloid in chosen_colloids])
         colloid_directors = np.array([colloid.director for colloid in chosen_colloids])
 
-        colloids_torque_on_rod = self._torque_on_rod(colloid_positions, colloid_directors, rod_positions, rod_directors)
-        
+        colloids_torque_on_rod = self._torque_on_rod(colloid_positions, colloid_directors, rod_positions)
+
         torques_in_turning_direction = self._torque_partition(colloids_torque_on_rod)
 
         return torques_in_turning_direction

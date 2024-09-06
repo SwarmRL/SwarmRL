@@ -82,7 +82,6 @@ def compute_distance_matrix(set_a, set_b):
 
     return distance_fn(set_a, set_b)
 
-
 @jax.jit
 def compute_torque(force, direction):
     """
@@ -134,8 +133,26 @@ def compute_torque_partition_on_rod(
 
     return torque_magnitude
 
+
 @jax.jit
-def compute_torque_on_rod(colloid_positions, colloid_directors, rod_positions, rod_directions):
+def compute_rod_particle_distances(rod_positions):
+    """
+    Compute the vectors between the middle of the rod to each colloid.
+
+    Parameters
+    ----------
+    rod_positions : Positions of all the rod colloids.
+    """
+
+    def _sub_compute(a, b):
+        return b - a
+
+    distance_fn = jax.vmap(_sub_compute, in_axes=(0, None))   
+
+    return distance_fn(rod_positions, rod_positions[0]) # rod_positions[0] is the middle of the rod
+
+@jax.jit
+def compute_torque_on_rod(colloid_positions, colloid_directors, rod_positions):
     """
     Compute the torque on a rod using a WCA potential.
 
@@ -147,8 +164,6 @@ def compute_torque_on_rod(colloid_positions, colloid_directors, rod_positions, r
         Directors of the colloids.
     rod_positions : jnp.ndarray (rod_particles, 3)
         Positions of the rod particles.
-    rod_directions : jnp.ndarray (rod_particles, 3)
-        Directors of the rod particles.
     """
     # (n_colloids, rod_particles, 3)
     distance_matrix = compute_distance_matrix(colloid_positions, rod_positions)
@@ -164,14 +179,16 @@ def compute_torque_on_rod(colloid_positions, colloid_directors, rod_positions, r
     colloid_rod_map = jax.vmap(compute_torque, in_axes=(0, 0))
     colloid_only_map = jax.vmap(colloid_rod_map, in_axes=(0, None))
 
-    torques = colloid_only_map(forces, rod_directions)
+    directions = compute_rod_particle_distances(rod_positions)  # Calculate the r vectors between the middle of the rod and each colloid. 
+    torques = colloid_only_map(forces, directions)              # This is used for the torque formula: T = r x F
+
     net_rod_torque = torques.sum(axis=1)
     torque_magnitude = jnp.linalg.norm(net_rod_torque, axis=-1) + 1e-8
     normalization_factors = torque_magnitude.sum()
     torque_partition = net_rod_torque / normalization_factors
 
     return torque_partition
-    
+
 def get_colloid_indices(colloids: List["Colloid"], p_type: int) -> List[int]:
     """
     Get the indices of the colloids in the observable of a specific type.

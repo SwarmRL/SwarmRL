@@ -123,7 +123,7 @@ class EpisodicTrainer(Trainer):
 
                 rewards.append(current_reward)
 
-                running_reward = np.round(np.mean(rewards[-10:]), 4)
+                running_reward = np.round(np.mean(rewards[-10:]), 6)
 
                 if save_best_network != None and running_reward > best_running_reward:
                     best_running_reward = running_reward
@@ -134,7 +134,7 @@ class EpisodicTrainer(Trainer):
                     task,
                     advance=1,
                     Episode=episode,
-                    current_reward=np.round(current_reward, 2),
+                    current_reward=np.round(current_reward, 4),
                     running_reward=running_reward,
                 )
                 self.engine.finalize()
