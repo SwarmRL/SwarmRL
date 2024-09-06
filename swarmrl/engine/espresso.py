@@ -739,20 +739,13 @@ class EspressoMD(Engine):
 
         def create_orthonormal_vector(vec):
             """
-            Creates a vector orthonormal to the given one. Notice, that the third dimension should always be 0
+            Creates a vector orthonormal to the given one. Notice, that the third dimension should always be 0.
+            This doesn't test for zero vectors, because it is only an inner function. 
             """
-            orthonormal = np.array([0.5,0.5,0])
-            if round(vec[0],15) == 0 and round(vec[1],15) == 0:
-                raise ValueError(f"Your vector can't be 0")
-            if round(vec[0], 15) == 0:
-                orthonormal[1] = (-orthonormal[0]*vec[0]) / vec[1]
-                return orthonormal / np.linalg.norm(orthonormal)
-            if round(vec[1], 15) == 0:
-                orthonormal[0] = (-orthonormal[1]*vec[1]) / vec[0]
-                return orthonormal / np.linalg.norm(orthonormal)
-            else:
-                orthonormal[0] = (-orthonormal[1]*vec[1]) / vec[0]
-                return orthonormal / np.linalg.norm(orthonormal)
+            z_vector = np.array([0, 0, 1])
+            orthonormal_vector = np.cross(vec, z_vector)
+
+            return orthonormal_vector / np.linalg.norm(orthonormal_vector)
 
         center_pos = cross_center.m_as("sim_length")
         fric_trans = friction_trans.m_as("sim_force/sim_velocity")  # [F / v]
