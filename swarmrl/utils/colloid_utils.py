@@ -32,7 +32,7 @@ def compute_forces(r: jnp.ndarray, director: jnp.ndarray) -> jnp.ndarray:
     Compute the energy between two colloids.
 
     Use this function with caution, as too big values in r can result
-    in NaN-Values after the jax.grad() calculation in line 61. 
+    in NaN-Values after the jax.grad() calculation in line 61.
     This can happen if the norm of these entries surpasses 1.5e+03.
 
     This uses a WCA potential to compute a relative force between
@@ -56,11 +56,14 @@ def compute_forces(r: jnp.ndarray, director: jnp.ndarray) -> jnp.ndarray:
     """
 
     def _sub_compute(r):
-        return 1e-8 + 1 / (jnp.linalg.norm(r) + 1e-8) ** 12    # Add epsilon numbers to avoid the gradient to be NaN
+        return (
+            1e-8 + 1 / (jnp.linalg.norm(r) + 1e-8) ** 12
+        )  # Add epsilon numbers to avoid the gradient to be NaN
 
     force_fn = jax.grad(_sub_compute)
 
     return jnp.linalg.norm(force_fn(r)) * director
+
 
 @jax.jit
 def compute_distance_matrix(set_a, set_b):
@@ -85,6 +88,7 @@ def compute_distance_matrix(set_a, set_b):
     distance_fn = jax.vmap(_sub_compute, in_axes=(0, None))
 
     return distance_fn(set_a, set_b)
+
 
 @jax.jit
 def compute_torque(force, direction):
@@ -153,7 +157,10 @@ def compute_rod_particle_distances(rod_positions):
 
     distance_fn = jax.vmap(_sub_compute, in_axes=(0, None))
 
-    return distance_fn(rod_positions, rod_positions[0]) # rod_positions[0] is the middle of the rod
+    return distance_fn(
+        rod_positions, rod_positions[0]
+    )  # rod_positions[0] is the middle of the rod
+
 
 @jax.jit
 def compute_torque_on_rod(rod_positions, colloid_directors, colloid_positions):
@@ -183,8 +190,12 @@ def compute_torque_on_rod(rod_positions, colloid_directors, colloid_positions):
     colloid_rod_map = jax.vmap(compute_torque, in_axes=(0, 0))
     colloid_only_map = jax.vmap(colloid_rod_map, in_axes=(0, None))
 
-    directions = compute_rod_particle_distances(rod_positions)  # Calculate the r vectors between the middle of the rod and each colloid.
-    torques = colloid_only_map(forces, directions)              # This is used for the torque formula: T = r x F
+    directions = compute_rod_particle_distances(
+        rod_positions
+    )  # Calculate the r vectors between the middle of the rod and each colloid.
+    torques = colloid_only_map(
+        forces, directions
+    )  # This is used for the torque formula: T = r x F
 
     net_rod_torque = torques.sum(axis=1)
     torque_magnitude = jnp.linalg.norm(net_rod_torque, axis=-1) + 1e-8
@@ -192,6 +203,7 @@ def compute_torque_on_rod(rod_positions, colloid_directors, colloid_positions):
     torque_partition = net_rod_torque / normalization_factors
 
     return torque_partition
+
 
 def get_colloid_indices(colloids: List["Colloid"], p_type: int) -> List[int]:
     """

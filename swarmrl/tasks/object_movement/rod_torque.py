@@ -53,7 +53,6 @@ class RodTorque(Task):
         self._velocity_history_list = np.zeros(velocity_history)
         self._append_index = int(velocity_history - 1)
 
-
         self.decomp_fn = jax.jit(compute_torque_on_rod)
 
     def initialize(self, colloids: List[Colloid]):
@@ -84,7 +83,7 @@ class RodTorque(Task):
         rod_positions: np.ndarray,
         colloid_directors: np.ndarray,
         colloid_positions: np.ndarray,
-    )-> np.ndarray:
+    ) -> np.ndarray:
         """
         Compute the torques on the rod.
 
@@ -102,7 +101,9 @@ class RodTorque(Task):
         torques : np.ndarray (n_colloids, )
                 Torques on the rod for each colloid.
         """
-        torques = self.decomp_fn(rod_positions, colloid_directors, colloid_positions)[:,2]
+        torques = self.decomp_fn(rod_positions, colloid_directors, colloid_positions)[
+            :, 2
+        ]
         return torques
 
     def _compute_angular_velocity(self, new_director: np.ndarray):
@@ -130,9 +131,9 @@ class RodTorque(Task):
         # Update the historical rod director and velocity.
         self._historic_rod_director = new_director
         self._velocity_history_list = np.roll(self._velocity_history_list, -1)
-        self._velocity_history_list = self._velocity_history_list.at[self._append_index].set(
-            angular_velocity
-        )
+        self._velocity_history_list = self._velocity_history_list.at[
+            self._append_index
+        ].set(angular_velocity)
 
         # Return the clipped average velocity.
         return np.clip(np.nanmean(self._velocity_history_list), 0.0, None)
@@ -140,7 +141,7 @@ class RodTorque(Task):
     def _torque_partition(
         self,
         colloid_torques_on_rod: np.ndarray,
-        )-> np.ndarray:
+    ) -> np.ndarray:
         """
         Remove rewards for torque in the wrong direction.
 
@@ -155,11 +156,17 @@ class RodTorque(Task):
                 Torques on the rod for each colloid with wrong directions set to 0.
         """
         if self.angular_velocity_scale > 0.0:
-            torques_in_direction = colloid_torques_on_rod.at[colloid_torques_on_rod > 0.0].set(0.0)
+            torques_in_direction = colloid_torques_on_rod.at[
+                colloid_torques_on_rod > 0.0
+            ].set(0.0)
         else:
-            torques_in_direction = colloid_torques_on_rod.at[colloid_torques_on_rod < 0.0].set(0.0)
+            torques_in_direction = colloid_torques_on_rod.at[
+                colloid_torques_on_rod < 0.0
+            ].set(0.0)
 
-        return torques_in_direction * -1  # Sign of the torques has to be inverted to avoid negativ rewards
+        return (
+            torques_in_direction * -1
+        )  # Sign of the torques has to be inverted to avoid negativ rewards
 
     def _compute_torque_and_velocity_reward(
         self,
@@ -181,20 +188,20 @@ class RodTorque(Task):
                 Directors of the colloids.
         colloid_positions : np.ndarray (n_rod, 3)
                 Positions of the colloids.
-        
+
         Returns
         -------
         rewards : np.ndarray (n_colloids, )
                 Rewards for each colloid.
         """
 
-        colloid_torques_on_rod = self._compute_torque_on_rod(rod_positions, colloid_directors, colloid_positions)
+        colloid_torques_on_rod = self._compute_torque_on_rod(
+            rod_positions, colloid_directors, colloid_positions
+        )
         torques = self._torque_partition(colloid_torques_on_rod)
         velocity = self._compute_angular_velocity(rod_directors[0])
 
         return torques * velocity * self.angular_velocity_scale
-
-
 
     def __call__(self, colloids: List[Colloid]):
         """
@@ -222,6 +229,7 @@ class RodTorque(Task):
         colloid_directors = np.array([colloid.director for colloid in chosen_colloids])
 
         rewards = self._compute_torque_and_velocity_reward(
-            rod_directors, rod_positions, colloid_directors, colloid_positions)
+            rod_directors, rod_positions, colloid_directors, colloid_positions
+        )
 
         return rewards

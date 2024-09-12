@@ -733,14 +733,16 @@ class EspressoMD(Engine):
         if self.n_dims != 2:
             raise ValueError("cross can only be added in 2d")
         if cross_center[2].magnitude != 0:
-            raise ValueError(f"cross center z-component must be 0. You gave {cross_center}")
+            raise ValueError(
+                f"cross center z-component must be 0. You gave {cross_center}"
+            )
         if n_particles % 2 != 1:
             raise ValueError(f"n_particles must be uneven. You gave {n_particles}")
 
         def create_orthonormal_vector(vec):
             """
             Creates a vector orthonormal to the given one. Notice, that the third dimension should always be 0.
-            This doesn't test for zero vectors, because it is only an inner function. 
+            This doesn't test for zero vectors, because it is only an inner function.
             """
             z_vector = np.array([0, 0, 1])
             orthonormal_vector = np.cross(vec, z_vector)
@@ -794,7 +796,6 @@ class EspressoMD(Engine):
             {cross_particle_type: {"radius": partcl_radius, "aspect_ratio": 1.0}}
         )
 
-
         director = create_orthonormal_vector(director)
         for k in range(n_particles - 1):
             dist_to_center = (-1) ** k * (k // 2 + 1) * point_dist
@@ -809,7 +810,6 @@ class EspressoMD(Engine):
             {cross_particle_type: {"radius": partcl_radius, "aspect_ratio": 1.0}}
         )
         return center_part
-
 
     def add_confining_walls(self, wall_type: int):
         """

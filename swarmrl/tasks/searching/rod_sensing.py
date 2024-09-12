@@ -65,7 +65,6 @@ class RodSensing(Task, ABC):
         # Class only attributes
         self._historic_positions = {}
 
-
     def initialize(self, colloids: List[Colloid]):
         """
         Prepare the task for running.
@@ -120,11 +119,13 @@ class RodSensing(Task, ABC):
         old_position = self._historic_positions[str(colloid_id)]
 
         # Compute the distance from the source
-        #current_distance = np.linalg.norm(current_position - self.source)
-        #old_distance = np.linalg.norm(old_position - self.source)
+        # current_distance = np.linalg.norm(current_position - self.source)
+        # old_distance = np.linalg.norm(old_position - self.source)
 
         current_distance = np.linalg.norm(current_position - self.source)
-        if current_distance < self.rod_length / 2000:   #/2 fuer radius. /1000 fuer mikrometer
+        if (
+            current_distance < self.rod_length / 2000
+        ):  # /2 fuer radius. /1000 fuer mikrometer
             reward = 1.0
         else:
             old_distance = np.linalg.norm(old_position - self.source)
@@ -163,4 +164,3 @@ class RodSensing(Task, ABC):
         return np.array(
             [self.compute_colloid_reward(index, colloids) for index in colloid_indices]
         )
-
