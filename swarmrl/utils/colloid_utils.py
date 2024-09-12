@@ -56,7 +56,7 @@ def compute_forces(r: jnp.ndarray, director: jnp.ndarray) -> jnp.ndarray:
     """
 
     def _sub_compute(r):
-        return 1 / jnp.linalg.norm(r) ** 12
+        return 1e-8 + 1 / (jnp.linalg.norm(r) + 1e-8) ** 12    # Add epsilon numbers to avoid the gradient to be NaN
 
     force_fn = jax.grad(_sub_compute)
 
@@ -151,23 +151,23 @@ def compute_rod_particle_distances(rod_positions):
     def _sub_compute(a, b):
         return b - a
 
-    distance_fn = jax.vmap(_sub_compute, in_axes=(0, None))   
+    distance_fn = jax.vmap(_sub_compute, in_axes=(0, None))
 
     return distance_fn(rod_positions, rod_positions[0]) # rod_positions[0] is the middle of the rod
 
 @jax.jit
-def compute_torque_on_rod(colloid_positions, colloid_directors, rod_positions):
+def compute_torque_on_rod(rod_positions, colloid_directors, colloid_positions):
     """
     Compute the torque on a rod using a WCA potential.
 
     Parameters
     ----------
-    colloid_positions : jnp.ndarray (n_colloids, 3)
-        Positions of the colloids.
+    rod_positions : jnp.ndarray (n_colloids, 3)
+        Positions of the rod particles.
     colloid_directors : jnp.ndarray (n_colloids, 3)
         Directors of the colloids.
-    rod_positions : jnp.ndarray (rod_particles, 3)
-        Positions of the rod particles.
+    colloid_positions : jnp.ndarray (rod_particles, 3)
+        Positions of the colloids.
     """
     # (n_colloids, rod_particles, 3)
     distance_matrix = compute_distance_matrix(colloid_positions, rod_positions)
@@ -183,7 +183,7 @@ def compute_torque_on_rod(colloid_positions, colloid_directors, rod_positions):
     colloid_rod_map = jax.vmap(compute_torque, in_axes=(0, 0))
     colloid_only_map = jax.vmap(colloid_rod_map, in_axes=(0, None))
 
-    directions = compute_rod_particle_distances(rod_positions)  # Calculate the r vectors between the middle of the rod and each colloid. 
+    directions = compute_rod_particle_distances(rod_positions)  # Calculate the r vectors between the middle of the rod and each colloid.
     torques = colloid_only_map(forces, directions)              # This is used for the torque formula: T = r x F
 
     net_rod_torque = torques.sum(axis=1)
