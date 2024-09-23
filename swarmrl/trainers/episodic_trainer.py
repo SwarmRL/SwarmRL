@@ -7,12 +7,15 @@ from typing import TYPE_CHECKING
 import numpy as np
 from rich.progress import BarColumn, Progress, TimeRemainingColumn
 from swarmrl.trainers.trainer import Trainer
+
 if TYPE_CHECKING:
     from espressomd import System
 import logging
 import os
 
 logger = logging.getLogger(__name__)
+
+
 class EpisodicTrainer(Trainer):
     """
     Class for the simple MLP RL implementation.
@@ -94,7 +97,7 @@ class EpisodicTrainer(Trainer):
                     self.engine = None
                     if save_episodic_data:
                         try:
-                            self.engine = get_engine(system, f"{cycle_index}") 
+                            self.engine = get_engine(system, f"{cycle_index}")
                             cycle_index += 1
                         except TypeError:
                             raise ValueError(
@@ -105,7 +108,7 @@ class EpisodicTrainer(Trainer):
                                 " 'h5_group_tag'."
                             )
                     else:
-                        self.engine = get_engine(system, "0") 
+                        self.engine = get_engine(system, "0")
 
                     # Initialize the tasks and observables.
                     for agent in self.agents.values():
@@ -117,16 +120,24 @@ class EpisodicTrainer(Trainer):
 
                 rewards[episode] = current_reward
                 if self.DO_CHECKPOINT == True:
-                    save_string = self.check_for_checkpoint(rewards, n_episodes, episode)
+                    save_string = self.check_for_checkpoint(
+                        rewards, n_episodes, episode
+                    )
                     if save_string != "":
-                        self.export_models(f'Models/Model-ep_{episode + 1}-cur_reward_{current_reward:.1f}-' + save_string + "/")
+                        self.export_models(
+                            f"Models/Model-ep_{episode + 1}-cur_reward_{current_reward:.1f}-"
+                            + save_string
+                            + "/"
+                        )
                 logger.debug(f"{episode=}")
                 logger.debug(f"{current_reward=}")
                 episode += 1
                 if episode < 10:
                     running_reward = np.round(np.mean(rewards[:episode]), 2)
                 else:
-                    running_reward = np.round(np.mean(rewards[episode-10:episode + 1]), 2)
+                    running_reward = np.round(
+                        np.mean(rewards[episode - 10 : episode + 1]), 2
+                    )
                 progress.update(
                     task,
                     advance=1,
@@ -140,7 +151,10 @@ class EpisodicTrainer(Trainer):
                     self.DO_CHECKPOINT = False
 
                     if self.DO_RUNNING_OUT == True and episode <= self.stop_episode:
-                        print(f"Stopping criterion reached, but running out training until {self.stop_episode}")
+                        print(
+                            "Stopping criterion reached, but running out training"
+                            f" until {self.stop_episode}"
+                        )
                     else:
                         print(f"Stopping training at episode {episode}")
                         break
