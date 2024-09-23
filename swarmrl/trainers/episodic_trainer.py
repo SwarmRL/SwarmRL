@@ -98,9 +98,7 @@ class EpisodicTrainer(Trainer):
                     self.engine = None
                     if save_episodic_data:
                         try:
-                            self.engine = get_engine(
-                                system, f"{cycle_index}"
-                            )
+                            self.engine = get_engine(system, f"{cycle_index}")
                             cycle_index += 1
                         except TypeError:
                             raise ValueError(
