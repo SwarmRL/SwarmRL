@@ -6,10 +6,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from rich.progress import BarColumn, Progress, TimeRemainingColumn
+
 from swarmrl.trainers.trainer import Trainer
 
 if TYPE_CHECKING:
     from espressomd import System
+
 import logging
 import os
 
