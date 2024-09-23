@@ -83,8 +83,9 @@ class ContinuousTrainer(Trainer):
 
                     if save_string != "":
                         self.export_models(
-                            f"Models/Model-ep_{episode + 1}-cur_reward_{current_reward:.1f}-"
-                            + save_string
+                            f"Models/Model-ep_{episode + 1}"
+                            "-cur_reward_{current_reward:.1f}-"
+                            "save_string"
                         )
                 rewards.append(current_reward)
                 episode += 1
