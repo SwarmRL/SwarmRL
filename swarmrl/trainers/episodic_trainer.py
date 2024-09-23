@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from espressomd import System
 
 import logging
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +98,9 @@ class EpisodicTrainer(Trainer):
                     self.engine = None
                     if save_episodic_data:
                         try:
-                            self.engine = get_engine(system, f"{cycle_index}")
+                            self.engine = get_engine(
+                                system, f"{cycle_index}"
+                            )
                             cycle_index += 1
                         except TypeError:
                             raise ValueError(
@@ -121,14 +122,15 @@ class EpisodicTrainer(Trainer):
                 force_fn, current_reward, killed = self.update_rl()
 
                 rewards[episode] = current_reward
-                if self.DO_CHECKPOINT == True:
+                if self.DO_CHECKPOINT is True:
                     save_string = self.check_for_checkpoint(
                         rewards, n_episodes, episode
                     )
                     if save_string != "":
                         self.export_models(
-                            f"Models/Model-ep_{episode + 1}-cur_reward_{current_reward:.1f}-"
-                            + save_string
+                            f"Models/Model-ep_{episode + 1}"
+                            "-cur_reward_{current_reward:.1f}-"
+                            "save_string"
                             + "/"
                         )
                 logger.debug(f"{episode=}")
@@ -149,10 +151,10 @@ class EpisodicTrainer(Trainer):
                 )
                 self.engine.finalize()
 
-                if self.STOP_TRAINING_NOW == True:
+                if self.STOP_TRAINING_NOW is True:
                     self.DO_CHECKPOINT = False
 
-                    if self.DO_RUNNING_OUT == True and episode <= self.stop_episode:
+                    if self.DO_RUNNING_OUT is True and episode <= self.stop_episode:
                         print(
                             "Stopping criterion reached, but running out training"
                             f" until {self.stop_episode}"
