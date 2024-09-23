@@ -76,7 +76,8 @@ class Trainer:
     def initialize_checkpointer(self, checkpoint_params: dict = None):
         """
         Initialize the checkpointer by taking the checkpoint_params key-value pairs.
-        It automatically sets the DO_CHECKPOINT key to True if the checkpoint_params is not None.
+        It automatically sets the DO_CHECKPOINT key to True if the checkpoint_params
+        is not None.
         All other keys are optional and depend on the specific checkpointing method.
         If not provided, they will be set to default values.
 
@@ -84,30 +85,38 @@ class Trainer:
         - reward-goal-checkpointing: Save the model when a certain reward is reached.
             keys:
             - DO_GOAL_MODEL: Boolean to activate the goal-model-checkpointing.
-            - required_reward: The reward that should be reached. This is very specific to the task!
+            - required_reward: The reward that should be reached.
+              This is very specific to the task!
             - window_width: The width of the window to calculate the average reward.
             - DO_GOAL_BREAK: Boolean to stop the training after the goal is reached.
-            - running_out_length: If the goal is reached, the simulation will continue for another running_out_length episodes.
+            - running_out_length: If the goal is reached, the simulation will continue
+            for another running_out_length episodes.
 
-        - best-reward-checkpointing: Saves the model, when the reward is greater than the previous maximum reward.
+        - best-reward-checkpointing: Saves the model, when the reward is greater
+        than the previous maximum reward.
             keys:
             - DO_BEST_MODEL: Boolean to activate the best-model-checkpointing.
             - min_reward: The minimum reward that should be reached.
             - window_width: The width of the window to calculate the average reward.
-            - increase_factor: The factor the reward should be greater than the previous maximum reward.
-            - better_wait_time: The number of episodes to wait before the first checkpoint.
+            - increase_factor: The factor the reward should be greater than the
+            previous maximum reward.
+            - better_wait_time: The number of episodes before the first checkpoint.
 
-        - backup-model-checkpointing: Saves the model, if the reward is sinking suddenly. Could be used for analysing forgetting models.
+        - backup-model-checkpointing: Saves the model, if the reward is sinking
+        suddenly. Could be used for analyzing forgetting models.
             keys:
             - DO_BACKUP_MODEL: Boolean to activate the backup-model-checkpointing.
-            - backup_wait_time: The number of episodes to wait before the first checkpoint.
+            - backup_wait_time: The number of episodes to wait before the first
+            checkpoint.
             - window_width: The width of the window to calculate the average reward.
-            - min_backup_reward: The minimum reward that should be reached to be able to save models that at least learned something.
+            - min_backup_reward: The minimum reward that should be reached to be
+            able to save models that at least learned something.
 
         - Save a model in regular intervals.
             keys:
             - DO_REGULAR: Boolean to activate the regular-checkpointing.
-            - save_models_intervall: The intervall size of episodes after which models will be saved.
+            - save_models_intervall: The intervall size of episodes after which
+            models will be saved.
 
         Parameters
         ----------
@@ -159,7 +168,7 @@ class Trainer:
                 "save_models_intervall", 25
             )
 
-        if self.DO_GOAL_BREAK == True:
+        if self.DO_GOAL_BREAK is True:
             self.stop_episode = 0
 
     def check_for_checkpoint(
@@ -180,7 +189,8 @@ class Trainer:
         Returns
         -------
         save_string : str
-                A string that contains the flags of the checkpointing criterias that were met.
+                A string that contains the flags of the checkpointing criterias
+                that were met.
         """
         SAVE_GOAL = False
         SAVE_BEST = False
@@ -190,15 +200,15 @@ class Trainer:
         self.rewards = rewards.copy()
         current_reward = rewards[current_episode]
 
-        if self.DO_CHECKPOINT == True:
-            if self.DO_REGULAR == True:
+        if self.DO_CHECKPOINT is True:
+            if self.DO_REGULAR is True:
                 if (current_episode + 1) % self.save_models_intervall == 0:
                     SAVE_REGULAR = True
 
             if (
-                self.DO_GOAL_MODEL == True
-                or self.DO_BEST_MODEL == True
-                or self.DO_BACKUP_MODEL == True
+                self.DO_GOAL_MODEL is True
+                or self.DO_BEST_MODEL is True
+                or self.DO_BACKUP_MODEL is True
             ):
                 if current_episode > self.window_width:
                     average_window_reward = np.mean(
@@ -210,15 +220,15 @@ class Trainer:
                     average_window_reward = np.mean(self.rewards[: current_episode + 1])
 
             # Do goal-model-checkpointing
-            if self.DO_GOAL_MODEL == True:
+            if self.DO_GOAL_MODEL is True:
                 if (
                     average_window_reward >= self.required_reward
                     and current_reward >= self.required_reward
                 ):
 
-                    if self.DO_GOAL_BREAK == True:
+                    if self.DO_GOAL_BREAK is True:
                         self.STOP_TRAINING_NOW = True
-                        if self.DO_RUNNING_OUT == True:
+                        if self.DO_RUNNING_OUT is True:
                             self.stop_episode = (
                                 current_episode + self.running_out_length + 1
                             )
@@ -229,7 +239,7 @@ class Trainer:
                     SAVE_GOAL = True
 
             # Do best-model-checkpointing
-            if self.DO_BEST_MODEL == True:
+            if self.DO_BEST_MODEL is True:
                 if (
                     current_episode > self.better_wait_time
                     and current_reward > self.min_reward
@@ -241,7 +251,7 @@ class Trainer:
                     SAVE_BEST = True
 
             # Do backup-model-checkpointing
-            if self.DO_BACKUP_MODEL == True:
+            if self.DO_BACKUP_MODEL is True:
                 if (
                     current_episode > self.backup_wait_time
                     and self.min_backup_reward < current_reward < np.max(self.rewards)
