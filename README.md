@@ -17,9 +17,9 @@ Currently, SwamrRL is only available from source so it must be installed within 
 directory.
 
 ```sh
-   git clone https://github.com/SwarmRL/SwarmRL.git
-   cd SwarmRL
-   pip install .
+git clone https://github.com/SwarmRL/SwarmRL.git
+cd SwarmRL
+python -m pip install .
 ```
 
 ## Looking for a Starting Point?
@@ -27,3 +27,39 @@ directory.
 Our documentation is a work in progress but can be found [here](swarmrl.github.io/SwarmRL.ai/).
 If you have questions about the code or find any problems, please create an issue so we can work on it as soon as possible.
 If you're feeling adventurous, you can check out our custom-built Swarm GPT, [here](https://chat.openai.com/g/g-3lniVEMpK-swarm-gpt) which has been conditioned on the SwarmRL repository and will be updated as more resources become available. Be careful though! It isn't perfect but not a bad place to start for general principles of reinforcement learning and pieces of the software.
+
+## Contributing
+
+Install developer dependencies:
+
+```sh
+python -m pip install -r dev-requirements.txt
+python -m pip install ".[rnd]"
+python -m pip install sphinx sphinx_rtd_theme
+```
+
+Run the linters and code formatters with pre-commit:
+
+```sh
+pre-commit run --all-files
+```
+
+Build the documentation with sphinx:
+
+```sh
+cd docs/
+make html
+xdg-open build/html/index.html
+```
+
+Run the testsuite with pytest:
+
+```sh
+# run SwarmRL testsuite
+pytest --ignore CI/espresso_tests
+# run ESPResSo testsuite
+pypresso CI/run_espresso_test_suite.py
+```
+
+When contributing new features, consider adding a test in one of the `CI/` subfolders.
+These tests are automatically discovered by the test driver.
