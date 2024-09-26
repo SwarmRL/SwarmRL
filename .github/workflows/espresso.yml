@@ -44,4 +44,5 @@ jobs:
           cmake --build . -j $(nproc)
       - name: Run test suite
         run: |
-          espresso/build/pypresso CI/run_espresso_test_suite.py
+          export PYTHONPATH="${GITHUB_WORKSPACE}/espresso/build/src/python"
+          sh CI/run_espresso_test_suite.sh -j $(nproc)

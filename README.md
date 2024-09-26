@@ -52,14 +52,23 @@ make html
 xdg-open build/html/index.html
 ```
 
-Run the testsuite with pytest:
+Run the testsuite with pytest and CTest:
 
 ```sh
 # run SwarmRL testsuite
 pytest --ignore CI/espresso_tests
 # run ESPResSo testsuite
-pypresso CI/run_espresso_test_suite.py
+sh CI/run_espresso_test_suite.sh -j $(nproc)
 ```
 
-When contributing new features, consider adding a test in one of the `CI/` subfolders.
-These tests are automatically discovered by the test driver.
+The ESPResSo testsuite leverages CTest to schedule jobs in parallel.
+The wrapper script assumes the ESPResSo package is part of the `$PYTHONPATH`
+environment variable or available in the current Python virtual environment.
+Additional CTest flags can be passed to the wrapper script,
+such as `-LE long` to skip integration tests.
+
+When contributing new features, consider adding a unit test in the `CI/unit_tests/` folder.
+These tests are automatically discovered by the pytest test driver.
+For ESPResSo tests, the CTest test driver is used instead;
+add the test in one of the `CI/espresso_tests/` subfolders and
+add a corresponding line in the `CI/espresso_tests/CTestTestfile.cmake` file.
