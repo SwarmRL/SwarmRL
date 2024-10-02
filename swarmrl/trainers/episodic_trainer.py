@@ -12,6 +12,10 @@ from swarmrl.trainers.trainer import Trainer
 if TYPE_CHECKING:
     from espressomd import System
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class EpisodicTrainer(Trainer):
     """
@@ -65,7 +69,7 @@ class EpisodicTrainer(Trainer):
         simulation, the system will be reset.
         """
         killed = False
-        rewards = [0.0]
+        rewards = np.zeros(n_episodes)
         current_reward = 0.0
         force_fn = self.initialize_training()
         cycle_index = 0
@@ -115,16 +119,46 @@ class EpisodicTrainer(Trainer):
 
                 force_fn, current_reward, killed = self.update_rl()
 
-                rewards.append(current_reward)
-
+                rewards[episode] = current_reward
+                if self.DO_CHECKPOINT is True:
+                    save_string = self.check_for_checkpoint(
+                        rewards, n_episodes, episode
+                    )
+                    if save_string != "":
+                        self.export_models(
+                            f"Models/Model-ep_{episode + 1}"
+                            "-cur_reward_{current_reward:.1f}-"
+                            "save_string"
+                            + "/"
+                        )
+                logger.debug(f"{episode=}")
+                logger.debug(f"{current_reward=}")
                 episode += 1
+                if episode < 10:
+                    running_reward = np.round(np.mean(rewards[:episode]), 2)
+                else:
+                    running_reward = np.round(
+                        np.mean(rewards[episode - 10 : episode + 1]), 2
+                    )
                 progress.update(
                     task,
                     advance=1,
                     Episode=episode,
                     current_reward=np.round(current_reward, 2),
-                    running_reward=np.round(np.mean(rewards[-10:]), 2),
+                    running_reward=running_reward,
                 )
                 self.engine.finalize()
+
+                if self.STOP_TRAINING_NOW is True:
+                    self.DO_CHECKPOINT = False
+
+                    if self.DO_RUNNING_OUT is True and episode <= self.stop_episode:
+                        print(
+                            "Stopping criterion reached, but running out training"
+                            f" until {self.stop_episode}"
+                        )
+                    else:
+                        print(f"Stopping training at episode {episode}")
+                        break
 
         return np.array(rewards)
