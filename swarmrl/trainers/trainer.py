@@ -8,8 +8,8 @@ from typing import List, Tuple
 import numpy as np
 
 from swarmrl.agents.actor_critic import ActorCriticAgent
-from swarmrl.force_functions.force_fn import ForceFunction
 from swarmrl.checkpointers.checkpointer import Checkpointer
+from swarmrl.force_functions.force_fn import ForceFunction
 
 logger = logging.getLogger(__name__)
 
