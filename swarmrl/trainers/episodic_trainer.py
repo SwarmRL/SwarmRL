@@ -91,6 +91,7 @@ class EpisodicTrainer(Trainer):
                 visible=load_bar,
             )
 
+            break_training = False
             for episode in range(n_episodes):
                 # Check if the system should be reset.
                 if episode % reset_frequency == 0 or killed:
@@ -120,15 +121,21 @@ class EpisodicTrainer(Trainer):
                 force_fn, current_reward, killed = self.update_rl()
 
                 rewards[episode] = current_reward
-                if self.DO_CHECKPOINT is True:
-                    save_string = self.check_for_checkpoint(
-                        rewards, n_episodes, episode
-                    )
-                    if save_string != "":
+                if len(self.checkpointers) > 0:
+                    export = []
+                    save_string = ""
+                    for checkpointer in self.checkpointers:
+                        export.append(
+                            checkpointer.check_for_checkpoint(rewards, episode)
+                        )
+                        if export[-1]:
+                            save_string += f"-{checkpointer.__class__.__name__}"
+
+                    if any(export):
                         self.export_models(
                             f"Models/Model-ep_{episode + 1}"
-                            "-cur_reward_{current_reward:.1f}-"
-                            "save_string"
+                            f"-cur_reward_{current_reward:.1f}"
+                            f"{save_string}"
                             + "/"
                         )
                 logger.debug(f"{episode=}")
@@ -149,10 +156,13 @@ class EpisodicTrainer(Trainer):
                 )
                 self.engine.finalize()
 
-                if self.STOP_TRAINING_NOW is True:
-                    self.DO_CHECKPOINT = False
-
-                    if self.DO_RUNNING_OUT is True and episode <= self.stop_episode:
+                if break_training is False:
+                    for checkpointer in self.checkpointers:
+                        if checkpointer.check_for_break():
+                            break_training = True
+                            self.stop_episode = checkpointer.get_stop_episode()
+                else:
+                    if episode <= self.stop_episode:
                         print(
                             "Stopping criterion reached, but running out training"
                             f" until {self.stop_episode}"

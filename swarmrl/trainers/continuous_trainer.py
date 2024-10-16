@@ -76,18 +76,22 @@ class ContinuousTrainer(Trainer):
                     system_runner.finalize()
                     break
 
-                if self.DO_CHECKPOINT:
-                    reward_array = np.array(n_episodes)
-                    reward_array[episode] = current_reward
-                    save_string = self.check_for_checkpoint(
-                        reward_array, n_episodes, episode
-                    )
+                if len(self.checkpointers) > 0:
+                    export = []
+                    save_string = ""
+                    for checkpointer in self.checkpointers:
+                        export.append(
+                            checkpointer.check_for_checkpoint(rewards, episode)
+                        )
+                        if export[-1]:
+                            save_string += f"-{checkpointer.__class__.__name__}"
 
-                    if save_string != "":
+                    if any(export):
                         self.export_models(
                             f"Models/Model-ep_{episode + 1}"
-                            "-cur_reward_{current_reward:.1f}-"
-                            "save_string"
+                            f"-cur_reward_{current_reward:.1f}"
+                            f"{save_string}"
+                            + "/"
                         )
                 rewards.append(current_reward)
                 episode += 1
