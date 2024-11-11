@@ -12,6 +12,7 @@ class Lymburn(ClassicalAgent):
         detection_radius_position_pred=np.inf,
         home_pos=np.array([500, 500, 0]),
         agent_speed=10,
+        predator_type: int = 1,
     ):
         """
         Parameters
@@ -29,12 +30,15 @@ class Lymburn(ClassicalAgent):
             Position of the home
         agent_speed : float
             Speed of the colloids (used for the friction force)
+        predator_type : int
+            Type of the predator colloids.
         """
         self.force_params = force_params
         self.detection_radius_position_colls = detection_radius_position_colls
         # implies r_align=r_repulsion
         self.detection_radius_position_pred = detection_radius_position_pred
         self.home_pos = home_pos
+        self.predator_type = predator_type
         self.agent_speed = agent_speed
 
     def update_force_params(self, K_a=None, K_r=None, K_h=None, K_f=None, K_p=None):
@@ -49,11 +53,18 @@ class Lymburn(ClassicalAgent):
     def calc_action(self, colloids):
         actions = []
         for colloid in colloids:
-            other_colls = [c for c in colloids if c is not colloid and not c.type == 1]
+            if colloid.type == self.predator_type:
+                continue
+
+            other_colls = [
+                c
+                for c in colloids
+                if c is not colloid and not c.type == self.predator_type
+            ]
             colls_in_vision = get_colloids_in_vision(
                 colloid, other_colls, vision_radius=self.detection_radius_position_colls
             )
-            predator = [p for p in colloids if p.type == 1]
+            predator = [p for p in colloids if p.type == self.predator_type]
             # only one predator in the simulation
             pred_in_vision = get_colloids_in_vision(
                 colloid, predator, vision_radius=self.detection_radius_position_pred
