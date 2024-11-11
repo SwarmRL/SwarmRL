@@ -13,9 +13,9 @@ GitHub and installed manually.
 
 .. code-block:: bash
 
-   git clone https://github.com/christophlohrmann/SwarmRL.git
+   git clone https://github.com/SwarmRL/SwarmRL.git
    cd SwarmRL
-   pip install .
+   python -m pip install .
 
 
 After running these commands, SwarmRl will be available as a Python package and can be
