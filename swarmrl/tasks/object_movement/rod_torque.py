@@ -44,7 +44,14 @@ class RodTorque(Task):
         """
         super().__init__(particle_type=particle_type)
         self.rod_type = rod_type
-        self.velocity_history = velocity_history
+
+        if velocity_history < 1:
+            raise ValueError("Velocity history must be greater than 0.")
+        else:
+            self.velocity_history = velocity_history
+        
+        if angular_velocity_scale < 1:
+            raise ValueError("Angular velocity scale must be greater than 0. For rotational direction, use 'CW' or 'CCW'.")
 
         if direction == "CW":
             angular_velocity_scale *= -1  # CW is negative
@@ -108,7 +115,7 @@ class RodTorque(Task):
 
     def _compute_angular_velocity(self, new_director: np.ndarray):
         """
-        Compute the instantaneous angular velocity of the rod. This gets clipped, so that negative values become 0.
+        Compute the average angular velocity of the rod. This gets clipped, so that negative values become 0.
 
         Parameters
         ----------
@@ -136,7 +143,10 @@ class RodTorque(Task):
         ].set(angular_velocity)
 
         # Return the clipped average velocity.
-        return np.clip(np.nanmean(self._velocity_history_list), 0.0, None)
+        if self.angular_velocity_scale > 0.0:
+            return np.clip(np.nanmean(self._velocity_history_list), 0.0, None)
+        else:
+            return np.clip(np.nanmean(self._velocity_history_list), None, 0.0)
 
     def _torque_partition(
         self,
