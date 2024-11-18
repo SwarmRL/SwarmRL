@@ -125,7 +125,7 @@ class EpisodicTrainer(Trainer):
 
                 running_reward = np.round(np.mean(rewards[-10:]), 6)
 
-                if save_best_network != None and running_reward > (
+                if save_best_network is not None and running_reward > (
                     best_running_reward * 0.99
                 ):  # Scaling the best reward helps to save later networks more often. So that 'lucky' encounters get ruled out.
                     best_running_reward = running_reward

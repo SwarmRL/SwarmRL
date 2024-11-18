@@ -718,7 +718,7 @@ class EspressoMD(Engine):
         if cross_thickness is None:
             cross_thickness = self.ureg.Quantity(5, "micrometer")
         if cross_start_angle is None:
-            rod_start_angle = 0
+            cross_start_angle = 0
         if n_particles is None:
             n_particles = 101
         if friction_trans is None and not fixed:

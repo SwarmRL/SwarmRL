@@ -49,9 +49,12 @@ class RodTorque(Task):
             raise ValueError("Velocity history must be greater than 0.")
         else:
             self.velocity_history = velocity_history
-        
+
         if angular_velocity_scale < 1:
-            raise ValueError("Angular velocity scale must be greater than 0. For rotational direction, use 'CW' or 'CCW'.")
+            raise ValueError(
+                "Angular velocity scale must be greater than 0. For rotational"
+                " direction, use 'CW' or 'CCW'."
+            )
 
         if direction == "CW":
             angular_velocity_scale *= -1  # CW is negative

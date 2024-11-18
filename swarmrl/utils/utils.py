@@ -397,9 +397,16 @@ def calc_ellipsoid_friction_factors_translation(
         b = equatorial_semiaxis
         e = np.sqrt(1 - b**2 / a**2)
         ll = np.log((1 + e) / (1 - e))
-        gamma_ax = 16 * np.pi * dynamic_viscosity * a * e**3 / ((1 + e**2) * ll - 2 * e)
+        gamma_ax = (
+            16 * np.pi * dynamic_viscosity * a * e**3 / ((1 + e**2) * ll - 2 * e)
+        )
         gamma_eq = (
-            32 * np.pi * dynamic_viscosity * a * e**3 / (2 * e + (3 * e**2 - 1) * ll)
+            32
+            * np.pi
+            * dynamic_viscosity
+            * a
+            * e**3
+            / (2 * e + (3 * e**2 - 1) * ll)
         )
     else:
         # oblate spheroid
