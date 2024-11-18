@@ -8,6 +8,7 @@ import pytest
 from swarmrl.components import Colloid
 from swarmrl.tasks.object_movement.rod_torque import RodTorque
 
+
 def create_trajectory(direction_scale: int = 1):
     """
     Create a trajectory for the tests.
@@ -26,7 +27,7 @@ def create_trajectory(direction_scale: int = 1):
     return starting_director, colloids
 
 
-class TestRodRotation():
+class TestRodRotation:
     """
     Test suite for the rod rotations.
     """
@@ -42,7 +43,9 @@ class TestRodRotation():
         """
         Setup the test class.
         """
-        task = RodTorque(direction="CCW", angular_velocity_scale=1.0, velocity_history=1)
+        task = RodTorque(
+            direction="CCW", angular_velocity_scale=1.0, velocity_history=1
+        )
 
         # Test positive rewards.
         starting_director, colloids = create_trajectory(direction_scale=1)
@@ -55,7 +58,9 @@ class TestRodRotation():
             assert velocity == pytest.approx(self.reference_velocity)
 
         # Test opposite rotation direction.
-        task = RodTorque(direction="CCW", angular_velocity_scale=1.0, velocity_history=1)
+        task = RodTorque(
+            direction="CCW", angular_velocity_scale=1.0, velocity_history=1
+        )
         starting_director, colloids = create_trajectory(direction_scale=-1)
 
         task._historic_rod_director = starting_director
@@ -96,7 +101,9 @@ class TestRodRotation():
         """
         Setup the test class.
         """
-        task = RodTorque(direction="CCW", angular_velocity_scale=1.0, velocity_history=100)
+        task = RodTorque(
+            direction="CCW", angular_velocity_scale=1.0, velocity_history=100
+        )
         velocity_history = np.zeros(100)
 
         # Test positive rewards.
@@ -113,14 +120,39 @@ class TestRodRotation():
         """
         Setup the test class.
         """
-        task = RodTorque(direction="CCW", angular_velocity_scale=1.0, velocity_history=1)
+        task = RodTorque(
+            direction="CCW", angular_velocity_scale=1.0, velocity_history=1
+        )
 
-        torque = task._compute_torque_on_rod(rod_positions=np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]), colloid_directors=np.array([[0.0, 1.0, 0.0]]), colloid_positions=np.array([[1.0, -1.0, 0.0]]))
+        torque = task._compute_torque_on_rod(
+            rod_positions=np.array(
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]
+            ),
+            colloid_directors=np.array([[0.0, 1.0, 0.0]]),
+            colloid_positions=np.array([[1.0, -1.0, 0.0]]),
+        )
         assert torque == pytest.approx([-1])
-        torque = task._compute_torque_on_rod(rod_positions=np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]), colloid_directors=np.array([[0.0, -1.0, 0.0]]), colloid_positions=np.array([[-1.0, 1.0, 0.0]]))
+        torque = task._compute_torque_on_rod(
+            rod_positions=np.array(
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]
+            ),
+            colloid_directors=np.array([[0.0, -1.0, 0.0]]),
+            colloid_positions=np.array([[-1.0, 1.0, 0.0]]),
+        )
         assert torque == pytest.approx([-1])
-        torque = task._compute_torque_on_rod(rod_positions=np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]), colloid_directors=np.array([[1.0, 0.0, 0.0]]), colloid_positions=np.array([[100.0, 100.0, 0.0]]))
+        torque = task._compute_torque_on_rod(
+            rod_positions=np.array(
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]
+            ),
+            colloid_directors=np.array([[1.0, 0.0, 0.0]]),
+            colloid_positions=np.array([[100.0, 100.0, 0.0]]),
+        )
         assert torque == pytest.approx([0])
-        torque = task._compute_torque_on_rod(rod_positions=np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]), colloid_directors=np.array([[0.0, 1.0, 0.0]]), colloid_positions=np.array([[-1.0, -1.0, 0.0]]))
+        torque = task._compute_torque_on_rod(
+            rod_positions=np.array(
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]
+            ),
+            colloid_directors=np.array([[0.0, 1.0, 0.0]]),
+            colloid_positions=np.array([[-1.0, -1.0, 0.0]]),
+        )
         assert torque == pytest.approx([1])
-
