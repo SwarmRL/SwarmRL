@@ -9,7 +9,7 @@ from swarmrl.engine import espresso
 from swarmrl.force_functions import ForceFunction
 
 
-class RodTest(ut.TestCase):
+class CrossTest(ut.TestCase):
     def test_class(self):
         ureg = pint.UnitRegistry()
         params = espresso.MDParams(
