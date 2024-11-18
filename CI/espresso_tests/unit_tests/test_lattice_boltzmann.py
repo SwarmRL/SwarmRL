@@ -80,8 +80,7 @@ class LatticeBoltzmannTest(ut.TestCase):
                 radius_colloid=partcl_radius,
                 mass=partcl_density * 4 / 3 * np.pi * partcl_radius**3,
                 rinertia=swarmrl.utils.convert_array_of_pint_to_pint_of_array(
-                    3
-                    * [2.0 / 5.0 * partcl_density * 4 / 3 * np.pi * partcl_radius**5],
+                    3 * [2.0 / 5.0 * partcl_density * 4 / 3 * np.pi * partcl_radius**5],
                     ureg,
                 ),
             )
