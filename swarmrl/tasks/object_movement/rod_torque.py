@@ -118,7 +118,8 @@ class RodTorque(Task):
 
     def _compute_angular_velocity(self, new_director: np.ndarray):
         """
-        Compute the average angular velocity of the rod. This gets clipped, so that negative values become 0.
+        Compute the average angular velocity of the rod. This gets clipped,
+        so that negative values become 0.
 
         Parameters
         ----------

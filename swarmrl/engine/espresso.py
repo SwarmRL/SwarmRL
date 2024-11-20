@@ -741,7 +741,8 @@ class EspressoMD(Engine):
 
         def create_orthonormal_vector(vec):
             """
-            Creates a vector orthonormal to the given one. Notice, that the third dimension should always be 0.
+            Creates a vector orthonormal to the given one. Notice, that the third 
+            dimension should always be 0.
             This doesn't test for zero vectors, because it is only an inner function.
             """
             z_vector = np.array([0, 0, 1])
