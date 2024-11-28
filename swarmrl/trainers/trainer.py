@@ -2,12 +2,16 @@
 Module for the Trainer parent.
 """
 
+import logging
 from typing import List, Tuple
 
 import numpy as np
 
 from swarmrl.agents.actor_critic import ActorCriticAgent
+from swarmrl.checkpointers.checkpointer import Checkpointer
 from swarmrl.force_functions.force_fn import ForceFunction
+
+logger = logging.getLogger(__name__)
 
 
 class Trainer:
@@ -41,6 +45,7 @@ class Trainer:
     def __init__(
         self,
         agents: List[ActorCriticAgent],
+        checkpointers: List[Checkpointer] = [],
     ):
         """
         Constructor for the MLP RL.
@@ -53,11 +58,14 @@ class Trainer:
                 A loss model to use in the A-C loss computation.
         """
         self.agents = {}
+        self.checkpointers = []
 
         # Add the protocols to an easily accessible internal dict.
         # TODO: Maybe turn into a dataclass? Not sure if it helps yet.
         for agent in agents:
             self.agents[str(agent.particle_type)] = agent
+        for checkpointer in checkpointers:
+            self.checkpointers.append(checkpointer)
 
     def initialize_training(self) -> ForceFunction:
         """
@@ -92,6 +100,7 @@ class Trainer:
         for agent in self.agents.values():
             if isinstance(agent, ActorCriticAgent):
                 ag_reward, ag_killed = agent.update_agent()
+                logger.debug(f"{ag_reward=}")
                 reward += np.mean(ag_reward)
                 switches.append(ag_killed)
 
@@ -117,7 +126,7 @@ class Trainer:
 
     def restore_models(self, directory: str = "Models"):
         """
-        Export the models to the specified directory.
+        Restore the models from the specified directory.
 
         Parameters
         ----------
