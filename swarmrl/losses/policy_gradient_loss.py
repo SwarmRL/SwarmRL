@@ -100,7 +100,7 @@ class PolicyGradientLoss(Loss):
         advantage = jax.lax.stop_gradient(advantage)
         actor_loss = -1 * ((log_probs * advantage).sum(axis=0)).sum()
         logger.debug(f"{actor_loss=}")
-        
+
         return actor_loss + critic_loss
 
     def compute_loss(self, network: Network, episode_data):
