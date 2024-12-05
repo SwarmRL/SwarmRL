@@ -32,6 +32,7 @@ class EpisodicTrainer(Trainer):
         reset_frequency: int = 1,
         load_bar: bool = True,
         save_episodic_data: bool = True,
+        save_best_network: str = None,
     ):
         """
         Perform the RL training.
@@ -58,6 +59,9 @@ class EpisodicTrainer(Trainer):
                 cycle_index is passed to the EsperessoMD engine as 'h5_group_tag'. See
                 the implementationin the test_semi_episodic_data_writing function in
                 CI/espresso_tests/integration_tests/test_rl_trainers.py
+        save_best_network : str
+                Saves the network with the best achieved reward at the given directory.
+                This is measured by an average over 10 episodes.
 
         Notes
         -----
@@ -69,6 +73,8 @@ class EpisodicTrainer(Trainer):
         current_reward = 0.0
         force_fn = self.initialize_training()
         cycle_index = 0
+        best_running_reward = 0.0
+        running_reward = 0.0
         progress = Progress(
             "Episode: {task.fields[Episode]}",
             BarColumn(),
@@ -117,13 +123,24 @@ class EpisodicTrainer(Trainer):
 
                 rewards.append(current_reward)
 
+                running_reward = np.round(np.mean(rewards[-10:]), 6)
+
+                if save_best_network is not None and running_reward > (
+                    best_running_reward * 0.99
+                ):  # Scaling the best reward helps to save later networks more often.
+                    # So that 'lucky' encounters get ruled out.
+                    best_running_reward = running_reward
+                    self.export_models(
+                        directory=str(save_best_network) + "/best_network"
+                    )
+
                 episode += 1
                 progress.update(
                     task,
                     advance=1,
                     Episode=episode,
-                    current_reward=np.round(current_reward, 2),
-                    running_reward=np.round(np.mean(rewards[-10:]), 2),
+                    current_reward=np.round(current_reward, 4),
+                    running_reward=running_reward,
                 )
                 self.engine.finalize()
 
