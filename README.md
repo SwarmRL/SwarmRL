@@ -1,4 +1,5 @@
 ![PyTest](https://github.com/SwarmRL/SwarmRL/actions/workflows/pytest.yml/badge.svg)
+[![codecov](https://codecov.io/gh/SwarmRL/SwarmRL/branch/master/graph/badge.svg)](https://codecov.io/gh/SwarmRL/SwarmRL)
 [![code-style](https://img.shields.io/badge/code%20style-black-black)](https://github.com/psf/black/)
 
 # SwarmRL
@@ -72,3 +73,13 @@ These tests are automatically discovered by the pytest test driver.
 For ESPResSo tests, the CTest test driver is used instead;
 add the test in one of the `CI/espresso_tests/` subfolders and
 add a corresponding line in the `CI/espresso_tests/CTestTestfile.cmake` file.
+
+To run code coverage locally:
+
+```sh
+COVERAGE=1 sh CI/run_espresso_test_suite.sh -j $(nproc)
+python -m coverage run --parallel-mode -m pytest --ignore CI/espresso_tests
+python -m coverage combine . CI/espresso_tests
+python -m coverage html --omit="*/espressomd/*" --directory=coverage_html
+xdg-open coverage_html/index.html
+```

@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-        - "3.11"
+        - "3.12"
 
     steps:
       - uses: actions/checkout@v4
@@ -45,4 +45,17 @@ jobs:
       - name: Run test suite
         run: |
           export PYTHONPATH="${GITHUB_WORKSPACE}/espresso/build/src/python"
-          sh CI/run_espresso_test_suite.sh -j $(nproc)
+          COVERAGE=1 sh CI/run_espresso_test_suite.sh -j $(nproc)
+          python -m coverage combine . CI/espresso_tests
+          python -m coverage report --omit="*/espressomd/*"
+          python -m coverage xml --omit="*/espressomd/*"
+      - name: Upload coverage to Codecov
+        if: ${{ github.repository == 'SwarmRL/SwarmRL' }}
+        uses: codecov/codecov-action@v5
+        with:
+          files: "./coverage.xml"
+          disable_search: true
+          env_vars: OS,PYTHON
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
