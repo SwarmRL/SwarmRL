@@ -8,7 +8,7 @@ from typing import List, Tuple
 import numpy as np
 
 from swarmrl.agents.actor_critic import ActorCriticAgent
-from swarmrl.checkpointers.checkpointer import Checkpointer
+from swarmrl.checkpointers.base_checkpointer import BaseCheckpointer
 from swarmrl.force_functions.force_fn import ForceFunction
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ class Trainer:
     def __init__(
         self,
         agents: List[ActorCriticAgent],
-        checkpointers: List[Checkpointer] = [],
+        checkpointers: List[BaseCheckpointer] = [],
     ):
         """
         Constructor for the MLP RL.
