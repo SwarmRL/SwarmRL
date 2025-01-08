@@ -6,17 +6,33 @@ import logging
 
 import numpy as np
 
-from swarmrl.checkpointers.checkpointer import Checkpointer
+from swarmrl.checkpointers.base_checkpointer import BaseCheckpointer
 
 logger = logging.getLogger(__name__)
 
 
-class BackupCheckpointer(Checkpointer):
+class BackupCheckpointer(BaseCheckpointer):
     """
-    Checkpointer that saves the model if a new best reward is achieved.
+    Checkpointer that saves the current model if the reward starts to decrease.
+    This model could be used as a backupt in case of forgetting.
     """
 
     def __init__(self, min_backup_reward=250, window_width=30, wait_time=10):
+        """
+        Initializes the BackupCheckpointer.
+
+        Parameters:
+        -----------
+        min_backup_reward: int
+            The minimum reward required to trigger a backup below
+            which no backup is triggered.
+        window_width: int
+            Determines how many episodes should be considered for
+            the running reward average.
+        wait_time: int
+            A minimum number of episodes to wait for the next backup check.
+            Can prevent frequent backups.
+        """
         super().__init__()
         self.min_backup_reward = min_backup_reward
         self.wait_time = wait_time
