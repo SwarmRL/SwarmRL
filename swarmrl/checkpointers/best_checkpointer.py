@@ -6,19 +6,34 @@ import logging
 
 import numpy as np
 
-from swarmrl.checkpointers.checkpointer import Checkpointer
+from swarmrl.checkpointers.base_checkpointer import BaseCheckpointer
 
 logger = logging.getLogger(__name__)
 
 
-class BestRewardCheckpointer(Checkpointer):
+class BestRewardCheckpointer(BaseCheckpointer):
     """
     Checkpointer that saves the model if a new best reward is achieved.
+
     """
 
     def __init__(
         self, min_reward=250, increase_factor=1.05, window_width=30, wait_time=10
     ):
+        """
+        Parameters:
+        ----------
+        min_reward : int
+            The minimum reward to save a checkpoint.
+        increase_factor : float
+            The factor by which the average reward must increase
+            to trigger a new checkpoint.
+        window_width : int
+            The width of the window to average the rewards.
+        wait_time : int
+            The number of episodes to wait before checking for a new checkpoint.
+
+        """
         super().__init__()
         self.min_reward = min_reward
         self.increase_factor = increase_factor
