@@ -1,5 +1,5 @@
 """
-Module for the Checkpointer parent.
+Module for the BaseCheckpointer parent.
 """
 
 import logging
@@ -7,7 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class Checkpointer:
+class BaseCheckpointer:
     """
     A base class for all checkpointers.
 
@@ -41,10 +41,3 @@ class Checkpointer:
             Whether or not to save a checkpoint.
         """
         return False
-
-
-"""
-
-
-
-"""
