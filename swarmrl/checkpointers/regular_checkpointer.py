@@ -6,17 +6,25 @@ import logging
 
 import numpy as np
 
-from swarmrl.checkpointers.checkpointer import Checkpointer
+from swarmrl.checkpointers.base_checkpointer import BaseCheckpointer
 
 logger = logging.getLogger(__name__)
 
 
-class RegularCheckpointer(Checkpointer):
+class RegularCheckpointer(BaseCheckpointer):
     """
     Checkpointer that saves the model at regular intervals.
     """
 
     def __init__(self, save_interval=25):
+        """
+        Initializes the RegularCheckpointer.
+
+        Parameters:
+        -----------
+        save_interval: int
+            The interval at which to save the model.
+        """
         super().__init__()
         self.save_interval = save_interval
 
