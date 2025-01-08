@@ -6,12 +6,12 @@ import logging
 
 import numpy as np
 
-from swarmrl.checkpointers.checkpointer import Checkpointer
+from swarmrl.checkpointers.base_checkpointer import BaseCheckpointer
 
 logger = logging.getLogger(__name__)
 
 
-class GoalCheckpointer(Checkpointer):
+class GoalCheckpointer(BaseCheckpointer):
     """
     Checkpointer that saves the model when a reward goal is reached.
     """
@@ -23,6 +23,23 @@ class GoalCheckpointer(Checkpointer):
         do_goal_break=False,
         running_out_length=0,
     ):
+        """
+        Initializes the GoalCheckpointer.
+
+        Parameters:
+        -----------
+
+        required_reward: int
+            The reward that needs to be achieved to trigger a checkpoint.
+        window_width: int
+            Determines how many episodes should be considered
+            for the running reward average.
+        do_goal_break: bool
+            Whether to stop training after the goal is reached.
+        running_out_length: int
+            The number of episodes to run after the goal is reached
+            before stopping training.
+        """
         super().__init__()
         self.required_reward = required_reward
         self.window_width = window_width
