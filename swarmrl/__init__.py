@@ -6,6 +6,7 @@ import logging
 
 from swarmrl import (
     agents,
+    checkpointers,
     components,
     exploration_policies,
     intrinsic_reward,
@@ -32,6 +33,7 @@ __all__ = [
     espresso.__name__,
     utils.__name__,
     losses.__name__,
+    checkpointers.__name__,
     components.__name__,
     tasks.__name__,
     observables.__name__,
