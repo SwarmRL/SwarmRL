@@ -39,6 +39,7 @@ class BackupCheckpointer(BaseCheckpointer):
         self.window_width = window_width
         self.old_max = 0
         self.next_check_episode = -1
+        self.last_reward = 0
 
     def check_for_checkpoint(self, rewards: np.ndarray, current_episode: int) -> bool:
         """
@@ -57,14 +58,25 @@ class BackupCheckpointer(BaseCheckpointer):
         bool
             Whether the checkpoint criteria are met.
         """
+        if current_episode > self.window_width:
+            avg_reward = np.mean(
+                rewards[current_episode - self.window_width : current_episode + 1]
+            )
+        else:
+            avg_reward = np.mean(rewards[: current_episode + 1])
 
-        current_reward = rewards[current_episode]
         if (
             current_episode > self.next_check_episode
-            and self.min_backup_reward < current_reward < np.max(rewards)
+            and self.min_backup_reward < avg_reward < np.max(rewards)
+            and avg_reward < self.last_reward
         ):
-            self.min_backup_reward = current_reward
-            self.next_check_episode = current_episode + self.backup_wait_time
+            self.min_backup_reward = avg_reward
+            self.next_check_episode = current_episode + self.wait_time
+
+            if current_episode != 0:
+                self.last_reward = avg_reward
             return True
         else:
+            if current_episode != 0:
+                self.last_reward = avg_reward
             return False
