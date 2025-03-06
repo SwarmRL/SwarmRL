@@ -74,6 +74,6 @@ class BestRewardCheckpointer(BaseCheckpointer):
             and avg_reward > self.min_reward
         ):
             self.old_max = avg_reward
-            self.next_check_episode = current_episode + self.wait_time
+            self.next_check_episode = current_episode + 1 + self.wait_time
             return True
         return False
