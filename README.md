@@ -12,6 +12,8 @@ Some key features of SwarmRL include:
 * Support for experimental setups
 * Actor-critic reinforcement learning strategies
 
+Before jumping into the code, check us out on [YouTube!](https://www.youtube.com/watch?v=b7NRddDScdM)
+
 ## Installation
 
 Currently, SwamrRL is only available from source so it must be installed within the local
