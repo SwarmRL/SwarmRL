@@ -1304,6 +1304,7 @@ class EspressoMD(Engine):
             self.system.integrator.run(
                 steps_to_next, reuse_forces=True, recalc_forces=False
             )
+            force_model.calc_reward(self.colloids)
             self.step_idx += steps_to_next
 
     def finalize(self):
