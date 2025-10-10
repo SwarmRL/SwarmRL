@@ -34,10 +34,10 @@ jobs:
           python -m pip install ".[rnd]"
       - name: Install ESPResSo
         run: |
-          python -m pip install cython==0.29.36
           sudo apt-get install libboost-all-dev
           git clone -b python --recursive https://github.com/espressomd/espresso.git
           cd espresso
+          python -m pip install -r requirements.txt
           mkdir build && cd build
           cp ../maintainer/configs/maxset.hpp myconfig.hpp
           cmake ../ -D ESPRESSO_BUILD_WITH_WALBERLA=on -D ESPRESSO_BUILD_WITH_FFTW=OFF
