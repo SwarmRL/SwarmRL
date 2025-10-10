@@ -9,3 +9,4 @@ distributed>=2024.4.2
 numpy>=1.26.4
 jax>=0.4.26
 jaxlib>=0.4.26
+flax>=0.8.1
