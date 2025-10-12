@@ -122,21 +122,21 @@ class ProximalPolicyLoss(Loss, ABC):
         # compute the ratio between old and new probs
         ratio = jnp.exp(chosen_log_probs - old_log_probs)
 
+        # Compute critic loss
+        total_critic_loss = (
+            optax.huber_loss(predicted_values, returns).sum(axis=0).sum()
+        )
+
         # Compute the actor loss
 
         # compute the clipped loss
+        advantages = jax.lax.stop_gradient(advantages)
         clipped_loss = -1 * jnp.minimum(
             ratio * advantages,
             jnp.clip(ratio, 1 - self.epsilon, 1 + self.epsilon) * advantages,
         )
         particle_actor_loss = jnp.sum(clipped_loss, axis=0)
         actor_loss = jnp.sum(particle_actor_loss)
-
-        # Compute critic loss
-        total_critic_loss = (
-            optax.huber_loss(predicted_values, returns).sum(axis=0).sum()
-        )
-
         # Compute combined loss
         loss = actor_loss - self.entropy_coefficient * entropy + 0.5 * total_critic_loss
 
