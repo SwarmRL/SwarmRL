@@ -31,7 +31,7 @@ jobs:
           pip install -r dev-requirements.txt
       - name: Install package
         run: |
-          pip install ".[rnd]"
+          pip install .
       - name: Pytest
         run: |
           python -m coverage run --parallel-mode -m pytest --ignore CI/espresso_tests
