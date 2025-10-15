@@ -66,7 +66,6 @@ class BestRewardCheckpointer(BaseCheckpointer):
         bool
             Whether the checkpoint criteria are met.
         """
-        print(current_episode, self.next_check_episode)
         if current_episode < self.next_check_episode:
             return False
 

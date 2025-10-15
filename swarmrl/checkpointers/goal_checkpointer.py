@@ -71,7 +71,7 @@ class GoalCheckpointer(BaseCheckpointer):
         avg_reward = np.mean(rewards[window_start:window_end])
 
         if self.DO_GOAL_BREAK:
-            if avg_reward >= self.required_reward or self.BREAK_TRAINING:
+            if avg_reward >= self.required_reward and not self.BREAK_TRAINING:
                 self.BREAK_TRAINING = True
                 if self.running_out_length > 0:
                     self.stop_episode = current_episode + self.running_out_length
