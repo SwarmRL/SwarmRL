@@ -18,17 +18,19 @@ class GoalCheckpointer(BaseCheckpointer):
 
     def __init__(
         self,
-        required_reward=200,
-        window_width=30,
-        do_goal_break=False,
-        running_out_length=0,
+        out_path: str,
+        required_reward: float = 200,
+        window_width: int = 30,
+        do_goal_break: bool = False,
+        running_out_length: int = 0,
     ):
         """
         Initializes the GoalCheckpointer.
 
         Parameters:
         -----------
-
+        out_path: str
+            Path to the folder where the models should be stored.
         required_reward: int
             The reward that needs to be achieved to trigger a checkpoint.
         window_width: int
@@ -40,7 +42,7 @@ class GoalCheckpointer(BaseCheckpointer):
             The number of episodes to run after the goal is reached
             before stopping training.
         """
-        super().__init__()
+        super().__init__(out_path)
         self.required_reward = required_reward
         self.window_width = window_width
         self.DO_GOAL_BREAK = do_goal_break
@@ -78,7 +80,6 @@ class GoalCheckpointer(BaseCheckpointer):
                     self.stop_episode = current_episode + self.running_out_length
                 else:
                     self.stop_episode = current_episode
-
         return avg_reward >= self.required_reward
 
     def check_for_break(self):

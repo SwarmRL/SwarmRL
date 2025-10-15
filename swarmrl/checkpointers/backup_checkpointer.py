@@ -17,12 +17,20 @@ class BackupCheckpointer(BaseCheckpointer):
     This model could be used as a backupt in case of forgetting.
     """
 
-    def __init__(self, min_backup_reward=250, window_width=30, wait_time=10):
+    def __init__(
+        self,
+        out_path: str,
+        min_backup_reward: float = 250,
+        window_width: int = 30,
+        wait_time: int = 10,
+    ):
         """
         Initializes the BackupCheckpointer.
 
         Parameters:
         -----------
+        out_path: str
+            Path to the folder where the models should be stored.
         min_backup_reward: int
             The minimum reward required to trigger a backup below
             which no backup is triggered.
@@ -33,7 +41,7 @@ class BackupCheckpointer(BaseCheckpointer):
             A minimum number of episodes to wait for the next backup check.
             Can prevent frequent backups.
         """
-        super().__init__()
+        super().__init__(out_path)
         self.min_backup_reward = min_backup_reward
         self.wait_time = wait_time
         self.window_width = window_width

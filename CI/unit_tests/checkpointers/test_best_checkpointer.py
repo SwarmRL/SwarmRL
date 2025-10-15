@@ -18,10 +18,18 @@ class TestBestCheckpointer:
         Prepare the class for testing.
         """
         cls.best_checkpointer = BestRewardCheckpointer(
-            min_reward=50, increase_factor=1.05, wait_time=2, window_width=3
+            out_path="/dev/null/",
+            min_reward=50,
+            increase_factor=1.05,
+            wait_time=2,
+            window_width=3,
         )
         cls.best_checkpointer_2 = BestRewardCheckpointer(
-            min_reward=50, increase_factor=1.25, wait_time=0, window_width=3
+            out_path="/dev/null/",
+            min_reward=50,
+            increase_factor=1.25,
+            wait_time=0,
+            window_width=3,
         )
 
     def test_initialization(self):
@@ -32,6 +40,7 @@ class TestBestCheckpointer:
         assert self.best_checkpointer.increase_factor == 1.05
         assert self.best_checkpointer.window_width == 3
         assert self.best_checkpointer.wait_time == 2
+        assert self.best_checkpointer.out_path == "/dev/null/"
 
         assert self.best_checkpointer_2.min_reward == 50
         assert self.best_checkpointer_2.increase_factor == 1.25

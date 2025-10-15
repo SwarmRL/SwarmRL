@@ -18,6 +18,7 @@ class TestGoalCheckpointer:
         Prepare the class for testing.
         """
         cls.goal_checkpointer = GoalCheckpointer(
+            out_path="/dev/null/",
             required_reward=100,
             running_out_length=2,
             window_width=3,
@@ -25,6 +26,7 @@ class TestGoalCheckpointer:
         )
 
         cls.goal_checkpointer_2 = GoalCheckpointer(
+            out_path="/dev/null/",
             required_reward=100,
             running_out_length=0,
             window_width=3,

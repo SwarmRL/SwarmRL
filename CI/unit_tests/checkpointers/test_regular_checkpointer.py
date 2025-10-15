@@ -20,13 +20,16 @@ class TestBestCheckpointer:
         Prepare the class for testing.
         """
         cls.random_integer = random.randint(2, 10)
-        cls.regular_checkpointer = RegularCheckpointer(save_interval=cls.random_integer)
+        cls.regular_checkpointer = RegularCheckpointer(
+            out_path="/dev/null/", save_interval=cls.random_integer
+        )
 
     def test_initialization(self):
         """
         Test the initialization of the regular checkpointer.
         """
         assert self.regular_checkpointer.save_interval == self.random_integer
+        assert self.regular_checkpointer.out_path == "/dev/null/"
 
     def test_check_for_checkpoint(self):
         """

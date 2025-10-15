@@ -133,11 +133,12 @@ class EpisodicTrainer(Trainer):
 
                     if any(export):
                         self.export_models(
-                            f"Models/Model-ep_{episode + 1}"
+                            f"{self.checkpoint_path}/Model-ep_{episode + 1}"
                             f"-cur_reward_{current_reward:.1f}"
                             f"{save_string}"
                             + "/"
                         )
+
                 logger.debug(f"{episode=}")
                 logger.debug(f"{current_reward=}")
                 episode += 1

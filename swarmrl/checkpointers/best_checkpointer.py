@@ -18,11 +18,18 @@ class BestRewardCheckpointer(BaseCheckpointer):
     """
 
     def __init__(
-        self, min_reward=250, increase_factor=1.05, window_width=30, wait_time=10
+        self,
+        out_path: str,
+        min_reward: float = 250,
+        increase_factor: float = 1.05,
+        window_width: int = 30,
+        wait_time: int = 10,
     ):
         """
         Parameters:
         ----------
+        out_path: str
+            Path to the folder where the models should be stored.
         min_reward : int
             The minimum reward to save a checkpoint.
         increase_factor : float
@@ -34,7 +41,7 @@ class BestRewardCheckpointer(BaseCheckpointer):
             The number of episodes to wait before checking for a new checkpoint.
 
         """
-        super().__init__()
+        super().__init__(out_path)
         self.min_reward = min_reward
         self.increase_factor = increase_factor
         self.wait_time = wait_time

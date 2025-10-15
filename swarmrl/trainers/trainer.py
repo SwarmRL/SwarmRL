@@ -64,8 +64,27 @@ class Trainer:
         # TODO: Maybe turn into a dataclass? Not sure if it helps yet.
         for agent in agents:
             self.agents[str(agent.particle_type)] = agent
-        for checkpointer in checkpointers:
-            self.checkpointers.append(checkpointer)
+
+        checkpoint_paths = []
+        if len(checkpointers) > 0:
+            for checkpointer in checkpointers:
+                self.checkpointers.append(checkpointer)
+                if checkpointer.out_path is not None:
+                    checkpoint_paths.append(checkpointer.out_path)
+
+            if len(checkpoint_paths) == 0:
+                print("No checkpointer out_path provided. Storing in './Models/' now.")
+                self.checkpoint_path = "./Models/"
+            elif len(checkpoint_paths) == 1:
+                self.checkpoint_path = checkpoint_paths[0]
+            else:
+                print(
+                    "Found multiple checkpointer paths. Choosing the first entry: "
+                    f"{checkpoint_paths[0]}."
+                )
+                self.checkpoint_path = checkpoint_paths[0]
+        else:
+            print("No Checkpointer provided.")
 
     def initialize_training(self) -> ForceFunction:
         """

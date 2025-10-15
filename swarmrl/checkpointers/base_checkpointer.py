@@ -16,9 +16,16 @@ class BaseCheckpointer:
 
     """
 
-    def __init__(self):
-        self.DO_CHECKPOINT = True
+    def __init__(self, out_path: str):
+        """
+        Initializes the checkpointer with the specified output path.
+        Args:
+            out_path str: Path to the folder where the models should be stored.
+
+        """
+
         self.rewards = []
+        self.out_path = out_path
 
     def check_for_checkpoint(self, *args, **kwargs) -> bool:
         """
@@ -38,6 +45,6 @@ class BaseCheckpointer:
         Returns
         -------
         bool
-            Whether or not to save a checkpoint.
+            Whether or not the simulation should be ended.
         """
         return False

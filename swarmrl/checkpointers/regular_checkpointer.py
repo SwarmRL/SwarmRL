@@ -16,7 +16,7 @@ class RegularCheckpointer(BaseCheckpointer):
     Checkpointer that saves the model at regular intervals.
     """
 
-    def __init__(self, save_interval=25):
+    def __init__(self, out_path: str, save_interval: int = 25):
         """
         Initializes the RegularCheckpointer.
 
@@ -25,7 +25,7 @@ class RegularCheckpointer(BaseCheckpointer):
         save_interval: int
             The interval at which to save the model.
         """
-        super().__init__()
+        super().__init__(out_path)
         self.save_interval = save_interval
 
     def check_for_checkpoint(self, rewards: np.ndarray, current_episode: int) -> bool:

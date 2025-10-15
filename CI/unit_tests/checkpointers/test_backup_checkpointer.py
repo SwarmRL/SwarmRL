@@ -18,6 +18,7 @@ class TestBackupCheckpointer:
         Prepare the class for testing
         """
         cls.backup_checkpointer = BackupCheckpointer(
+            out_path="/dev/null",
             min_backup_reward=200,
             wait_time=2,
             window_width=3,
@@ -29,6 +30,7 @@ class TestBackupCheckpointer:
         """
         assert self.backup_checkpointer.rewards == []
         assert self.backup_checkpointer.min_backup_reward == 200
+        assert self.backup_checkpointer.out_path == "/dev/null"
 
         assert self.backup_checkpointer.window_width == 3
         assert self.backup_checkpointer.wait_time == 2
