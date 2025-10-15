@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class BackupCheckpointer(BaseCheckpointer):
     """
     Checkpointer that saves the current model if the reward starts to decrease.
-    This model could be used as a backupt in case of forgetting.
+    This model could be used as a backup in case of forgetting.
     """
 
     def __init__(
@@ -31,7 +31,7 @@ class BackupCheckpointer(BaseCheckpointer):
         -----------
         out_path: str
             Path to the folder where the models should be stored.
-        min_backup_reward: int
+        min_backup_reward: float
             The minimum reward required to trigger a backup below
             which no backup is triggered.
         window_width: int
@@ -45,7 +45,6 @@ class BackupCheckpointer(BaseCheckpointer):
         self.min_backup_reward = min_backup_reward
         self.wait_time = wait_time
         self.window_width = window_width
-        self.old_max = 0
         self.next_check_episode = -1
         self.last_reward = 0
 
@@ -66,12 +65,9 @@ class BackupCheckpointer(BaseCheckpointer):
         bool
             Whether the checkpoint criteria are met.
         """
-        if current_episode > self.window_width:
-            avg_reward = np.mean(
-                rewards[current_episode - self.window_width : current_episode + 1]
-            )
-        else:
-            avg_reward = np.mean(rewards[: current_episode + 1])
+        window_end = current_episode + 1
+        window_start = max(0, window_end - self.window_width)
+        avg_reward = np.mean(rewards[window_start:window_end])
 
         if (
             current_episode > self.next_check_episode
@@ -80,11 +76,12 @@ class BackupCheckpointer(BaseCheckpointer):
         ):
             self.min_backup_reward = avg_reward
             self.next_check_episode = current_episode + self.wait_time
-
-            if current_episode != 0:
-                self.last_reward = avg_reward
-            return True
+            do_backup = True
         else:
-            if current_episode != 0:
-                self.last_reward = avg_reward
-            return False
+            do_backup = False
+
+        # Skip episode 0
+        if current_episode != 0:
+            self.last_reward = avg_reward
+
+        return do_backup

@@ -28,7 +28,6 @@ class TestBackupCheckpointer:
         """
         Test the initialization of the backup checkpointer.
         """
-        assert self.backup_checkpointer.rewards == []
         assert self.backup_checkpointer.min_backup_reward == 200
         assert self.backup_checkpointer.out_path == "/dev/null"
 

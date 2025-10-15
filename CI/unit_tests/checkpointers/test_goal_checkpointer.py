@@ -1,5 +1,5 @@
-""""
-"Test the goal checkpointer module"
+"""
+Test the goal checkpointer module
 """
 
 import numpy as np
@@ -56,7 +56,7 @@ class TestGoalCheckpointer:
         rewards = np.linspace(0, 300, 10)
 
         for i in range(len(rewards)):
-            if i in [5, 6, 7]:
+            if i in [4, 5, 6, 7]:
                 assert self.goal_checkpointer.check_for_checkpoint(rewards, i)
             else:
                 assert not self.goal_checkpointer.check_for_checkpoint(rewards, i)
@@ -70,10 +70,10 @@ class TestGoalCheckpointer:
         rewards = np.linspace(0, 300, 10)
 
         for i in range(len(rewards)):
-            if i in [5]:
+            if i in [4]:
                 assert self.goal_checkpointer_2.get_stop_episode() == -1
                 assert self.goal_checkpointer_2.check_for_checkpoint(rewards, i)
-                assert self.goal_checkpointer_2.get_stop_episode() == 5
+                assert self.goal_checkpointer_2.get_stop_episode() == 4
             else:
                 assert not self.goal_checkpointer_2.check_for_checkpoint(rewards, i)
 

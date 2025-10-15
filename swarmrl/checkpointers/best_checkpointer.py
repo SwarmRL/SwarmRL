@@ -30,7 +30,7 @@ class BestRewardCheckpointer(BaseCheckpointer):
         ----------
         out_path: str
             Path to the folder where the models should be stored.
-        min_reward : int
+        min_reward : float
             The minimum reward to save a checkpoint.
         increase_factor : float
             The factor by which the average reward must increase
@@ -66,15 +66,13 @@ class BestRewardCheckpointer(BaseCheckpointer):
         bool
             Whether the checkpoint criteria are met.
         """
+        print(current_episode, self.next_check_episode)
         if current_episode < self.next_check_episode:
             return False
 
-        if current_episode > self.window_width:
-            avg_reward = np.mean(
-                rewards[current_episode - self.window_width : current_episode + 1]
-            )
-        else:
-            avg_reward = np.mean(rewards[: current_episode + 1])
+        window_end = current_episode + 1
+        window_start = max(0, window_end - self.window_width)
+        avg_reward = np.mean(rewards[window_start:window_end])
 
         if (
             avg_reward > self.increase_factor * self.old_max

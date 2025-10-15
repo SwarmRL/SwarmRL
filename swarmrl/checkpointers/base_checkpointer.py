@@ -24,7 +24,6 @@ class BaseCheckpointer:
 
         """
 
-        self.rewards = []
         self.out_path = out_path
 
     def check_for_checkpoint(self, *args, **kwargs) -> bool:

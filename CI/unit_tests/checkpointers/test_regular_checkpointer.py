@@ -9,7 +9,7 @@ import numpy as np
 from swarmrl.checkpointers.regular_checkpointer import RegularCheckpointer
 
 
-class TestBestCheckpointer:
+class TestRegularCheckpointer:
     """
     Test suite for the regular checkpointer module.
     """

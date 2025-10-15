@@ -141,13 +141,15 @@ class EpisodicTrainer(Trainer):
 
                 logger.debug(f"{episode=}")
                 logger.debug(f"{current_reward=}")
-                episode += 1
-                if episode < 10:
-                    running_reward = np.round(np.mean(rewards[:episode]), 2)
+
+                display_episode = episode + 1
+                if display_episode < 10:
+                    running_reward = np.round(np.mean(rewards[:display_episode]), 2)
                 else:
                     running_reward = np.round(
-                        np.mean(rewards[episode - 10 : episode + 1]), 2
+                        np.mean(rewards[display_episode - 10 : display_episode]), 2
                     )
+
                 progress.update(
                     task,
                     advance=1,

@@ -57,7 +57,7 @@ class TestBestCheckpointer:
         decreasing_reward = np.linspace(300, 100, 11)
         rewards = np.concatenate((increasing_reward, decreasing_reward))
         for i in range(len(rewards)):
-            if i in [4, 7, 10, 13]:
+            if i in [3, 6, 9, 12]:
                 assert self.best_checkpointer.check_for_checkpoint(rewards, i)
             else:
                 assert not self.best_checkpointer.check_for_checkpoint(rewards, i)
@@ -75,7 +75,7 @@ class TestBestCheckpointer:
             checkpoint_boolean = self.best_checkpointer_2.check_for_checkpoint(
                 rewards, i
             )
-            if i in [4, 5, 6, 8, 10]:
+            if i in [3, 4, 5, 7, 9]:
                 assert checkpoint_boolean
             else:
                 assert not checkpoint_boolean

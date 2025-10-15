@@ -31,7 +31,7 @@ class GoalCheckpointer(BaseCheckpointer):
         -----------
         out_path: str
             Path to the folder where the models should be stored.
-        required_reward: int
+        required_reward: float
             The reward that needs to be achieved to trigger a checkpoint.
         window_width: int
             Determines how many episodes should be considered
@@ -66,12 +66,9 @@ class GoalCheckpointer(BaseCheckpointer):
         bool
             Whether the checkpoint criteria are met.
         """
-        if current_episode > self.window_width:
-            avg_reward = np.mean(
-                rewards[current_episode - self.window_width : current_episode + 1]
-            )
-        else:
-            avg_reward = np.mean(rewards[: current_episode + 1])
+        window_end = current_episode + 1
+        window_start = max(0, window_end - self.window_width)
+        avg_reward = np.mean(rewards[window_start:window_end])
 
         if self.DO_GOAL_BREAK:
             if avg_reward >= self.required_reward or self.BREAK_TRAINING:

@@ -45,7 +45,7 @@ class Trainer:
     def __init__(
         self,
         agents: List[ActorCriticAgent],
-        checkpointers: List[BaseCheckpointer] = [],
+        checkpointers: List[BaseCheckpointer] | None = None,
     ):
         """
         Constructor for the MLP RL.
@@ -58,7 +58,7 @@ class Trainer:
                 A loss model to use in the A-C loss computation.
         """
         self.agents = {}
-        self.checkpointers = []
+        self.checkpointers = checkpointers if checkpointers is not None else []
 
         # Add the protocols to an easily accessible internal dict.
         # TODO: Maybe turn into a dataclass? Not sure if it helps yet.
