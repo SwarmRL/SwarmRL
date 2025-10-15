@@ -46,12 +46,12 @@ class BestRewardCheckpointer(BaseCheckpointer):
         self.increase_factor = increase_factor
         self.wait_time = wait_time
         self.window_width = window_width
-        self.old_max = 0
+        self.old_max = -np.inf
         self.next_check_episode = -1
 
     def check_for_checkpoint(self, rewards: np.ndarray, current_episode: int) -> bool:
         """
-        Check if the average reward in the window exceed
+        Check if the average reward in the window exceeds
         the minimum reward and old max reward.
 
         Parameters
