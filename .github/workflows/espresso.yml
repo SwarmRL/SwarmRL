@@ -11,40 +11,35 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        python-version:
-        - "3.12"
 
     steps:
       - uses: actions/checkout@v4
-      - uses: mpi4py/setup-mpi@v1
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Setup EESSI
+        uses: eessi/github-action-eessi@v3
         with:
-          python-version: ${{ matrix.python-version }}
+          eessi_stack_version: "2023.06"
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r dev-requirements.txt
-          python -m pip install -c dev-requirements.txt toml-cli
-          toml set --toml-path=pyproject.toml tool.coverage.run.omit --to-array '["*/espressomd/*"]'
-      - name: Install package
-        run: |
+          test "${RUNNER_ARCH}" = "X64" && module use /cvmfs/dev.eessi.io/espresso/versions/2023.06/software/linux/x86_64/amd/zen2/modules/all
+          module load ESPResSo/dc87ede3f6c218bb71624460752bc8c26a271c33-foss-2023b
+          module save espresso
+          sed -i 's/numpy>=1.26.4/numpy>=1.26.4,<2.0/' requirements.txt
+          python -m venv --system-site-packages venv
+          source venv/bin/activate
+          python -m pip config --site set global.disable-pip-version-check true
+          python -m pip config --site set global.no-cache-dir false
+          python -m pip install -c dev-requirements.txt coverage toml-cli
           python -m pip install .
-      - name: Install ESPResSo
-        run: |
-          sudo apt-get install libboost-all-dev
-          git clone -b python --recursive https://github.com/espressomd/espresso.git
-          cd espresso
-          python -m pip install -r requirements.txt
-          mkdir build && cd build
-          cp ../maintainer/configs/maxset.hpp myconfig.hpp
-          cmake ../ -D ESPRESSO_BUILD_WITH_WALBERLA=on -D ESPRESSO_BUILD_WITH_FFTW=OFF
-          cmake --build . -j $(nproc)
+          toml set --toml-path=pyproject.toml tool.coverage.run.omit --to-array '["*/espressomd/*", "/cvmfs/*"]'
+          deactivate
+          module purge
       - name: Run test suite
         run: |
-          export PYTHONPATH="${GITHUB_WORKSPACE}/espresso/build/src/python"
-          COVERAGE=1 sh CI/run_espresso_test_suite.sh -j $(nproc)
+          module restore espresso
+          source venv/bin/activate
+          export NUM_PROC=$(nproc)
+          export OMP_PROC_BIND=false OMP_NUM_THREADS=1
+          COVERAGE=1 sh CI/run_espresso_test_suite.sh -j ${NUM_PROC}
           python -m coverage combine . CI/espresso_tests
           python -m coverage report
           python -m coverage xml
