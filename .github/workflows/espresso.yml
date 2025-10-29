@@ -1,6 +1,3 @@
-# This workflow will install espresso and python dependencies before running the
-# espresso tests.
-
 name: ESPResSo tests
 
 on:
@@ -29,9 +26,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r dev-requirements.txt
+          python -m pip install -c dev-requirements.txt toml-cli
+          toml set --toml-path=pyproject.toml tool.coverage.run.omit --to-array '["*/espressomd/*"]'
       - name: Install package
         run: |
-          python -m pip install ".[rnd]"
+          python -m pip install .
       - name: Install ESPResSo
         run: |
           sudo apt-get install libboost-all-dev
@@ -47,8 +46,8 @@ jobs:
           export PYTHONPATH="${GITHUB_WORKSPACE}/espresso/build/src/python"
           COVERAGE=1 sh CI/run_espresso_test_suite.sh -j $(nproc)
           python -m coverage combine . CI/espresso_tests
-          python -m coverage report --omit="*/espressomd/*"
-          python -m coverage xml --omit="*/espressomd/*"
+          python -m coverage report
+          python -m coverage xml
       - name: Upload coverage to Codecov
         if: ${{ github.repository == 'SwarmRL/SwarmRL' }}
         uses: codecov/codecov-action@v5
