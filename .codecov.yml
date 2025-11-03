@@ -22,4 +22,4 @@ coverage:
 comment: false
 
 ignore:
-- "**/espresso/build/src/python/espressomd/"
+- "setup.py"
