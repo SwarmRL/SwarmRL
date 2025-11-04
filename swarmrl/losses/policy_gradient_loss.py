@@ -94,11 +94,12 @@ class PolicyGradientLoss(Loss):
         advantage = returns - predicted_values
         logger.debug(f"{advantage=}")
 
-        actor_loss = -1 * ((log_probs * advantage).sum(axis=0)).sum()
-        logger.debug(f"{actor_loss=}")
-
         # Sum over time steps and average over agents.
         critic_loss = optax.huber_loss(predicted_values, returns).sum(axis=0).sum()
+
+        advantage = jax.lax.stop_gradient(advantage)
+        actor_loss = -1 * ((log_probs * advantage).sum(axis=0)).sum()
+        logger.debug(f"{actor_loss=}")
 
         return actor_loss + critic_loss
 
