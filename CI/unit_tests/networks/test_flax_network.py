@@ -161,7 +161,7 @@ class TestFlaxNetwork:
         post_restore_opt_state = post_save_model.model_state.opt_state
 
         def compare_two_opt_states(state1, state2):
-            jax.tree_map(
+            jax.tree_util.tree_map(
                 lambda x, y: np.testing.assert_array_equal(x, y), state1, state2
             )
 

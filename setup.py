@@ -21,9 +21,9 @@ setup(
     packages=find_packages(),
     python_requires=">=3.10",
     install_requires=required,
-    extras_require={
-        "rnd": [
-            "znnl @git+https://github.com/zincware/ZnNL.git",
-        ]
-    },
+    # extras_require={
+    #     "rnd": [
+    #         "znnl @git+https://github.com/zincware/ZnNL.git",
+    #     ]
+    # },
 )
