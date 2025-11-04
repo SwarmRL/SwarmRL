@@ -56,15 +56,12 @@ class GAE:
         gae = 0
         advantages = np.zeros_like(rewards)
         for t in reversed(range(len(rewards))):
-            if t != len(rewards) - 1:
-                delta = rewards[t] + self.gamma * values[t + 1] - values[t]
-            else:
-                delta = rewards[t] - values[t]
+            delta = rewards[t] + self.gamma * values[t + 1] - values[t]
 
             gae = delta + self.gamma * self.lambda_ * gae
             advantages = advantages.at[t].set(gae)
 
-        returns = advantages + values
+        returns = advantages + values[:-1]
 
         advantages = (advantages - np.mean(advantages)) / (
             np.std(advantages) + self.eps
