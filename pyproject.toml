@@ -7,3 +7,8 @@ exclude = '^/espresso'
 profile = 'black'
 multi_line_output = 3
 skip_glob = ["espresso/*"]
+
+[tool.coverage.run]
+parallel = true
+concurrency = ["multiprocessing"]
+disable_warnings = ["no-data-collected"]
