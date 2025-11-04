@@ -2,12 +2,16 @@
 Module for the Trainer parent.
 """
 
+import logging
 from typing import List, Tuple
 
 import numpy as np
 
 from swarmrl.agents.actor_critic import ActorCriticAgent
+from swarmrl.checkpointers.base_checkpointer import BaseCheckpointer
 from swarmrl.force_functions.force_fn import ForceFunction
+
+logger = logging.getLogger(__name__)
 
 
 class Trainer:
@@ -41,6 +45,7 @@ class Trainer:
     def __init__(
         self,
         agents: List[ActorCriticAgent],
+        checkpointers: List[BaseCheckpointer] | None = None,
     ):
         """
         Constructor for the MLP RL.
@@ -53,11 +58,33 @@ class Trainer:
                 A loss model to use in the A-C loss computation.
         """
         self.agents = {}
+        self.checkpointers = checkpointers if checkpointers is not None else []
 
         # Add the protocols to an easily accessible internal dict.
         # TODO: Maybe turn into a dataclass? Not sure if it helps yet.
         for agent in agents:
             self.agents[str(agent.particle_type)] = agent
+
+        checkpoint_paths = []
+        if len(checkpointers) > 0:
+            for checkpointer in checkpointers:
+                self.checkpointers.append(checkpointer)
+                if checkpointer.out_path is not None:
+                    checkpoint_paths.append(checkpointer.out_path)
+
+            if len(checkpoint_paths) == 0:
+                print("No checkpointer out_path provided. Storing in './Models/' now.")
+                self.checkpoint_path = "./Models/"
+            elif len(checkpoint_paths) == 1:
+                self.checkpoint_path = checkpoint_paths[0]
+            else:
+                print(
+                    "Found multiple checkpointer paths. Choosing the first entry: "
+                    f"{checkpoint_paths[0]}."
+                )
+                self.checkpoint_path = checkpoint_paths[0]
+        else:
+            print("No Checkpointer provided.")
 
     def initialize_training(self) -> ForceFunction:
         """
@@ -92,6 +119,7 @@ class Trainer:
         for agent in self.agents.values():
             if isinstance(agent, ActorCriticAgent):
                 ag_reward, ag_killed = agent.update_agent()
+                logger.debug(f"{ag_reward=}")
                 reward += np.mean(ag_reward)
                 switches.append(ag_killed)
 
@@ -117,7 +145,7 @@ class Trainer:
 
     def restore_models(self, directory: str = "Models"):
         """
-        Export the models to the specified directory.
+        Restore the models from the specified directory.
 
         Parameters
         ----------

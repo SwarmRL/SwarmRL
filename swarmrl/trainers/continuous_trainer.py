@@ -67,7 +67,7 @@ class ContinuousTrainer(Trainer):
                 running_reward=np.mean(rewards),
                 visible=load_bar,
             )
-            for _ in range(n_episodes):
+            for episode in range(n_episodes):
                 self.engine.integrate(episode_length, force_fn)
                 force_fn, current_reward, killed = self.update_rl()
 
@@ -76,6 +76,23 @@ class ContinuousTrainer(Trainer):
                     system_runner.finalize()
                     break
 
+                if len(self.checkpointers) > 0:
+                    export = []
+                    save_string = ""
+                    for checkpointer in self.checkpointers:
+                        export.append(
+                            checkpointer.check_for_checkpoint(rewards, episode)
+                        )
+                        if export[-1]:
+                            save_string += f"-{checkpointer.__class__.__name__}"
+
+                    if any(export):
+                        self.export_models(
+                            f"{self.checkpoint_path}/Model-ep_{episode + 1}"
+                            f"-cur_reward_{current_reward:.1f}"
+                            f"{save_string}"
+                            + "/"
+                        )
                 rewards.append(current_reward)
                 episode += 1
                 progress.update(

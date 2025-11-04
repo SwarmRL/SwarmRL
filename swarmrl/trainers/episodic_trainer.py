@@ -12,6 +12,10 @@ from swarmrl.trainers.trainer import Trainer
 if TYPE_CHECKING:
     from espressomd import System
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class EpisodicTrainer(Trainer):
     """
@@ -65,7 +69,7 @@ class EpisodicTrainer(Trainer):
         simulation, the system will be reset.
         """
         killed = False
-        rewards = [0.0]
+        rewards = np.zeros(n_episodes)
         current_reward = 0.0
         force_fn = self.initialize_training()
         cycle_index = 0
@@ -87,6 +91,7 @@ class EpisodicTrainer(Trainer):
                 visible=load_bar,
             )
 
+            break_training = False
             for episode in range(n_episodes):
                 # Check if the system should be reset.
                 if episode % reset_frequency == 0 or killed:
@@ -115,16 +120,58 @@ class EpisodicTrainer(Trainer):
 
                 force_fn, current_reward, killed = self.update_rl()
 
-                rewards.append(current_reward)
+                rewards[episode] = current_reward
+                if len(self.checkpointers) > 0:
+                    export = []
+                    save_string = ""
+                    for checkpointer in self.checkpointers:
+                        export.append(
+                            checkpointer.check_for_checkpoint(rewards, episode)
+                        )
+                        if export[-1]:
+                            save_string += f"-{checkpointer.__class__.__name__}"
 
-                episode += 1
+                    if any(export):
+                        self.export_models(
+                            f"{self.checkpoint_path}/Model-ep_{episode + 1}"
+                            f"-cur_reward_{current_reward:.1f}"
+                            f"{save_string}"
+                            + "/"
+                        )
+
+                logger.debug(f"{episode=}")
+                logger.debug(f"{current_reward=}")
+
+                display_episode = episode + 1
+                if display_episode < 10:
+                    running_reward = np.round(np.mean(rewards[:display_episode]), 2)
+                else:
+                    running_reward = np.round(
+                        np.mean(rewards[display_episode - 10 : display_episode]), 2
+                    )
+
                 progress.update(
                     task,
                     advance=1,
                     Episode=episode,
                     current_reward=np.round(current_reward, 2),
-                    running_reward=np.round(np.mean(rewards[-10:]), 2),
+                    running_reward=running_reward,
                 )
                 self.engine.finalize()
+
+                if break_training is False:
+                    for checkpointer in self.checkpointers:
+                        if checkpointer.check_for_break():
+                            break_training = True
+                            self.stop_episode = checkpointer.get_stop_episode()
+                else:
+                    if episode <= self.stop_episode:
+                        print(
+                            "Stopping criterion reached, but running out training"
+                            f" until {self.stop_episode}"
+                        )
+                    else:
+                        print(f"Stopping training at episode {episode}")
+                        break
 
         return np.array(rewards)
