@@ -6,6 +6,8 @@ Notes
 https://spinningup.openai.com/en/latest/algorithms/ppo.html
 """
 
+import logging
+import sys
 from abc import ABC
 from functools import partial
 
@@ -21,6 +23,42 @@ from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 from swarmrl.utils.utils import gather_n_dim_indices
 from swarmrl.value_functions.generalized_advantage_estimate import GAE
+
+
+class LoggerWriter:
+    """
+    Class that redirects stdout to a logger.
+
+    Parameters
+    ----------
+    logger: Logger
+        The logger object to redirect stdout to.
+    level: int
+        The logging level to use.
+    linebuf: str
+        Buffer to store the current line being written.
+    """
+
+    def __init__(self, logger, level):
+        self.logger = logger
+        self.level = level
+        self.linebuf = ""
+
+    def write(self, buf):
+        """
+            Writes the given buffer to the logger.
+
+        Parameters
+        ----------
+            buf: str
+                The buffer to write.
+
+        Returns
+        -------
+            None
+        """
+        for line in buf.rstrip().splitlines():
+            self.logger.log(self.level, line.rstrip())
 
 
 class ProximalPolicyLoss(Loss, ABC):
@@ -58,6 +96,11 @@ class ProximalPolicyLoss(Loss, ABC):
         self.epsilon = epsilon
         self.entropy_coefficient = entropy_coefficient
         self.eps = 1e-8
+
+        # Store the original stdout, create a logger and the respective logger_stdout
+        self.original_stdout = sys.stdout
+        self.logger = logging.getLogger(__name__)
+        self.logger_stdout = LoggerWriter(self.logger, logging.DEBUG)
 
     @partial(jit, static_argnums=(0, 2))
     def _calculate_loss(
@@ -99,16 +142,21 @@ class ProximalPolicyLoss(Loss, ABC):
         new_logits, predicted_values = network(network_params, feature_data)
         predicted_values = predicted_values.squeeze()
 
+        jax.debug.print("predicted_values = {}", predicted_values, ordered=True)
+
         # compute the advantages and returns
         advantages, returns = self.value_function(
             rewards=rewards, values=predicted_values
         )
+        jax.debug.print("advantages = {}", advantages, ordered=True)
+        jax.debug.print("returns = {}", returns, ordered=True)
 
         # compute the probabilities of the old actions under the new policy
         new_probabilities = jax.nn.softmax(new_logits, axis=-1)
 
         # compute the entropy of the whole distribution
         entropy = self.sampling_strategy.compute_entropy(new_probabilities).sum()
+        jax.debug.print("entropy = {}", entropy, ordered=True)
         chosen_log_probs = jnp.log(
             gather_n_dim_indices(new_probabilities, action_indices) + self.eps
         )
@@ -133,6 +181,9 @@ class ProximalPolicyLoss(Loss, ABC):
         actor_loss = jnp.sum(particle_actor_loss)
         # Compute combined loss
         loss = actor_loss - self.entropy_coefficient * entropy + 0.5 * total_critic_loss
+        jax.debug.print("actor_loss = {}", actor_loss, ordered=True)
+        jax.debug.print("total_critic_loss = {}", total_critic_loss, ordered=True)
+        jax.debug.print("loss = {}", loss, ordered=True)
 
         return loss
 
@@ -156,6 +207,8 @@ class ProximalPolicyLoss(Loss, ABC):
         action_data = jnp.array(episode_data.actions)
         reward_data = jnp.array(episode_data.rewards)
 
+        sys.stdout = self.logger_stdout
+        jax.debug.print("\n---------PROXIMAL POLICY LOSS LOG---------\n", ordered=True)
         for _ in range(self.n_epochs):
             network_grad_fn = jax.value_and_grad(self._calculate_loss)
             _, network_grad = network_grad_fn(
@@ -168,3 +221,8 @@ class ProximalPolicyLoss(Loss, ABC):
             )
 
             network.update_model(network_grad)
+        jax.debug.print("network_grad = {}", network_grad, ordered=True)
+        jax.debug.print(
+            "\n---------END PROXIMAL POLICY LOSS LOG---------\n", ordered=True
+        )
+        sys.stdout = self.original_stdout
