@@ -3,13 +3,13 @@ Module for the espressoMD simulations.
 """
 
 import dataclasses
-import logging
 import pathlib
 import typing
 
 import h5py
 import numpy as np
 import pint
+from loguru import logger
 
 import swarmrl.utils.utils as utils
 from swarmrl.components.colloid import Colloid
@@ -17,7 +17,6 @@ from swarmrl.force_functions import ForceFunction
 
 from .engine import Engine
 
-logger = logging.getLogger(__name__)
 try:
     import espressomd
     import espressomd.constraints

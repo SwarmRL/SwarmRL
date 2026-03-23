@@ -2,7 +2,6 @@
 Jax model for reinforcement learning.
 """
 
-import logging
 import os
 import pickle
 from abc import ABC
@@ -14,6 +13,7 @@ import numpy as onp
 from flax import linen as nn
 from flax.core.frozen_dict import FrozenDict
 from flax.training.train_state import TrainState
+from loguru import logger
 from optax._src.base import GradientTransformation
 
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
@@ -21,8 +21,6 @@ from swarmrl.exploration_policies.random_exploration import RandomExploration
 from swarmrl.networks.network import Network
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
-
-logger = logging.getLogger(__name__)
 
 
 class FlaxModel(Network, ABC):

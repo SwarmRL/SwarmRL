@@ -2,10 +2,7 @@
 Package intrinsic_rewards for Agents.
 """
 
-import logging
-
-logger = logging.getLogger(__name__)
-
+from loguru import logger
 
 from swarmrl.intrinsic_reward.intrinsic_reward import IntrinsicReward
 

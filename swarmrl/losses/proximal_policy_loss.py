@@ -6,7 +6,6 @@ Notes
 https://spinningup.openai.com/en/latest/algorithms/ppo.html
 """
 
-import logging
 from abc import ABC
 from functools import partial
 
@@ -22,8 +21,6 @@ from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 from swarmrl.utils.utils import gather_n_dim_indices, log_jax_runtime_value
 from swarmrl.value_functions.generalized_advantage_estimate import GAE
-
-logger = logging.getLogger(__name__)
 
 
 class ProximalPolicyLoss(Loss, ABC):
@@ -102,21 +99,21 @@ class ProximalPolicyLoss(Loss, ABC):
         new_logits, predicted_values = network(network_params, feature_data)
         predicted_values = predicted_values.squeeze()
 
-        log_jax_runtime_value(logger, "predicted_values", predicted_values)
+        log_jax_runtime_value("predicted_values", predicted_values)
 
         # compute the advantages and returns
         advantages, returns = self.value_function(
             rewards=rewards, values=predicted_values
         )
-        log_jax_runtime_value(logger, "advantages", advantages)
-        log_jax_runtime_value(logger, "returns", returns)
+        log_jax_runtime_value("advantages", advantages)
+        log_jax_runtime_value("returns", returns)
 
         # compute the probabilities of the old actions under the new policy
         new_probabilities = jax.nn.softmax(new_logits, axis=-1)
 
         # compute the entropy of the whole distribution
         entropy = self.sampling_strategy.compute_entropy(new_probabilities).sum()
-        log_jax_runtime_value(logger, "entropy", entropy)
+        log_jax_runtime_value("entropy", entropy)
         chosen_log_probs = jnp.log(
             gather_n_dim_indices(new_probabilities, action_indices) + self.eps
         )
@@ -141,9 +138,9 @@ class ProximalPolicyLoss(Loss, ABC):
         actor_loss = jnp.sum(particle_actor_loss)
         # Compute combined loss
         loss = actor_loss - self.entropy_coefficient * entropy + 0.5 * total_critic_loss
-        log_jax_runtime_value(logger, "actor_loss", actor_loss)
-        log_jax_runtime_value(logger, "total_critic_loss", total_critic_loss)
-        log_jax_runtime_value(logger, "loss", loss)
+        log_jax_runtime_value("actor_loss", actor_loss)
+        log_jax_runtime_value("total_critic_loss", total_critic_loss)
+        log_jax_runtime_value("loss", loss)
 
         return loss
 
@@ -179,4 +176,4 @@ class ProximalPolicyLoss(Loss, ABC):
             )
 
             network.update_model(network_grad)
-        log_jax_runtime_value(logger, "network_grad", network_grad)
+        log_jax_runtime_value("network_grad", network_grad)

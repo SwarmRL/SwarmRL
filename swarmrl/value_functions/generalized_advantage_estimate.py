@@ -2,13 +2,10 @@
 Module for the expected returns value function.
 """
 
-import logging
 from functools import partial
 
 import jax.numpy as np
 from jax import jit
-
-logger = logging.getLogger(__name__)
 
 
 class GAE:

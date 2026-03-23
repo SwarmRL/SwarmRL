@@ -2,7 +2,6 @@
 Class for the species search task.
 """
 
-import logging
 from typing import List
 
 import jax
@@ -11,8 +10,6 @@ import numpy as onp
 
 from swarmrl.components.colloid import Colloid
 from swarmrl.tasks.task import Task
-
-logger = logging.getLogger(__name__)
 
 
 class SpeciesSearch(Task):

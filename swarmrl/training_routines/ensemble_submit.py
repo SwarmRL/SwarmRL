@@ -2,7 +2,6 @@
 Class for submitting many jobs in parallel to a cluster.
 """
 
-import logging
 import os
 import webbrowser
 from pathlib import Path
@@ -76,7 +75,7 @@ class EnsembleTraining:
             cluster = LocalCluster(
                 processes=True,
                 threads_per_worker=2,
-                silence_logs=logging.ERROR,
+                silence_logs="ERROR",
                 resources={"espresso": 1},
             )
         self.cluster = cluster

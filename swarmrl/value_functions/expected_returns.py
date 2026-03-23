@@ -2,13 +2,12 @@
 Module for the expected returns value function.
 """
 
-import logging
 from functools import partial
 
 import jax
 import jax.numpy as np
 
-logger = logging.getLogger(__name__)
+from swarmrl.utils.utils import log_jax_runtime_value
 
 
 class ExpectedReturns:
@@ -52,12 +51,13 @@ class ExpectedReturns:
         expected_returns : np.ndarray (n_time_steps, n_particles)
                 Expected returns for the rewards.
         """
-        logger.debug(f"{self.gamma=}")
+        log_jax_runtime_value("gamma", self.gamma)
+
         expected_returns = np.zeros_like(rewards)
         n_particles = rewards.shape[1]
 
         final_time = len(rewards) + 1
-        logger.debug(rewards)
+        log_jax_runtime_value("rewards", rewards)
 
         for t, reward in enumerate(rewards):
             gamma_array = self.gamma ** np.linspace(
@@ -72,7 +72,7 @@ class ExpectedReturns:
             returns = proceeding_rewards * gamma_array
             expected_returns = expected_returns.at[t, :].set(returns.sum(axis=0))
 
-        logger.debug(f"{expected_returns=}")
+        log_jax_runtime_value("expected_returns", expected_returns)
 
         if self.standardize:
             mean_vector = np.mean(expected_returns, axis=0)

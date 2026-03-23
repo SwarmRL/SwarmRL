@@ -2,19 +2,37 @@
 Utils for the SwarmRL package.
 """
 
-import logging
 import os
 import pickle
 import shutil
+import sys
 import typing
 
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pint
+from loguru import logger
 
-import swarmrl
 from swarmrl.components.colloid import Colloid
+
+_SWARMRL_LOGURU_SINK_IDS = []
+_JAX_RUNTIME_LOG_LEVEL_NO = logger.level("DEBUG").no
+
+
+def _to_level_number(level: typing.Union[int, str]) -> int:
+    """Convert level names or numeric values to a numeric logging level."""
+
+    if isinstance(level, str):
+        return logger.level(level.upper()).no
+    return int(level)
+
+
+def set_jax_runtime_log_level(level: typing.Union[int, str]) -> None:
+    """Set callback registration threshold for JAX runtime value logging."""
+
+    global _JAX_RUNTIME_LOG_LEVEL_NO
+    _JAX_RUNTIME_LOG_LEVEL_NO = _to_level_number(level)
 
 
 def get_random_angles(rng: np.random.Generator):
@@ -122,55 +140,82 @@ def setup_sim_folder(
 
 
 def setup_swarmrl_logger(
-    filename: str,
-    loglevel_terminal: typing.Union[int, str] = logging.INFO,
-    loglevel_file: typing.Union[int, str] = logging.DEBUG,
-) -> logging.Logger:
+    filename: typing.Optional[str] = None,
+    loglevel_terminal: typing.Union[int, str] = "INFO",
+    loglevel_file: typing.Union[int, str] = "DEBUG",
+    include_user_logs: bool = False,
+):
     """
-    Configure the swarmrl logger. This logger is used internally for logging,
-    but you can also use it for your own log messages.
+    Configure package logging with Loguru and enable swarmrl log output.
+
+    This function is opt-in and is intended to be called from user scripts.
+    Before calling it, swarmrl logging is disabled by default in ``swarmrl.__init__``.
+
     Parameters
     ----------
     filename
-        Name of the file where logs get written to
+        Name of the file where logs get written to. If None or an empty string,
+        no file sink is created.
     loglevel_terminal
-        Loglevel of the terminal output. The values correspond to
-        https://docs.python.org/3/library/logging.html#logging-levels.
-        You can pass an integer (or logging predefined values such as logging.INFO)
-        or a string that corresponds to the loglevels of the link above.
+        Terminal log level for Loguru sinks. Supports Loguru level names
+        (e.g. "INFO", "DEBUG") or integer level numbers.
     loglevel_file
-        Loglevel of the file output.
-    Returns
-    -------
-        The logger
+        File log level for Loguru sinks. Supports Loguru level names
+        or integer level numbers.
+    include_user_logs
+        If True, include non-swarmrl Loguru records (for user/application logs)
+        in the configured sinks.
+
     """
+    global _SWARMRL_LOGURU_SINK_IDS
 
-    def get_numeric_level(loglevel: typing.Union[int, str]):
-        if isinstance(loglevel, str):
-            numeric_level = getattr(logging, loglevel.upper(), None)
-        elif isinstance(loglevel, int):
-            numeric_level = loglevel
-        else:
-            raise ValueError(
-                f"Invalid log level: {loglevel}. Must be either str or int"
-            )
-        return numeric_level
+    for sink_id in _SWARMRL_LOGURU_SINK_IDS:
+        try:
+            logger.remove(sink_id)
+        except ValueError:
+            pass
+    _SWARMRL_LOGURU_SINK_IDS = []
 
-    logger = logging.getLogger(swarmrl._ROOT_NAME)
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        fmt="[%(levelname)-10s] %(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    loglevel_terminal = (
+        loglevel_terminal.upper()
+        if isinstance(loglevel_terminal, str)
+        else int(loglevel_terminal)
     )
-    file_handler = logging.FileHandler(filename)
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(get_numeric_level(loglevel_file))
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-    stream_handler.setLevel(get_numeric_level(loglevel_terminal))
-    logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
+    loglevel_file = (
+        loglevel_file.upper() if isinstance(loglevel_file, str) else int(loglevel_file)
+    )
 
-    return logger
+    log_format = "[<level>{level: <10}</level>] {time:YYYY-MM-DD HH:mm:ss}: {message}"
+
+    def _sink_filter(record: dict) -> bool:
+        if include_user_logs:
+            return True
+        return record["name"].startswith("swarmrl")
+
+    active_level_numbers = [_to_level_number(loglevel_terminal)]
+
+    if filename:
+        _SWARMRL_LOGURU_SINK_IDS.append(
+            logger.add(
+                filename,
+                level=loglevel_file,
+                format=log_format,
+                filter=_sink_filter,
+            )
+        )
+        active_level_numbers.append(_to_level_number(loglevel_file))
+
+    _SWARMRL_LOGURU_SINK_IDS.append(
+        logger.add(
+            sys.stderr,
+            level=loglevel_terminal,
+            format=log_format,
+            filter=_sink_filter,
+        )
+    )
+
+    set_jax_runtime_log_level(min(active_level_numbers))
+    logger.enable("swarmrl")
 
 
 def gather_n_dim_indices(reference_array: np.ndarray, indices: np.ndarray):
@@ -207,23 +252,22 @@ def gather_n_dim_indices(reference_array: np.ndarray, indices: np.ndarray):
 
 
 def log_jax_runtime_value(
-    logger: logging.Logger,
-    label: str,
-    value,
-    level: int = logging.DEBUG,
+    label: str, value, level: typing.Union[str, int] = "DEBUG"
 ) -> None:
-    """Log JAX runtime values through a standard Python logger.
+    """Log JAX runtime values with the global Loguru logger.
 
     The callback is only registered when the requested log level is enabled.
     """
 
     # JAX captures this branch during tracing. If the logger level changes later,
     # previously compiled paths may keep the old behavior until retracing happens.
-    if not logger.isEnabledFor(level):
+    level_no = _to_level_number(level)
+
+    if level_no < _JAX_RUNTIME_LOG_LEVEL_NO:
         return
 
     def _emit(x):
-        logger.log(level, "%s = %s", label, x)
+        logger.log(level, "{label} = {value}", label=label, value=x)
 
     jax.debug.callback(_emit, value, ordered=True)
 

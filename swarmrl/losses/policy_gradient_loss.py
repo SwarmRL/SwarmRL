@@ -9,8 +9,6 @@ Notes
 https://spinningup.openai.com/en/latest/algorithms/vpg.html
 """
 
-import logging
-
 import jax
 import jax.numpy as jnp
 import optax
@@ -20,8 +18,6 @@ from swarmrl.losses.loss import Loss
 from swarmrl.networks.network import Network
 from swarmrl.utils.utils import gather_n_dim_indices, log_jax_runtime_value
 from swarmrl.value_functions.expected_returns import ExpectedReturns
-
-logger = logging.getLogger(__name__)
 
 
 class PolicyGradientLoss(Loss):
@@ -83,23 +79,23 @@ class PolicyGradientLoss(Loss):
         probabilities = jax.nn.softmax(logits)  # get probabilities
         chosen_probabilities = gather_n_dim_indices(probabilities, action_indices)
         log_probs = jnp.log(chosen_probabilities + 1e-8)
-        log_jax_runtime_value(logger, "log_probs", log_probs)
+        log_jax_runtime_value("log_probs", log_probs)
 
         returns = self.value_function(rewards)
-        log_jax_runtime_value(logger, "returns", returns)
+        log_jax_runtime_value("returns", returns)
 
-        log_jax_runtime_value(logger, "predicted_values", predicted_values)
+        log_jax_runtime_value("predicted_values", predicted_values)
 
         # (n_timesteps, n_particles)
         advantage = returns - predicted_values
-        log_jax_runtime_value(logger, "advantage", advantage)
+        log_jax_runtime_value("advantage", advantage)
 
         # Sum over time steps and average over agents.
         critic_loss = optax.huber_loss(predicted_values, returns).sum(axis=0).sum()
 
         advantage = jax.lax.stop_gradient(advantage)
         actor_loss = -1 * ((log_probs * advantage).sum(axis=0)).sum()
-        log_jax_runtime_value(logger, "actor_loss", actor_loss)
+        log_jax_runtime_value("actor_loss", actor_loss)
 
         return actor_loss + critic_loss
 

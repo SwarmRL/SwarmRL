@@ -2,7 +2,6 @@
 Observable for particle sensing.
 """
 
-import logging
 from typing import List
 
 import jax
@@ -11,8 +10,6 @@ import numpy as onp
 
 from swarmrl.components.colloid import Colloid
 from swarmrl.observables.observable import Observable
-
-logger = logging.getLogger(__name__)
 
 
 class ParticleSensing(Observable):
