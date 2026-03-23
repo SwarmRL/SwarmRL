@@ -8,6 +8,7 @@ import pickle
 import shutil
 import typing
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 import pint
@@ -203,6 +204,28 @@ def gather_n_dim_indices(reference_array: np.ndarray, indices: np.ndarray):
     gathered_array = reference_array.flatten()[indices]
 
     return gathered_array.reshape(reference_shape[0], reference_shape[1])
+
+
+def log_jax_runtime_value(
+    logger: logging.Logger,
+    label: str,
+    value,
+    level: int = logging.DEBUG,
+) -> None:
+    """Log JAX runtime values through a standard Python logger.
+
+    The callback is only registered when the requested log level is enabled.
+    """
+
+    # JAX captures this branch during tracing. If the logger level changes later,
+    # previously compiled paths may keep the old behavior until retracing happens.
+    if not logger.isEnabledFor(level):
+        return
+
+    def _emit(x):
+        logger.log(level, "%s = %s", label, x)
+
+    jax.debug.callback(_emit, value, ordered=True)
 
 
 def record_trajectory(
