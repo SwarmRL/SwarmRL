@@ -20,7 +20,8 @@ dependencies = [
     "optax>=0.2.3",
     "pint>=0.24",
     "rich>=13.7.1",
-    "tqdm>=4.66.4"
+    "tqdm>=4.66.4",
+    "loguru>=0.7.3"
 ]
 
 # Development dependencies separated from core library
