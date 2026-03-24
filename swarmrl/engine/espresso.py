@@ -830,7 +830,7 @@ class EspressoMD(Engine):
                         nu=1,
                         mu=2,
                         cut=2 * prop_dict_0["radius"] * max([aspect, 1 / aspect]) * 2,
-                        eps=self.params.wca_epsilon.m_as("sim_energy"),
+                        eps=self.params.WCA_epsilon.m_as("sim_energy"),
                     )
 
     def add_const_force_to_colloids(self, force: pint.Quantity, type: int):
