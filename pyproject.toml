@@ -1,12 +1,49 @@
-[tool.black]
-line-length = 88
-preview = true
-exclude = '^/espresso'
+[project]
+name = "swarmrl"
+version = "0.1.0"
+description = "A Python library for multi-agent reinforcement learning."
+authors = [
+    {name = "Samuel Tovey", email = "tovey.samuel@gmail.com"},
+    {name = "Christoph Lohrmann"} # Note: I added an 'h' here assuming "Christop" was a typo!
+]
+requires-python = ">=3.12"
 
-[tool.isort]
-profile = 'black'
-multi_line_output = 3
-skip_glob = ["espresso/*"]
+dependencies = [
+    "dask>=2024.8.0",
+    "dask-jobqueue>=0.8.5",
+    "distributed>=2024.8.0",
+    "flax>=0.8.4",
+    "h5py>=3.11.0",
+    "jax>=0.4.30",
+    "jaxlib>=0.4.30",
+    "numpy>=1.26.4", 
+    "optax>=0.2.3",
+    "pint>=0.24",
+    "rich>=13.7.1",
+    "tqdm>=4.66.4"
+]
+
+# Development dependencies separated from core library
+[project.optional-dependencies]
+dev = [
+    "cmake>=3.22.1",
+    "coverage>=7.4.4",
+    "pre-commit>=3.7.0",
+    "pytest>=8.2.0",
+    "ruff>=0.5.0",
+]
+
+# Replaced black and isort entirely with ruff
+[tool.ruff]
+line-length = 88
+exclude = ["espresso/*"]
+
+[tool.ruff.lint]
+# Enables standard errors (E), pyflakes (F), and isort (I)
+select = ["E", "F", "I"] 
+
+[tool.ruff.format]
+preview = true
 
 [tool.coverage.run]
 parallel = true

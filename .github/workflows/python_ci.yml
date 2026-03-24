@@ -1,0 +1,78 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+  push:
+    branches: [ "main" ] # Limits push runs to main, PRs still run from any branch
+  schedule:
+    - cron: '14 3 * * 1'  # at 03:14 on Monday.
+
+jobs:
+  # ---------------------------------------------------------
+  # JOB 1: Linting & Formatting (Ruff via pre-commit)
+  # ---------------------------------------------------------
+  lint:
+    name: Check coding style
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          
+      - name: Run pre-commit hooks
+        uses: pre-commit/action@v3.0.1
+        
+      - name: Auto-fix PRs via pre-commit CI lite
+        uses: pre-commit-ci/lite-action@v1.0.2
+        if: always()
+
+  # ---------------------------------------------------------
+  # JOB 2: Testing & Coverage
+  # ---------------------------------------------------------
+  test:
+    name: Run tests with Coverage
+    runs-on: ubuntu-latest
+    # Run on schedule only for main repo, or run on any non-schedule event
+    if: ${{ github.event_name == 'schedule' && github.repository == 'SwarmRL/SwarmRL' || github.event_name != 'schedule' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip" # Caches dependencies to speed up the run
+          
+      - name: Install package and dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # This replaces dev-requirements.txt and installs the local package in one go
+          pip install -e ".[dev]" 
+          
+      - name: Run Pytest with Coverage
+        run: |
+          python -m coverage run --parallel-mode -m pytest --ignore CI/espresso_tests
+          python -m coverage combine .
+          python -m coverage report
+          python -m coverage xml
+          
+      - name: Upload coverage to Codecov
+        if: ${{ github.repository == 'SwarmRL/SwarmRL' }}
+        uses: codecov/codecov-action@v5
+        with:
+          files: "./coverage.xml"
+          disable_search: true
+          env_vars: OS,PYTHON
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
