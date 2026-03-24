@@ -20,9 +20,13 @@ class TestAgentFromTrajectory(ut.TestCase):
             params=[1, 1, 0],
         )
 
-        self.trajectory = np.array(
-            [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0]]
-        )
+        self.trajectory = np.array([
+            [0, 0, 0],
+            [1, 0, 0],
+            [2, 0, 0],
+            [3, 0, 0],
+            [4, 0, 0],
+        ])
         self.agent_trajectory = AgentFromTrajectory(
             trajectory=self.trajectory,
             time_slice=0.01,

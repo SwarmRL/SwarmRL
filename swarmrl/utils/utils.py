@@ -22,9 +22,11 @@ def get_random_angles(rng: np.random.Generator):
 
 
 def vector_from_angles(theta, phi):
-    return np.array(
-        [np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)]
-    )
+    return np.array([
+        np.sin(theta) * np.cos(phi),
+        np.sin(theta) * np.sin(phi),
+        np.cos(theta),
+    ])
 
 
 def angles_from_vector(director):
