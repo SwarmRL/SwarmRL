@@ -3,7 +3,7 @@ import pickle
 import tempfile
 import threading
 import unittest as ut
-
+from loguru import logger
 import h5py
 import numpy as np
 import pint
@@ -29,7 +29,7 @@ class TestFullSim(ut.TestCase):
     visualize = False
 
     def simulate_model(self, outfolder):
-        logger = utils.setup_swarmrl_logger(
+        utils.setup_swarmrl_logger(
             f"{outfolder}/{self.simulation_name}.log",
             loglevel_terminal=self.loglevel_terminal,
         )
