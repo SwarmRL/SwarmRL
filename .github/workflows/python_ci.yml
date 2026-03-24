@@ -31,12 +31,11 @@ jobs:
         if: always()
 
   # ---------------------------------------------------------
-  # JOB 2: Testing & Coverage
+  # JOB 2: Testing & Coverage (Powered by uv)
   # ---------------------------------------------------------
   test:
     name: Run tests with Coverage
     runs-on: ubuntu-latest
-    # Run on schedule only for main repo, or run on any non-schedule event
     if: ${{ github.event_name == 'schedule' && github.repository == 'SwarmRL/SwarmRL' || github.event_name != 'schedule' }}
     strategy:
       fail-fast: false
@@ -47,24 +46,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      # NEW: Replaces actions/setup-python
+      - name: Install uv and Set up Python
+        uses: astral-sh/setup-uv@v5
         with:
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
-          cache: "pip" # Caches dependencies to speed up the run
           
-      - name: Install package and dev dependencies
-        run: |
-          python -m pip install --upgrade pip
-          # This replaces dev-requirements.txt and installs the local package in one go
-          pip install -e ".[dev]" 
+      # NEW: Replaces pip install. Uses the uv.lock file for instant installs.
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
           
+      # NEW: Prefix your commands with `uv run` to execute them in the isolated environment
       - name: Run Pytest with Coverage
         run: |
-          python -m coverage run --parallel-mode -m pytest --ignore CI/espresso_tests
-          python -m coverage combine .
-          python -m coverage report
-          python -m coverage xml
+          uv run coverage run --parallel-mode -m pytest --ignore CI/espresso_tests
+          uv run coverage combine .
+          uv run coverage report
+          uv run coverage xml
           
       - name: Upload coverage to Codecov
         if: ${{ github.repository == 'SwarmRL/SwarmRL' }}
