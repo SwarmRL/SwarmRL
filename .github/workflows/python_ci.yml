@@ -1,0 +1,77 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+  push:
+    branches: [ "main" ] # Limits push runs to main, PRs still run from any branch
+  schedule:
+    - cron: '14 3 * * 1'  # at 03:14 on Monday.
+
+jobs:
+  # ---------------------------------------------------------
+  # JOB 1: Linting & Formatting (Ruff via pre-commit)
+  # ---------------------------------------------------------
+  lint:
+    name: Check coding style
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          
+      - name: Run pre-commit hooks
+        uses: pre-commit/action@v3.0.1
+        
+      - name: Auto-fix PRs via pre-commit CI lite
+        uses: pre-commit-ci/lite-action@v1.0.2
+        if: always()
+
+  # ---------------------------------------------------------
+  # JOB 2: Testing & Coverage (Powered by uv)
+  # ---------------------------------------------------------
+  test:
+    name: Run tests with Coverage
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'schedule' && github.repository == 'SwarmRL/SwarmRL' || github.event_name != 'schedule' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      # NEW: Replaces actions/setup-python
+      - name: Install uv and Set up Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+          
+      # NEW: Replaces pip install. Uses the uv.lock file for instant installs.
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+          
+      # NEW: Prefix your commands with `uv run` to execute them in the isolated environment
+      - name: Run Pytest with Coverage
+        run: |
+          uv run coverage run --parallel-mode -m pytest --ignore CI/espresso_tests
+          uv run coverage combine .
+          uv run coverage report
+          uv run coverage xml
+          
+      - name: Upload coverage to Codecov
+        if: ${{ github.repository == 'SwarmRL/SwarmRL' }}
+        uses: codecov/codecov-action@v5
+        with:
+          files: "./coverage.xml"
+          disable_search: true
+          env_vars: OS,PYTHON
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true

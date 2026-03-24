@@ -204,9 +204,11 @@ class EspressoMD(Engine):
         # after the first call to integrate, no more changes to the engine are allowed
         self.integration_initialised = False
 
-        espressomd.assert_features(
-            ["ROTATION", "EXTERNAL_FORCES", "THERMOSTAT_PER_PARTICLE"]
-        )
+        espressomd.assert_features([
+            "ROTATION",
+            "EXTERNAL_FORCES",
+            "THERMOSTAT_PER_PARTICLE",
+        ])
 
     def _init_unit_system(self):
         """
@@ -450,9 +452,9 @@ class EspressoMD(Engine):
 
         self.colloids.append(colloid)
 
-        self.colloid_radius_register.update(
-            {type_colloid: {"radius": radius_simunits, "aspect_ratio": aspect_ratio}}
-        )
+        self.colloid_radius_register.update({
+            type_colloid: {"radius": radius_simunits, "aspect_ratio": aspect_ratio}
+        })
 
         return colloid
 
@@ -659,9 +661,9 @@ class EspressoMD(Engine):
             virtual_partcl.vs_auto_relate_to(center_part)
             self.colloids.append(virtual_partcl)
 
-        self.colloid_radius_register.update(
-            {rod_particle_type: {"radius": partcl_radius, "aspect_ratio": 1.0}}
-        )
+        self.colloid_radius_register.update({
+            rod_particle_type: {"radius": partcl_radius, "aspect_ratio": 1.0}
+        })
         return center_part
 
     def add_cross(
@@ -854,9 +856,9 @@ class EspressoMD(Engine):
             self.system.constraints.add(constr)
 
         # the wall itself has no radius, only the particle radius counts
-        self.colloid_radius_register.update(
-            {wall_type: {"radius": 0.0, "aspect_ratio": 1.0}}
-        )
+        self.colloid_radius_register.update({
+            wall_type: {"radius": 0.0, "aspect_ratio": 1.0}
+        })
 
     def add_walls(
         self,
@@ -943,9 +945,9 @@ class EspressoMD(Engine):
             self.system.constraints.add(constr)
 
         # the wall itself has no radius, only the particle radius counts
-        self.colloid_radius_register.update(
-            {wall_type: {"radius": 0.0, "aspect_ratio": 1.0}}
-        )
+        self.colloid_radius_register.update({
+            wall_type: {"radius": 0.0, "aspect_ratio": 1.0}
+        })
 
     def _setup_interactions(self):
         aspect_ratios = [
