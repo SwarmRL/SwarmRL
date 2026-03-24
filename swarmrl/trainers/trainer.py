@@ -58,33 +58,35 @@ class Trainer:
                 A loss model to use in the A-C loss computation.
         """
         self.agents = {}
-        self.checkpointers = checkpointers if checkpointers is not None else []
+        self.checkpointers = list(checkpointers) if checkpointers is not None else []
 
         # Add the protocols to an easily accessible internal dict.
         # TODO: Maybe turn into a dataclass? Not sure if it helps yet.
         for agent in agents:
             self.agents[str(agent.particle_type)] = agent
 
-        checkpoint_paths = []
-        if len(checkpointers) > 0:
-            for checkpointer in checkpointers:
-                self.checkpointers.append(checkpointer)
-                if checkpointer.out_path is not None:
-                    checkpoint_paths.append(checkpointer.out_path)
+        checkpoint_paths = [
+            checkpointer.out_path
+            for checkpointer in self.checkpointers
+            if checkpointer.out_path is not None
+        ]
+        if len(self.checkpointers) > 0:
 
             if len(checkpoint_paths) == 0:
-                print("No checkpointer out_path provided. Storing in './Models/' now.")
+                logger.warning(
+                    "No checkpointer out_path provided. Storing in './Models/' now."
+                )
                 self.checkpoint_path = "./Models/"
             elif len(checkpoint_paths) == 1:
                 self.checkpoint_path = checkpoint_paths[0]
             else:
-                print(
+                logger.warning(
                     "Found multiple checkpointer paths. Choosing the first entry: "
                     f"{checkpoint_paths[0]}."
                 )
                 self.checkpoint_path = checkpoint_paths[0]
         else:
-            print("No Checkpointer provided.")
+            logger.info("No Checkpointer provided.")
 
     def initialize_training(self) -> ForceFunction:
         """

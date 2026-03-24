@@ -47,3 +47,14 @@ class BaseCheckpointer:
             Whether or not the simulation should be ended.
         """
         return False
+
+    def get_stop_episode(self) -> int:
+        """
+        Get the episode at which training should stop.
+
+        Returns
+        -------
+        int
+            The episode number at which to stop training, or -1 if not set.
+        """
+        return -1

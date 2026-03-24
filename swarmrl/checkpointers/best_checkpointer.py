@@ -2,13 +2,9 @@
 Module for the Save-Best-Checkpointer
 """
 
-import logging
-
 import numpy as np
 
 from swarmrl.checkpointers.base_checkpointer import BaseCheckpointer
-
-logger = logging.getLogger(__name__)
 
 
 class BestRewardCheckpointer(BaseCheckpointer):
@@ -41,6 +37,9 @@ class BestRewardCheckpointer(BaseCheckpointer):
             The number of episodes to wait before checking for a new checkpoint.
 
         """
+        if window_width <= 0:
+            raise ValueError("window_width must be greater than 0")
+
         super().__init__(out_path)
         self.min_reward = min_reward
         self.increase_factor = increase_factor
@@ -66,6 +65,10 @@ class BestRewardCheckpointer(BaseCheckpointer):
         bool
             Whether the checkpoint criteria are met.
         """
+        if rewards is None or len(rewards) == 0:
+            return False
+        if current_episode < 0 or current_episode >= len(rewards):
+            return False
         if current_episode < self.next_check_episode:
             return False
 

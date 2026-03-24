@@ -2,13 +2,9 @@
 Module for the Save-regularly-Checkpointer
 """
 
-import logging
-
 import numpy as np
 
 from swarmrl.checkpointers.base_checkpointer import BaseCheckpointer
-
-logger = logging.getLogger(__name__)
 
 
 class RegularCheckpointer(BaseCheckpointer):
@@ -25,6 +21,9 @@ class RegularCheckpointer(BaseCheckpointer):
         save_interval: int
             The interval at which to save the model.
         """
+        if save_interval <= 0:
+            raise ValueError("save_interval must be greater than 0")
+
         super().__init__(out_path)
         self.save_interval = save_interval
 
@@ -34,6 +33,8 @@ class RegularCheckpointer(BaseCheckpointer):
 
         Parameters
         ----------
+        rewards : np.ndarray
+            Array of rewards.
         current_episode : int
             The current episode number.
 
@@ -42,4 +43,9 @@ class RegularCheckpointer(BaseCheckpointer):
         bool
             Whether the checkpoint criteria are met.
         """
+        if rewards is None or len(rewards) == 0:
+            return False
+        if current_episode < 0 or current_episode >= len(rewards):
+            return False
+
         return (current_episode + 1) % self.save_interval == 0

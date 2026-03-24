@@ -40,14 +40,14 @@ class TestGoalCheckpointer:
         assert self.goal_checkpointer.required_reward == 100
         assert self.goal_checkpointer.running_out_length == 2
         assert self.goal_checkpointer.window_width == 3
-        assert self.goal_checkpointer.DO_GOAL_BREAK
+        assert self.goal_checkpointer.do_goal_break
         assert not self.goal_checkpointer.check_for_break()
         assert self.goal_checkpointer.stop_episode == -1
 
         assert self.goal_checkpointer_2.required_reward == 100
         assert self.goal_checkpointer_2.running_out_length == 0
         assert self.goal_checkpointer_2.window_width == 3
-        assert self.goal_checkpointer_2.DO_GOAL_BREAK
+        assert self.goal_checkpointer_2.do_goal_break
 
     def test_check_for_checkpoint(self):
         """
@@ -60,7 +60,7 @@ class TestGoalCheckpointer:
                 assert self.goal_checkpointer.check_for_checkpoint(rewards, i)
             else:
                 assert not self.goal_checkpointer.check_for_checkpoint(rewards, i)
-            if self.goal_checkpointer.BREAK_TRAINING:
+            if self.goal_checkpointer.break_training:
                 break
 
     def test_check_for_checkpoint_2(self):
@@ -77,5 +77,5 @@ class TestGoalCheckpointer:
             else:
                 assert not self.goal_checkpointer_2.check_for_checkpoint(rewards, i)
 
-            if self.goal_checkpointer_2.BREAK_TRAINING:
+            if self.goal_checkpointer_2.break_training:
                 break

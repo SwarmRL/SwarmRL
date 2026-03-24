@@ -92,10 +92,11 @@ class EpisodicTrainer(Trainer):
             )
 
             break_training = False
+            stop_after_episode = -1
             for episode in range(n_episodes):
                 # Check if the system should be reset.
                 if episode % reset_frequency == 0 or killed:
-                    print(f"Resetting the system at episode {episode}")
+                    logger.info(f"Resetting the system at episode {episode}")
                     self.engine = None
                     if save_episodic_data:
                         try:
@@ -159,19 +160,22 @@ class EpisodicTrainer(Trainer):
                 )
                 self.engine.finalize()
 
-                if break_training is False:
+                if not break_training:
                     for checkpointer in self.checkpointers:
                         if checkpointer.check_for_break():
                             break_training = True
-                            self.stop_episode = checkpointer.get_stop_episode()
-                else:
-                    if episode <= self.stop_episode:
-                        print(
+                            stop_after_episode = checkpointer.get_stop_episode()
+
+                if break_training:
+                    if episode < stop_after_episode:
+                        logger.info(
                             "Stopping criterion reached, but running out training"
-                            f" until {self.stop_episode}"
+                            f" until {stop_after_episode}"
                         )
                     else:
-                        print(f"Stopping training at episode {episode}")
+                        logger.info(
+                            f"Stopping training after episode {stop_after_episode}"
+                        )
                         break
 
         return np.array(rewards)

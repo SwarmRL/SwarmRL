@@ -2,13 +2,9 @@
 Module for the Save-at-Goal-Checkpointer
 """
 
-import logging
-
 import numpy as np
 
 from swarmrl.checkpointers.base_checkpointer import BaseCheckpointer
-
-logger = logging.getLogger(__name__)
 
 
 class GoalCheckpointer(BaseCheckpointer):
@@ -42,12 +38,16 @@ class GoalCheckpointer(BaseCheckpointer):
             The number of episodes to run after the goal is reached
             before stopping training.
         """
+        if window_width <= 0:
+            raise ValueError("window_width must be greater than 0")
+        if running_out_length < 0:
+            raise ValueError("running_out_length must not be negative")
         super().__init__(out_path)
         self.required_reward = required_reward
         self.window_width = window_width
-        self.DO_GOAL_BREAK = do_goal_break
+        self.do_goal_break = do_goal_break
         self.running_out_length = running_out_length
-        self.BREAK_TRAINING = False
+        self.break_training = False
         self.stop_episode = -1
 
     def check_for_checkpoint(self, rewards: np.ndarray, current_episode: int) -> bool:
@@ -66,13 +66,18 @@ class GoalCheckpointer(BaseCheckpointer):
         bool
             Whether the checkpoint criteria are met.
         """
+        if rewards is None or len(rewards) == 0:
+            return False
+        if current_episode < 0 or current_episode >= len(rewards):
+            return False
+
         window_end = current_episode + 1
         window_start = max(0, window_end - self.window_width)
         avg_reward = np.mean(rewards[window_start:window_end])
 
-        if self.DO_GOAL_BREAK:
-            if avg_reward >= self.required_reward and not self.BREAK_TRAINING:
-                self.BREAK_TRAINING = True
+        if self.do_goal_break:
+            if avg_reward >= self.required_reward and not self.break_training:
+                self.break_training = True
                 if self.running_out_length > 0:
                     self.stop_episode = current_episode + self.running_out_length
                 else:
@@ -80,7 +85,7 @@ class GoalCheckpointer(BaseCheckpointer):
         return avg_reward >= self.required_reward
 
     def check_for_break(self):
-        return self.BREAK_TRAINING
+        return self.break_training
 
     def get_stop_episode(self):
         return self.stop_episode

@@ -2,13 +2,9 @@
 Module for the Save-a-Backup-Checkpointer
 """
 
-import logging
-
 import numpy as np
 
 from swarmrl.checkpointers.base_checkpointer import BaseCheckpointer
-
-logger = logging.getLogger(__name__)
 
 
 class BackupCheckpointer(BaseCheckpointer):
@@ -41,6 +37,9 @@ class BackupCheckpointer(BaseCheckpointer):
             A minimum number of episodes to wait for the next backup check.
             Can prevent frequent backups.
         """
+        if window_width <= 0:
+            raise ValueError("window_width must be greater than 0")
+
         super().__init__(out_path)
         self.min_backup_reward = min_backup_reward
         self.wait_time = wait_time
@@ -50,8 +49,16 @@ class BackupCheckpointer(BaseCheckpointer):
 
     def check_for_checkpoint(self, rewards: np.ndarray, current_episode: int) -> bool:
         """
-        Check if the average reward in the window exceeds
-        the minimum reward and old max reward.
+        Check if the average reward in the window exceeds the minimum reward
+        and falls below the peak (indicating potential forgetting).
+
+        A backup is triggered when:
+        - The average reward is above min_backup_reward (performance threshold)
+        - The average reward is below the historical peak (indicates decline)
+        - The average reward is below the last recorded average (continuing to decline)
+
+        This creates a dynamic minimum threshold: after each backup, the current
+        average becomes the new performance baseline for the next backup check.
 
         Parameters
         ----------
@@ -65,13 +72,20 @@ class BackupCheckpointer(BaseCheckpointer):
         bool
             Whether the checkpoint criteria are met.
         """
+        if rewards is None or len(rewards) == 0:
+            return False
+        if current_episode < 0 or current_episode >= len(rewards):
+            return False
+
         window_end = current_episode + 1
         window_start = max(0, window_end - self.window_width)
         avg_reward = np.mean(rewards[window_start:window_end])
 
         if (
             current_episode > self.next_check_episode
-            and self.min_backup_reward < avg_reward < np.max(rewards)
+            and self.min_backup_reward
+            < avg_reward
+            < np.max(rewards[: current_episode + 1])
             and avg_reward < self.last_reward
         ):
             self.min_backup_reward = avg_reward
