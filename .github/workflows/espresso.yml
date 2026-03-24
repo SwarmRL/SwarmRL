@@ -3,46 +3,59 @@ name: ESPResSo tests
 on:
   pull_request:
   push:
-    branches:
+    branches: [ "main" ] # Fixed the empty branches block
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
       - name: Setup EESSI
         uses: eessi/github-action-eessi@v3
         with:
           eessi_stack_version: "2023.06"
+          
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          
       - name: Install dependencies
         run: |
+          # 1. Load the ESPResSo module
           test "${RUNNER_ARCH}" = "X64" && module use /cvmfs/dev.eessi.io/espresso/versions/2023.06/software/linux/x86_64/amd/zen2/modules/all
           module load ESPResSo/dc87ede3f6c218bb71624460752bc8c26a271c33-foss-2023b
           module save espresso
-          sed -i 's/numpy>=1.26.4/numpy>=1.26.4,<2.0/' requirements.txt
-          python -m venv --system-site-packages venv
-          source venv/bin/activate
-          python -m pip config --site set global.disable-pip-version-check true
-          python -m pip config --site set global.no-cache-dir false
-          python -m pip install -c dev-requirements.txt coverage toml-cli
-          python -m pip install .
-          toml set --toml-path=pyproject.toml tool.coverage.run.omit --to-array '["*/espressomd/*", "/cvmfs/*"]'
-          deactivate
+          
+          # 2. Create a uv venv that INHERITS the ESPResSo module's packages
+          uv venv --system-site-packages
+          
+          # 3. Constrain numpy for ESPResSo compatibility (replaces the old sed hack)
+          uv pip install "numpy<2.0"
+          
+          # 4. Install the local library and dev tools
+          uv pip install -e ".[dev]"
+          
           module purge
+
       - name: Run test suite
         run: |
           module restore espresso
-          source venv/bin/activate
           export NUM_PROC=$(nproc)
-          export OMP_PROC_BIND=false OMP_NUM_THREADS=1
-          COVERAGE=1 sh CI/run_espresso_test_suite.sh -j ${NUM_PROC}
-          python -m coverage combine . CI/espresso_tests
-          python -m coverage report
-          python -m coverage xml
+          export OMP_PROC_BIND=false 
+          export OMP_NUM_THREADS=1
+          
+          # Use `uv run` to execute inside our virtual environment
+          COVERAGE=1 uv run sh CI/run_espresso_test_suite.sh -j ${NUM_PROC}
+          uv run coverage combine . CI/espresso_tests
+          uv run coverage report
+          uv run coverage xml
+
       - name: Upload coverage to Codecov
         if: ${{ github.repository == 'SwarmRL/SwarmRL' }}
         uses: codecov/codecov-action@v5
