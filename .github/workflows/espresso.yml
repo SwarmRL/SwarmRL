@@ -35,14 +35,11 @@ jobs:
           # 2. Create the venv inheriting system packages
           uv venv --system-site-packages
           
-          # 3. Constrain numpy for ESPResSo
+          # 3. Constrain numpy for ESPResSo compatibility
           uv pip install "numpy<2.0"
           
-          # 4. NEW: Pre-install the build backend directly into the environment
-          uv pip install setuptools
-          
-          # 5. NEW: Install the package without build isolation so it stops tripping over EESSI
-          uv pip install --no-build-isolation -e ".[dev]"
+          # 4. Install normally (Build isolation is ON, keeping EESSI hooks out!)
+          uv pip install -e ".[dev]"
           
           module purge
 
