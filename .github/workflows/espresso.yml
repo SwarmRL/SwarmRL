@@ -32,14 +32,17 @@ jobs:
           module load ESPResSo/dc87ede3f6c218bb71624460752bc8c26a271c33-foss-2023b
           module save espresso
           
-          # 2. Create a uv venv that INHERITS the ESPResSo module's packages
+          # 2. Create the venv inheriting system packages
           uv venv --system-site-packages
           
-          # 3. Constrain numpy for ESPResSo compatibility (replaces the old sed hack)
+          # 3. Constrain numpy for ESPResSo
           uv pip install "numpy<2.0"
           
-          # 4. Install the local library and dev tools
-          uv pip install -e ".[dev]"
+          # 4. NEW: Pre-install the build backend directly into the environment
+          uv pip install setuptools
+          
+          # 5. NEW: Install the package without build isolation so it stops tripping over EESSI
+          uv pip install --no-build-isolation -e ".[dev]"
           
           module purge
 
