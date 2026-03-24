@@ -49,3 +49,10 @@ preview = true
 parallel = true
 concurrency = ["multiprocessing"]
 disable_warnings = ["no-data-collected"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["swarmrl"]
