@@ -4,7 +4,7 @@ Package intrinsic_rewards for Agents.
 
 from loguru import logger
 
-from swarmrl.intrinsic_reward.intrinsic_reward import IntrinsicReward
+from swarmrl.intrinsic_reward.intrinsic_reward import IntrinsicReward  # noqa: E402
 
 try:
     from swarmrl.intrinsic_reward.random_network_distillation import RNDReward

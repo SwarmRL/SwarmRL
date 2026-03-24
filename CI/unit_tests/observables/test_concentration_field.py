@@ -95,11 +95,9 @@ class TestConcentrationField:
             self.colloids[2].pos - self.observable.source
         )
 
-        observables_should_be = np.array(
-            [
-                -1 * self.observable.scale_factor * delta_colloid_1,
-                -1 * self.observable.scale_factor * delta_colloid_2,
-                -1 * self.observable.scale_factor * delta_colloid_3,
-            ]
-        ).reshape(-1, 1)
+        observables_should_be = np.array([
+            -1 * self.observable.scale_factor * delta_colloid_1,
+            -1 * self.observable.scale_factor * delta_colloid_2,
+            -1 * self.observable.scale_factor * delta_colloid_3,
+        ]).reshape(-1, 1)
         assert_array_equal(observables, observables_should_be)
