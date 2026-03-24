@@ -136,8 +136,7 @@ class EpisodicTrainer(Trainer):
                         self.export_models(
                             f"{self.checkpoint_path}/Model-ep_{episode + 1}"
                             f"-cur_reward_{current_reward:.1f}"
-                            f"{save_string}"
-                            + "/"
+                            f"{save_string}" + "/"
                         )
 
                 logger.debug(f"{episode=}")

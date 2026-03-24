@@ -99,8 +99,7 @@ class ContinuousTrainer(Trainer):
                         self.export_models(
                             f"{self.checkpoint_path}/Model-ep_{episode + 1}"
                             f"-cur_reward_{current_reward:.1f}"
-                            f"{save_string}"
-                            + "/"
+                            f"{save_string}" + "/"
                         )
 
                 running_start = max(0, episode - 9)

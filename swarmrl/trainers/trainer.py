@@ -71,7 +71,6 @@ class Trainer:
             if checkpointer.out_path is not None
         ]
         if len(self.checkpointers) > 0:
-
             if len(checkpoint_paths) == 0:
                 logger.warning(
                     "No checkpointer out_path provided. Storing in './Models/' now."

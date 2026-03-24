@@ -42,14 +42,12 @@ class TestBackupCheckpointer:
         decreasing_reward = np.linspace(300, 100, 11)
         again_increasing_reward = np.linspace(100, 400, 11)
         again_decreasing_reward = np.linspace(400, 200, 11)
-        rewards = np.concatenate(
-            (
-                increasing_reward,
-                decreasing_reward,
-                again_increasing_reward,
-                again_decreasing_reward,
-            )
-        )
+        rewards = np.concatenate((
+            increasing_reward,
+            decreasing_reward,
+            again_increasing_reward,
+            again_decreasing_reward,
+        ))
 
         # Test checking outside window width
         assert not self.backup_checkpointer.check_for_checkpoint(rewards, 1)
