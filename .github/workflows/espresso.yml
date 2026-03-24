@@ -38,10 +38,10 @@ jobs:
           # 3. Constrain numpy for ESPResSo compatibility
           uv pip install "numpy<2.0"
           
-          # 4. THE EESSI FIX: Pre-install older setuptools that still has pkg_resources
-          uv pip install "setuptools<70.0.0"
+          # 4. THE EESSI FIX: Pre-install the legacy build backend AND wheel
+          uv pip install "setuptools<70.0.0" wheel
           
-          # 5. Install without build isolation so it is forced to use our legacy setuptools!
+          # 5. Install without build isolation
           uv pip install --no-build-isolation -e ".[dev]"
           
           module purge
