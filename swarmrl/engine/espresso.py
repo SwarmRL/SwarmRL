@@ -760,7 +760,7 @@ class EspressoMD(Engine):
                 raise ValueError(
                     f" The chosen type {wall_type} is already taken"
                     "and used with a different radius "
-                    f"{self.colloid_radius_register[wall_type]["radius"]}."
+                    f"{self.colloid_radius_register[wall_type]['radius']}."
                     " Choose a new combination"
                 )
 
