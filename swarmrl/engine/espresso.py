@@ -367,7 +367,7 @@ class EspressoMD(Engine):
                 raise ValueError(
                     f"The chosen type {type_colloid} is already taken and used with a"
                     " different radius"
-                    f" {self.colloid_radius_register[type_colloid]["radius"]}. Choose a"
+                    f" {self.colloid_radius_register[type_colloid]['radius']}. Choose a"
                     " new combination"
                 )
 
