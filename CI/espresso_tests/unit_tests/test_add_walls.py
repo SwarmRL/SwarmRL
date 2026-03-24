@@ -38,25 +38,21 @@ class AddWalls(ut.TestCase):
                 type_colloid=coll_type,
             )
             wall_start_point = ureg.Quantity(
-                np.array(
-                    [
-                        [40, 40],
-                        [40, 40],
-                        [60, 60],
-                        [60, 60],
-                    ]
-                ),
+                np.array([
+                    [40, 40],
+                    [40, 40],
+                    [60, 60],
+                    [60, 60],
+                ]),
                 "micrometer",
             )
             wall_end_point = ureg.Quantity(
-                np.array(
-                    [
-                        [40, 60],
-                        [60, 40],
-                        [40, 60],
-                        [60, 40],
-                    ]
-                ),
+                np.array([
+                    [40, 60],
+                    [60, 40],
+                    [40, 60],
+                    [60, 40],
+                ]),
                 "micrometer",
             )
             wall_thickness = ureg.Quantity(2, "micrometer")
