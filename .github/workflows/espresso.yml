@@ -53,19 +53,20 @@ jobs:
           export OMP_PROC_BIND=false 
           export OMP_NUM_THREADS=1
           
-          # 1. Forcefully activate the virtual environment so all sub-shells inherit it
+          # 1. Forcefully activate the environment (better than 'uv run' for CMake)
           source .venv/bin/activate
           
-          # 2. Give CMake a bulletproof hint so it finds the .venv NumPy headers
+          # 2. CMake Symlink Armor: Force any Python CMake runs to see our local packages
+          export PYTHONPATH="$PWD/.venv/lib/python3.12/site-packages:$PYTHONPATH"
           export Python_EXECUTABLE=$(which python)
           
-          # 3. Run the script normally (no uv run needed since we sourced the venv)
+          # 3. Run the tests directly (no uv run needed since we sourced the venv)
           COVERAGE=1 sh CI/run_espresso_test_suite.sh -j ${NUM_PROC}
           
           # 4. Run coverage tools
-          coverage combine . CI/espresso_tests
-          coverage report
-          coverage xml
+          python -m coverage combine . CI/espresso_tests
+          python -m coverage report
+          python -m coverage xml
 
       - name: Upload coverage to Codecov
         if: ${{ github.repository == 'SwarmRL/SwarmRL' }}
