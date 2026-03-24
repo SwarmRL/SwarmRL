@@ -22,7 +22,7 @@ from swarmrl.engine import espresso
 from swarmrl.utils import utils
 
 # Setup a swarmrl logger but disable it.
-# Use utils.setup_swarmrl_logger() to actually enable/configure the logger.
+# Use logging_utils.setup_swarmrl_logger() to actually enable/configure the logger.
 _loguru_logger.disable("swarmrl")
 
 

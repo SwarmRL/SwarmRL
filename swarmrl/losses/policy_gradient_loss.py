@@ -16,7 +16,8 @@ from flax.core.frozen_dict import FrozenDict
 
 from swarmrl.losses.loss import Loss
 from swarmrl.networks.network import Network
-from swarmrl.utils.utils import gather_n_dim_indices, log_jax_runtime_value
+from swarmrl.utils.logging_utils import log_jax_runtime_value
+from swarmrl.utils.utils import gather_n_dim_indices
 from swarmrl.value_functions.expected_returns import ExpectedReturns
 
 

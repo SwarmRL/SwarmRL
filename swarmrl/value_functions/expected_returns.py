@@ -7,7 +7,7 @@ from functools import partial
 import jax
 import jax.numpy as np
 
-from swarmrl.utils.utils import log_jax_runtime_value
+from swarmrl.utils.logging_utils import log_jax_runtime_value
 
 
 class ExpectedReturns:

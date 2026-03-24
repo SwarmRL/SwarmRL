@@ -19,7 +19,8 @@ from swarmrl.losses.loss import Loss
 from swarmrl.networks.network import Network
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
-from swarmrl.utils.utils import gather_n_dim_indices, log_jax_runtime_value
+from swarmrl.utils.logging_utils import log_jax_runtime_value
+from swarmrl.utils.utils import gather_n_dim_indices
 from swarmrl.value_functions.generalized_advantage_estimate import GAE
 
 

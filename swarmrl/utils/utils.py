@@ -5,34 +5,13 @@ Utils for the SwarmRL package.
 import os
 import pickle
 import shutil
-import sys
 import typing
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pint
-from loguru import logger
 
 from swarmrl.components.colloid import Colloid
-
-_SWARMRL_LOGURU_SINK_IDS = []
-_JAX_RUNTIME_LOG_LEVEL_NO = logger.level("DEBUG").no
-
-
-def _to_level_number(level: typing.Union[int, str]) -> int:
-    """Convert level names or numeric values to a numeric logging level."""
-
-    if isinstance(level, str):
-        return logger.level(level.upper()).no
-    return int(level)
-
-
-def set_jax_runtime_log_level(level: typing.Union[int, str]) -> None:
-    """Set callback registration threshold for JAX runtime value logging."""
-
-    global _JAX_RUNTIME_LOG_LEVEL_NO
-    _JAX_RUNTIME_LOG_LEVEL_NO = _to_level_number(level)
 
 
 def get_random_angles(rng: np.random.Generator):
@@ -141,85 +120,6 @@ def setup_sim_folder(
     return folder_name
 
 
-def setup_swarmrl_logger(
-    filename: typing.Optional[str] = None,
-    loglevel_terminal: typing.Union[int, str] = "INFO",
-    loglevel_file: typing.Union[int, str] = "DEBUG",
-    include_user_logs: bool = False,
-):
-    """
-    Configure package logging with Loguru and enable swarmrl log output.
-
-    This function is opt-in and is intended to be called from user scripts.
-    Before calling it, swarmrl logging is disabled by default in ``swarmrl.__init__``.
-
-    Parameters
-    ----------
-    filename
-        Name of the file where logs get written to. If None or an empty string,
-        no file sink is created.
-    loglevel_terminal
-        Terminal log level for Loguru sinks. Supports Loguru level names
-        (e.g. "INFO", "DEBUG") or integer level numbers.
-    loglevel_file
-        File log level for Loguru sinks. Supports Loguru level names
-        or integer level numbers.
-    include_user_logs
-        If True, include non-swarmrl Loguru records (for user/application logs)
-        in the configured sinks.
-
-    """
-    global _SWARMRL_LOGURU_SINK_IDS
-
-    for sink_id in _SWARMRL_LOGURU_SINK_IDS:
-        try:
-            logger.remove(sink_id)
-        except ValueError:
-            pass
-    _SWARMRL_LOGURU_SINK_IDS = []
-
-    loglevel_terminal = (
-        loglevel_terminal.upper()
-        if isinstance(loglevel_terminal, str)
-        else int(loglevel_terminal)
-    )
-    loglevel_file = (
-        loglevel_file.upper() if isinstance(loglevel_file, str) else int(loglevel_file)
-    )
-
-    log_format = "[<level>{level: <10}</level>] {time:YYYY-MM-DD HH:mm:ss}: {message}"
-
-    def _sink_filter(record: dict) -> bool:
-        if include_user_logs:
-            return True
-        return record["name"].startswith("swarmrl")
-
-    active_level_numbers = [_to_level_number(loglevel_terminal)]
-
-    if filename:
-        _SWARMRL_LOGURU_SINK_IDS.append(
-            logger.add(
-                filename,
-                level=loglevel_file,
-                format=log_format,
-                filter=_sink_filter,
-            )
-        )
-        active_level_numbers.append(_to_level_number(loglevel_file))
-
-    _SWARMRL_LOGURU_SINK_IDS.append(
-        logger.add(
-            sys.stderr,
-            level=loglevel_terminal,
-            format=log_format,
-            filter=_sink_filter,
-        )
-    )
-
-    set_jax_runtime_log_level(min(active_level_numbers))
-    logger.enable("swarmrl")
-
-
 def gather_n_dim_indices(reference_array: np.ndarray, indices: np.ndarray):
     """
     Gather entries from an n_dim array using an n_dim index array
@@ -251,27 +151,6 @@ def gather_n_dim_indices(reference_array: np.ndarray, indices: np.ndarray):
     gathered_array = reference_array.flatten()[indices]
 
     return gathered_array.reshape(reference_shape[0], reference_shape[1])
-
-
-def log_jax_runtime_value(
-    label: str, value, level: typing.Union[str, int] = "DEBUG"
-) -> None:
-    """Log JAX runtime values with the global Loguru logger.
-
-    The callback is only registered when the requested log level is enabled.
-    """
-
-    # JAX captures this branch during tracing. If the logger level changes later,
-    # previously compiled paths may keep the old behavior until retracing happens.
-    level_no = _to_level_number(level)
-
-    if level_no < _JAX_RUNTIME_LOG_LEVEL_NO:
-        return
-
-    def _emit(x):
-        logger.log(level, "{label} = {value}", label=label, value=x)
-
-    jax.debug.callback(_emit, value, ordered=True)
 
 
 def record_trajectory(
