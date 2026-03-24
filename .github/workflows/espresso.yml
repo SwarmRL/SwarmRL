@@ -24,6 +24,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+          python-version: "3.11"
           
       - name: Install dependencies
         run: |
@@ -32,13 +33,13 @@ jobs:
           module load ESPResSo/dc87ede3f6c218bb71624460752bc8c26a271c33-foss-2023b
           module save espresso
           
-          # 2. Create the venv inheriting system packages
-          uv venv --system-site-packages
+          # 2. Create the venv explicitly with 3.11 to match EESSI
+          uv venv --python 3.11 --system-site-packages
           
           # 3. Constrain numpy for ESPResSo compatibility
           uv pip install "numpy<2.0"
           
-          # 4. THE EESSI FIX: Pre-install the legacy build backend AND wheel
+          # 4. Pre-install the legacy build backend AND wheel
           uv pip install "setuptools<70.0.0" wheel
           
           # 5. Install without build isolation
@@ -53,14 +54,14 @@ jobs:
           export OMP_PROC_BIND=false 
           export OMP_NUM_THREADS=1
           
-          # 1. Forcefully activate the environment (better than 'uv run' for CMake)
+          # 1. Forcefully activate the environment
           source .venv/bin/activate
           
-          # 2. CMake Symlink Armor: Force any Python CMake runs to see our local packages
-          export PYTHONPATH="$PWD/.venv/lib/python3.12/site-packages:$PYTHONPATH"
+          # 2. CMake Symlink Armor (Updated to target python3.11!)
+          export PYTHONPATH="$PWD/.venv/lib/python3.11/site-packages:$PYTHONPATH"
           export Python_EXECUTABLE=$(which python)
           
-          # 3. Run the tests directly (no uv run needed since we sourced the venv)
+          # 3. Run the tests directly
           COVERAGE=1 sh CI/run_espresso_test_suite.sh -j ${NUM_PROC}
           
           # 4. Run coverage tools
