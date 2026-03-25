@@ -2,7 +2,6 @@
 Utils for the SwarmRL package.
 """
 
-import logging
 import os
 import pickle
 import shutil
@@ -12,7 +11,6 @@ import jax.numpy as jnp
 import numpy as np
 import pint
 
-import swarmrl
 from swarmrl.components.colloid import Colloid
 
 
@@ -120,58 +118,6 @@ def setup_sim_folder(
     print(f"outdir {folder_name} created")
 
     return folder_name
-
-
-def setup_swarmrl_logger(
-    filename: str,
-    loglevel_terminal: typing.Union[int, str] = logging.INFO,
-    loglevel_file: typing.Union[int, str] = logging.DEBUG,
-) -> logging.Logger:
-    """
-    Configure the swarmrl logger. This logger is used internally for logging,
-    but you can also use it for your own log messages.
-    Parameters
-    ----------
-    filename
-        Name of the file where logs get written to
-    loglevel_terminal
-        Loglevel of the terminal output. The values correspond to
-        https://docs.python.org/3/library/logging.html#logging-levels.
-        You can pass an integer (or logging predefined values such as logging.INFO)
-        or a string that corresponds to the loglevels of the link above.
-    loglevel_file
-        Loglevel of the file output.
-    Returns
-    -------
-        The logger
-    """
-
-    def get_numeric_level(loglevel: typing.Union[int, str]):
-        if isinstance(loglevel, str):
-            numeric_level = getattr(logging, loglevel.upper(), None)
-        elif isinstance(loglevel, int):
-            numeric_level = loglevel
-        else:
-            raise ValueError(
-                f"Invalid log level: {loglevel}. Must be either str or int"
-            )
-        return numeric_level
-
-    logger = logging.getLogger(swarmrl._ROOT_NAME)
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        fmt="[%(levelname)-10s] %(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-    )
-    file_handler = logging.FileHandler(filename)
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(get_numeric_level(loglevel_file))
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-    stream_handler.setLevel(get_numeric_level(loglevel_terminal))
-    logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
-
-    return logger
 
 
 def gather_n_dim_indices(reference_array: np.ndarray, indices: np.ndarray):

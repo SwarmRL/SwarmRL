@@ -2,7 +2,7 @@
 __init__ file for the swarmrl package.
 """
 
-import logging
+from loguru import logger as _loguru_logger
 
 from swarmrl import (
     agents,
@@ -23,10 +23,8 @@ from swarmrl.engine import espresso
 from swarmrl.utils import utils
 
 # Setup a swarmrl logger but disable it.
-# Use utils.setup_swarmrl_logger() to actually enable/configure the logger.
-_ROOT_NAME = __name__
-_logger = logging.getLogger(_ROOT_NAME)
-_logger.setLevel(logging.NOTSET)
+# Use logging_utils.setup_swarmrl_logger() to actually enable/configure the logger.
+_loguru_logger.disable("swarmrl")
 
 
 __all__ = [

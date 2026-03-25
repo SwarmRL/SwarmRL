@@ -1,4 +1,3 @@
-import logging
 import unittest as ut
 
 import numpy as np
@@ -19,8 +18,6 @@ class TestLymburnModel(ut.TestCase):
             detection_radius_position_pred=20,
             home_pos=np.array([500, 500, 0]),
         )
-
-        logging.basicConfig(level=logging.DEBUG)
 
     def test_update_force_params(self):
         self.force_model.update_force_params(K_a=1)

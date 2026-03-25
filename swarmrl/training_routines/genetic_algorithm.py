@@ -2,7 +2,6 @@
 Class for the genertic algorithm training routine.
 """
 
-import logging
 import os
 import webbrowser
 from copy import deepcopy
@@ -90,7 +89,7 @@ class GeneticTraining:
             cluster = LocalCluster(
                 processes=True,
                 threads_per_worker=2,
-                silence_logs=logging.ERROR,
+                silence_logs="ERROR",
                 resources={"espresso": 1},
             )
 
