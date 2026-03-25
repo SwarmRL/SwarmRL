@@ -1077,7 +1077,7 @@ class EspressoMD(Engine):
 
         n_colloids = len(self.colloids)
 
-        with h5py.File(self.h5_filename.as_posix(), "a") as h5_outfile:
+        with h5py.File(self.h5_filename.as_posix(), "a", libver="latest") as h5_outfile:
             part_group = h5_outfile.require_group(self.h5_group_tag)
             dataset_kwargs = dict(compression="gzip")
             traj_len = self.write_chunk_size
