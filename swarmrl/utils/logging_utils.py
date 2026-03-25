@@ -45,7 +45,7 @@ def setup_swarmrl_logger(
     loglevel_file: typing.Union[int, str] = "DEBUG",
     include_user_logs: bool = False,
     remove_default_sink: bool = True,
-    log_jax_values: bool = True,
+    log_jax_values: bool = False,
 ):
     """
     Configure package logging with Loguru and enable swarmrl log output.
