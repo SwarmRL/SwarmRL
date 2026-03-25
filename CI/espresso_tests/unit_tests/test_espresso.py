@@ -6,10 +6,10 @@ import h5py
 import numpy as np
 import pint
 
-import swarmrl.utils
 from swarmrl.agents import dummy_models
 from swarmrl.engine import espresso
 from swarmrl.force_functions import ForceFunction
+from swarmrl.utils.logging_utils import setup_swarmrl_logger
 
 
 class EspressoTest(ut.TestCase):
@@ -37,7 +37,7 @@ class EspressoTest(ut.TestCase):
             runner = espresso.EspressoMD(
                 params, out_folder=temp_dir, write_chunk_size=1
             )
-            swarmrl.utils.setup_swarmrl_logger(f"{temp_dir}/simulation_log.log")
+            setup_swarmrl_logger(f"{temp_dir}/simulation_log.log")
             self.assertListEqual(runner.colloids, [])
 
             n_colloids = [2, 3]

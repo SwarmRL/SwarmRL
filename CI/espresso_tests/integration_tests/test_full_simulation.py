@@ -8,11 +8,13 @@ import h5py
 import numpy as np
 import pint
 import tqdm
+from loguru import logger
 
 import swarmrl.agents.bechinger_models as bechinger_models
 import swarmrl.engine.espresso as espresso
 from swarmrl.force_functions import ForceFunction
 from swarmrl.utils import utils
+from swarmrl.utils.logging_utils import setup_swarmrl_logger
 
 
 class TestFullSim(ut.TestCase):
@@ -29,7 +31,7 @@ class TestFullSim(ut.TestCase):
     visualize = False
 
     def simulate_model(self, outfolder):
-        logger = utils.setup_swarmrl_logger(
+        setup_swarmrl_logger(
             f"{outfolder}/{self.simulation_name}.log",
             loglevel_terminal=self.loglevel_terminal,
         )
