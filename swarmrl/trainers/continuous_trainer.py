@@ -85,22 +85,7 @@ class ContinuousTrainer(Trainer):
                     system_runner.finalize()
                     break
 
-                if len(self.checkpointers) > 0:
-                    export = []
-                    save_string = ""
-                    for checkpointer in self.checkpointers:
-                        export.append(
-                            checkpointer.check_for_checkpoint(rewards, episode)
-                        )
-                        if export[-1]:
-                            save_string += f"-{checkpointer.__class__.__name__}"
-
-                    if any(export):
-                        self.export_models(
-                            f"{self.checkpoint_path}/Model-ep_{episode + 1}"
-                            f"-cur_reward_{current_reward:.1f}"
-                            f"{save_string}" + "/"
-                        )
+                self.maybe_save_checkpoint(rewards, episode, current_reward)
 
                 running_start = max(0, episode - 9)
                 running_reward = np.round(

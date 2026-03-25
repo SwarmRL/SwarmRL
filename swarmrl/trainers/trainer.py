@@ -9,6 +9,7 @@ import numpy as np
 
 from swarmrl.agents.actor_critic import ActorCriticAgent
 from swarmrl.checkpointers.base_checkpointer import BaseCheckpointer
+from swarmrl.checkpointers.checkpoint_manager import CheckpointManager
 from swarmrl.force_functions.force_fn import ForceFunction
 
 logger = logging.getLogger(__name__)
@@ -84,7 +85,15 @@ class Trainer:
                     f"{checkpoint_paths[0]}."
                 )
                 self.checkpoint_path = checkpoint_paths[0]
+
+            self.checkpoint_manager = CheckpointManager(
+                checkpointers=self.checkpointers,
+                checkpoint_path=self.checkpoint_path,
+                save_callback=self.export_models,
+            )
+            logger.info(f"Activated {len(self.checkpointers)} checkpointers.")
         else:
+            self.checkpoint_manager = None
             logger.info("No Checkpointer provided.")
 
     def initialize_training(self) -> ForceFunction:
@@ -143,6 +152,37 @@ class Trainer:
         """
         for agent in self.agents.values():
             agent.save_agent(directory)
+
+    def maybe_save_checkpoint(
+        self,
+        rewards: np.ndarray,
+        episode: int,
+        current_reward: float,
+    ) -> bool:
+        """
+        Evaluate all checkpointers and save models when a criterion is met.
+
+        Parameters
+        ----------
+        rewards : np.ndarray
+                Reward history.
+        episode : int
+                Current episode index.
+        current_reward : float
+                Reward of the current episode.
+
+        Returns
+        -------
+        bool
+            Whether a checkpoint was saved in this episode.
+        """
+        if self.checkpoint_manager is None:
+            return False
+        return self.checkpoint_manager.check_and_save(
+            rewards=rewards,
+            current_episode=episode,
+            current_reward=current_reward,
+        )
 
     def restore_models(self, directory: str = "Models"):
         """
