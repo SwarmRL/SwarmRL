@@ -15,9 +15,9 @@ class BestRewardCheckpointer(BaseCheckpointer):
 
     def __init__(
         self,
-        out_path: str,
+        out_path: str | None,
         min_reward: float = 250,
-        increase_factor: float = 1.05,
+        increase_factor: float = 1.01,
         window_width: int = 30,
         wait_time: int = 10,
         n_buffer: int | None = 3,
@@ -25,12 +25,13 @@ class BestRewardCheckpointer(BaseCheckpointer):
         """
         Parameters:
         ----------
-        out_path: str
+        out_path: str | None
             Path to the folder where the models should be stored.
+            If None, the manager default path is used.
         min_reward : float
             The minimum reward to save a checkpoint.
         increase_factor : float
-            The factor by which the average reward must increase
+            The factor by which the last found best reward must increase
             to trigger a new checkpoint.
         window_width : int
             The width of the window to average the rewards.

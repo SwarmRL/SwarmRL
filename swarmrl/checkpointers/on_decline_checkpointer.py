@@ -15,7 +15,7 @@ class OnDeclineCheckpointer(BaseCheckpointer):
 
     def __init__(
         self,
-        out_path: str,
+        out_path: str | None,
         min_reward: float = 250,
         window_width: int = 30,
         wait_time: int = 10,
@@ -26,8 +26,9 @@ class OnDeclineCheckpointer(BaseCheckpointer):
 
         Parameters:
         -----------
-        out_path: str
+        out_path: str | None
             Path to the folder where the models should be stored.
+            If None, the manager default path is used.
         min_reward: float
             The minimum reward required to trigger a checkpoint.
         window_width: int

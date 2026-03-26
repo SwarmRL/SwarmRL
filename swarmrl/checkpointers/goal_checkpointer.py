@@ -14,7 +14,7 @@ class GoalCheckpointer(BaseCheckpointer):
 
     def __init__(
         self,
-        out_path: str,
+        out_path: str | None,
         required_reward: float = 200,
         window_width: int = 30,
         do_goal_break: bool = False,
@@ -26,8 +26,9 @@ class GoalCheckpointer(BaseCheckpointer):
 
         Parameters:
         -----------
-        out_path: str
+        out_path: str | None
             Path to the folder where the models should be stored.
+            If None, the manager default path is used.
         required_reward: float
             The reward that needs to be achieved to trigger a checkpoint.
         window_width: int

@@ -14,7 +14,7 @@ class RegularCheckpointer(BaseCheckpointer):
 
     def __init__(
         self,
-        out_path: str,
+        out_path: str | None,
         save_interval: int = 25,
         n_buffer: int | None = None,
     ):
@@ -23,6 +23,9 @@ class RegularCheckpointer(BaseCheckpointer):
 
         Parameters:
         -----------
+        out_path: str | None
+            Path to the folder where the models should be stored.
+            If None, the manager default path is used.
         save_interval: int
             The interval at which to save the model.
         n_buffer : int | None
