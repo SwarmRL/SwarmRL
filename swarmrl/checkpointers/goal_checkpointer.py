@@ -19,7 +19,7 @@ class GoalCheckpointer(BaseCheckpointer):
         window_width: int = 30,
         do_goal_break: bool = False,
         running_out_length: int = 0,
-        n_buffer: int | None = None,
+        n_buffer: int | None = 3,
     ):
         """
         Initializes the GoalCheckpointer.

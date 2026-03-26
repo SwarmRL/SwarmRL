@@ -19,7 +19,7 @@ class OnDeclineCheckpointer(BaseCheckpointer):
         min_reward: float = 250,
         window_width: int = 30,
         wait_time: int = 10,
-        n_buffer: int | None = None,
+        n_buffer: int | None = 3,
     ):
         """
         Initializes the OnDeclineCheckpointer.
