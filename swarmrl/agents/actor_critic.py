@@ -15,6 +15,7 @@ from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
 from swarmrl.utils.colloid_utils import TrajectoryInformation
+from swarmrl.utils.storage_utils import AgentTrajectoryStorage
 
 
 class ActorCriticAgent(Agent):
@@ -32,6 +33,8 @@ class ActorCriticAgent(Agent):
         loss: Loss = ProximalPolicyLoss(),
         train: bool = True,
         intrinsic_reward: IntrinsicReward = None,
+        save_agent_to_file: bool = False,
+        out_folder: str = "./Agent_Data",
     ):
         """
         Constructor for the actor-critic protocol.
@@ -52,6 +55,10 @@ class ActorCriticAgent(Agent):
                 Flag to indicate if the agent is training.
         intrinsic_reward : IntrinsicReward (default=None)
                 Intrinsic reward to use for the agent.
+        save_agent_to_file : bool (default=False)
+                Flag to indicate if the agent should record data.
+        out_folder : str (default="./Agent_Data")
+            Folder to store the agent data file.
         """
         # Properties of the agent.
         self.network = network
@@ -65,6 +72,17 @@ class ActorCriticAgent(Agent):
 
         # Trajectory to be updated.
         self.trajectory = TrajectoryInformation(particle_type=self.particle_type)
+
+        # Initialize storage only if saving is enabled
+        self.save_agent_to_file = save_agent_to_file
+        self.store_manager = (
+            AgentTrajectoryStorage(
+                particle_type=self.particle_type,
+                out_folder=out_folder,
+            )
+            if save_agent_to_file
+            else None
+        )
 
     def __name__(self) -> str:
         """
@@ -102,6 +120,10 @@ class ActorCriticAgent(Agent):
         # Update the intrinsic reward if set.
         if self.intrinsic_reward:
             self.intrinsic_reward.update(self.trajectory)
+
+        # Save the agent trajectory data if requested
+        if self.save_agent_to_file:
+            self.store_manager.write(self.trajectory)
 
         # Reset the trajectory storage.
         self.reset_trajectory()

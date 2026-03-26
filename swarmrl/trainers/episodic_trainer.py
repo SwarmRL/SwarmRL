@@ -56,7 +56,7 @@ class EpisodicTrainer(Trainer):
                 system runner supports episodic data saving. The get_engine function
                 should take a system and a str(cycle_index) as arguments. The
                 cycle_index is passed to the EsperessoMD engine as 'h5_group_tag'. See
-                the implementationin the test_semi_episodic_data_writing function in
+                the implementation in the test_semi_episodic_data_writing function in
                 CI/espresso_tests/integration_tests/test_rl_trainers.py
 
         Notes

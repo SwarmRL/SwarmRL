@@ -117,7 +117,7 @@ class Trainer:
 
     def restore_models(self, directory: str = "Models"):
         """
-        Export the models to the specified directory.
+        Restore the models from the specified directory.
 
         Parameters
         ----------
