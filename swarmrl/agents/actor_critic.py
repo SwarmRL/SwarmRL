@@ -34,7 +34,7 @@ class ActorCriticAgent(Agent):
         train: bool = True,
         intrinsic_reward: IntrinsicReward = None,
         save_agent_data_to_file: bool = False,
-        out_folder: str = "./Agent_Data",
+        out_folder: str = "./agent_data",
     ):
         """
         Constructor for the actor-critic protocol.
@@ -57,7 +57,7 @@ class ActorCriticAgent(Agent):
                 Intrinsic reward to use for the agent.
         save_agent_data_to_file : bool (default=False)
                 Flag to indicate if the agent should record data.
-        out_folder : str (default="./Agent_Data")
+        out_folder : str (default="./agent_data")
             Folder to store the agent data file.
         """
         # Properties of the agent.
@@ -75,7 +75,7 @@ class ActorCriticAgent(Agent):
 
         # Initialize storage only if saving is enabled
         self.save_agent_data_to_file = save_agent_data_to_file
-        self.store_manager = (
+        self.trajectory_storage = (
             AgentTrajectoryStorage(
                 particle_type=self.particle_type,
                 out_folder=out_folder,
@@ -123,7 +123,7 @@ class ActorCriticAgent(Agent):
 
         # Save the agent trajectory data if requested
         if self.save_agent_data_to_file:
-            self.store_manager.write(self.trajectory)
+            self.trajectory_storage.write(self.trajectory)
 
         # Reset the trajectory storage.
         self.reset_trajectory()
