@@ -33,7 +33,7 @@ class ActorCriticAgent(Agent):
         loss: Loss = ProximalPolicyLoss(),
         train: bool = True,
         intrinsic_reward: IntrinsicReward = None,
-        save_agent_to_file: bool = False,
+        save_agent_data_to_file: bool = False,
         out_folder: str = "./Agent_Data",
     ):
         """
@@ -55,7 +55,7 @@ class ActorCriticAgent(Agent):
                 Flag to indicate if the agent is training.
         intrinsic_reward : IntrinsicReward (default=None)
                 Intrinsic reward to use for the agent.
-        save_agent_to_file : bool (default=False)
+        save_agent_data_to_file : bool (default=False)
                 Flag to indicate if the agent should record data.
         out_folder : str (default="./Agent_Data")
             Folder to store the agent data file.
@@ -74,13 +74,13 @@ class ActorCriticAgent(Agent):
         self.trajectory = TrajectoryInformation(particle_type=self.particle_type)
 
         # Initialize storage only if saving is enabled
-        self.save_agent_to_file = save_agent_to_file
+        self.save_agent_data_to_file = save_agent_data_to_file
         self.store_manager = (
             AgentTrajectoryStorage(
                 particle_type=self.particle_type,
                 out_folder=out_folder,
             )
-            if save_agent_to_file
+            if save_agent_data_to_file
             else None
         )
 
@@ -122,7 +122,7 @@ class ActorCriticAgent(Agent):
             self.intrinsic_reward.update(self.trajectory)
 
         # Save the agent trajectory data if requested
-        if self.save_agent_to_file:
+        if self.save_agent_data_to_file:
             self.store_manager.write(self.trajectory)
 
         # Reset the trajectory storage.
