@@ -2,17 +2,15 @@
 Module for the Trainer parent.
 """
 
-import logging
 from typing import List, Tuple
 
 import numpy as np
+from loguru import logger
 
 from swarmrl.agents.actor_critic import ActorCriticAgent
 from swarmrl.checkpointers.base_checkpointer import BaseCheckpointer
 from swarmrl.checkpointers.checkpoint_manager import CheckpointManager
 from swarmrl.force_functions.force_fn import ForceFunction
-
-logger = logging.getLogger(__name__)
 
 
 class Trainer:
@@ -183,6 +181,20 @@ class Trainer:
             current_episode=episode,
             current_reward=current_reward,
         )
+
+    def maybe_stop_training(self) -> tuple[bool, int]:
+        """
+        Query all checkpointers for a stop criterion.
+
+        Returns
+        -------
+        tuple[bool, int]
+            `(break_training, stop_after_episode)` where `stop_after_episode` is
+            `-1` if no stopping criterion is active.
+        """
+        if self.checkpoint_manager is None:
+            return False, -1
+        return self.checkpoint_manager.should_stop_training()
 
     def restore_models(self, directory: str = "Models"):
         """

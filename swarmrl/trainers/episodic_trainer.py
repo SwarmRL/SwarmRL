@@ -12,9 +12,7 @@ from swarmrl.trainers.trainer import Trainer
 if TYPE_CHECKING:
     from espressomd import System
 
-import logging
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class EpisodicTrainer(Trainer):
@@ -145,10 +143,7 @@ class EpisodicTrainer(Trainer):
                 self.engine.finalize()
 
                 if not break_training:
-                    for checkpointer in self.checkpointers:
-                        if checkpointer.check_for_break():
-                            break_training = True
-                            stop_after_episode = checkpointer.get_stop_episode()
+                    break_training, stop_after_episode = self.maybe_stop_training()
 
                 if break_training:
                     if episode < stop_after_episode:

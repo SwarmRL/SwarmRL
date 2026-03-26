@@ -21,6 +21,17 @@ class FalseCheckpointer(BaseCheckpointer):
         return False
 
 
+class StopCheckpointer(BaseCheckpointer):
+    def check_for_checkpoint(self, *args, **kwargs) -> bool:
+        return False
+
+    def check_for_break(self, *args, **kwargs) -> bool:
+        return True
+
+    def get_stop_episode(self) -> int:
+        return 42
+
+
 class TestCheckpointManager:
     """
     Test suite for the checkpoint manager module.
@@ -168,3 +179,30 @@ class TestCheckpointManager:
             )
             assert did_save
             assert unsafe_dir.exists()
+
+    def test_should_stop_training_returns_false_without_break(self):
+        """
+        Stop orchestration should remain inactive when no checkpointer breaks.
+        """
+        break_training, stop_after_episode = self.false_manager.should_stop_training()
+
+        assert not break_training
+        assert stop_after_episode == -1
+
+    def test_should_stop_training_returns_first_break_signal(self):
+        """
+        Stop orchestration should forward the first active break criterion.
+        """
+        manager = CheckpointManager(
+            checkpointers=[
+                FalseCheckpointer(out_path="/dev/null"),
+                StopCheckpointer(out_path="/dev/null"),
+            ],
+            checkpoint_path="/tmp/checkpoints",
+            save_callback=lambda _: None,
+        )
+
+        break_training, stop_after_episode = manager.should_stop_training()
+
+        assert break_training
+        assert stop_after_episode == 42

@@ -2,13 +2,12 @@
 Module for the BaseCheckpointer parent.
 """
 
-import logging
 import shutil
 from collections import deque
 from collections.abc import Callable
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class BaseCheckpointer:
@@ -164,6 +163,8 @@ class BaseCheckpointer:
     def check_for_break(self, *args, **kwargs) -> bool:
         """
         Determine if the simulation should be stopped.
+        Must be overwritten in Child class to actually stop training.
+        Currently only used by the GoalCheckpointer
 
         Returns
         -------

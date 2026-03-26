@@ -2,15 +2,12 @@
 Module to implement a simple multi-layer perceptron for the colloids.
 """
 
-import logging
-
 import numpy as np
+from loguru import logger
 from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
 from swarmrl.engine.engine import Engine
 from swarmrl.trainers.trainer import Trainer
-
-logger = logging.getLogger(__name__)
 
 
 class ContinuousTrainer(Trainer):
@@ -72,6 +69,8 @@ class ContinuousTrainer(Trainer):
                 running_reward=0.0,
                 visible=load_bar,
             )
+            break_training = False
+            stop_after_episode = -1
             for episode in range(n_episodes):
                 self.engine.integrate(episode_length, force_fn)
                 force_fn, current_reward, killed = self.update_rl()
@@ -98,5 +97,21 @@ class ContinuousTrainer(Trainer):
                     current_reward=np.round(current_reward, 2),
                     running_reward=running_reward,
                 )
+
+                if not break_training:
+                    break_training, stop_after_episode = self.maybe_stop_training()
+
+                if break_training:
+                    if episode < stop_after_episode:
+                        logger.info(
+                            "Stopping criterion reached, but running out training"
+                            f" until {stop_after_episode}"
+                        )
+                    else:
+                        logger.info(
+                            f"Stopping training after episode {stop_after_episode}"
+                        )
+                        system_runner.finalize()
+                        break
 
         return np.array(rewards[:completed_episodes])

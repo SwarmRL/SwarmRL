@@ -66,3 +66,19 @@ class CheckpointManager:
                 self.last_saved_paths.append(saved_path)
 
         return len(self.last_saved_paths) > 0
+
+    def should_stop_training(self) -> tuple[bool, int]:
+        """
+        Check whether training should stop and at which episode.
+        "First break wins".
+
+        Returns
+        -------
+        tuple[bool, int]
+            `(break_training, stop_after_episode)` where `stop_after_episode` is
+            `-1` when no stopping criterion is active.
+        """
+        for checkpointer in self.checkpointers:
+            if checkpointer.check_for_break():
+                return True, checkpointer.get_stop_episode()
+        return False, -1
