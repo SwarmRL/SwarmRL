@@ -19,6 +19,7 @@ class OnDeclineCheckpointer(BaseCheckpointer):
         min_reward: float = 250,
         window_width: int = 30,
         wait_time: int = 10,
+        n_buffer: int | None = None,
     ):
         """
         Initializes the OnDeclineCheckpointer.
@@ -35,11 +36,13 @@ class OnDeclineCheckpointer(BaseCheckpointer):
         wait_time: int
             A minimum number of episodes to wait for the next checkpoint check.
             Can prevent frequent checkpoints for noisy signals.
+        n_buffer : int | None
+            Number of latest checkpoints to keep for this checkpointer.
         """
         if window_width <= 0:
             raise ValueError("window_width must be greater than 0")
 
-        super().__init__(out_path)
+        super().__init__(out_path, n_buffer=n_buffer)
         self.min_reward = min_reward
         self.wait_time = wait_time
         self.window_width = window_width

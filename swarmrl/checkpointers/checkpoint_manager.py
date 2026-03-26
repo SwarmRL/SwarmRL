@@ -27,12 +27,17 @@ class CheckpointManager:
                 Active checkpointers to evaluate.
         checkpoint_path : str
                 Base path where checkpoints are stored.
+                If individual checkpointers have no explicit out_path
+                defined, checkpoints will be stored here.
         save_callback : Callable[[str], None]
                 Callback used to persist model states.
         """
         self.checkpointers = checkpointers
         self.checkpoint_path = checkpoint_path
-        self.save_callback = save_callback
+        self.last_saved_paths: list[str] = []
+
+        for checkpointer in self.checkpointers:
+            checkpointer.set_save_callback(save_callback)
 
     def check_and_save(
         self,
@@ -48,21 +53,16 @@ class CheckpointManager:
         bool
             Whether a checkpoint has been written.
         """
-        export = []
-        save_string = ""
+        self.last_saved_paths = []
 
         for checkpointer in self.checkpointers:
-            should_export = checkpointer.check_for_checkpoint(rewards, current_episode)
-            export.append(should_export)
-            if should_export:
-                save_string += f"-{checkpointer.__class__.__name__}"
+            saved_path = checkpointer.evaluate_and_save(
+                rewards=rewards,
+                current_episode=current_episode,
+                current_reward=current_reward,
+                default_checkpoint_path=self.checkpoint_path,
+            )
+            if saved_path is not None:
+                self.last_saved_paths.append(saved_path)
 
-        if not any(export):
-            return False
-
-        self.save_callback(
-            f"{self.checkpoint_path}/Model-ep_{current_episode + 1}"
-            f"-cur_reward_{current_reward:.1f}"
-            f"{save_string}/"
-        )
-        return True
+        return len(self.last_saved_paths) > 0

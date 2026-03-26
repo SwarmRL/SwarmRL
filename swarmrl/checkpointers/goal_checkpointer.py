@@ -19,6 +19,7 @@ class GoalCheckpointer(BaseCheckpointer):
         window_width: int = 30,
         do_goal_break: bool = False,
         running_out_length: int = 0,
+        n_buffer: int | None = None,
     ):
         """
         Initializes the GoalCheckpointer.
@@ -37,12 +38,14 @@ class GoalCheckpointer(BaseCheckpointer):
         running_out_length: int
             The number of episodes to run after the goal is reached
             before stopping training.
+        n_buffer : int | None
+            Number of latest checkpoints to keep for this checkpointer.
         """
         if window_width <= 0:
             raise ValueError("window_width must be greater than 0")
         if running_out_length < 0:
             raise ValueError("running_out_length must not be negative")
-        super().__init__(out_path)
+        super().__init__(out_path, n_buffer=n_buffer)
         self.required_reward = required_reward
         self.window_width = window_width
         self.do_goal_break = do_goal_break

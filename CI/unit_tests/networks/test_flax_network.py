@@ -2,8 +2,8 @@
 Uni test for the Flax network
 """
 
-import os
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import flax.linen as nn
 import jax
@@ -93,111 +93,112 @@ class TestFlaxNetwork:
         """
         Test that one can save and reload the model.
         """
-        # Create a model and export it.
-        pre_save_model = FlaxModel(
-            flax_model=self.network,
-            optimizer=optax.adam(learning_rate=0.001),
-            input_shape=(2,),
-            sampling_strategy=self.sampling_strategy,
-            exploration_policy=self.exploration_policy,
-        )
-        input_vector = np.array([[1.0, 2.0]])
-        pre_save_logits, pre_save_value = pre_save_model.apply_fn(
-            {"params": pre_save_model.model_state.params}, input_vector
-        )
-        pre_save_model.export_model(filename="model", directory="Models")
-
-        # Check if the model exists
-        assert Path("Models/model.pkl").exists()
-
-        # Create a new model
-        post_save_model = FlaxModel(
-            flax_model=self.network,
-            optimizer=optax.adam(learning_rate=0.001),
-            input_shape=(2,),
-            sampling_strategy=self.sampling_strategy,
-            exploration_policy=self.exploration_policy,
-        )
-        post_save_logits, post_save_value = post_save_model.apply_fn(
-            {"params": post_save_model.model_state.params}, input_vector
-        )
-        # Check that the logits are different
-        np.testing.assert_raises(
-            AssertionError,
-            np.testing.assert_array_equal,
-            pre_save_logits,
-            post_save_logits,
-        )
-
-        # Check that the values are different
-        np.testing.assert_raises(
-            AssertionError,
-            np.testing.assert_array_equal,
-            pre_save_value,
-            post_save_value,
-        )
-
-        # Load the model state
-        post_save_model.restore_model_state(directory="Models", filename="model")
-        post_restore_logits, post_restore_value = post_save_model.apply_fn(
-            {"params": post_save_model.model_state.params}, input_vector
-        )
-
-        np.testing.assert_array_equal(pre_save_logits, post_restore_logits)
-        np.testing.assert_array_equal(pre_save_value, post_restore_value)
-
-        # Check that the epoch counts are equal
-        pre_count = pre_save_model.epoch_count
-        post_count = post_save_model.epoch_count
-        np.testing.assert_equal(pre_count, post_count)
-
-        # Check that the optimizer steps are equal
-        pre_save_opt_step = pre_save_model.model_state.step
-        post_restore_opt_step = post_save_model.model_state.step
-        np.testing.assert_equal(pre_save_opt_step, post_restore_opt_step)
-
-        # Check that the optimizer states are equal
-        pre_save_opt_state = pre_save_model.model_state.opt_state
-        post_restore_opt_state = post_save_model.model_state.opt_state
-
-        def compare_two_opt_states(state1, state2):
-            jax.tree_util.tree_map(
-                lambda x, y: np.testing.assert_array_equal(x, y), state1, state2
-            )
-
-        compare_two_opt_states(pre_save_opt_state, post_restore_opt_state)
-
-    def test_saving_multiple_models(self):
-        rl_protocols = {}
-
-        for i in range(4):
-            network = FlaxModel(
+        with TemporaryDirectory() as temp_directory:
+            # Create a model and export it.
+            pre_save_model = FlaxModel(
                 flax_model=self.network,
                 optimizer=optax.adam(learning_rate=0.001),
                 input_shape=(2,),
                 sampling_strategy=self.sampling_strategy,
                 exploration_policy=self.exploration_policy,
             )
+            input_vector = np.array([[1.0, 2.0]])
+            pre_save_logits, pre_save_value = pre_save_model.apply_fn(
+                {"params": pre_save_model.model_state.params}, input_vector
+            )
+            pre_save_model.export_model(filename="model", directory=temp_directory)
 
-            protocol = ActorCriticAgent(
-                particle_type=i,
-                network=network,
-                task=None,
-                observable=None,
-                actions=None,
+            # Check if the model exists
+            assert Path(temp_directory, "model.pkl").exists()
+
+            # Create a new model
+            post_save_model = FlaxModel(
+                flax_model=self.network,
+                optimizer=optax.adam(learning_rate=0.001),
+                input_shape=(2,),
+                sampling_strategy=self.sampling_strategy,
+                exploration_policy=self.exploration_policy,
+            )
+            post_save_logits, post_save_value = post_save_model.apply_fn(
+                {"params": post_save_model.model_state.params}, input_vector
+            )
+            # Check that the logits are different
+            np.testing.assert_raises(
+                AssertionError,
+                np.testing.assert_array_equal,
+                pre_save_logits,
+                post_save_logits,
             )
 
-            rl_protocols[f"{i}"] = protocol
-
-        for item, val in rl_protocols.items():
-            val.network.export_model(
-                filename=f"ActorModel_{item}", directory="MultiModels"
+            # Check that the values are different
+            np.testing.assert_raises(
+                AssertionError,
+                np.testing.assert_array_equal,
+                pre_save_value,
+                post_save_value,
             )
 
-        count = 0
-        # Iterate directory
-        for path in os.listdir("MultiModels"):
-            # check if current path is a file
-            if os.path.isfile(os.path.join("MultiModels", path)):
-                count += 1
-        np.testing.assert_equal(count, 4)
+            # Load the model state
+            post_save_model.restore_model_state(
+                directory=temp_directory, filename="model"
+            )
+            post_restore_logits, post_restore_value = post_save_model.apply_fn(
+                {"params": post_save_model.model_state.params}, input_vector
+            )
+
+            np.testing.assert_array_equal(pre_save_logits, post_restore_logits)
+            np.testing.assert_array_equal(pre_save_value, post_restore_value)
+
+            # Check that the epoch counts are equal
+            pre_count = pre_save_model.epoch_count
+            post_count = post_save_model.epoch_count
+            np.testing.assert_equal(pre_count, post_count)
+
+            # Check that the optimizer steps are equal
+            pre_save_opt_step = pre_save_model.model_state.step
+            post_restore_opt_step = post_save_model.model_state.step
+            np.testing.assert_equal(pre_save_opt_step, post_restore_opt_step)
+
+            # Check that the optimizer states are equal
+            pre_save_opt_state = pre_save_model.model_state.opt_state
+            post_restore_opt_state = post_save_model.model_state.opt_state
+
+            def compare_two_opt_states(state1, state2):
+                jax.tree_util.tree_map(
+                    lambda x, y: np.testing.assert_array_equal(x, y), state1, state2
+                )
+
+            compare_two_opt_states(pre_save_opt_state, post_restore_opt_state)
+
+    def test_saving_multiple_models(self):
+        with TemporaryDirectory() as temp_directory:
+            rl_protocols = {}
+
+            for i in range(4):
+                network = FlaxModel(
+                    flax_model=self.network,
+                    optimizer=optax.adam(learning_rate=0.001),
+                    input_shape=(2,),
+                    sampling_strategy=self.sampling_strategy,
+                    exploration_policy=self.exploration_policy,
+                )
+
+                protocol = ActorCriticAgent(
+                    particle_type=i,
+                    network=network,
+                    task=None,
+                    observable=None,
+                    actions=None,
+                )
+
+                rl_protocols[f"{i}"] = protocol
+
+            for item, val in rl_protocols.items():
+                val.network.export_model(
+                    filename=f"ActorModel_{item}", directory=temp_directory
+                )
+
+            saved_models = [
+                path for path in Path(temp_directory).iterdir() if path.is_file()
+            ]
+            np.testing.assert_equal(len(saved_models), 4)

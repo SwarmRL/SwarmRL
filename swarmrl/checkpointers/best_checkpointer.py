@@ -20,6 +20,7 @@ class BestRewardCheckpointer(BaseCheckpointer):
         increase_factor: float = 1.05,
         window_width: int = 30,
         wait_time: int = 10,
+        n_buffer: int | None = None,
     ):
         """
         Parameters:
@@ -35,12 +36,14 @@ class BestRewardCheckpointer(BaseCheckpointer):
             The width of the window to average the rewards.
         wait_time : int
             The number of episodes to wait before checking for a new checkpoint.
+        n_buffer : int | None
+            Number of latest checkpoints to keep for this checkpointer.
 
         """
         if window_width <= 0:
             raise ValueError("window_width must be greater than 0")
 
-        super().__init__(out_path)
+        super().__init__(out_path, n_buffer=n_buffer)
         self.min_reward = min_reward
         self.increase_factor = increase_factor
         self.wait_time = wait_time
