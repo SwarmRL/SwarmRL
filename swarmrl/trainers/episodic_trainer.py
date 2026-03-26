@@ -83,7 +83,7 @@ class EpisodicTrainer(Trainer):
             task = progress.add_task(
                 "Episodic Training",
                 total=n_episodes,
-                Episode=0,
+                Episode=1,
                 current_reward=current_reward,
                 running_reward=np.mean(rewards),
                 visible=load_bar,
@@ -136,7 +136,7 @@ class EpisodicTrainer(Trainer):
                 progress.update(
                     task,
                     advance=1,
-                    Episode=episode,
+                    Episode=episode + 1,
                     current_reward=np.round(current_reward, 2),
                     running_reward=running_reward,
                 )

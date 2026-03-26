@@ -47,6 +47,7 @@ class ContinuousTrainer(Trainer):
         episode = 0
         completed_episodes = 0
         force_fn = self.initialize_training()
+        did_finalize = False
 
         # Initialize the tasks and observables.
         for agent in self.agents.values():
@@ -82,6 +83,7 @@ class ContinuousTrainer(Trainer):
                         "Simulation has been ended by the task, ending training."
                     )
                     system_runner.finalize()
+                    did_finalize = True
                     break
 
                 self.maybe_save_checkpoint(rewards, episode, current_reward)
@@ -112,6 +114,9 @@ class ContinuousTrainer(Trainer):
                             f"Stopping training after episode {stop_after_episode}"
                         )
                         system_runner.finalize()
+                        did_finalize = True
                         break
 
+            if not did_finalize:
+                system_runner.finalize()
         return np.array(rewards[:completed_episodes])

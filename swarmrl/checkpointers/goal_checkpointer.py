@@ -19,6 +19,7 @@ class GoalCheckpointer(BaseCheckpointer):
         window_width: int = 30,
         do_goal_break: bool = False,
         running_out_length: int = 0,
+        save_only_on_first_goal_hit: bool = True,
         n_buffer: int | None = 3,
     ):
         """
@@ -39,6 +40,9 @@ class GoalCheckpointer(BaseCheckpointer):
         running_out_length: int
             The number of episodes to run after the goal is reached
             before stopping training.
+        save_only_on_first_goal_hit: bool
+            If True, trigger checkpoint saving only once on the first
+            goal hit. Further goal hits will not trigger additional saves.
         n_buffer : int | None
             Number of latest checkpoints to keep for this checkpointer.
         """
@@ -51,8 +55,10 @@ class GoalCheckpointer(BaseCheckpointer):
         self.window_width = window_width
         self.do_goal_break = do_goal_break
         self.running_out_length = running_out_length
+        self.save_only_on_first_goal_hit = save_only_on_first_goal_hit
         self.break_training = False
         self.stop_episode = -1
+        self._did_save_on_goal_hit = False
 
     def check_for_checkpoint(self, rewards: np.ndarray, current_episode: int) -> bool:
         """
@@ -79,14 +85,24 @@ class GoalCheckpointer(BaseCheckpointer):
         window_start = max(0, window_end - self.window_width)
         avg_reward = np.mean(rewards[window_start:window_end])
 
+        goal_hit = avg_reward >= self.required_reward
+        if not goal_hit:
+            return False
+
         if self.do_goal_break:
-            if avg_reward >= self.required_reward and not self.break_training:
+            if not self.break_training:
                 self.break_training = True
                 if self.running_out_length > 0:
                     self.stop_episode = current_episode + self.running_out_length
                 else:
                     self.stop_episode = current_episode
-        return avg_reward >= self.required_reward
+
+        if self.save_only_on_first_goal_hit:
+            if self._did_save_on_goal_hit:
+                return False
+            self._did_save_on_goal_hit = True
+
+        return True
 
     def check_for_break(self):
         return self.break_training

@@ -33,6 +33,15 @@ class TestGoalCheckpointer:
             do_goal_break=True,
         )
 
+        cls.goal_checkpointer_3 = GoalCheckpointer(
+            out_path="/dev/null/",
+            required_reward=100,
+            running_out_length=2,
+            window_width=3,
+            do_goal_break=True,
+            save_only_on_first_goal_hit=True,
+        )
+
     def test_initialization(self):
         """
         Test the initialization of the goal checkpointer.
@@ -48,6 +57,12 @@ class TestGoalCheckpointer:
         assert self.goal_checkpointer_2.running_out_length == 0
         assert self.goal_checkpointer_2.window_width == 3
         assert self.goal_checkpointer_2.do_goal_break
+
+        assert self.goal_checkpointer_3.required_reward == 100
+        assert self.goal_checkpointer_3.running_out_length == 2
+        assert self.goal_checkpointer_3.window_width == 3
+        assert self.goal_checkpointer_3.do_goal_break
+        assert self.goal_checkpointer_3.save_only_on_first_goal_hit
 
     def test_check_for_checkpoint(self):
         """
@@ -79,3 +94,17 @@ class TestGoalCheckpointer:
 
             if self.goal_checkpointer_2.break_training:
                 break
+
+    def test_check_for_checkpoint_only_on_first_goal_hit(self):
+        """
+        With save_only_on_first_goal_hit, only the first goal hit saves.
+        """
+        rewards = np.linspace(0, 300, 10)
+
+        for i in range(len(rewards)):
+            if i == 4:
+                assert self.goal_checkpointer_3.check_for_checkpoint(rewards, i)
+                assert self.goal_checkpointer_3.check_for_break()
+                assert self.goal_checkpointer_3.get_stop_episode() == 6
+            else:
+                assert not self.goal_checkpointer_3.check_for_checkpoint(rewards, i)
