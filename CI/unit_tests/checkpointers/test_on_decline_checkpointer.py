@@ -1,15 +1,15 @@
 """
-Test the backup checkpointer module.
+Test the OnDeclineCheckpointer module.
 """
 
 import numpy as np
 
-from swarmrl.checkpointers.backup_checkpointer import BackupCheckpointer
+from swarmrl.checkpointers.on_decline_checkpointer import OnDeclineCheckpointer
 
 
-class TestBackupCheckpointer:
+class TestOnDeclineCheckpointer:
     """
-    Test suite for the backup checkpointer module.
+    Test suite for the on decline checkpointer module.
     """
 
     @classmethod
@@ -17,22 +17,22 @@ class TestBackupCheckpointer:
         """
         Prepare the class for testing
         """
-        cls.backup_checkpointer = BackupCheckpointer(
+        cls.on_decline_checkpointer = OnDeclineCheckpointer(
             out_path="/dev/null",
-            min_backup_reward=200,
+            min_reward=200,
             wait_time=2,
             window_width=3,
         )
 
     def test_initialization(self):
         """
-        Test the initialization of the backup checkpointer.
+        Test the initialization of the on-decline checkpointer.
         """
-        assert self.backup_checkpointer.min_backup_reward == 200
-        assert self.backup_checkpointer.out_path == "/dev/null"
+        assert self.on_decline_checkpointer.min_reward == 200
+        assert self.on_decline_checkpointer.out_path == "/dev/null"
 
-        assert self.backup_checkpointer.window_width == 3
-        assert self.backup_checkpointer.wait_time == 2
+        assert self.on_decline_checkpointer.window_width == 3
+        assert self.on_decline_checkpointer.wait_time == 2
 
     def test_check_for_checkpoint(self):
         """
@@ -50,10 +50,10 @@ class TestBackupCheckpointer:
         ))
 
         # Test checking outside window width
-        assert not self.backup_checkpointer.check_for_checkpoint(rewards, 1)
+        assert not self.on_decline_checkpointer.check_for_checkpoint(rewards, 1)
 
         for i in range(len(rewards)):
             if i in [13, 35]:
-                assert self.backup_checkpointer.check_for_checkpoint(rewards, i)
+                assert self.on_decline_checkpointer.check_for_checkpoint(rewards, i)
             else:
-                assert not self.backup_checkpointer.check_for_checkpoint(rewards, i)
+                assert not self.on_decline_checkpointer.check_for_checkpoint(rewards, i)
