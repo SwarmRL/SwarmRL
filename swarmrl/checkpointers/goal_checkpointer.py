@@ -42,7 +42,8 @@ class GoalCheckpointer(BaseCheckpointer):
             before stopping training.
         save_only_on_first_goal_hit: bool
             If True, trigger checkpoint saving only once on the first
-            goal hit. Further goal hits will not trigger additional saves.
+            goal hit. Further goal hits will not trigger additional saves,
+            making the n_buffer obsolete for this case.
         n_buffer : int | None
             Number of latest checkpoints to keep for this checkpointer.
         """

@@ -101,7 +101,7 @@ class ContinuousTrainer(Trainer):
                 )
 
                 if not break_training:
-                    break_training, stop_after_episode = self.maybe_stop_training()
+                    break_training, stop_after_episode = self.check_for_stop_criterion()
 
                 if break_training:
                     if episode < stop_after_episode:

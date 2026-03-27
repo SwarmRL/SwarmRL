@@ -182,7 +182,7 @@ class Trainer:
             current_reward=current_reward,
         )
 
-    def maybe_stop_training(self) -> tuple[bool, int]:
+    def check_for_stop_criterion(self) -> tuple[bool, int]:
         """
         Query all checkpointers for a stop criterion.
 
