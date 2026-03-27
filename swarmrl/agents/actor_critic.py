@@ -120,8 +120,7 @@ class ActorCriticAgent(Agent):
             self.intrinsic_reward.update(self.trajectory)
 
         # Save the agent trajectory data if requested
-        if self.trajectory_storage is not None:
-            self.trajectory_storage.write(self.trajectory)
+        self.persist_trajectory(self.trajectory)
 
         # Reset the trajectory storage.
         self.reset_trajectory()

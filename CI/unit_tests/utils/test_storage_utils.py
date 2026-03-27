@@ -67,6 +67,30 @@ def _make_sim_timestep(n_colloids: int, time_value: float) -> dict:
 
 
 class TestStorageWriters:
+    def test_sim_storage_fails_if_file_exists_by_default(self, tmp_path: Path):
+        first_storage = SimulationTrajectoryStorage(out_folder=str(tmp_path))
+        first_storage.write(_make_sim_timestep(n_colloids=2, time_value=1.0))
+
+        second_storage = SimulationTrajectoryStorage(out_folder=str(tmp_path))
+        with pytest.raises(FileExistsError, match="Refusing to write"):
+            second_storage.write(_make_sim_timestep(n_colloids=2, time_value=2.0))
+
+    def test_sim_storage_allows_existing_file_if_opted_in(self, tmp_path: Path):
+        first_storage = SimulationTrajectoryStorage(out_folder=str(tmp_path))
+        first_storage.write(_make_sim_timestep(n_colloids=2, time_value=1.0))
+
+        second_storage = SimulationTrajectoryStorage(
+            out_folder=str(tmp_path),
+            fail_if_exists=False,
+        )
+        second_storage.write(_make_sim_timestep(n_colloids=2, time_value=2.0))
+
+        file_path = tmp_path / "trajectory.hdf5"
+        with h5py.File(file_path.as_posix(), "r") as h5_file:
+            times = h5_file["colloids"]["Times"]
+            assert times.shape[0] == 1
+            assert np.isclose(times[0, 0, 0], 2.0)
+
     def test_agent_storage_fails_if_file_exists_by_default(self, tmp_path: Path):
         first_storage = AgentTrajectoryStorage(
             particle_type=7,

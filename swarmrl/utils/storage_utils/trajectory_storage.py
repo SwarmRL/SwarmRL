@@ -24,8 +24,13 @@ class DictTrajectoryStorage(HDF5TrajectoryStorage):
         h5_group_tag: str,
         dataset_specs_builder: Callable[[Any], Dict[str, Dict[str, Any]]],
         sample_extractor: Callable[[Any], Dict[str, Any]],
+        fail_if_exists: bool = False,
     ):
-        super().__init__(out_folder=out_folder, filename=filename)
+        super().__init__(
+            out_folder=out_folder,
+            filename=filename,
+            fail_if_exists=fail_if_exists,
+        )
         self._h5_group_tag = h5_group_tag
         self._dataset_specs_builder = dataset_specs_builder
         self._sample_extractor = sample_extractor
@@ -99,8 +104,6 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
         fail_if_exists : bool (default=True)
             If True, raise FileExistsError when the target file already exists.
         """
-        self.fail_if_exists = fail_if_exists
-
         if stored_attributes is None:
             if preset not in self.PRESETS:
                 raise ValueError(f"preset must be one of {list(self.PRESETS.keys())}")
@@ -140,6 +143,7 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
             h5_group_tag=f"Agent_{particle_type}",
             dataset_specs_builder=self._build_agent_specs,
             sample_extractor=self._extract_agent_sample,
+            fail_if_exists=fail_if_exists,
         )
         self.particle_type = particle_type
 
@@ -207,14 +211,6 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
 
         return sample
 
-    def _init_h5_output(self, data_sample: Any) -> None:
-        if self.fail_if_exists and self.h5_filename.exists():
-            raise FileExistsError(
-                f"Refusing to write to existing file: {self.h5_filename}. "
-                "Set fail_if_exists=False if you know what you're doing."
-            )
-        super()._init_h5_output(data_sample)
-
 
 @dataclass
 class AgentStorageConfig:
@@ -233,6 +229,7 @@ class SimulationTrajectoryStorage(DictTrajectoryStorage):
         self,
         out_folder: str = "./trajectories",
         h5_group_tag: str = "colloids",
+        fail_if_exists: bool = True,
     ):
         super().__init__(
             out_folder=out_folder,
@@ -240,6 +237,7 @@ class SimulationTrajectoryStorage(DictTrajectoryStorage):
             h5_group_tag=h5_group_tag,
             dataset_specs_builder=self._build_simulation_specs,
             sample_extractor=self._extract_simulation_sample,
+            fail_if_exists=fail_if_exists,
         )
 
     @staticmethod

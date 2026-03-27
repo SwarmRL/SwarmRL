@@ -20,9 +20,11 @@ class HDF5TrajectoryStorage(ABC):
         self,
         out_folder: str = "./data",
         filename: str = "trajectory.hdf5",
+        fail_if_exists: bool = False,
     ):
         self.out_folder = pathlib.Path(out_folder)
         self.h5_filename = self.out_folder / filename
+        self.fail_if_exists = fail_if_exists
 
         # Internal state
         self._is_initialized = False
@@ -46,6 +48,12 @@ class HDF5TrajectoryStorage(ABC):
         pass
 
     def _init_h5_output(self, data_sample: Any) -> None:
+        if self.fail_if_exists and self.h5_filename.exists():
+            raise FileExistsError(
+                f"Refusing to write to existing file: {self.h5_filename}. "
+                "Set fail_if_exists=False if you know what you're doing."
+            )
+
         self.out_folder.mkdir(parents=True, exist_ok=True)
         self._data_holder = self._initialize_data_holder()
 
