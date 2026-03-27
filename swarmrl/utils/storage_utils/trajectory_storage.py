@@ -11,7 +11,7 @@ class DictTrajectoryStorage(HDF5TrajectoryStorage):
     """
     Generic dict-based trajectory storage.
 
-    Concrete users provide:
+    Provides:
     - a dataset spec builder from one sample
     - a sample extractor that returns a dict keyed like the dataset names
     """
@@ -50,13 +50,80 @@ class DictTrajectoryStorage(HDF5TrajectoryStorage):
 
 
 class AgentTrajectoryStorage(DictTrajectoryStorage):
-    """HDF5 storage for agent trajectory data."""
+    """HDF5 storage for agent trajectory data with configurable fields."""
+
+    ALLOWED_FIELDS = {
+        "actions",
+        "log_probs",
+        "rewards",
+        "features",
+        "killed",
+        "particle_type",
+    }
+
+    PRESETS = {
+        "minimal": ["actions", "rewards"],
+        "verbose": [
+            "actions",
+            "log_probs",
+            "rewards",
+            "features",
+            "killed",
+            "particle_type",
+        ],
+    }
 
     def __init__(
         self,
         particle_type: int,
         out_folder: str = "./Agent_Data",
+        preset: str = "minimal",
+        stored_fields: list = None,
     ):
+        """
+        Initialize agent trajectory storage.
+
+        Parameters
+        ----------
+        particle_type : int
+            Particle type ID.
+        out_folder : str (default="./Agent_Data")
+            Output folder path.
+        preset : str (default="minimal")
+            Preset for storage: "minimal" or "verbose".
+            Ignored if stored_fields is provided.
+        stored_fields : list (default=None)
+            Explicit whitelist of fields to store
+            (e.g., ["actions", "features"]).
+            Overrides preset if provided.
+        """
+        if stored_fields is None:
+            if preset not in self.PRESETS:
+                raise ValueError(f"preset must be one of {list(self.PRESETS.keys())}")
+            self.stored_fields = list(self.PRESETS[preset])
+        else:
+            if not isinstance(stored_fields, (list, tuple, set)):
+                raise TypeError(
+                    "stored_fields must be a list, tuple, or set of field names"
+                )
+
+            # Deduplicate while preserving order.
+            normalized_fields = list(dict.fromkeys(stored_fields))
+
+            if len(normalized_fields) == 0:
+                raise ValueError("stored_fields must contain at least one field")
+
+            unknown_fields = [
+                field for field in normalized_fields if field not in self.ALLOWED_FIELDS
+            ]
+            if unknown_fields:
+                raise ValueError(
+                    "Unknown stored_fields: "
+                    f"{unknown_fields}. Allowed: {sorted(self.ALLOWED_FIELDS)}"
+                )
+
+            self.stored_fields = normalized_fields
+
         super().__init__(
             out_folder=out_folder,
             filename=f"agent_data_{particle_type}.hdf5",
@@ -66,42 +133,82 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
         )
         self.particle_type = particle_type
 
-    @staticmethod
-    def _build_agent_specs(trajectory) -> Dict[str, Dict[str, Any]]:
-        n_colloids = np.array(trajectory.features).shape[1]
-        episode_length = np.array(trajectory.features).shape[0]
+    def _build_agent_specs(self, trajectory) -> Dict[str, Dict[str, Any]]:
+        specs = {}
 
-        return {
-            "features": {
-                "shape": (1, episode_length, n_colloids, 1),
-                "maxshape": (None, episode_length, n_colloids, 1),
-                "dtype": np.float32,
-            },
-            "actions": {
-                "shape": (1, episode_length, n_colloids),
-                "maxshape": (None, episode_length, n_colloids),
-                "dtype": int,
-            },
-            "log_probs": {
-                "shape": (1, episode_length, n_colloids),
-                "maxshape": (None, episode_length, n_colloids),
-                "dtype": float,
-            },
-            "rewards": {
-                "shape": (1, episode_length, n_colloids),
-                "maxshape": (None, episode_length, n_colloids),
-                "dtype": float,
-            },
-        }
+        if "actions" in self.stored_fields:
+            actions = np.asarray(trajectory.actions)
+            specs["actions"] = {
+                "shape": (1, *actions.shape),
+                "maxshape": (None, *actions.shape),
+                "dtype": actions.dtype,
+            }
+        if "log_probs" in self.stored_fields:
+            log_probs = np.asarray(trajectory.log_probs)
+            specs["log_probs"] = {
+                "shape": (1, *log_probs.shape),
+                "maxshape": (None, *log_probs.shape),
+                "dtype": log_probs.dtype,
+            }
+        if "rewards" in self.stored_fields:
+            rewards = np.asarray(trajectory.rewards)
+            specs["rewards"] = {
+                "shape": (1, *rewards.shape),
+                "maxshape": (None, *rewards.shape),
+                "dtype": rewards.dtype,
+            }
 
-    @staticmethod
-    def _extract_agent_sample(trajectory) -> Dict[str, Any]:
-        return {
-            "features": trajectory.features,
-            "actions": trajectory.actions,
-            "log_probs": trajectory.log_probs,
-            "rewards": trajectory.rewards,
-        }
+        if "features" in self.stored_fields:
+            if getattr(trajectory, "features", None) is not None:
+                features = np.asarray(trajectory.features)
+                if features.size > 0:
+                    specs["features"] = {
+                        "shape": (1, *features.shape),
+                        "maxshape": (None, *features.shape),
+                        "dtype": features.dtype,
+                    }
+        if "killed" in self.stored_fields:
+            killed = np.asarray([trajectory.killed], dtype=np.bool_)
+            specs["killed"] = {
+                "shape": (1, 1),
+                "maxshape": (None, 1),
+                "dtype": killed.dtype,
+            }
+
+        if "particle_type" in self.stored_fields:
+            particle_type = np.asarray([trajectory.particle_type], dtype=np.int64)
+            specs["particle_type"] = {
+                "shape": (1, 1),
+                "maxshape": (None, 1),
+                "dtype": particle_type.dtype,
+            }
+
+        return specs
+
+    def _extract_agent_sample(self, trajectory) -> Dict[str, Any]:
+        sample = {}
+
+        if "actions" in self.stored_fields:
+            sample["actions"] = trajectory.actions
+        if "log_probs" in self.stored_fields:
+            sample["log_probs"] = trajectory.log_probs
+        if "rewards" in self.stored_fields:
+            sample["rewards"] = trajectory.rewards
+        if "killed" in self.stored_fields:
+            sample["killed"] = np.asarray([trajectory.killed], dtype=np.bool_)
+        if "particle_type" in self.stored_fields:
+            sample["particle_type"] = np.asarray(
+                [trajectory.particle_type],
+                dtype=np.int64,
+            )
+
+        if "features" in self.stored_fields:
+            if getattr(trajectory, "features", None) is not None:
+                features = np.asarray(trajectory.features)
+                if features.size > 0:
+                    sample["features"] = trajectory.features
+
+        return sample
 
 
 class SimulationTrajectoryStorage(DictTrajectoryStorage):

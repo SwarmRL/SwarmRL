@@ -35,6 +35,8 @@ class ActorCriticAgent(Agent):
         intrinsic_reward: IntrinsicReward = None,
         save_agent_data_to_file: bool = False,
         out_folder: str = "./agent_data",
+        storage_preset: str = "minimal",
+        stored_fields: list[str] = None,
     ):
         """
         Constructor for the actor-critic protocol.
@@ -59,6 +61,14 @@ class ActorCriticAgent(Agent):
                 Flag to indicate if the agent should record data.
         out_folder : str (default="./agent_data")
             Folder to store the agent data file.
+        storage_preset : str (default="minimal")
+            Preset for storage fields: "minimal" (actions,
+            rewards) or "verbose" (+features, log_probs, killed,
+            particle_type).
+        stored_fields : list (default=None)
+            Explicit whitelist of fields to store
+            (e.g., ["actions", "features"]).
+            Overrides storage_preset if provided.
         """
         # Properties of the agent.
         self.network = network
@@ -79,6 +89,8 @@ class ActorCriticAgent(Agent):
             AgentTrajectoryStorage(
                 particle_type=self.particle_type,
                 out_folder=out_folder,
+                preset=storage_preset,
+                stored_fields=stored_fields,
             )
             if save_agent_data_to_file
             else None
