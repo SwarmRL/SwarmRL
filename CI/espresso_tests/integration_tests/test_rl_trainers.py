@@ -51,7 +51,7 @@ class KillTask(srl.tasks.Task):
     Dummy task for the tests.
 
     This task will turn on the killswitch after
-    4 episodes.
+    15 episodes.
     """
 
     i: int = 0

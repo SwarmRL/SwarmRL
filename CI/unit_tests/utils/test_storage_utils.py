@@ -190,11 +190,11 @@ class TestStorageWriters:
             assert "log_probs" not in group
             assert "features" not in group
 
-    def test_agent_storage_persists_killed_and_particle_type(self, tmp_path: Path):
+    def test_agent_storage_persists_killed(self, tmp_path: Path):
         storage = AgentTrajectoryStorage(
             particle_type=4,
             out_folder=str(tmp_path),
-            stored_attributes=["killed", "particle_type"],
+            stored_attributes=["killed"],
         )
         trajectory = _make_agent_trajectory(
             4,
@@ -209,9 +209,7 @@ class TestStorageWriters:
         with h5py.File(file_path.as_posix(), "r") as h5_file:
             group = h5_file["Agent_4"]
             assert group["killed"].shape == (1, 1)
-            assert group["particle_type"].shape == (1, 1)
             assert bool(group["killed"][0, 0]) is True
-            assert int(group["particle_type"][0, 0]) == 4
 
     def test_sim_storage_batch_write_appends(self, tmp_path: Path):
         storage = SimulationTrajectoryStorage(

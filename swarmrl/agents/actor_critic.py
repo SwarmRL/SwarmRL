@@ -63,8 +63,7 @@ class ActorCriticAgent(Agent):
             Folder to store the agent data file.
         storage_preset : str (default="minimal")
             Preset for storage fields: "minimal" (actions,
-            rewards) or "verbose" (+features, log_probs, killed,
-            particle_type).
+            rewards) or "verbose" (+features, log_probs, killed).
         stored_attributes : list (default=None)
             Explicit whitelist of attributes to store
             (e.g., ["actions", "features"]).

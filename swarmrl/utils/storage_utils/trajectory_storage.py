@@ -58,7 +58,6 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
         "rewards",
         "features",
         "killed",
-        "particle_type",
     }
 
     PRESETS = {
@@ -69,7 +68,6 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
             "rewards",
             "features",
             "killed",
-            "particle_type",
         ],
     }
 
@@ -181,14 +179,6 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
                 "dtype": killed.dtype,
             }
 
-        if "particle_type" in self.stored_attributes:
-            particle_type = np.asarray([trajectory.particle_type], dtype=np.int64)
-            specs["particle_type"] = {
-                "shape": (1, 1),
-                "maxshape": (None, 1),
-                "dtype": particle_type.dtype,
-            }
-
         return specs
 
     def _extract_agent_sample(self, trajectory) -> Dict[str, Any]:
@@ -202,11 +192,6 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
             sample["rewards"] = trajectory.rewards
         if "killed" in self.stored_attributes:
             sample["killed"] = np.asarray([trajectory.killed], dtype=np.bool_)
-        if "particle_type" in self.stored_attributes:
-            sample["particle_type"] = np.asarray(
-                [trajectory.particle_type],
-                dtype=np.int64,
-            )
 
         if "features" in self.stored_attributes:
             if getattr(trajectory, "features", None) is not None:
