@@ -1,5 +1,6 @@
 """Trajectory storages for agent and simulation data."""
 
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List
 
 import numpy as np
@@ -77,6 +78,7 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
         out_folder: str = "./Agent_Data",
         preset: str = "minimal",
         stored_attributes: list = None,
+        fail_if_exists: bool = True,
     ):
         """
         Initialize agent trajectory storage.
@@ -94,7 +96,11 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
             Explicit whitelist of attributes to store
             (e.g., ["actions", "features"]).
             Overrides preset if provided.
+        fail_if_exists : bool (default=True)
+            If True, raise FileExistsError when the target file already exists.
         """
+        self.fail_if_exists = fail_if_exists
+
         if stored_attributes is None:
             if preset not in self.PRESETS:
                 raise ValueError(f"preset must be one of {list(self.PRESETS.keys())}")
@@ -200,6 +206,24 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
                     sample["features"] = trajectory.features
 
         return sample
+
+    def _init_h5_output(self, data_sample: Any) -> None:
+        if self.fail_if_exists and self.h5_filename.exists():
+            raise FileExistsError(
+                f"Refusing to write to existing file: {self.h5_filename}. "
+                "Set fail_if_exists=False if you know what you're doing."
+            )
+        super()._init_h5_output(data_sample)
+
+
+@dataclass
+class AgentStorageConfig:
+    """Configuration for optional agent trajectory storage."""
+
+    out_folder: str = "./agent_data"
+    storage_preset: str = "minimal"
+    stored_attributes: list[str] | None = None
+    fail_if_exists: bool = True
 
 
 class SimulationTrajectoryStorage(DictTrajectoryStorage):

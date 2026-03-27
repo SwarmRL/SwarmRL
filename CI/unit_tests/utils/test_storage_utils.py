@@ -67,6 +67,59 @@ def _make_sim_timestep(n_colloids: int, time_value: float) -> dict:
 
 
 class TestStorageWriters:
+    def test_agent_storage_fails_if_file_exists_by_default(self, tmp_path: Path):
+        first_storage = AgentTrajectoryStorage(
+            particle_type=7,
+            out_folder=str(tmp_path),
+        )
+        trajectory = _make_agent_trajectory(
+            7,
+            episode_length=2,
+            n_colloids=2,
+            base_value=1.0,
+        )
+        first_storage.write(trajectory)
+
+        second_storage = AgentTrajectoryStorage(
+            particle_type=7,
+            out_folder=str(tmp_path),
+        )
+        with pytest.raises(FileExistsError, match="Refusing to write"):
+            second_storage.write(trajectory)
+
+    def test_agent_storage_allows_existing_file_if_opted_in(self, tmp_path: Path):
+        first_storage = AgentTrajectoryStorage(
+            particle_type=8,
+            out_folder=str(tmp_path),
+        )
+        first_storage.write(
+            _make_agent_trajectory(
+                8,
+                episode_length=2,
+                n_colloids=2,
+                base_value=1.0,
+            )
+        )
+
+        overwrite_storage = AgentTrajectoryStorage(
+            particle_type=8,
+            out_folder=str(tmp_path),
+            fail_if_exists=False,
+        )
+        overwrite_storage.write(
+            _make_agent_trajectory(
+                8,
+                episode_length=2,
+                n_colloids=2,
+                base_value=9.0,
+            )
+        )
+
+        file_path = tmp_path / "agent_data_8.hdf5"
+        with h5py.File(file_path.as_posix(), "r") as h5_file:
+            dataset = h5_file["Agent_8"]["actions"]
+            assert int(dataset[0, 0, 0]) == 9
+
     def test_agent_storage_rejects_unknown_stored_attribute(self, tmp_path: Path):
         with pytest.raises(ValueError, match="Unknown stored_attributes"):
             AgentTrajectoryStorage(

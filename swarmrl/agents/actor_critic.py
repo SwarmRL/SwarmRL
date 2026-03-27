@@ -15,7 +15,7 @@ from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
 from swarmrl.utils.colloid_utils import TrajectoryInformation
-from swarmrl.utils.storage_utils import AgentTrajectoryStorage
+from swarmrl.utils.storage_utils import AgentStorageConfig, AgentTrajectoryStorage
 
 
 class ActorCriticAgent(Agent):
@@ -33,10 +33,7 @@ class ActorCriticAgent(Agent):
         loss: Loss = ProximalPolicyLoss(),
         train: bool = True,
         intrinsic_reward: IntrinsicReward = None,
-        save_agent_data_to_file: bool = False,
-        out_folder: str = "./agent_data",
-        storage_preset: str = "minimal",
-        stored_attributes: list[str] = None,
+        storage_config: AgentStorageConfig | None = None,
     ):
         """
         Constructor for the actor-critic protocol.
@@ -57,17 +54,9 @@ class ActorCriticAgent(Agent):
                 Flag to indicate if the agent is training.
         intrinsic_reward : IntrinsicReward (default=None)
                 Intrinsic reward to use for the agent.
-        save_agent_data_to_file : bool (default=False)
-                Flag to indicate if the agent should record data.
-        out_folder : str (default="./agent_data")
-            Folder to store the agent data file.
-        storage_preset : str (default="minimal")
-            Preset for storage fields: "minimal" (actions,
-            rewards) or "verbose" (+features, log_probs, killed).
-        stored_attributes : list (default=None)
-            Explicit whitelist of attributes to store
-            (e.g., ["actions", "features"]).
-            Overrides storage_preset if provided.
+        storage_config : AgentStorageConfig | None (default=None)
+            Optional storage configuration. If None, no trajectory data is
+            persisted to file.
         """
         # Properties of the agent.
         self.network = network
@@ -82,18 +71,16 @@ class ActorCriticAgent(Agent):
         # Trajectory to be updated.
         self.trajectory = TrajectoryInformation(particle_type=self.particle_type)
 
-        # Initialize storage only if saving is enabled
-        self.save_agent_data_to_file = save_agent_data_to_file
-        self.trajectory_storage = (
-            AgentTrajectoryStorage(
+        self.storage_config = storage_config
+        self.trajectory_storage = None
+        if self.storage_config is not None:
+            self.trajectory_storage = AgentTrajectoryStorage(
                 particle_type=self.particle_type,
-                out_folder=out_folder,
-                preset=storage_preset,
-                stored_attributes=stored_attributes,
+                out_folder=self.storage_config.out_folder,
+                preset=self.storage_config.storage_preset,
+                stored_attributes=self.storage_config.stored_attributes,
+                fail_if_exists=self.storage_config.fail_if_exists,
             )
-            if save_agent_data_to_file
-            else None
-        )
 
     def __name__(self) -> str:
         """
@@ -133,7 +120,7 @@ class ActorCriticAgent(Agent):
             self.intrinsic_reward.update(self.trajectory)
 
         # Save the agent trajectory data if requested
-        if self.save_agent_data_to_file:
+        if self.trajectory_storage is not None:
             self.trajectory_storage.write(self.trajectory)
 
         # Reset the trajectory storage.
