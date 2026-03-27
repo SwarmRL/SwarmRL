@@ -6,7 +6,14 @@ from swarmrl.utils.storage_utils import (
     AgentTrajectoryStorage,
     SimulationTrajectoryStorage,
 )
-from swarmrl.utils.utils import create_colloids, setup_sim_folder, write_params
+from swarmrl.utils.utils import (
+    calc_ellipsoid_friction_factors_rotation,
+    calc_ellipsoid_friction_factors_translation,
+    convert_array_of_pint_to_pint_of_array,
+    create_colloids,
+    setup_sim_folder,
+    write_params,
+)
 
 __all__ = [
     "TrajectoryInformation",
@@ -14,6 +21,9 @@ __all__ = [
     "create_colloids",
     "setup_sim_folder",
     "write_params",
+    "calc_ellipsoid_friction_factors_translation",
+    "calc_ellipsoid_friction_factors_rotation",
+    "convert_array_of_pint_to_pint_of_array",
     "AgentStorageConfig",
     "AgentTrajectoryStorage",
     "SimulationTrajectoryStorage",
