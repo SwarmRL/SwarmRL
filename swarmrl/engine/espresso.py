@@ -148,6 +148,7 @@ class EspressoMD(Engine):
         write_chunk_size=100,
         system=None,
         h5_group_tag=None,
+        fail_if_trajectory_file_exists: bool = True,
     ):
         """
         Constructor for the espressoMD engine.
@@ -171,6 +172,8 @@ class EspressoMD(Engine):
                 Note: We try to clear the passed system of any previous contents,
                 but do not guarantee that everything is reset completely. Use at
                 own risk.
+        fail_if_trajectory_file_exists : bool (default=True)
+            If True, fail when the trajectory output file already exists.
         """
         self.params: MDParams = md_params
         self.out_folder = pathlib.Path(out_folder).resolve()
@@ -187,6 +190,7 @@ class EspressoMD(Engine):
             self.h5_group_tag = "colloids"
         else:
             self.h5_group_tag = h5_group_tag
+        self.fail_if_trajectory_file_exists = fail_if_trajectory_file_exists
 
         if system is None:
             self.system = espressomd.System(box_l=3 * [1.0])
@@ -1090,6 +1094,7 @@ class EspressoMD(Engine):
         self._trajectory_storage = SimulationTrajectoryStorage(
             out_folder=str(self.out_folder),
             h5_group_tag=self.h5_group_tag,
+            fail_if_exists=self.fail_if_trajectory_file_exists,
         )
         self._trajectory_storage._init_h5_output(dummy_sample)
 
