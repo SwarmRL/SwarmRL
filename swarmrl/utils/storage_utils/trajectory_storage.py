@@ -78,7 +78,7 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
         particle_type: int,
         out_folder: str = "./Agent_Data",
         preset: str = "minimal",
-        stored_fields: list = None,
+        stored_attributes: list = None,
     ):
         """
         Initialize agent trajectory storage.
@@ -91,38 +91,44 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
             Output folder path.
         preset : str (default="minimal")
             Preset for storage: "minimal" or "verbose".
-            Ignored if stored_fields is provided.
-        stored_fields : list (default=None)
-            Explicit whitelist of fields to store
+            Ignored if stored_attributes is provided.
+        stored_attributes : list (default=None)
+            Explicit whitelist of attributes to store
             (e.g., ["actions", "features"]).
             Overrides preset if provided.
         """
-        if stored_fields is None:
+        if stored_attributes is None:
             if preset not in self.PRESETS:
                 raise ValueError(f"preset must be one of {list(self.PRESETS.keys())}")
-            self.stored_fields = list(self.PRESETS[preset])
+            self.stored_attributes = list(self.PRESETS[preset])
         else:
-            if not isinstance(stored_fields, (list, tuple, set)):
+            if not isinstance(stored_attributes, (list, tuple, set)):
                 raise TypeError(
-                    "stored_fields must be a list, tuple, or set of field names"
+                    "stored_attributes must be a list, tuple, or set of "
+                    "attribute names"
                 )
 
             # Deduplicate while preserving order.
-            normalized_fields = list(dict.fromkeys(stored_fields))
+            normalized_attributes = list(dict.fromkeys(stored_attributes))
 
-            if len(normalized_fields) == 0:
-                raise ValueError("stored_fields must contain at least one field")
-
-            unknown_fields = [
-                field for field in normalized_fields if field not in self.ALLOWED_FIELDS
-            ]
-            if unknown_fields:
+            if len(normalized_attributes) == 0:
                 raise ValueError(
-                    "Unknown stored_fields: "
-                    f"{unknown_fields}. Allowed: {sorted(self.ALLOWED_FIELDS)}"
+                    "stored_attributes must contain at least one attribute"
                 )
 
-            self.stored_fields = normalized_fields
+            unknown_attributes = [
+                attribute
+                for attribute in normalized_attributes
+                if attribute not in self.ALLOWED_FIELDS
+            ]
+            if unknown_attributes:
+                raise ValueError(
+                    "Unknown stored_attributes: "
+                    f"{unknown_attributes}. "
+                    f"Allowed: {sorted(self.ALLOWED_FIELDS)}"
+                )
+
+            self.stored_attributes = normalized_attributes
 
         super().__init__(
             out_folder=out_folder,
@@ -136,21 +142,21 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
     def _build_agent_specs(self, trajectory) -> Dict[str, Dict[str, Any]]:
         specs = {}
 
-        if "actions" in self.stored_fields:
+        if "actions" in self.stored_attributes:
             actions = np.asarray(trajectory.actions)
             specs["actions"] = {
                 "shape": (1, *actions.shape),
                 "maxshape": (None, *actions.shape),
                 "dtype": actions.dtype,
             }
-        if "log_probs" in self.stored_fields:
+        if "log_probs" in self.stored_attributes:
             log_probs = np.asarray(trajectory.log_probs)
             specs["log_probs"] = {
                 "shape": (1, *log_probs.shape),
                 "maxshape": (None, *log_probs.shape),
                 "dtype": log_probs.dtype,
             }
-        if "rewards" in self.stored_fields:
+        if "rewards" in self.stored_attributes:
             rewards = np.asarray(trajectory.rewards)
             specs["rewards"] = {
                 "shape": (1, *rewards.shape),
@@ -158,7 +164,7 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
                 "dtype": rewards.dtype,
             }
 
-        if "features" in self.stored_fields:
+        if "features" in self.stored_attributes:
             if getattr(trajectory, "features", None) is not None:
                 features = np.asarray(trajectory.features)
                 if features.size > 0:
@@ -167,7 +173,7 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
                         "maxshape": (None, *features.shape),
                         "dtype": features.dtype,
                     }
-        if "killed" in self.stored_fields:
+        if "killed" in self.stored_attributes:
             killed = np.asarray([trajectory.killed], dtype=np.bool_)
             specs["killed"] = {
                 "shape": (1, 1),
@@ -175,7 +181,7 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
                 "dtype": killed.dtype,
             }
 
-        if "particle_type" in self.stored_fields:
+        if "particle_type" in self.stored_attributes:
             particle_type = np.asarray([trajectory.particle_type], dtype=np.int64)
             specs["particle_type"] = {
                 "shape": (1, 1),
@@ -188,21 +194,21 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
     def _extract_agent_sample(self, trajectory) -> Dict[str, Any]:
         sample = {}
 
-        if "actions" in self.stored_fields:
+        if "actions" in self.stored_attributes:
             sample["actions"] = trajectory.actions
-        if "log_probs" in self.stored_fields:
+        if "log_probs" in self.stored_attributes:
             sample["log_probs"] = trajectory.log_probs
-        if "rewards" in self.stored_fields:
+        if "rewards" in self.stored_attributes:
             sample["rewards"] = trajectory.rewards
-        if "killed" in self.stored_fields:
+        if "killed" in self.stored_attributes:
             sample["killed"] = np.asarray([trajectory.killed], dtype=np.bool_)
-        if "particle_type" in self.stored_fields:
+        if "particle_type" in self.stored_attributes:
             sample["particle_type"] = np.asarray(
                 [trajectory.particle_type],
                 dtype=np.int64,
             )
 
-        if "features" in self.stored_fields:
+        if "features" in self.stored_attributes:
             if getattr(trajectory, "features", None) is not None:
                 features = np.asarray(trajectory.features)
                 if features.size > 0:

@@ -67,28 +67,31 @@ def _make_sim_timestep(n_colloids: int, time_value: float) -> dict:
 
 
 class TestStorageWriters:
-    def test_agent_storage_rejects_unknown_stored_field(self, tmp_path: Path):
-        with pytest.raises(ValueError, match="Unknown stored_fields"):
+    def test_agent_storage_rejects_unknown_stored_attribute(self, tmp_path: Path):
+        with pytest.raises(ValueError, match="Unknown stored_attributes"):
             AgentTrajectoryStorage(
                 particle_type=1,
                 out_folder=str(tmp_path),
-                stored_fields=["actions", "foo"],
+                stored_attributes=["actions", "foo"],
             )
 
-    def test_agent_storage_rejects_empty_stored_fields(self, tmp_path: Path):
-        with pytest.raises(ValueError, match="at least one field"):
+    def test_agent_storage_rejects_empty_stored_attributes(self, tmp_path: Path):
+        with pytest.raises(ValueError, match="at least one attribute"):
             AgentTrajectoryStorage(
                 particle_type=1,
                 out_folder=str(tmp_path),
-                stored_fields=[],
+                stored_attributes=[],
             )
 
-    def test_agent_storage_rejects_non_iterable_stored_fields(self, tmp_path: Path):
+    def test_agent_storage_rejects_non_iterable_stored_attributes(
+        self,
+        tmp_path: Path,
+    ):
         with pytest.raises(TypeError, match="list, tuple, or set"):
             AgentTrajectoryStorage(
                 particle_type=1,
                 out_folder=str(tmp_path),
-                stored_fields="actions",
+                stored_attributes="actions",
             )
 
     def test_agent_storage_default_skips_features(self, tmp_path: Path):
@@ -168,7 +171,7 @@ class TestStorageWriters:
         storage = AgentTrajectoryStorage(
             particle_type=4,
             out_folder=str(tmp_path),
-            stored_fields=["actions", "rewards"],
+            stored_attributes=["actions", "rewards"],
         )
         trajectory = _make_agent_trajectory(
             4,
@@ -191,7 +194,7 @@ class TestStorageWriters:
         storage = AgentTrajectoryStorage(
             particle_type=4,
             out_folder=str(tmp_path),
-            stored_fields=["killed", "particle_type"],
+            stored_attributes=["killed", "particle_type"],
         )
         trajectory = _make_agent_trajectory(
             4,

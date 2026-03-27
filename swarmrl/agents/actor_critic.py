@@ -36,7 +36,7 @@ class ActorCriticAgent(Agent):
         save_agent_data_to_file: bool = False,
         out_folder: str = "./agent_data",
         storage_preset: str = "minimal",
-        stored_fields: list[str] = None,
+        stored_attributes: list[str] = None,
     ):
         """
         Constructor for the actor-critic protocol.
@@ -65,8 +65,8 @@ class ActorCriticAgent(Agent):
             Preset for storage fields: "minimal" (actions,
             rewards) or "verbose" (+features, log_probs, killed,
             particle_type).
-        stored_fields : list (default=None)
-            Explicit whitelist of fields to store
+        stored_attributes : list (default=None)
+            Explicit whitelist of attributes to store
             (e.g., ["actions", "features"]).
             Overrides storage_preset if provided.
         """
@@ -90,7 +90,7 @@ class ActorCriticAgent(Agent):
                 particle_type=self.particle_type,
                 out_folder=out_folder,
                 preset=storage_preset,
-                stored_fields=stored_fields,
+                stored_attributes=stored_attributes,
             )
             if save_agent_data_to_file
             else None
