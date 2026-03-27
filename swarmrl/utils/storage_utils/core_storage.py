@@ -18,7 +18,7 @@ class HDF5TrajectoryStorage(ABC):
 
     def __init__(
         self,
-        out_folder: str = "./Data",
+        out_folder: str = "./data",
         filename: str = "trajectory.hdf5",
     ):
         self.out_folder = pathlib.Path(out_folder)
