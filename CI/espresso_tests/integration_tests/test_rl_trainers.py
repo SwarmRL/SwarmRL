@@ -356,6 +356,55 @@ class EspressoTestRLTrainers(ut.TestCase):
             dumped_files = glob.glob(f"{temp_dir}/episodic/*")
             assert len(dumped_files) == 5
 
+    def test_episodic_training_does_not_stop_with_best_checkpointer(self):
+        """
+        BestRewardCheckpointer should not trigger a training stop.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+
+            def get_engine(system):
+                """
+                Get the engine.
+                """
+                seed = np.random.randint(89675392)
+                system_runner = srl.espresso.EspressoMD(
+                    md_params=self.md_params,
+                    n_dims=2,
+                    seed=seed,
+                    out_folder=f"{temp_dir}/episodic/{seed}",
+                    system=self.system,
+                    write_chunk_size=10,
+                )
+
+                coll_type = 0
+                system_runner.add_colloids(
+                    5,
+                    self.ureg.Quantity(2.14, "micrometer"),
+                    self.ureg.Quantity(np.array([500, 500, 0]), "micrometer"),
+                    self.ureg.Quantity(400, "micrometer"),
+                    type_colloid=coll_type,
+                )
+
+                return system_runner
+
+            checkpointer = srl.checkpointers.BestRewardCheckpointer(
+                out_path=f"{temp_dir}/checkpoints"
+            )
+            rl_trainer = srl.trainers.EpisodicTrainer(
+                [self.agent],
+                checkpointers=[checkpointer],
+            )
+            rl_trainer.perform_rl_training(
+                get_engine=get_engine,
+                n_episodes=10,
+                system=self.system,
+                episode_length=10,
+                save_episodic_data=False,
+            )
+
+            dumped_files = glob.glob(f"{temp_dir}/episodic/*")
+            assert len(dumped_files) == 10
+
     def test_semi_episodic_data_writing(self):
         """
         Test the episodic training for set episode length.
