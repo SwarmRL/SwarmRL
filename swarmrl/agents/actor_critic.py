@@ -15,6 +15,7 @@ from swarmrl.networks.network import Network
 from swarmrl.observables.observable import Observable
 from swarmrl.tasks.task import Task
 from swarmrl.utils.colloid_utils import TrajectoryInformation
+from swarmrl.utils.storage_utils import AgentStorageConfig, AgentTrajectoryStorage
 
 
 class ActorCriticAgent(Agent):
@@ -32,6 +33,7 @@ class ActorCriticAgent(Agent):
         loss: Loss = ProximalPolicyLoss(),
         train: bool = True,
         intrinsic_reward: IntrinsicReward = None,
+        storage_config: AgentStorageConfig | None = None,
     ):
         """
         Constructor for the actor-critic protocol.
@@ -52,6 +54,9 @@ class ActorCriticAgent(Agent):
                 Flag to indicate if the agent is training.
         intrinsic_reward : IntrinsicReward (default=None)
                 Intrinsic reward to use for the agent.
+        storage_config : AgentStorageConfig | None (default=None)
+            Optional storage configuration. If None, no trajectory data is
+            persisted to file.
         """
         # Properties of the agent.
         self.network = network
@@ -65,6 +70,17 @@ class ActorCriticAgent(Agent):
 
         # Trajectory to be updated.
         self.trajectory = TrajectoryInformation(particle_type=self.particle_type)
+
+        self.storage_config = storage_config
+        self.trajectory_storage = None
+        if self.storage_config is not None:
+            self.trajectory_storage = AgentTrajectoryStorage(
+                particle_type=self.particle_type,
+                out_folder=self.storage_config.out_folder,
+                preset=self.storage_config.storage_preset,
+                stored_attributes=self.storage_config.stored_attributes,
+                fail_if_exists=self.storage_config.fail_if_exists,
+            )
 
     def __name__(self) -> str:
         """
@@ -102,6 +118,9 @@ class ActorCriticAgent(Agent):
         # Update the intrinsic reward if set.
         if self.intrinsic_reward:
             self.intrinsic_reward.update(self.trajectory)
+
+        # Save the agent trajectory data if requested
+        self.persist_trajectory(self.trajectory)
 
         # Reset the trajectory storage.
         self.reset_trajectory()

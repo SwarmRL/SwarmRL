@@ -17,10 +17,10 @@ from swarmrl import (
     tasks,
     trainers,
     training_routines,
+    utils,
     value_functions,
 )
 from swarmrl.engine import espresso
-from swarmrl.utils import utils
 
 # Setup a swarmrl logger but disable it.
 # Use logging_utils.setup_swarmrl_logger() to actually enable/configure the logger.
