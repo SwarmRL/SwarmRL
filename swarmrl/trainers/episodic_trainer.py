@@ -12,6 +12,8 @@ from swarmrl.trainers.trainer import Trainer
 if TYPE_CHECKING:
     from espressomd import System
 
+from loguru import logger
+
 
 class EpisodicTrainer(Trainer):
     """
@@ -65,7 +67,7 @@ class EpisodicTrainer(Trainer):
         simulation, the system will be reset.
         """
         killed = False
-        rewards = [0.0]
+        rewards = np.zeros(n_episodes)
         current_reward = 0.0
         force_fn = self.initialize_training()
         cycle_index = 0
@@ -81,16 +83,18 @@ class EpisodicTrainer(Trainer):
             task = progress.add_task(
                 "Episodic Training",
                 total=n_episodes,
-                Episode=0,
+                Episode=1,
                 current_reward=current_reward,
                 running_reward=np.mean(rewards),
                 visible=load_bar,
             )
 
+            break_training = False
+            stop_after_episode = -1
             for episode in range(n_episodes):
                 # Check if the system should be reset.
                 if episode % reset_frequency == 0 or killed:
-                    print(f"Resetting the system at episode {episode}")
+                    logger.info(f"Resetting the system at episode {episode}")
                     self.engine = None
                     if save_episodic_data:
                         try:
@@ -115,16 +119,42 @@ class EpisodicTrainer(Trainer):
 
                 force_fn, current_reward, killed = self.update_rl()
 
-                rewards.append(current_reward)
+                rewards[episode] = current_reward
+                self.maybe_save_checkpoint(rewards, episode, current_reward)
 
-                episode += 1
+                logger.debug(f"{episode=}")
+                logger.debug(f"{current_reward=}")
+
+                display_episode = episode + 1
+                if display_episode < 10:
+                    running_reward = np.round(np.mean(rewards[:display_episode]), 2)
+                else:
+                    running_reward = np.round(
+                        np.mean(rewards[display_episode - 10 : display_episode]), 2
+                    )
+
                 progress.update(
                     task,
                     advance=1,
-                    Episode=episode,
+                    Episode=episode + 1,
                     current_reward=np.round(current_reward, 2),
-                    running_reward=np.round(np.mean(rewards[-10:]), 2),
+                    running_reward=running_reward,
                 )
                 self.engine.finalize()
+
+                if not break_training:
+                    break_training, stop_after_episode = self.check_for_stop_criterion()
+
+                if break_training:
+                    if episode < stop_after_episode:
+                        logger.info(
+                            "Stopping criterion reached, but running out training"
+                            f" until {stop_after_episode}"
+                        )
+                    else:
+                        logger.info(
+                            f"Stopping training after episode {stop_after_episode}"
+                        )
+                        break
 
         return np.array(rewards)

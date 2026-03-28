@@ -3,6 +3,7 @@ Module to implement a simple multi-layer perceptron for the colloids.
 """
 
 import numpy as np
+from loguru import logger
 from rich.progress import BarColumn, Progress, TimeRemainingColumn
 
 from swarmrl.engine.engine import Engine
@@ -41,10 +42,12 @@ class ContinuousTrainer(Trainer):
                 If true, show a progress bar.
         """
         self.engine = system_runner
-        rewards = [0.0]
+        rewards = np.zeros(n_episodes)
         current_reward = 0.0
         episode = 0
+        completed_episodes = 0
         force_fn = self.initialize_training()
+        did_finalize = False
 
         # Initialize the tasks and observables.
         for agent in self.agents.values():
@@ -64,26 +67,56 @@ class ContinuousTrainer(Trainer):
                 total=n_episodes,
                 Episode=episode,
                 current_reward=current_reward,
-                running_reward=np.mean(rewards),
+                running_reward=0.0,
                 visible=load_bar,
             )
-            for _ in range(n_episodes):
+            break_training = False
+            stop_after_episode = -1
+            for episode in range(n_episodes):
                 self.engine.integrate(episode_length, force_fn)
                 force_fn, current_reward, killed = self.update_rl()
+                rewards[episode] = current_reward
+                completed_episodes = episode + 1
 
                 if killed:
-                    print("Simulation has been ended by the task, ending training.")
+                    logger.info(
+                        "Simulation has been ended by the task, ending training."
+                    )
                     system_runner.finalize()
+                    did_finalize = True
                     break
 
-                rewards.append(current_reward)
-                episode += 1
+                self.maybe_save_checkpoint(rewards, episode, current_reward)
+
+                running_start = max(0, episode - 9)
+                running_reward = np.round(
+                    np.mean(rewards[running_start : episode + 1]), 2
+                )
                 progress.update(
                     task,
                     advance=1,
-                    Episode=episode,
+                    Episode=episode + 1,
                     current_reward=np.round(current_reward, 2),
-                    running_reward=np.round(np.mean(rewards[-10:]), 2),
+                    running_reward=running_reward,
                 )
 
-        return np.array(rewards)
+                if not break_training:
+                    break_training, stop_after_episode = self.check_for_stop_criterion()
+
+                if break_training:
+                    if episode < stop_after_episode:
+                        logger.info(
+                            "Stopping criterion reached, but running out training"
+                            f" until {stop_after_episode}"
+                        )
+                    else:
+                        logger.info(
+                            f"Stopping training after episode {stop_after_episode}"
+                        )
+                        system_runner.finalize()
+                        did_finalize = True
+                        break
+
+            if not did_finalize:
+                system_runner.finalize()
+        return np.array(rewards[:completed_episodes])
