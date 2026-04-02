@@ -44,3 +44,19 @@ class Agent:
                 Flag capable of ending simulation.
         """
         raise NotImplementedError("Implemented in Child class.")
+
+    def calc_reward(
+        self, colloids: typing.List[Colloid], external_reward: float = 0.0
+    ) -> None:
+        """
+        Compute the reward for the agent based on the current state.
+
+        Parameters
+        ----------
+        colloids: typing.List[Colloid]
+                List of colloids in the simulation.
+        external_reward: float
+                External reward from the environment.
+
+        """
+        raise NotImplementedError("Implemented in Child class.")
