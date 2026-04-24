@@ -18,13 +18,13 @@ class TestExpectedReturns:
         Test that unstandardized returns work correctly.
         """
         # Sum over the rewards starting from index i, (0, 0), 1 + 2 + 3 and so on.
-        true_values = np.array([[6, 15], [5, 11], [3, 6]])
+        true_values = np.array([[6.0, 15.0], [5.0, 11.0], [3.0, 6.0]])
 
         # Trivial gamma function for analytic simplicity.
         value_function = ExpectedReturns(gamma=1.0, standardize=False)
 
         # 2 particles, 3 time steps
-        rewards = np.array([[1, 4], [2, 5], [3, 6]])
+        rewards = np.array([[1.0, 4.0], [2.0, 5.0], [3.0, 6.0]])
 
         expected_returns = value_function(rewards)
 
@@ -41,7 +41,15 @@ class TestExpectedReturns:
         true_std = np.array([1.0, 1.0])
 
         # 2 particles, 3 time steps
-        rewards = np.array([[1, 4], [2, 5], [3, 6], [4, 7], [5, 8], [6, 9], [7, 10]])
+        rewards = np.array([
+            [1.0, 4.0],
+            [2.0, 5.0],
+            [3.0, 6.0],
+            [4.0, 7.0],
+            [5.0, 8.0],
+            [6.0, 9.0],
+            [7.0, 10.0],
+        ])
 
         expected_returns = value_function(rewards)
 
