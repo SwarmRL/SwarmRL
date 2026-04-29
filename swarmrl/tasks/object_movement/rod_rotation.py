@@ -102,20 +102,23 @@ class RotateRod(Task):
             np.dot(self._historic_rod_director[:2], new_director[:2]),
         )
 
-        # Convert to rph for better scaling
-        angular_velocity = ((np.rad2deg(angular_velocity) / 10.0) / 360) * 60 * 60
+        # Convert to degrees for better scaling.
+        angular_velocity = np.rad2deg(angular_velocity)
 
         # Update the historical rod director and velocity.
         self._historic_rod_director = new_director
-        self._velocity_history = np.roll(self._velocity_history, -1)
-        self._velocity_history = self._velocity_history.at[self._append_index].set(
-            angular_velocity
-        )
+        
+        # If velocity history is uninitialized (all zeros), fill it with current velocity
+        if np.all(self._velocity_history == 0):
+            self._velocity_history = np.full_like(self._velocity_history, angular_velocity)
+        else:
+            self._velocity_history = np.roll(self._velocity_history, -1)
+            self._velocity_history = self._velocity_history.at[self._append_index].set(
+                angular_velocity
+            )
 
         # Return the scaled average velocity.
-        return np.clip(
-            self.angular_velocity_scale * np.nanmean(self._velocity_history), 0.0, None
-        )
+        return self.angular_velocity_scale * np.nanmean(self._velocity_history)
 
     def partition_reward(
         self,

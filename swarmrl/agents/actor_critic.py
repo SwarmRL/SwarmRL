@@ -194,12 +194,23 @@ class ActorCriticAgent(Agent):
         )
         chosen_actions = np.take(list(self.actions.values()), action_indices, axis=-1)
 
+        # Compute extrinsic rewards.
+        rewards = self.task(colloids)
+        # Compute intrinsic rewards if set.
+        if self.intrinsic_reward:
+            rewards += self.intrinsic_reward.compute_reward(
+                episode_data=self.trajectory
+            )
+
         # Update the trajectory information.
         if self.train:
             self.trajectory.features.append(state_description)
             self.trajectory.actions.append(action_indices)
             self.trajectory.log_probs.append(log_probs)
+            self.trajectory.rewards.append(rewards)
             self.trajectory.killed = self.task.kill_switch
+
+        self.kill_switch = self.task.kill_switch
 
         return chosen_actions
 
