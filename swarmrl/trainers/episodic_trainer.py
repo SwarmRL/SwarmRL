@@ -136,8 +136,8 @@ class EpisodicTrainer(Trainer):
                     task,
                     advance=1,
                     Episode=episode,
-                    current_reward=np.round(current_reward, 2),
-                    running_reward=np.round(np.mean(rewards[-10:]), 2),
+                    current_reward=np.round(current_reward, 4),
+                    running_reward=running_reward,
                 )
                 self.engine.finalize()
 
