@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A Python library for multi-agent reinforcement learning."
 authors = [
     {name = "Samuel Tovey", email = "tovey.samuel@gmail.com"},
-    {name = "Christoph Lohrmann"} # Note: I added an 'h' here assuming "Christop" was a typo!
+    {name = "Christoph Lohrmann"}
 ]
 requires-python = ">=3.11"
 

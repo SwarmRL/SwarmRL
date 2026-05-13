@@ -1,4 +1,5 @@
 import numpy as np
+from loguru import logger
 
 from swarmrl.actions.actions import Action
 from swarmrl.agents.classical_agent import ClassicalAgent
@@ -105,7 +106,11 @@ class Lymburn(ClassicalAgent):
             )
 
             force_magnitude = np.linalg.norm(force)
-            force_direction = force / force_magnitude
+            if force_magnitude == 0:
+                logger.debug("Force magnitude is exactly zero")
+                force_direction = np.zeros_like(force)
+            else:
+                force_direction = force / force_magnitude
 
             actions.append(Action(force=force_magnitude, new_direction=force_direction))
         return actions

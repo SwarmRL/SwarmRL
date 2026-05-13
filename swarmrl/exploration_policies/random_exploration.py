@@ -52,8 +52,8 @@ class RandomExploration(ExplorationPolicy, ABC):
         key = jax.random.PRNGKey(seed)
         sample = jax.random.uniform(key, shape=model_actions.shape)
 
-        to_be_changed = np.clip(sample - self.probability, a_min=0, a_max=1)
-        to_be_changed = np.clip(to_be_changed * 1e6, a_min=0, a_max=1)
+        to_be_changed = np.clip(sample - self.probability, min=0, max=1)
+        to_be_changed = np.clip(to_be_changed * 1e6, min=0, max=1)
         not_to_be_changed = np.clip(to_be_changed * -10 + 1, 0, 1)
 
         # Choose random actions
