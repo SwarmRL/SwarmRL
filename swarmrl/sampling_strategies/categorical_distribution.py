@@ -8,12 +8,12 @@ import jax
 import jax.numpy as np
 import numpy as onp
 
-from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
+from swarmrl.sampling_strategies.sampling_strategy import DiscreteSamplingStrategy
 
 
-class CategoricalDistribution(SamplingStrategy, ABC):
+class CategoricalDistribution(DiscreteSamplingStrategy, ABC):
     """
-    Class for the Gumbel distribution.
+    Class for the categorical distribution.
     """
 
     def __init__(self, noise: str = "none"):
@@ -39,7 +39,7 @@ class CategoricalDistribution(SamplingStrategy, ABC):
             )
             raise KeyError(msg)
 
-    def __call__(self, logits: np.ndarray) -> np.ndarray:
+    def __call__(self, logits: np.ndarray, rng_key=None) -> np.ndarray:
         """
         Sample from the distribution.
 
@@ -47,15 +47,19 @@ class CategoricalDistribution(SamplingStrategy, ABC):
         ----------
         logits : np.ndarray (n_colloids, n_dimensions)
                 Logits from the model to use in the computation for all colloids.
-        entropy : bool
-                If true, the Shannon entropy of the distribution is returned.
+        rng_key : Optional[jax.Array]
+                PRNG key for sampling. If ``None``, a random fallback key is created.
 
         Returns
         -------
         indices : np.ndarray (n_colloids,)
                 Index of the selected option in the distribution.
         """
-        rng = jax.random.PRNGKey(onp.random.randint(0, 1236534623))
+        rng = (
+            jax.random.PRNGKey(onp.random.randint(0, 1236534623))
+            if rng_key is None
+            else rng_key
+        )
 
         try:
             noise = self.noise(rng, shape=logits.shape)

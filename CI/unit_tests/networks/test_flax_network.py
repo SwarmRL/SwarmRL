@@ -9,6 +9,7 @@ import flax.linen as nn
 import jax
 import numpy as np
 import optax
+import pytest
 
 import swarmrl as srl
 from swarmrl.agents.actor_critic import ActorCriticAgent
@@ -202,3 +203,75 @@ class TestFlaxNetwork:
                 path for path in Path(temp_directory).iterdir() if path.is_file()
             ]
             np.testing.assert_equal(len(saved_models), 4)
+
+    def test_mode_mismatch_raises(self):
+        class ContinuousNetwork(nn.Module):
+            @nn.compact
+            def __call__(self, x):
+                x = nn.Dense(features=32)(x)
+                x = nn.relu(x)
+                y = nn.Dense(features=1)(x)
+                x = nn.Dense(features=6)(x)
+                return x, y
+
+        with pytest.raises(ValueError):
+            FlaxModel(
+                flax_model=ContinuousNetwork(),
+                optimizer=optax.adam(learning_rate=0.001),
+                input_shape=(2,),
+                sampling_strategy=srl.sampling_strategies.ContinuousGaussianDistribution(
+                    action_dimension=3
+                ),
+                exploration_policy=srl.exploration_policies.RandomExploration(
+                    probability=0.1
+                ),
+            )
+
+    def test_compute_action_continuous_training_and_deployment(self):
+        class ContinuousNetwork(nn.Module):
+            @nn.compact
+            def __call__(self, x):
+                x = nn.Dense(features=64)(x)
+                x = nn.relu(x)
+                y = nn.Dense(features=1)(x)
+                x = nn.Dense(features=6)(x)
+                return x, y
+
+        limits = np.array([[-1.0, 1.0], [-0.5, 0.5], [-2.0, 2.0]], dtype=np.float32)
+
+        # Training mode: compute log-probs.
+        train_model = FlaxModel(
+            flax_model=ContinuousNetwork(),
+            optimizer=optax.adam(learning_rate=0.001),
+            input_shape=(2,),
+            sampling_strategy=srl.sampling_strategies.ContinuousGaussianDistribution(
+                action_dimension=3, action_limits=limits
+            ),
+            exploration_policy=srl.exploration_policies.GlobalOUExploration(
+                action_limits=limits, action_dimension=3, epsilon=1.0
+            ),
+            deployment_mode=False,
+        )
+        input_data = np.array([[0.1, 0.2], [0.3, 0.4]], dtype=np.float32)
+        actions, log_probs = train_model.compute_action(input_data)
+        assert actions.shape == (2, 3)
+        assert log_probs is not None
+        assert log_probs.shape == (2,)
+
+        # Deployment mode: deterministic Gaussian output, no log-probs.
+        deploy_model = FlaxModel(
+            flax_model=ContinuousNetwork(),
+            optimizer=optax.adam(learning_rate=0.001),
+            input_shape=(2,),
+            sampling_strategy=srl.sampling_strategies.ContinuousGaussianDistribution(
+                action_dimension=3, action_limits=limits
+            ),
+            exploration_policy=srl.exploration_policies.GlobalOUExploration(
+                action_limits=limits, action_dimension=3, epsilon=1.0
+            ),
+            deployment_mode=True,
+        )
+        deploy_model.model_state = train_model.model_state
+        deploy_actions, deploy_log_probs = deploy_model.compute_action(input_data)
+        assert deploy_actions.shape == (2, 3)
+        assert deploy_log_probs is None

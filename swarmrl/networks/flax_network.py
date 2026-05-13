@@ -16,11 +16,19 @@ from flax.training.train_state import TrainState
 from loguru import logger
 from optax._src.base import GradientTransformation
 
-from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
+from swarmrl.exploration_policies.exploration_policy import (
+    ContinuousExplorationPolicy,
+    DiscreteExplorationPolicy,
+    ExplorationPolicy,
+)
 from swarmrl.exploration_policies.random_exploration import RandomExploration
 from swarmrl.networks.network import Network
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
-from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
+from swarmrl.sampling_strategies.sampling_strategy import (
+    ContinuousSamplingStrategy,
+    DiscreteSamplingStrategy,
+    SamplingStrategy,
+)
 
 
 class FlaxModel(Network, ABC):
@@ -55,16 +63,22 @@ class FlaxModel(Network, ABC):
                 cross-compatibility is not assured.
         input_shape : tuple
                 Shape of the NN input.
+        exploration_policy : ExplorationPolicy
+                Exploration module. Must match the sampling strategy mode
+                (discrete/discrete or continuous/continuous).
+        sampling_strategy : SamplingStrategy
+                Strategy that samples actions from network outputs.
         rng_key : int
-                Key to seed the model with. Default is a randomly generated key but
-                the parameter is here for testing purposes.
+                Integer seed used to initialize the model's internal JAX PRNG key.
         deployment_mode : bool
                 If true, the model is a shell for the network and nothing else. No
                 training can be performed, this is only used in deployment.
         """
         if rng_key is None:
-            rng_key = onp.random.randint(0, 1027465782564)
+            rng_key = int(onp.random.randint(0, 2**31 - 1))
+        self._rng_key = jax.random.PRNGKey(int(rng_key))
         self.sampling_strategy = sampling_strategy
+        self._sample_mode = self._infer_sampling_mode(sampling_strategy)
         self.model = flax_model
         self.apply_fn = jax.jit(
             jax.vmap(self.model.apply, in_axes=(None, 0))
@@ -73,16 +87,45 @@ class FlaxModel(Network, ABC):
         self.input_shape = input_shape
         self.model_state = None
 
+        self.deployment_mode = deployment_mode
+
         if not deployment_mode:
             self.optimizer = optimizer
             self.exploration_policy = exploration_policy
+            self._exploration_mode = self._infer_exploration_mode(exploration_policy)
+            if self._sample_mode != self._exploration_mode:
+                raise ValueError(
+                    "Sampling strategy and exploration policy modes must match. "
+                    f"Got sampling='{self._sample_mode}' and "
+                    f"exploration='{self._exploration_mode}'."
+                )
 
             # initialize the model state
-            init_rng = jax.random.PRNGKey(rng_key)
-            _, subkey = jax.random.split(init_rng)
-            self.model_state = self._create_train_state(subkey)
+            self._rng_key, init_subkey = jax.random.split(self._rng_key)
+            self.model_state = self._create_train_state(init_subkey)
 
             self.epoch_count = 0
+
+    @staticmethod
+    def _infer_exploration_mode(exploration_policy: ExplorationPolicy) -> str:
+        if isinstance(exploration_policy, ContinuousExplorationPolicy):
+            return "continuous"
+        if isinstance(exploration_policy, DiscreteExplorationPolicy):
+            return "discrete"
+        return "discrete"
+
+    @staticmethod
+    def _infer_sampling_mode(sampling_strategy: SamplingStrategy) -> str:
+        if isinstance(sampling_strategy, ContinuousSamplingStrategy):
+            return "continuous"
+        if isinstance(sampling_strategy, DiscreteSamplingStrategy):
+            return "discrete"
+        return "discrete"
+
+    def _next_rng_key(self):
+        """Split and advance internal RNG state, returning a fresh subkey."""
+        self._rng_key, subkey = jax.random.split(self._rng_key)
+        return subkey
 
     def _create_custom_train_state(self, optimizer: dict):
         """
@@ -122,9 +165,7 @@ class FlaxModel(Network, ABC):
         """
         Initialize the neural network.
         """
-        rng_key = onp.random.randint(0, 1027465782564)
-        init_rng = jax.random.PRNGKey(rng_key)
-        _, subkey = jax.random.split(init_rng)
+        subkey = self._next_rng_key()
         self.model_state = self._create_train_state(subkey)
 
     def update_model(self, grads):
@@ -150,7 +191,7 @@ class FlaxModel(Network, ABC):
 
     def compute_action(self, observables: List):
         """
-        Compute and action from the action space.
+        Compute an action from the action space.
 
         This method computes an action on all colloids of the relevant type.
 
@@ -161,11 +202,19 @@ class FlaxModel(Network, ABC):
 
         Returns
         -------
-        tuple : (np.ndarray, np.ndarray)
-                The first element is an array of indices corresponding to the action
-                taken by the agent. The value is bounded between 0 and the number of
-                output neurons. The second element is an array of the corresponding
-                log_probs (i.e. the output of the network put through a softmax).
+        tuple : (np.ndarray, Optional[np.ndarray])
+                Discrete mode:
+                    ``(indices, chosen_log_probs)``, where chosen log-probs
+                    (softmaxed network output) are gathered from ``log softmax(logits)``
+                    at the selected indices that correspond to the action taken by the
+                    agent. The value is bounded between 0 and  the number of output
+                    neurons.
+
+                Continuous mode:
+                    ``(actions, log_probs)``, where ``log_probs`` are returned
+                    by the continuous sampling strategy. In deployment mode,
+                    these can be ``None``.
+
         """
         # Compute state
         try:
@@ -178,19 +227,48 @@ class FlaxModel(Network, ABC):
             )
         logger.debug(f"{logits=}")  # (n_colloids, n_actions)
 
-        # Compute the action
-        indices = self.sampling_strategy(logits)
-        # Add a small value to the log_probs to avoid log(0) errors.
-        eps = 1e-8
-        log_probs = np.log(jax.nn.softmax(logits) + eps)
+        if self._sample_mode == "discrete":
+            # Compute discrete action indices.
+            sampling_key = self._next_rng_key()
+            indices = self.sampling_strategy(logits, rng_key=sampling_key)
+            # Add a small value to the log_probs to avoid log(0) errors.
+            eps = 1e-8
+            log_probs = np.log(jax.nn.softmax(logits) + eps)
 
-        indices = self.exploration_policy(
-            indices, logits.shape[-1], onp.random.randint(8759865)
-        )
-        return (
-            indices,
-            np.take_along_axis(log_probs, indices.reshape(-1, 1), axis=1).reshape(-1),
-        )
+            if not self.deployment_mode:
+                exploration_key = self._next_rng_key()
+                exploration_seed = int(
+                    jax.random.randint(exploration_key, (), 0, 2**31 - 1)
+                )
+                indices = self.exploration_policy(
+                    indices, logits.shape[-1], exploration_seed
+                )
+            chosen_log_probs = np.take_along_axis(
+                log_probs, indices.reshape(-1, 1), axis=1
+            ).reshape(-1)
+
+            return (indices, chosen_log_probs)
+
+        elif self._sample_mode == "continuous":
+            # Continuous path: sampling strategy outputs action values directly.
+            sampling_key = self._next_rng_key()
+            exploration_key = self._next_rng_key()
+            calculate_log_probs = not self.deployment_mode
+            sampled_actions, log_probs = self.sampling_strategy(
+                logits=logits,
+                subkey=sampling_key,
+                calculate_log_probs=calculate_log_probs,
+                deployment_mode=self.deployment_mode,
+            )
+
+            actions = sampled_actions
+            if not self.deployment_mode:
+                actions = self.exploration_policy(
+                    model_actions=sampled_actions, rng_key=exploration_key
+                )
+            return actions, log_probs
+        else:
+            raise ValueError(f"Unsupported sampling mode: {self._sample_mode}")
 
     def export_model(self, filename: str = "model", directory: str = "Models"):
         """
