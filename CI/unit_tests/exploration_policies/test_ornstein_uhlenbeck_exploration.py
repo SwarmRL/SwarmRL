@@ -58,7 +58,9 @@ class TestGlobalOUExploration:
         policy.noise = jnp.ones((4,), dtype=jnp.float32)
 
         policy.reduce_randomness(decay=0.5)
-        assert jnp.allclose(policy.noise, jnp.array([0.5, 0.5, 0.5, 0.5], dtype=jnp.float32))
+        assert jnp.allclose(
+            policy.noise, jnp.array([0.5, 0.5, 0.5, 0.5], dtype=jnp.float32)
+        )
         assert float(policy.epsilon) == pytest.approx(0.01)
 
     def test_ou_state_updates_every_call(self):
