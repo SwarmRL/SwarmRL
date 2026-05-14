@@ -18,8 +18,9 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
 
     Expected logits shape is ``(batch_size, 2 * action_dimension)`` where the
     first half encodes mean and the second half encodes log-std. Sampled actions
-    are optionally tanh-squashed to ``action_limits``, if provided. In deployment mode, actions
-    are deterministic (mean action) and no log-probabilities are produced.
+    are optionally tanh-squashed to ``action_limits``, if provided.
+    In deployment mode, actions are deterministic (mean action) and
+    no log-probabilities are produced.
     """
 
     def __init__(
@@ -28,7 +29,10 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
         self.action_dimension = int(action_dimension)
         if action_limits is not None:
             if action_limits.shape != (action_dimension, 2):
-                raise ValueError(f"action_limits shape is {action_limits.shape} but should be {(action_dimension, 2)}")
+                raise ValueError(
+                    f"action_limits shape is {action_limits.shape}"
+                    f"but should be {(action_dimension, 2)}"
+                )
         self.action_limits = (
             None
             if action_limits is None

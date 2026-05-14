@@ -50,7 +50,9 @@ class TestContinuousGaussianDistribution:
 
     def test_action_limits_are_respected(self):
         limits = jnp.array([[-0.3, 0.3], [-0.2, 0.2], [-1.0, 1.0]], dtype=jnp.float32)
-        sampler = ContinuousGaussianDistribution(action_dimension=3, action_limits=limits)
+        sampler = ContinuousGaussianDistribution(
+            action_dimension=3, action_limits=limits
+        )
         logits = jnp.zeros((16, 6), dtype=jnp.float32)
 
         actions, _ = sampler(
