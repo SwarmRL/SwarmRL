@@ -96,7 +96,7 @@ class TDReturnsSAC:
             The computed 1-step soft TD targets. Same shape as `rewards`.
         """
         # Calculate the soft state value of the next state:
-        # V(s_{t+1}) = min(Q_target1, Q_target2) - alpha * log_pi(a_{t+1}|s_{t+1})
+        # V(s_{t+1}) = q_min - alpha * log_pi(a_{t+1}|s_{t+1})
         soft_value_next = q_next_min - temperature * next_log_probs
 
         # Calculate the TD target: y_t = R_t + gamma * (1 - d_t) * V(s_{t+1})

@@ -111,7 +111,8 @@ class SACAgent(Agent):
                 )
             else:
                 raise NotImplementedError(
-                    "critic_network must implement sac_train_step(actor_network, loss, batch)."
+                    "critic_network must implement "
+                    "sac_train_step(actor_network, loss, batch)."
                 )
 
         return self._last_reward, self.task.kill_switch
@@ -124,16 +125,20 @@ class SACAgent(Agent):
 
     def save_agent(self, directory: str):
         self.actor_network.export_model(
-            filename=f"{self.__name__()}_actor_{self.particle_type}", directory=directory
+            filename=f"{self.__name__()}_actor_{self.particle_type}",
+            directory=directory,
         )
         self.critic_network.export_model(
-            filename=f"{self.__name__()}_critic_{self.particle_type}", directory=directory
+            filename=f"{self.__name__()}_critic_{self.particle_type}",
+            directory=directory,
         )
 
     def restore_agent(self, directory: str):
         self.actor_network.restore_model_state(
-            filename=f"{self.__name__()}_actor_{self.particle_type}", directory=directory
+            filename=f"{self.__name__()}_actor_{self.particle_type}",
+            directory=directory,
         )
         self.critic_network.restore_model_state(
-            filename=f"{self.__name__()}_critic_{self.particle_type}", directory=directory
+            filename=f"{self.__name__()}_critic_{self.particle_type}",
+            directory=directory,
         )

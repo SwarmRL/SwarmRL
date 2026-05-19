@@ -18,7 +18,7 @@ class TDReturns:
         self,
         gamma: float = 0.99,
         standardize: bool = True,
-        standardizing_axis: Optional[Union[int, Tuple[int, ...]]] = 0,
+        standardize_axis: Optional[Union[int, Tuple[int, ...]]] = 0,
     ):
         """
         Constructor for the TD returns class
@@ -37,7 +37,7 @@ class TDReturns:
         """
         self.gamma = gamma
         self.standardize = standardize
-        self.standardize_axis = self.standardize_axis
+        self.standardize_axis = standardize_axis
 
         # Set by us to stabilize division operations.
         self.eps = np.finfo(np.float32).eps.item()
