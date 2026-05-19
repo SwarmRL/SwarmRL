@@ -24,7 +24,10 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
     """
 
     def __init__(
-        self, action_dimension: int, action_limits: Optional[jnp.ndarray] = None
+        self,
+        action_dimension: int,
+        action_limits: Optional[jnp.ndarray] = None,
+        float_precision: jnp.dtype = jnp.float32,
     ):
         self.action_dimension = int(action_dimension)
         if action_limits is not None:
@@ -36,8 +39,9 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
         self.action_limits = (
             None
             if action_limits is None
-            else jnp.asarray(action_limits, dtype=jnp.float32)
+            else jnp.asarray(action_limits, dtype=float_precision)
         )
+        self.float_precision = float_precision
 
     def squash_action(self, action: jnp.ndarray) -> jnp.ndarray:
         """Squash actions to configured limits via tanh-affine transform."""
@@ -77,7 +81,7 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
             ``(actions, log_probs)`` where ``log_probs`` is ``None`` when
             ``calculate_log_probs`` is false or ``deployment_mode`` is true.
         """
-        logits = jnp.asarray(logits, dtype=jnp.float32)
+        logits = jnp.asarray(logits, dtype=self.float_precision)
         if logits.shape[1] != 2 * self.action_dimension:
             raise ValueError(
                 "Logits must have shape (batch_size, 2 * action_dimension). "
@@ -93,9 +97,17 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
                 subkey = rng_key
             if subkey is None:
                 subkey = jax.random.PRNGKey(onp.random.randint(0, 1236534623))
-            log_std = jnp.clip(logits[:, self.action_dimension :], -20.0, 1.0)
+            log_std = jnp.clip(
+                logits[:, self.action_dimension :],
+                self.float_precision(-20.0),
+                self.float_precision(1.0),
+            )
             std = jnp.exp(log_std)
-            pre_squash_action = jax.random.normal(subkey, shape=mean.shape) * std + mean
+            pre_squash_action = (
+                jax.random.normal(subkey, shape=mean.shape, dtype=self.float_precision)
+                * std
+                + mean
+            )
 
             if calculate_log_probs:
                 log_probs = -0.5 * (

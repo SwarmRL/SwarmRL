@@ -16,6 +16,13 @@ class GlobalOUExploration(ContinuousExplorationPolicy):
     as defined here https://en.wikipedia.org/wiki/Ornstein–Uhlenbeck_process#Definition:
     dx_t = theta * (mu - x_t) * dt + sigma * dW_t. For simplicity dt=1 is assumed.
 
+    References
+    ----------
+    1. G. E. Uhlenbeck and L. S. Ornstein, "On the theory of the Brownian
+       motion", Phys. Rev. 36, 823-841 (1930).
+    2. T. P. Lillicrap et al., "Continuous control with deep reinforcement
+       learning", arXiv:1509.02971 (2015), which uses OU noise for exploration.
+
     Parameters/Symbols:
     - theta: Mean-reversion speed.
     - mu: Long-term mean (the value the noise settles around).
@@ -39,6 +46,7 @@ class GlobalOUExploration(ContinuousExplorationPolicy):
         long_term_mean: float = 0.0,
         action_dimension: int = 3,
         epsilon: float = 1.0,
+        float_precision: np.dtype = np.float32,
     ) -> None:
         """
         Initialize the OU exploration process.
@@ -57,14 +65,21 @@ class GlobalOUExploration(ContinuousExplorationPolicy):
             Number of continuous action dimensions.
         epsilon : float
             Probability of applying OU noise in a step. Must be > 0.
+        float_precision : np.dtype
+            Float precision to use for computations.
         """
         self.drift: float = float(drift)
         self.volatility: float = float(volatility)
-        self.long_term_mean: np.ndarray = np.asarray(long_term_mean, dtype=np.float32)
+        self.long_term_mean: np.ndarray = np.asarray(
+            long_term_mean, dtype=float_precision
+        )
         self.action_dimension: int = int(action_dimension)
-        self.action_limits: np.ndarray = np.asarray(action_limits, dtype=np.float32)
-        self.noise: np.ndarray = np.zeros(self.action_dimension, dtype=np.float32)
-        self.epsilon: np.ndarray = np.asarray(epsilon, dtype=np.float32)
+        self.action_limits: np.ndarray = np.asarray(
+            action_limits, dtype=float_precision
+        )
+        self.noise: np.ndarray = np.zeros(self.action_dimension, dtype=float_precision)
+        self.epsilon: np.ndarray = np.asarray(epsilon, dtype=float_precision)
+        self.float_precision: np.dtype = float_precision
 
         if self.drift <= 0:
             raise ValueError("drift needs to be greater than 0")
@@ -81,9 +96,9 @@ class GlobalOUExploration(ContinuousExplorationPolicy):
         """
         Reduce OU state magnitude and epsilon (called every 10 episodes by trainer).
         """
-        decay = np.asarray(decay, dtype=np.float32)
+        decay = np.asarray(decay, dtype=self.float_precision)
         self.noise = self.noise * decay
-        self.epsilon = np.maximum(self.epsilon * decay, np.float32(0.01))
+        self.epsilon = np.maximum(self.epsilon * decay, self.float_precision(0.01))
 
     def __call__(
         self, model_actions: np.ndarray, rng_key: jax.random.PRNGKey
@@ -95,7 +110,7 @@ class GlobalOUExploration(ContinuousExplorationPolicy):
         to the current action output. Gating is dimension-wise (independent per
         action component), not one shared gate for the whole action vector.
         """
-        model_actions = np.asarray(model_actions, dtype=np.float32)
+        model_actions = np.asarray(model_actions, dtype=self.float_precision)
         key_normal, key_uniform = jax.random.split(rng_key)
 
         value_range = self.action_limits[:, 1] - self.action_limits[:, 0]
@@ -105,16 +120,20 @@ class GlobalOUExploration(ContinuousExplorationPolicy):
         random_noise = (
             self.volatility
             * value_range
-            * jax.random.normal(key_normal, shape=self.noise.shape, dtype=np.float32)
+            * jax.random.normal(
+                key_normal, shape=self.noise.shape, dtype=self.float_precision
+            )
         )
 
         self.noise = self.noise + long_term_noise_shift + random_noise
 
         # Decide whether to apply exploration in this step (per action dimension).
         should_explore = (
-            jax.random.uniform(key_uniform, shape=self.noise.shape, dtype=np.float32)
+            jax.random.uniform(
+                key_uniform, shape=self.noise.shape, dtype=self.float_precision
+            )
             < self.epsilon
-        ).astype(np.float32)
+        ).astype(self.float_precision)
 
         noise_to_apply = self.noise * should_explore
         if model_actions.ndim > 1:
