@@ -49,6 +49,10 @@ jobs:
 
       - name: Run test suite
         run: |
+          # Ensure MODULEPATH contains the ESPResSo zen2 modules before restore.
+          # This mirrors the `module use` used in the Install step so
+          # `module restore espresso` can find the saved module.
+          test "${RUNNER_ARCH}" = "X64" && module use /cvmfs/dev.eessi.io/espresso/versions/2023.06/software/linux/x86_64/amd/zen2/modules/all
           module restore espresso
           export NUM_PROC=$(nproc)
           export OMP_PROC_BIND=false 
