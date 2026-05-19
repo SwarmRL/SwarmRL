@@ -54,6 +54,7 @@ class TestSpeciesSearch:
         assert self.task.decay_fn(1) == -1
         assert self.task.scale_factor == 100.0
         assert self.task.sensing_type == 0
+        assert self.task.output_mode == "delta"
 
         assert_array_equal(list(self.task.historical_field.keys()), ["0", "1", "2"])
 
@@ -126,3 +127,32 @@ class TestSpeciesSearch:
         for _ in range(5):
             reward = self.task(colloids=colloids)
             assert reward[0] == 0.0
+
+    def test_absolute_mode(self):
+        """
+        Test absolute-mode output.
+        """
+
+        def decay_fn(x: float):
+            return 1.0 / (1.0 + x)
+
+        task = SpeciesSearch(
+            decay_fn=decay_fn,
+            box_length=np.array([1.0, 1.0, 1.0]),
+            particle_type=0,
+            scale_factor=1.0,
+            output_mode="absolute",
+        )
+        task.initialize(colloids=self.colloids)
+
+        colloid_1 = Colloid(np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0]), 0, 0)
+        colloid_2 = Colloid(np.array([0.0, 0.5, 0.0]), np.array([0.0, 1.0, 0]), 1, 0)
+        colloid_3 = Colloid(np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0]), 2, 0)
+
+        colloids = [colloid_1, colloid_2, colloid_3]
+
+        rewards = task(colloids=colloids)
+
+        # For colloid_1, distances to type-0 particles are 0.5 and 1.0.
+        expected = 1.0 / (1.0 + 0.5) + 1.0 / (1.0 + 1.0)
+        assert rewards[0] == pytest.approx(expected)

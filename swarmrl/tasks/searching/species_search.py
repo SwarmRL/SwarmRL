@@ -25,6 +25,7 @@ class SpeciesSearch(Task):
         avoid: bool = False,
         scale_factor: int = 100,
         particle_type: int = 0,
+        output_mode: str = "delta",
     ):
         """
         Constructor for the observable.
@@ -43,6 +44,8 @@ class SpeciesSearch(Task):
                 Whether to avoid or move to the sensing type.
         particle_type : int (default=0)
                 Particle type to compute the observable for.
+        output_mode : str (default="delta")
+                Output representation: "delta" (current - previous) or "absolute".
         """
         super().__init__(particle_type=particle_type)
 
@@ -51,6 +54,7 @@ class SpeciesSearch(Task):
         self.sensing_type = sensing_type
         self.scale_factor = scale_factor
         self.avoid = avoid
+        self.output_mode = output_mode
 
         self.historical_field = {}
 
@@ -126,8 +130,9 @@ class SpeciesSearch(Task):
         indices = np.asarray(np.nonzero(distances, size=distances.shape[0] - 1))
         distances = np.take(distances, indices, axis=0)
         field_value = self.decay_fn(distances).sum()
+        task_value = self.transform_value(field_value, historic_value, self.output_mode)
 
-        return index, field_value - historic_value, field_value
+        return index, task_value, field_value
 
     def __call__(self, colloids: List[Colloid]):
         """
@@ -163,7 +168,7 @@ class SpeciesSearch(Task):
             colloid.pos for colloid in colloids if colloid.type == self.sensing_type
         ])
 
-        out_indices, delta_values, field_values = self.task_fn(
+        out_indices, task_values, field_values = self.task_fn(
             np.array(indices),
             np.array(positions),
             test_points,
@@ -174,8 +179,8 @@ class SpeciesSearch(Task):
             self.historical_field[str(index)] = value
 
         if self.avoid:
-            rewards = np.clip(delta_values, None, 0)
+            rewards = np.clip(task_values, None, 0)
         else:
-            rewards = np.clip(delta_values, 0, None)
+            rewards = np.clip(task_values, 0, None)
 
         return self.scale_factor * rewards

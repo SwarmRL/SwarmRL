@@ -96,6 +96,36 @@ class Task:
 
         return indices
 
+    @staticmethod
+    def transform_value(current_value, historic_value, output_mode: str):
+        """
+        Transform an absolute task value into either absolute or relative form.
+
+        Parameters
+        ----------
+        current_value : numeric
+                Current absolute value.
+        historic_value : numeric
+                Historic absolute value.
+        output_mode : str
+                Either "delta" for relative outputs or "absolute" for raw values.
+
+        Returns
+        -------
+        numeric
+                Task value in the requested representation.
+        """
+        if output_mode == "delta":
+            return current_value - historic_value
+        if output_mode == "absolute":
+            return current_value
+
+        msg = (
+            f"Unknown output_mode '{output_mode}'. "
+            "Expected one of {'delta', 'absolute'}."
+        )
+        raise ValueError(msg)
+
     def __call__(self, colloids: List[Colloid]) -> float:
         """
         Compute the reward on the whole group of particles.

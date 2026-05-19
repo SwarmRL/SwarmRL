@@ -85,6 +85,36 @@ class Observable:
         """
         raise NotImplementedError("Implemented in child class.")
 
+    @staticmethod
+    def transform_value(current_value, historic_value, output_mode: str):
+        """
+        Transform an absolute observable value into either absolute or relative form.
+
+        Parameters
+        ----------
+        current_value : numeric
+                Current absolute value.
+        historic_value : numeric
+                Historic absolute value.
+        output_mode : str
+                Either "delta" for relative outputs or "absolute" for raw values.
+
+        Returns
+        -------
+        numeric
+                Observable value in the requested representation.
+        """
+        if output_mode == "delta":
+            return current_value - historic_value
+        if output_mode == "absolute":
+            return current_value
+
+        msg = (
+            f"Unknown output_mode '{output_mode}'. "
+            "Expected one of {'delta', 'absolute'}."
+        )
+        raise ValueError(msg)
+
     @property
     def observable_shape(self):
         """

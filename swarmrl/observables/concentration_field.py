@@ -34,6 +34,7 @@ class ConcentrationField(Observable, ABC):
         box_length: np.ndarray,
         scale_factor: int = 100,
         particle_type: int = 0,
+        output_mode: str = "delta",
     ):
         """
         Constructor for the observable.
@@ -50,6 +51,8 @@ class ConcentrationField(Observable, ABC):
                 Scaling factor for the observable.
         particle_type : int (default=0)
                 Particle type to compute the observable for.
+        output_mode : str (default="delta")
+                Output representation: "delta" (current - previous) or "absolute".
         """
         super().__init__(particle_type=particle_type)
 
@@ -58,6 +61,7 @@ class ConcentrationField(Observable, ABC):
         self._historic_positions = {}
         self.box_length = box_length
         self.scale_factor = scale_factor
+        self.output_mode = output_mode
         self._observable_shape = (3,)
 
     def initialize(self, colloids: List[Colloid]):
@@ -100,9 +104,11 @@ class ConcentrationField(Observable, ABC):
         current_distance = np.linalg.norm(self.source - position)
         historic_distance = np.linalg.norm(self.source - previous_position)
 
-        delta = self.decay_fn(current_distance) - self.decay_fn(historic_distance)
+        current_value = self.decay_fn(current_distance)
+        historic_value = self.decay_fn(historic_distance)
+        value = self.transform_value(current_value, historic_value, self.output_mode)
 
-        return self.scale_factor * delta
+        return self.scale_factor * value
 
     def compute_observable(self, colloids: List[Colloid]):
         """
