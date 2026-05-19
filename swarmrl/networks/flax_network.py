@@ -25,11 +25,7 @@ from swarmrl.exploration_policies.exploration_policy import (
 from swarmrl.exploration_policies.random_exploration import RandomExploration
 from swarmrl.networks.network import Network
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
-from swarmrl.sampling_strategies.sampling_strategy import (
-    ContinuousSamplingStrategy,
-    DiscreteSamplingStrategy,
-    SamplingStrategy,
-)
+from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 
 
 class FlaxModel(Network, ABC):
@@ -87,7 +83,6 @@ class FlaxModel(Network, ABC):
             rng_key = int(onp.random.randint(0, 2**31 - 1))
         self._rng_key = jax.random.PRNGKey(int(rng_key))
         self.sampling_strategy = sampling_strategy
-        self._sample_mode = self._infer_sampling_mode(sampling_strategy)
         self.model = flax_model
         self.apply_fn = jax.jit(
             jax.vmap(self.model.apply, in_axes=(None, 0))
