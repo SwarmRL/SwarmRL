@@ -54,7 +54,7 @@ class TestParticleSensing:
         assert self.observable.decay_fn(1) == -1
         assert self.observable.scale_factor == 100.0
         assert self.observable.sensing_type == 0
-        assert self.observable.output_mode == "delta"
+        assert self.observable.return_absolute is False
 
         assert_array_equal(
             list(self.observable.historical_field.keys()), ["0", "1", "2"]
@@ -134,7 +134,7 @@ class TestParticleSensing:
             box_length=np.array([1.0, 1.0, 1.0]),
             particle_type=0,
             scale_factor=1.0,
-            output_mode="absolute",
+            return_absolute=True,
         )
         observable.initialize(colloids=self.colloids)
 

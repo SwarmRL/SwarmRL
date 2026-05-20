@@ -24,7 +24,7 @@ class ParticleSensing(Observable):
         sensing_type: int = 0,
         scale_factor: int = 100,
         particle_type: int = 0,
-        output_mode: str = "delta",
+        return_absolute: bool = False,
     ):
         """
         Constructor for the observable.
@@ -41,8 +41,9 @@ class ParticleSensing(Observable):
                 Scaling factor for the observable.
         particle_type : int (default=0)
                 Particle type to compute the observable for.
-        output_mode : str (default="delta")
-                Output representation: "delta" (current - previous) or "absolute".
+        return_absolute : bool (default=False)
+                If True, return the absolute field value.
+                If False, return the difference to the previous value.
         """
         super().__init__(particle_type=particle_type)
 
@@ -50,7 +51,7 @@ class ParticleSensing(Observable):
         self.box_length = box_length
         self.sensing_type = sensing_type
         self.scale_factor = scale_factor
-        self.output_mode = output_mode
+        self.return_absolute = return_absolute
 
         self.historical_field = {}
 
@@ -132,7 +133,7 @@ class ParticleSensing(Observable):
         observable_value = self.transform_value(
             field_value,
             historic_value,
-            self.output_mode,
+            self.return_absolute,
         )
         return index, observable_value, field_value
 

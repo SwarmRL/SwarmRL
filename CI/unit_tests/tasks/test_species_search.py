@@ -54,7 +54,7 @@ class TestSpeciesSearch:
         assert self.task.decay_fn(1) == -1
         assert self.task.scale_factor == 100.0
         assert self.task.sensing_type == 0
-        assert self.task.output_mode == "delta"
+        assert self.task.return_absolute is False
 
         assert_array_equal(list(self.task.historical_field.keys()), ["0", "1", "2"])
 
@@ -141,7 +141,7 @@ class TestSpeciesSearch:
             box_length=np.array([1.0, 1.0, 1.0]),
             particle_type=0,
             scale_factor=1.0,
-            output_mode="absolute",
+            return_absolute=True,
         )
         task.initialize(colloids=self.colloids)
 
