@@ -126,3 +126,41 @@ class TestSpeciesSearch:
         for _ in range(5):
             reward = self.task(colloids=colloids)
             assert reward[0] == 0.0
+
+    def test_single_target_other_type_regression(self):
+        """
+        Regression test for Issue #93:
+        sensing a different species with exactly one target must not zero-out rewards.
+        """
+
+        def decay_fn(x: float):
+            return -1 * x
+
+        task = SpeciesSearch(
+            decay_fn=decay_fn,
+            box_length=np.array([1.0, 1.0, 1.0]),
+            sensing_type=1,
+            avoid=False,
+            scale_factor=1.0,
+            particle_type=0,
+        )
+
+        # One target colloid of type 1 and two agents of type 0.
+        init_colloids = [
+            Colloid(np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0]), 0, type=0),
+            Colloid(np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0]), 1, type=0),
+            Colloid(np.array([0.0, 1.0, 0.0]), np.array([0.0, 1.0, 0]), 2, type=1),
+        ]
+        task.initialize(colloids=init_colloids)
+
+        # Move one type-0 particle closer to the single type-1 target.
+        moved_colloids = [
+            Colloid(np.array([0.0, 0.5, 0.0]), np.array([0.0, 1.0, 0]), 0, type=0),
+            Colloid(np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0]), 1, type=0),
+            Colloid(np.array([0.0, 1.0, 0.0]), np.array([0.0, 1.0, 0]), 2, type=1),
+        ]
+
+        reward = task(colloids=moved_colloids)
+
+        # Particle 0 got closer by 0.5 -> decay(x)=-x gives positive delta reward 0.5.
+        assert reward[0] == pytest.approx(0.5)
