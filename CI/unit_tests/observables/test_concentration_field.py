@@ -54,7 +54,7 @@ class TestConcentrationField:
         assert_array_equal(self.observable.box_length, np.array([1.0, 1.0, 1.0]))
         assert self.observable.decay_fn(1) == -1
         assert self.observable.scale_factor == 100.0
-        assert self.observable.output_mode == "delta"
+        assert self.observable.return_absolute is False
         assert_array_equal(
             list(self.observable._historic_positions.keys()), ["0", "1", "2"]
         )
@@ -116,7 +116,7 @@ class TestConcentrationField:
             decay_fn=decay_fn,
             box_length=np.array([1.0, 1.0, 1.0]),
             particle_type=0,
-            output_mode="absolute",
+            return_absolute=True,
         )
         observable.initialize(colloids=self.colloids)
 
