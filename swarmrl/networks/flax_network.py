@@ -110,11 +110,6 @@ class FlaxModel(Network, ABC):
 
             self.epoch_count = 0
 
-    def _next_rng_key(self):
-        """Split and advance internal RNG state, returning a fresh subkey."""
-        self._rng_key, subkey = jax.random.split(self._rng_key)
-        return subkey
-
     def _create_custom_train_state(self, optimizer: dict):
         """
         Deal with the optimizers in case of complex configuration.

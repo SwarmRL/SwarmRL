@@ -9,11 +9,11 @@ import numpy as np
 class Transition:
     """Single transition tuple for off-policy RL."""
 
-    observation: np.ndarray
-    action: np.ndarray
-    reward: float
-    next_observation: np.ndarray
-    done: bool
+    observation: np.ndarray  # Batch of s_t
+    action: np.ndarray  # Batch of a_t
+    reward: float  # Batch of r_t
+    next_observation: np.ndarray  # Batch of s_{t+1}
+    done: bool  # Batch of terminal flags
 
 
 # TODO: split done in terminated and truncated for correct state value computation.
