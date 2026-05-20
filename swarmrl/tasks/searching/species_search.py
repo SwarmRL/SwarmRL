@@ -127,9 +127,15 @@ class SpeciesSearch(Task):
         distances = np.linalg.norm(
             (test_positions - reference_position) / self.box_length, axis=-1
         )
-        indices = np.asarray(np.nonzero(distances, size=distances.shape[0] - 1))
-        distances = np.take(distances, indices, axis=0)
-        field_value = self.decay_fn(distances).sum()
+
+        # Only remove the self-distance term when sensing the same particle type.
+        if self.sensing_type == self.particle_type:
+            include_mask = distances > 0
+        else:
+            include_mask = np.ones_like(distances, dtype=bool)
+
+        field_terms = self.decay_fn(distances) * include_mask.astype(distances.dtype)
+        field_value = field_terms.sum()
         task_value = self.transform_value(field_value, historic_value, self.output_mode)
 
         return index, task_value, field_value
