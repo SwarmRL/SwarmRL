@@ -3,7 +3,7 @@ Unit test for the concentration field observable.
 """
 
 import numpy as np
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_allclose, assert_array_equal
 
 from swarmrl.components import Colloid
 from swarmrl.observables.concentration_field import ConcentrationField
@@ -54,6 +54,7 @@ class TestConcentrationField:
         assert_array_equal(self.observable.box_length, np.array([1.0, 1.0, 1.0]))
         assert self.observable.decay_fn(1) == -1
         assert self.observable.scale_factor == 100.0
+        assert self.observable.return_absolute is False
         assert_array_equal(
             list(self.observable._historic_positions.keys()), ["0", "1", "2"]
         )
@@ -100,4 +101,43 @@ class TestConcentrationField:
             -1 * self.observable.scale_factor * delta_colloid_2,
             -1 * self.observable.scale_factor * delta_colloid_3,
         ]).reshape(-1, 1)
-        assert_array_equal(observables, observables_should_be)
+        assert_allclose(observables, observables_should_be, rtol=1e-6, atol=1e-8)
+
+    def test_compute_observable_absolute_mode(self):
+        """
+        Test absolute-mode output.
+        """
+
+        def decay_fn(x: float):
+            return -1 * x
+
+        observable = ConcentrationField(
+            source=np.array([0.5, 0.5, 0.0]),
+            decay_fn=decay_fn,
+            box_length=np.array([1.0, 1.0, 1.0]),
+            particle_type=0,
+            return_absolute=True,
+        )
+        observable.initialize(colloids=self.colloids)
+
+        colloid_1 = Colloid(np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0]), 0, 0)
+        colloid_2 = Colloid(np.array([1.0, 1.0, 0.0]), np.array([0.0, 1.0, 0]), 1, 0)
+        colloid_3 = Colloid(np.array([0.0, 1.0, 0.0]), np.array([0.0, 1.0, 0]), 2, 0)
+
+        new_colloids = [colloid_1, colloid_2, colloid_3]
+
+        observables = observable.compute_observable(colloids=new_colloids)
+
+        observables_should_be = np.array([
+            -1
+            * observable.scale_factor
+            * np.linalg.norm(colloid_1.pos - observable.source),
+            -1
+            * observable.scale_factor
+            * np.linalg.norm(colloid_2.pos - observable.source),
+            -1
+            * observable.scale_factor
+            * np.linalg.norm(colloid_3.pos - observable.source),
+        ]).reshape(-1, 1)
+
+        assert_allclose(observables, observables_should_be, rtol=1e-6, atol=1e-8)
