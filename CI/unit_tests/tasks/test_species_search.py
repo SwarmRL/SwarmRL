@@ -54,6 +54,7 @@ class TestSpeciesSearch:
         assert self.task.decay_fn(1) == -1
         assert self.task.scale_factor == 100.0
         assert self.task.sensing_type == 0
+        assert self.task.return_absolute is False
 
         assert_array_equal(list(self.task.historical_field.keys()), ["0", "1", "2"])
 
@@ -126,3 +127,70 @@ class TestSpeciesSearch:
         for _ in range(5):
             reward = self.task(colloids=colloids)
             assert reward[0] == 0.0
+
+    def test_absolute_mode(self):
+        """
+        Test absolute-mode output.
+        """
+
+        def decay_fn(x: float):
+            return 1.0 / (1.0 + x)
+
+        task = SpeciesSearch(
+            decay_fn=decay_fn,
+            box_length=np.array([1.0, 1.0, 1.0]),
+            particle_type=0,
+            scale_factor=1.0,
+            return_absolute=True,
+        )
+        task.initialize(colloids=self.colloids)
+
+        colloid_1 = Colloid(np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0]), 0, 0)
+        colloid_2 = Colloid(np.array([0.0, 0.5, 0.0]), np.array([0.0, 1.0, 0]), 1, 0)
+        colloid_3 = Colloid(np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0]), 2, 0)
+
+        colloids = [colloid_1, colloid_2, colloid_3]
+
+        rewards = task(colloids=colloids)
+
+        # For colloid_1, distances to type-0 particles are 0.5 and 1.0.
+        expected = 1.0 / (1.0 + 0.5) + 1.0 / (1.0 + 1.0)
+        assert rewards[0] == pytest.approx(expected)
+
+    def test_single_target_other_type_regression(self):
+        """
+        Regression test for Issue #93:
+        sensing a different species with exactly one target must not zero-out rewards.
+        """
+
+        def decay_fn(x: float):
+            return -1 * x
+
+        task = SpeciesSearch(
+            decay_fn=decay_fn,
+            box_length=np.array([1.0, 1.0, 1.0]),
+            sensing_type=1,
+            avoid=False,
+            scale_factor=1.0,
+            particle_type=0,
+        )
+
+        # One target colloid of type 1 and two agents of type 0.
+        init_colloids = [
+            Colloid(np.array([0.0, 0.0, 0.0]), np.array([0.0, 1.0, 0]), 0, type=0),
+            Colloid(np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0]), 1, type=0),
+            Colloid(np.array([0.0, 1.0, 0.0]), np.array([0.0, 1.0, 0]), 2, type=1),
+        ]
+        task.initialize(colloids=init_colloids)
+
+        # Move one type-0 particle closer to the single type-1 target.
+        moved_colloids = [
+            Colloid(np.array([0.0, 0.5, 0.0]), np.array([0.0, 1.0, 0]), 0, type=0),
+            Colloid(np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0]), 1, type=0),
+            Colloid(np.array([0.0, 1.0, 0.0]), np.array([0.0, 1.0, 0]), 2, type=1),
+        ]
+
+        reward = task(colloids=moved_colloids)
+
+        # Particle 0 got closer by 0.5 -> decay(x)=-x gives positive delta reward 0.5.
+        assert reward[0] == pytest.approx(0.5)

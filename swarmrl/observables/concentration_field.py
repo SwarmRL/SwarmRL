@@ -34,6 +34,7 @@ class ConcentrationField(Observable, ABC):
         box_length: np.ndarray,
         scale_factor: int = 100,
         particle_type: int = 0,
+        return_absolute: bool = False,
     ):
         """
         Constructor for the observable.
@@ -50,6 +51,9 @@ class ConcentrationField(Observable, ABC):
                 Scaling factor for the observable.
         particle_type : int (default=0)
                 Particle type to compute the observable for.
+        return_absolute : bool (default=False)
+                If True, return the absolute field value.
+                If False, return the difference to the previous value.
         """
         super().__init__(particle_type=particle_type)
 
@@ -58,6 +62,7 @@ class ConcentrationField(Observable, ABC):
         self._historic_positions = {}
         self.box_length = box_length
         self.scale_factor = scale_factor
+        self.return_absolute = return_absolute
         self._observable_shape = (3,)
 
     def initialize(self, colloids: List[Colloid]):
@@ -100,9 +105,15 @@ class ConcentrationField(Observable, ABC):
         current_distance = np.linalg.norm(self.source - position)
         historic_distance = np.linalg.norm(self.source - previous_position)
 
-        delta = self.decay_fn(current_distance) - self.decay_fn(historic_distance)
+        current_value = self.decay_fn(current_distance)
+        historic_value = self.decay_fn(historic_distance)
 
-        return self.scale_factor * delta
+        if self.return_absolute:
+            value = current_value
+        else:
+            value = current_value - historic_value
+
+        return self.scale_factor * value
 
     def compute_observable(self, colloids: List[Colloid]):
         """
