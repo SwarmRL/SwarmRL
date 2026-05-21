@@ -51,7 +51,7 @@ class KillTask(srl.tasks.Task):
     Dummy task for the tests.
 
     This task will turn on the killswitch after
-    15 episodes.
+    4 episodes.
     """
 
     i: int = 0
@@ -181,7 +181,7 @@ class EspressoTestRLTrainers(ut.TestCase):
                 self.ureg.Quantity(400, "micrometer"),
                 type_colloid=0,
             )
-            # We need a custom protoc0l for this test.
+            # We need a custom protocol for this test.
             agent = srl.agents.ActorCriticAgent(
                 particle_type=0,
                 network=self.network,
@@ -281,7 +281,7 @@ class EspressoTestRLTrainers(ut.TestCase):
 
                 return system_runner
 
-            # We need a custom protoc0l for this test.
+            # We need a custom protocol for this test.
             agent = srl.agents.ActorCriticAgent(
                 particle_type=0,
                 network=self.network,
