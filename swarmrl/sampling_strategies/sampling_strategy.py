@@ -2,10 +2,13 @@
 Parent class for sampling strategies.
 """
 
+from abc import ABC, abstractmethod
+from typing import Any
+
 import jax.numpy as np
 
 
-class SamplingStrategy:
+class SamplingStrategy(ABC):
     """
     Parent class for sampling strategies.
     """
@@ -23,7 +26,8 @@ class SamplingStrategy:
         probabilities += eps
         return -np.sum(probabilities * np.log(probabilities))
 
-    def __call__(self, logits: np.ndarray) -> int:
+    @abstractmethod
+    def __call__(self, logits: np.ndarray) -> Any:
         """
         Sample from the distribution.
 
@@ -38,3 +42,11 @@ class SamplingStrategy:
                 Index of the selected option in the distribution.
         """
         raise NotImplementedError("Implemented in child classes.")
+
+
+class DiscreteSamplingStrategy(SamplingStrategy, ABC):
+    """Parent class for discrete sampling strategies."""
+
+
+class ContinuousSamplingStrategy(SamplingStrategy, ABC):
+    """Parent class for continuous sampling strategies."""

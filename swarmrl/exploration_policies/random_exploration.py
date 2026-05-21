@@ -2,16 +2,15 @@
 Random exploration module.
 """
 
-from abc import ABC
 from functools import partial
 
 import jax
 import jax.numpy as np
 
-from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
+from swarmrl.exploration_policies.exploration_policy import DiscreteExplorationPolicy
 
 
-class RandomExploration(ExplorationPolicy, ABC):
+class RandomExploration(DiscreteExplorationPolicy):
     """
     Perform exploration by random moves.
     """

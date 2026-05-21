@@ -24,6 +24,7 @@ class ParticleSensing(Observable):
         sensing_type: int = 0,
         scale_factor: int = 100,
         particle_type: int = 0,
+        return_absolute: bool = False,
     ):
         """
         Constructor for the observable.
@@ -40,6 +41,9 @@ class ParticleSensing(Observable):
                 Scaling factor for the observable.
         particle_type : int (default=0)
                 Particle type to compute the observable for.
+        return_absolute : bool (default=False)
+                If True, return the absolute field value.
+                If False, return the difference to the previous value.
         """
         super().__init__(particle_type=particle_type)
 
@@ -47,6 +51,7 @@ class ParticleSensing(Observable):
         self.box_length = box_length
         self.sensing_type = sensing_type
         self.scale_factor = scale_factor
+        self.return_absolute = return_absolute
 
         self.historical_field = {}
 
@@ -125,7 +130,12 @@ class ParticleSensing(Observable):
         distances = np.take(distances, indices, axis=0)
         # Compute field value
         field_value = self.decay_fn(distances).sum()
-        return index, field_value - historic_value, field_value
+        observable_value = self.transform_value(
+            field_value,
+            historic_value,
+            self.return_absolute,
+        )
+        return index, observable_value, field_value
 
     def compute_observable(self, colloids: List[Colloid]):
         """
@@ -162,7 +172,7 @@ class ParticleSensing(Observable):
             colloid.pos for colloid in colloids if colloid.type == self.sensing_type
         ])
 
-        out_indices, delta_values, field_values = self.observable_fn(
+        out_indices, observable_values, field_values = self.observable_fn(
             np.array(indices),
             np.array(positions),
             test_points,
@@ -172,4 +182,4 @@ class ParticleSensing(Observable):
         for index, value in zip(out_indices, onp.array(field_values)):
             self.historical_field[str(index)] = value
 
-        return self.scale_factor * delta_values.reshape(-1, 1)
+        return self.scale_factor * observable_values.reshape(-1, 1)

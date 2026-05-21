@@ -16,6 +16,7 @@ from flax.training.train_state import TrainState
 from loguru import logger
 from optax._src.base import GradientTransformation
 
+from swarmrl.action_selection.action_selector import ActionSelector
 from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
 from swarmrl.exploration_policies.random_exploration import RandomExploration
 from swarmrl.networks.network import Network
@@ -55,15 +56,20 @@ class FlaxModel(Network, ABC):
                 cross-compatibility is not assured.
         input_shape : tuple
                 Shape of the NN input.
+        exploration_policy : ExplorationPolicy
+                Exploration module. Must match the sampling strategy mode
+                (discrete/discrete or continuous/continuous).
+        sampling_strategy : SamplingStrategy
+                Strategy that samples actions from network outputs.
         rng_key : int
-                Key to seed the model with. Default is a randomly generated key but
-                the parameter is here for testing purposes.
+                Integer seed used to initialize the model's internal JAX PRNG key.
         deployment_mode : bool
                 If true, the model is a shell for the network and nothing else. No
                 training can be performed, this is only used in deployment.
         """
         if rng_key is None:
-            rng_key = onp.random.randint(0, 1027465782564)
+            rng_key = int(onp.random.randint(0, 2**31 - 1))
+        self._rng_key = jax.random.PRNGKey(int(rng_key))
         self.sampling_strategy = sampling_strategy
         self.model = flax_model
         self.apply_fn = jax.jit(
@@ -73,16 +79,27 @@ class FlaxModel(Network, ABC):
         self.input_shape = input_shape
         self.model_state = None
 
+        self.deployment_mode = deployment_mode
+
+        self.exploration_policy = exploration_policy
+        self.action_selector = ActionSelector(
+            sampling_strategy=self.sampling_strategy,
+            exploration_policy=self.exploration_policy,
+        )
+
         if not deployment_mode:
             self.optimizer = optimizer
-            self.exploration_policy = exploration_policy
 
             # initialize the model state
-            init_rng = jax.random.PRNGKey(rng_key)
-            _, subkey = jax.random.split(init_rng)
-            self.model_state = self._create_train_state(subkey)
+            self._rng_key, init_subkey = jax.random.split(self._rng_key)
+            self.model_state = self._create_train_state(init_subkey)
 
             self.epoch_count = 0
+
+    def _next_rng_key(self):
+        """Split and advance internal RNG state, returning a fresh subkey."""
+        self._rng_key, subkey = jax.random.split(self._rng_key)
+        return subkey
 
     def _create_custom_train_state(self, optimizer: dict):
         """
@@ -122,9 +139,7 @@ class FlaxModel(Network, ABC):
         """
         Initialize the neural network.
         """
-        rng_key = onp.random.randint(0, 1027465782564)
-        init_rng = jax.random.PRNGKey(rng_key)
-        _, subkey = jax.random.split(init_rng)
+        subkey = self._next_rng_key()
         self.model_state = self._create_train_state(subkey)
 
     def update_model(self, grads):
@@ -150,7 +165,7 @@ class FlaxModel(Network, ABC):
 
     def compute_action(self, observables: List):
         """
-        Compute and action from the action space.
+        Compute an action from the action space.
 
         This method computes an action on all colloids of the relevant type.
 
@@ -161,11 +176,19 @@ class FlaxModel(Network, ABC):
 
         Returns
         -------
-        tuple : (np.ndarray, np.ndarray)
-                The first element is an array of indices corresponding to the action
-                taken by the agent. The value is bounded between 0 and the number of
-                output neurons. The second element is an array of the corresponding
-                log_probs (i.e. the output of the network put through a softmax).
+        tuple : (np.ndarray, Optional[np.ndarray])
+                Discrete mode:
+                    ``(indices, chosen_log_probs)``, where chosen log-probs
+                    (softmaxed network output) are gathered from ``log softmax(logits)``
+                    at the selected indices that correspond to the action taken by the
+                    agent. The value is bounded between 0 and  the number of output
+                    neurons.
+
+                Continuous mode:
+                    ``(actions, log_probs)``, where ``log_probs`` are returned
+                    by the continuous sampling strategy. In deployment mode,
+                    these can be ``None``.
+
         """
         # Compute state
         try:
@@ -177,20 +200,18 @@ class FlaxModel(Network, ABC):
                 {"params": self.model_state["params"]}, np.array(observables)
             )
         logger.debug(f"{logits=}")  # (n_colloids, n_actions)
+        sampling_key = self._next_rng_key()
+        exploration_key = jax.random.PRNGKey(0)
+        if not self.deployment_mode:
+            exploration_key = self._next_rng_key()
 
-        # Compute the action
-        indices = self.sampling_strategy(logits)
-        # Add a small value to the log_probs to avoid log(0) errors.
-        eps = 1e-8
-        log_probs = np.log(jax.nn.softmax(logits) + eps)
-
-        indices = self.exploration_policy(
-            indices, logits.shape[-1], onp.random.randint(8759865)
+        actions_or_indices, log_probs = self.action_selector.select(
+            logits=logits,
+            deployment_mode=self.deployment_mode,
+            sampling_key=sampling_key,
+            exploration_key=exploration_key,
         )
-        return (
-            indices,
-            np.take_along_axis(log_probs, indices.reshape(-1, 1), axis=1).reshape(-1),
-        )
+        return actions_or_indices, log_probs
 
     def export_model(self, filename: str = "model", directory: str = "Models"):
         """
