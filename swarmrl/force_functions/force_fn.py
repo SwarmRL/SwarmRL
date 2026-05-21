@@ -84,3 +84,23 @@ class ForceFunction:
         self.kill_switch = any(switches)
 
         return list(actions.values())
+
+    def calc_reward(
+        self, colloids: typing.List[Colloid], external_reward: float = 0.0
+    ) -> None:
+        """
+        Compute the reward for the agent based on the current state.
+
+        Parameters
+        ----------
+        colloids: typing.List[Colloid]
+                List of colloids in the simulation.
+        external_reward: float
+                External reward from the environment.
+
+        """
+
+        for agent in self.agents:
+            self.agents[agent].calc_reward(
+                colloids=colloids, external_reward=external_reward
+            )
