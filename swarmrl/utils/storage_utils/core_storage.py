@@ -127,7 +127,7 @@ class HDF5TrajectoryStorage(ABC):
         ):
             self._write_to_h5()
 
-    def flush(self) -> None:
+    def finalize(self) -> None:
         """Write any buffered samples to HDF5."""
         self._write_to_h5()
 

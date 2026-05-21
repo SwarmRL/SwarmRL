@@ -28,6 +28,7 @@ class AgentTrajectoryStorage(HDF5TrajectoryStorage):
             "killed",
         ),
     }
+    PRESETS["verbose"] = PRESETS["all"]
 
     def __init__(
         self,

@@ -11,9 +11,13 @@ class _DummyAgent(Agent):
 class _DummyStorage:
     def __init__(self):
         self.writes = []
+        self.finalize_calls = 0
 
     def write(self, trajectory):
         self.writes.append(trajectory)
+
+    def finalize(self):
+        self.finalize_calls += 1
 
 
 class TestAgentStorageHooks:
@@ -31,3 +35,17 @@ class TestAgentStorageHooks:
         agent.persist_trajectory(trajectory_data)
 
         assert storage.writes == [trajectory_data]
+
+    def test_finalize_storage_hooks_are_noop_without_backend(self):
+        agent = _DummyAgent()
+
+        agent.finalize_trajectory_storage()
+
+    def test_finalize_storage_hooks_delegate_to_backend(self):
+        agent = _DummyAgent()
+        storage = _DummyStorage()
+
+        agent.trajectory_storage = storage
+        agent.finalize_trajectory_storage()
+
+        assert storage.finalize_calls == 1

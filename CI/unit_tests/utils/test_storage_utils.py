@@ -268,7 +268,7 @@ class TestStorageWriters:
             npt.assert_allclose(dataset[0], first.features)
             npt.assert_allclose(dataset[1], second.features)
 
-    def test_agent_storage_flush_writes_partial_chunk(self, tmp_path: Path):
+    def test_agent_storage_finalize_writes_partial_chunk(self, tmp_path: Path):
         storage = AgentTrajectoryStorage(
             particle_type=0,
             out_folder=str(tmp_path),
@@ -280,7 +280,7 @@ class TestStorageWriters:
         )
 
         storage.write(trajectory)
-        storage.flush()
+        storage.finalize()
 
         file_path = tmp_path / "agent_data_0.hdf5"
         assert storage._write_idx == 1

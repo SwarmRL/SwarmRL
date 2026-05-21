@@ -157,4 +157,5 @@ class EpisodicTrainer(Trainer):
                         )
                         break
 
+        self.finalize_agents()
         return np.array(rewards)
