@@ -6,7 +6,6 @@ import dataclasses
 import pathlib
 import typing
 
-import h5py
 import numpy as np
 import pint
 from loguru import logger
@@ -14,6 +13,7 @@ from loguru import logger
 import swarmrl.utils.utils as utils
 from swarmrl.components.colloid import Colloid
 from swarmrl.force_functions import ForceFunction
+from swarmrl.utils.storage_utils import SimulationTrajectoryStorage
 
 from .engine import Engine
 
@@ -148,6 +148,7 @@ class EspressoMD(Engine):
         write_chunk_size=100,
         system=None,
         h5_group_tag=None,
+        fail_if_trajectory_file_exists: bool = True,
     ):
         """
         Constructor for the espressoMD engine.
@@ -171,6 +172,8 @@ class EspressoMD(Engine):
                 Note: We try to clear the passed system of any previous contents,
                 but do not guarantee that everything is reset completely. Use at
                 own risk.
+        fail_if_trajectory_file_exists : bool (default=True)
+            If True, fail when the trajectory output file already exists.
         """
         self.params: MDParams = md_params
         self.out_folder = pathlib.Path(out_folder).resolve()
@@ -187,6 +190,7 @@ class EspressoMD(Engine):
             self.h5_group_tag = "colloids"
         else:
             self.h5_group_tag = h5_group_tag
+        self.fail_if_trajectory_file_exists = fail_if_trajectory_file_exists
 
         if system is None:
             self.system = espressomd.System(box_l=3 * [1.0])
@@ -208,6 +212,8 @@ class EspressoMD(Engine):
             "EXTERNAL_FORCES",
             "THERMOSTAT_PER_PARTICLE",
         ])
+
+        self._trajectory_storage = None
 
     def _init_unit_system(self):
         """
@@ -1076,35 +1082,23 @@ class EspressoMD(Engine):
         }
 
         n_colloids = len(self.colloids)
+        dummy_sample = {
+            "Times": np.array([self.system.time])[:, np.newaxis],
+            "Ids": np.zeros((n_colloids, 1), dtype=int),
+            "Types": np.zeros((n_colloids, 1), dtype=int),
+            "Unwrapped_Positions": np.zeros((n_colloids, 3), dtype=float),
+            "Velocities": np.zeros((n_colloids, 3), dtype=float),
+            "Directors": np.zeros((n_colloids, 3), dtype=float),
+        }
 
-        with h5py.File(self.h5_filename.as_posix(), "a", libver="latest") as h5_outfile:
-            part_group = h5_outfile.require_group(self.h5_group_tag)
-            dataset_kwargs = dict(compression="gzip")
-            traj_len = self.write_chunk_size
+        self._trajectory_storage = SimulationTrajectoryStorage(
+            out_folder=str(self.out_folder),
+            h5_group_tag=self.h5_group_tag,
+            fail_if_exists=self.fail_if_trajectory_file_exists,
+        )
+        self._trajectory_storage._init_h5_output(dummy_sample)
 
-            part_group.require_dataset(
-                "Times",
-                shape=(traj_len, 1, 1),
-                maxshape=(None, 1, 1),
-                dtype=float,
-                **dataset_kwargs,
-            )
-            for name in ["Ids", "Types"]:
-                part_group.require_dataset(
-                    name,
-                    shape=(traj_len, n_colloids, 1),
-                    maxshape=(None, n_colloids, 1),
-                    dtype=int,
-                    **dataset_kwargs,
-                )
-            for name in ["Unwrapped_Positions", "Velocities", "Directors"]:
-                part_group.require_dataset(
-                    name,
-                    shape=(traj_len, n_colloids, 3),
-                    maxshape=(None, n_colloids, 3),
-                    dtype=float,
-                    **dataset_kwargs,
-                )
+        self.h5_filename = self._trajectory_storage.h5_filename
         self.write_idx = 0
         self.h5_time_steps_written = 0
 
@@ -1138,23 +1132,12 @@ class EspressoMD(Engine):
         -------
         Adds data to the database and updates the class state.
         """
+
         n_new_timesteps = len(self.traj_holder["Times"])
         if n_new_timesteps == 0:
             return
 
-        with h5py.File(self.h5_filename, "a") as h5_outfile:
-            part_group = h5_outfile[self.h5_group_tag]
-
-            for key in self.traj_holder.keys():
-                dataset = part_group[key]
-                values = np.stack(self.traj_holder[key], axis=0)
-                # save in format (time_step, n_particles, dimension)
-                dataset.resize(self.h5_time_steps_written + n_new_timesteps, axis=0)
-                dataset[
-                    self.h5_time_steps_written : self.h5_time_steps_written
-                    + n_new_timesteps,
-                    ...,
-                ] = values
+        self._trajectory_storage.write_accumulated_batch(self.traj_holder)
 
         logger.debug(f"wrote {n_new_timesteps} time steps to hdf5 file")
         self.h5_time_steps_written += n_new_timesteps

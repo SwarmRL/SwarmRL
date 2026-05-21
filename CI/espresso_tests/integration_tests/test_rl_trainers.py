@@ -51,7 +51,7 @@ class KillTask(srl.tasks.Task):
     Dummy task for the tests.
 
     This task will turn on the killswitch after
-    4 episodes.
+    15 episodes.
     """
 
     i: int = 0
@@ -428,6 +428,7 @@ class EspressoTestRLTrainers(ut.TestCase):
                     system=self.system,
                     write_chunk_size=10,
                     h5_group_tag=cycle_index,
+                    fail_if_trajectory_file_exists=False,
                 )
 
                 coll_type = 0
