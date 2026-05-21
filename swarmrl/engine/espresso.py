@@ -1098,7 +1098,7 @@ class EspressoMD(Engine):
             h5_group_tag=self.h5_group_tag,
             allow_existing_file=self.allow_existing_trajectory_file,
         )
-        self._trajectory_storage._init_trajectory_output(dummy_sample)
+        self._trajectory_storage._init_h5_output(dummy_sample)
 
         self.h5_filename = self._trajectory_storage.h5_filename
         self.write_idx = 0
