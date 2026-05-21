@@ -7,6 +7,13 @@ import numpy as np
 from swarmrl.sampling_strategies.sampling_strategy import SamplingStrategy
 
 
+class _DummySamplingStrategy(SamplingStrategy):
+    """Concrete test double for abstract SamplingStrategy."""
+
+    def __call__(self, logits):
+        return logits
+
+
 class TestSamplingStrategy:
     """
     Test suite for the sampling strategy parent.
@@ -17,7 +24,7 @@ class TestSamplingStrategy:
         """
         Prepare some initial attributes.
         """
-        cls.strategy = SamplingStrategy()
+        cls.strategy = _DummySamplingStrategy()
 
     def test_compute_entropy(self):
         """

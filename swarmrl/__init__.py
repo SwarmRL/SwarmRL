@@ -5,6 +5,7 @@ __init__ file for the swarmrl package.
 from loguru import logger as _loguru_logger
 
 from swarmrl import (
+    action_selection,
     agents,
     checkpointers,
     components,
@@ -30,6 +31,7 @@ _loguru_logger.disable("swarmrl")
 __all__ = [
     espresso.__name__,
     utils.__name__,
+    action_selection.__name__,
     losses.__name__,
     checkpointers.__name__,
     components.__name__,
