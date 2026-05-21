@@ -12,7 +12,7 @@ class _DummyAgent(Agent):
     def calc_action(self, colloids):
         return []
 
-    def finalize_trajectory_storage(self):
+    def finalize(self):
         self.finalize_calls += 1
 
 

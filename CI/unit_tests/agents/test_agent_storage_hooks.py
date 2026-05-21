@@ -36,16 +36,16 @@ class TestAgentStorageHooks:
 
         assert storage.writes == [trajectory_data]
 
-    def test_finalize_storage_hooks_are_noop_without_backend(self):
+    def test_finalize_hooks_are_noop_without_backend(self):
         agent = _DummyAgent()
 
-        agent.finalize_trajectory_storage()
+        agent.finalize()
 
-    def test_finalize_storage_hooks_delegate_to_backend(self):
+    def test_finalize_hooks_delegate_to_backend(self):
         agent = _DummyAgent()
         storage = _DummyStorage()
 
         agent.trajectory_storage = storage
-        agent.finalize_trajectory_storage()
+        agent.finalize()
 
         assert storage.finalize_calls == 1
