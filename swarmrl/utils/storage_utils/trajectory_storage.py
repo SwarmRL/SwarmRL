@@ -20,7 +20,7 @@ class AgentTrajectoryStorage(HDF5TrajectoryStorage):
     }
     PRESETS = {
         "minimal": ("actions", "rewards"),
-        "verbose": (
+        "all": (
             "actions",
             "log_probs",
             "rewards",
@@ -28,7 +28,6 @@ class AgentTrajectoryStorage(HDF5TrajectoryStorage):
             "killed",
         ),
     }
-    PRESETS["all"] = PRESETS["verbose"]
 
     def __init__(
         self,
@@ -49,7 +48,7 @@ class AgentTrajectoryStorage(HDF5TrajectoryStorage):
         out_folder : str (default="./Agent_Data")
             Output folder path.
         preset : str (default="minimal")
-            Preset for storage: "minimal" or "verbose".
+            Preset for storage: "minimal" or "all".
             Ignored if stored_attributes is provided.
         stored_attributes : list (default=None)
             Explicit whitelist of attributes to store
@@ -57,6 +56,7 @@ class AgentTrajectoryStorage(HDF5TrajectoryStorage):
             Overrides preset if provided.
         fail_if_exists : bool (default=True)
             If True, raise FileExistsError when the target file already exists.
+            If False, allow writing to an existing HDF5 file.
         write_chunk_size : int (default=1)
             Number of complete agent trajectory samples buffered before appending to
             HDF5. The default 1 preserves immediate writes.

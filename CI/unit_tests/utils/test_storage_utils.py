@@ -91,6 +91,28 @@ class TestStorageWriters:
             assert times.shape[0] == 1
             assert np.isclose(times[0, 0, 0], 2.0)
 
+    def test_sim_storage_preserves_existing_groups_when_reusing_file(
+        self, tmp_path: Path
+    ):
+        first_storage = SimulationTrajectoryStorage(
+            out_folder=str(tmp_path),
+            h5_group_tag="0",
+        )
+        first_storage.write(_make_sim_timestep(n_colloids=2, time_value=1.0))
+
+        second_storage = SimulationTrajectoryStorage(
+            out_folder=str(tmp_path),
+            h5_group_tag="1",
+            fail_if_exists=False,
+        )
+        second_storage.write(_make_sim_timestep(n_colloids=2, time_value=2.0))
+
+        file_path = tmp_path / "trajectory.hdf5"
+        with h5py.File(file_path.as_posix(), "r") as h5_file:
+            assert list(h5_file.keys()) == ["0", "1"]
+            assert np.isclose(h5_file["0"]["Times"][0, 0, 0], 1.0)
+            assert np.isclose(h5_file["1"]["Times"][0, 0, 0], 2.0)
+
     def test_agent_storage_fails_if_file_exists_by_default(self, tmp_path: Path):
         first_storage = AgentTrajectoryStorage(
             particle_type=7,
