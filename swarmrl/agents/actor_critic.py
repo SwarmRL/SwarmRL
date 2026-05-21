@@ -80,6 +80,7 @@ class ActorCriticAgent(Agent):
                 preset=self.storage_config.storage_preset,
                 stored_attributes=self.storage_config.stored_attributes,
                 fail_if_exists=self.storage_config.fail_if_exists,
+                write_chunk_size=self.storage_config.write_chunk_size,
             )
 
     def __name__(self) -> str:

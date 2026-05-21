@@ -21,16 +21,22 @@ class HDF5TrajectoryStorage(ABC):
         out_folder: str = "./data",
         filename: str = "trajectory.hdf5",
         fail_if_exists: bool = False,
+        write_chunk_size: int = 1,
     ):
+        if write_chunk_size < 1:
+            raise ValueError("write_chunk_size must be at least 1")
+
         self.out_folder = pathlib.Path(out_folder)
         self.h5_filename = self.out_folder / filename
         self.fail_if_exists = fail_if_exists
+        self.write_chunk_size = write_chunk_size
 
         # Internal state
         self._is_initialized = False
         self._write_idx = 0
         self._data_holder = None
         self._h5_group_tag = None
+        self._dataset_keys = []
 
     @abstractmethod
     def _get_dataset_specs(self, data_sample: Any) -> Dict[str, Dict[str, Any]]:
@@ -38,14 +44,21 @@ class HDF5TrajectoryStorage(ABC):
         pass
 
     @abstractmethod
-    def _initialize_data_holder(self) -> Dict[str, List]:
-        """Create an empty in-memory holder for pending writes."""
+    def _extract_sample(self, data_sample: Any) -> Dict[str, Any]:
+        """Return one sample mapped by HDF5 dataset name."""
         pass
 
-    @abstractmethod
-    def _accumulate_data(self, data: Any) -> None:
-        """Accumulate one sample into the data holder."""
-        pass
+    def _initialize_data_holder(self) -> Dict[str, List]:
+        """Create an empty in-memory holder for pending writes."""
+        return {key: list() for key in self._dataset_keys}
+
+    def _accumulate_sample(self, sample: Dict[str, Any]) -> None:
+        if self._data_holder is None:
+            self._dataset_keys = list(sample.keys())
+            self._data_holder = self._initialize_data_holder()
+
+        for key in self._dataset_keys:
+            self._data_holder[key].append(sample[key])
 
     def _init_h5_output(self, data_sample: Any) -> None:
         if self.fail_if_exists and self.h5_filename.exists():
@@ -54,19 +67,23 @@ class HDF5TrajectoryStorage(ABC):
                 "Set fail_if_exists=False if you know what you're doing."
             )
 
+        dataset_specs = self._get_dataset_specs(data_sample)
+        self._dataset_keys = list(dataset_specs.keys())
         self.out_folder.mkdir(parents=True, exist_ok=True)
         self._data_holder = self._initialize_data_holder()
-
-        dataset_specs = self._get_dataset_specs(data_sample)
 
         with h5py.File(self.h5_filename.as_posix(), "a", libver="latest") as h5_outfile:
             group = h5_outfile.require_group(self._h5_group_tag)
             dataset_kwargs = dict(compression="gzip")
 
             for name, spec in dataset_specs.items():
-                group.require_dataset(
+                if name in group:
+                    continue
+
+                initial_shape = (0, *spec["shape"][1:])
+                group.create_dataset(
                     name,
-                    shape=spec["shape"],
+                    shape=initial_shape,
                     maxshape=spec["maxshape"],
                     dtype=spec["dtype"],
                     **dataset_kwargs,
@@ -100,7 +117,18 @@ class HDF5TrajectoryStorage(ABC):
         if not self._is_initialized:
             self._init_h5_output(data)
 
-        self._accumulate_data(data)
+        sample = self._extract_sample(data)
+        self._accumulate_sample(sample)
+
+        first_key = self._dataset_keys[0] if self._dataset_keys else None
+        if (
+            first_key is not None
+            and len(self._data_holder[first_key]) >= self.write_chunk_size
+        ):
+            self._write_to_h5()
+
+    def flush(self) -> None:
+        """Write any buffered samples to HDF5."""
         self._write_to_h5()
 
     @property

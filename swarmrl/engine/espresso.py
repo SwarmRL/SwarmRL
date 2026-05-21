@@ -165,7 +165,9 @@ class EspressoMD(Engine):
                 Path to an output folder to store data in. This file should have a
                 reasonable amount of free space.
         write_chunk_size : int
-                Chunk size to use in the hdf5 writing.
+                Number of sampled trajectory frames buffered in memory before flushing
+                them to the HDF5 file. This does not control the physical sampling
+                interval; use MDParams.write_interval for that.
         system : espressomd.System (optional)
                 Espresso system to use in this engine.
                 If not provided, a new system will be created.

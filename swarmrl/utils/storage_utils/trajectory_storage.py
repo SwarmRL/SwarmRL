@@ -1,61 +1,14 @@
 """Trajectory storages for agent and simulation data."""
 
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List
+from typing import Any, Dict
 
 import numpy as np
 
 from swarmrl.utils.storage_utils.core_storage import HDF5TrajectoryStorage
 
 
-class DictTrajectoryStorage(HDF5TrajectoryStorage):
-    """
-    Generic dict-based trajectory storage.
-
-    Provides:
-    - a dataset spec builder from one sample
-    - a sample extractor that returns a dict keyed like the dataset names
-    """
-
-    def __init__(
-        self,
-        out_folder: str,
-        filename: str,
-        h5_group_tag: str,
-        dataset_specs_builder: Callable[[Any], Dict[str, Dict[str, Any]]],
-        sample_extractor: Callable[[Any], Dict[str, Any]],
-        fail_if_exists: bool = False,
-    ):
-        super().__init__(
-            out_folder=out_folder,
-            filename=filename,
-            fail_if_exists=fail_if_exists,
-        )
-        self._h5_group_tag = h5_group_tag
-        self._dataset_specs_builder = dataset_specs_builder
-        self._sample_extractor = sample_extractor
-        self._dataset_keys: List[str] = []
-
-    def _get_dataset_specs(self, data_sample: Any) -> Dict[str, Dict[str, Any]]:
-        specs = self._dataset_specs_builder(data_sample)
-        self._dataset_keys = list(specs.keys())
-        return specs
-
-    def _initialize_data_holder(self) -> Dict[str, List]:
-        return {key: list() for key in self._dataset_keys}
-
-    def _accumulate_data(self, data: Any) -> None:
-        sample = self._sample_extractor(data)
-
-        if not self._data_holder:
-            self._dataset_keys = list(sample.keys())
-            self._data_holder = self._initialize_data_holder()
-
-        for key in self._dataset_keys:
-            self._data_holder[key].append(sample[key])
-
-
-class AgentTrajectoryStorage(DictTrajectoryStorage):
+class AgentTrajectoryStorage(HDF5TrajectoryStorage):
     """HDF5 storage for agent trajectory data with configurable fields."""
 
     ALLOWED_FIELDS = {
@@ -65,17 +18,17 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
         "features",
         "killed",
     }
-
     PRESETS = {
-        "minimal": ["actions", "rewards"],
-        "verbose": [
+        "minimal": ("actions", "rewards"),
+        "verbose": (
             "actions",
             "log_probs",
             "rewards",
             "features",
             "killed",
-        ],
+        ),
     }
+    PRESETS["all"] = PRESETS["verbose"]
 
     def __init__(
         self,
@@ -84,6 +37,7 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
         preset: str = "minimal",
         stored_attributes: list = None,
         fail_if_exists: bool = True,
+        write_chunk_size: int = 1,
     ):
         """
         Initialize agent trajectory storage.
@@ -103,6 +57,8 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
             Overrides preset if provided.
         fail_if_exists : bool (default=True)
             If True, raise FileExistsError when the target file already exists.
+        write_chunk_size : int (default=1)
+            Number of trajectory samples to buffer before writing to HDF5.
         """
         if stored_attributes is None:
             if preset not in self.PRESETS:
@@ -140,14 +96,13 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
         super().__init__(
             out_folder=out_folder,
             filename=f"agent_data_{particle_type}.hdf5",
-            h5_group_tag=f"Agent_{particle_type}",
-            dataset_specs_builder=self._build_agent_specs,
-            sample_extractor=self._extract_agent_sample,
             fail_if_exists=fail_if_exists,
+            write_chunk_size=write_chunk_size,
         )
+        self._h5_group_tag = f"Agent_{particle_type}"
         self.particle_type = particle_type
 
-    def _build_agent_specs(self, trajectory) -> Dict[str, Dict[str, Any]]:
+    def _get_dataset_specs(self, trajectory) -> Dict[str, Dict[str, Any]]:
         specs = {}
 
         if "actions" in self.stored_attributes:
@@ -191,7 +146,7 @@ class AgentTrajectoryStorage(DictTrajectoryStorage):
 
         return specs
 
-    def _extract_agent_sample(self, trajectory) -> Dict[str, Any]:
+    def _extract_sample(self, trajectory) -> Dict[str, Any]:
         sample = {}
 
         if "actions" in self.stored_attributes:
@@ -220,9 +175,10 @@ class AgentStorageConfig:
     storage_preset: str = "minimal"
     stored_attributes: list[str] | None = None
     fail_if_exists: bool = True
+    write_chunk_size: int = 1
 
 
-class SimulationTrajectoryStorage(DictTrajectoryStorage):
+class SimulationTrajectoryStorage(HDF5TrajectoryStorage):
     """HDF5 storage for simulation trajectory data."""
 
     def __init__(
@@ -234,14 +190,12 @@ class SimulationTrajectoryStorage(DictTrajectoryStorage):
         super().__init__(
             out_folder=out_folder,
             filename="trajectory.hdf5",
-            h5_group_tag=h5_group_tag,
-            dataset_specs_builder=self._build_simulation_specs,
-            sample_extractor=self._extract_simulation_sample,
             fail_if_exists=fail_if_exists,
         )
+        self._h5_group_tag = h5_group_tag
 
     @staticmethod
-    def _build_simulation_specs(timestep_data: Dict) -> Dict[str, Dict[str, Any]]:
+    def _get_dataset_specs(timestep_data: Dict) -> Dict[str, Dict[str, Any]]:
         n_particles = len(timestep_data.get("Ids", []))
 
         return {
@@ -278,7 +232,7 @@ class SimulationTrajectoryStorage(DictTrajectoryStorage):
         }
 
     @staticmethod
-    def _extract_simulation_sample(timestep_data: Dict) -> Dict[str, Any]:
+    def _extract_sample(timestep_data: Dict) -> Dict[str, Any]:
         return {
             "Times": timestep_data["Times"],
             "Ids": timestep_data["Ids"],

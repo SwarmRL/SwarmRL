@@ -219,6 +219,54 @@ class TestStorageWriters:
             npt.assert_allclose(dataset[0], first.features)
             npt.assert_allclose(dataset[1], second.features)
 
+    def test_agent_storage_respects_write_chunk_size(self, tmp_path: Path):
+        storage = AgentTrajectoryStorage(
+            particle_type=0,
+            out_folder=str(tmp_path),
+            preset="verbose",
+            write_chunk_size=2,
+        )
+        first = _make_agent_trajectory(
+            0, episode_length=2, n_colloids=2, base_value=3.0
+        )
+        second = _make_agent_trajectory(
+            0, episode_length=2, n_colloids=2, base_value=7.0
+        )
+
+        storage.write(first)
+        assert storage._write_idx == 0
+
+        storage.write(second)
+        assert storage._write_idx == 2
+
+        file_path = tmp_path / "agent_data_0.hdf5"
+        with h5py.File(file_path.as_posix(), "r") as h5_file:
+            dataset = h5_file["Agent_0"]["features"]
+            assert dataset.shape == (2, 2, 2, 1)
+            npt.assert_allclose(dataset[0], first.features)
+            npt.assert_allclose(dataset[1], second.features)
+
+    def test_agent_storage_flush_writes_partial_chunk(self, tmp_path: Path):
+        storage = AgentTrajectoryStorage(
+            particle_type=0,
+            out_folder=str(tmp_path),
+            preset="verbose",
+            write_chunk_size=2,
+        )
+        trajectory = _make_agent_trajectory(
+            0, episode_length=2, n_colloids=2, base_value=3.0
+        )
+
+        storage.write(trajectory)
+        storage.flush()
+
+        file_path = tmp_path / "agent_data_0.hdf5"
+        assert storage._write_idx == 1
+        with h5py.File(file_path.as_posix(), "r") as h5_file:
+            dataset = h5_file["Agent_0"]["features"]
+            assert dataset.shape == (1, 2, 2, 1)
+            npt.assert_allclose(dataset[0], trajectory.features)
+
     def test_agent_storage_supports_vector_features_in_verbose_mode(
         self,
         tmp_path: Path,
