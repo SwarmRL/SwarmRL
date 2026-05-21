@@ -1060,7 +1060,7 @@ class EspressoMD(Engine):
             property_dict["radius"],
         )
 
-    def _init_h5_output(self):
+    def _init_trajectory_output(self):
         """
         Initialize the hdf5 output.
 
@@ -1098,7 +1098,7 @@ class EspressoMD(Engine):
             h5_group_tag=self.h5_group_tag,
             fail_if_exists=self.fail_if_trajectory_file_exists,
         )
-        self._trajectory_storage._init_h5_output(dummy_sample)
+        self._trajectory_storage._init_trajectory_output(dummy_sample)
 
         self.h5_filename = self._trajectory_storage.h5_filename
         self.write_idx = 0
@@ -1255,7 +1255,7 @@ class EspressoMD(Engine):
             self.step_idx = 0
             self._setup_interactions()
             self._remove_overlap()
-            self._init_h5_output()
+            self._init_trajectory_output()
             self.integration_initialised = True
 
         old_slice_idx = self.slice_idx
