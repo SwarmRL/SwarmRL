@@ -58,7 +58,8 @@ class AgentTrajectoryStorage(HDF5TrajectoryStorage):
         fail_if_exists : bool (default=True)
             If True, raise FileExistsError when the target file already exists.
         write_chunk_size : int (default=1)
-            Number of trajectory samples to buffer before writing to HDF5.
+            Number of complete agent trajectory samples buffered before appending to
+            HDF5. The default 1 preserves immediate writes.
         """
         if stored_attributes is None:
             if preset not in self.PRESETS:
