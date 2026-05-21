@@ -79,7 +79,7 @@ class ActorCriticAgent(Agent):
                 out_folder=self.storage_config.out_folder,
                 preset=self.storage_config.storage_preset,
                 stored_attributes=self.storage_config.stored_attributes,
-                fail_if_exists=self.storage_config.fail_if_exists,
+                allow_existing_file=self.storage_config.allow_existing_file,
                 write_chunk_size=self.storage_config.write_chunk_size,
             )
 

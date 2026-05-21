@@ -36,7 +36,7 @@ class AgentTrajectoryStorage(HDF5TrajectoryStorage):
         out_folder: str = "./Agent_Data",
         preset: str = "minimal",
         stored_attributes: list = None,
-        fail_if_exists: bool = True,
+        allow_existing_file: bool = False,
         write_chunk_size: int = 1,
     ):
         """
@@ -55,9 +55,9 @@ class AgentTrajectoryStorage(HDF5TrajectoryStorage):
             Explicit whitelist of attributes to store
             (e.g., ["actions", "features"]).
             Overrides preset if provided.
-        fail_if_exists : bool (default=True)
-            If True, raise FileExistsError when the target file already exists.
-            If False, allow writing to an existing HDF5 file.
+        allow_existing_file : bool (default=False)
+            If False, raise FileExistsError when the target file already exists.
+            If True, allow writing to an existing HDF5 file.
         write_chunk_size : int (default=1)
             Number of complete agent trajectory samples buffered before appending to
             HDF5. The default 1 preserves immediate writes.
@@ -98,7 +98,7 @@ class AgentTrajectoryStorage(HDF5TrajectoryStorage):
         super().__init__(
             out_folder=out_folder,
             filename=f"agent_data_{particle_type}.hdf5",
-            fail_if_exists=fail_if_exists,
+            allow_existing_file=allow_existing_file,
             write_chunk_size=write_chunk_size,
         )
         self._h5_group_tag = f"Agent_{particle_type}"
@@ -176,7 +176,7 @@ class AgentStorageConfig:
     out_folder: str = "./agent_data"
     storage_preset: str = "minimal"
     stored_attributes: list[str] | None = None
-    fail_if_exists: bool = True
+    allow_existing_file: bool = False
     write_chunk_size: int = 1
 
 
@@ -187,12 +187,12 @@ class SimulationTrajectoryStorage(HDF5TrajectoryStorage):
         self,
         out_folder: str = "./trajectories",
         h5_group_tag: str = "colloids",
-        fail_if_exists: bool = True,
+        allow_existing_file: bool = False,
     ):
         super().__init__(
             out_folder=out_folder,
             filename="trajectory.hdf5",
-            fail_if_exists=fail_if_exists,
+            allow_existing_file=allow_existing_file,
         )
         self._h5_group_tag = h5_group_tag
 

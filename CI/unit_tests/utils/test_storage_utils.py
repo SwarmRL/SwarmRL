@@ -81,7 +81,7 @@ class TestStorageWriters:
 
         second_storage = SimulationTrajectoryStorage(
             out_folder=str(tmp_path),
-            fail_if_exists=False,
+            allow_existing_file=True,
         )
         second_storage.write(_make_sim_timestep(n_colloids=2, time_value=2.0))
 
@@ -103,7 +103,7 @@ class TestStorageWriters:
         second_storage = SimulationTrajectoryStorage(
             out_folder=str(tmp_path),
             h5_group_tag="1",
-            fail_if_exists=False,
+            allow_existing_file=True,
         )
         second_storage.write(_make_sim_timestep(n_colloids=2, time_value=2.0))
 
@@ -150,7 +150,7 @@ class TestStorageWriters:
         overwrite_storage = AgentTrajectoryStorage(
             particle_type=8,
             out_folder=str(tmp_path),
-            fail_if_exists=False,
+            allow_existing_file=True,
         )
         overwrite_storage.write(
             _make_agent_trajectory(
