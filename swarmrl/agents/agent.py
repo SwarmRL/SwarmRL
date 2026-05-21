@@ -23,6 +23,12 @@ class Agent:
         if storage is not None:
             storage.write(trajectory)
 
+    def finalize(self) -> None:
+        """Finalize trajectory storage if a backend is attached."""
+        storage = getattr(self, "trajectory_storage", None)
+        if storage is not None:
+            storage.finalize()
+
     @property
     def kill_switch(self):
         """
@@ -52,9 +58,3 @@ class Agent:
                 Flag capable of ending simulation.
         """
         raise NotImplementedError("Implemented in Child class.")
-
-    def finalize_trajectory_storage(self) -> None:
-        """Finalize trajectory storage if a backend is attached."""
-        storage = getattr(self, "trajectory_storage", None)
-        if storage is not None:
-            storage.finalize()

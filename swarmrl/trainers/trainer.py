@@ -138,7 +138,7 @@ class Trainer:
     def finalize_agents(self):
         """Finalize agent-side resources after training."""
         for agent in self.agents.values():
-            agent.finalize_trajectory_storage()
+            agent.finalize()
 
     def export_models(self, directory: str = "Models"):
         """
