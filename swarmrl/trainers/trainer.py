@@ -135,6 +135,11 @@ class Trainer:
         interaction_model = ForceFunction(agents=self.agents)
         return interaction_model, np.array(reward), any(switches)
 
+    def finalize_agents(self):
+        """Finalize agent-side resources after training."""
+        for agent in self.agents.values():
+            agent.finalize()
+
     def export_models(self, directory: str = "Models"):
         """
         Export the models to the specified directory.

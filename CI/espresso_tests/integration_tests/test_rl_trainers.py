@@ -181,7 +181,7 @@ class EspressoTestRLTrainers(ut.TestCase):
                 self.ureg.Quantity(400, "micrometer"),
                 type_colloid=0,
             )
-            # We need a custom protoc0l for this test.
+            # We need a custom protocol for this test.
             agent = srl.agents.ActorCriticAgent(
                 particle_type=0,
                 network=self.network,
@@ -281,7 +281,7 @@ class EspressoTestRLTrainers(ut.TestCase):
 
                 return system_runner
 
-            # We need a custom protoc0l for this test.
+            # We need a custom protocol for this test.
             agent = srl.agents.ActorCriticAgent(
                 particle_type=0,
                 network=self.network,
@@ -428,6 +428,7 @@ class EspressoTestRLTrainers(ut.TestCase):
                     system=self.system,
                     write_chunk_size=10,
                     h5_group_tag=cycle_index,
+                    allow_existing_trajectory_file=True,
                 )
 
                 coll_type = 0

@@ -10,6 +10,7 @@ import typing
 import jax.numpy as jnp
 import numpy as np
 import pint
+from loguru import logger
 
 from swarmrl.components.colloid import Colloid
 
@@ -180,6 +181,10 @@ def record_trajectory(
     -------
     Dumps a hidden file to disc which is often removed after reading.
     """
+    logger.warning(
+        "Using the utils.record_trajectory method might be slow. "
+        "Use the trajectory storage for fast and efficient data storing."
+    )
     try:
         data = np.load(f".traj_data_{particle_type}.npy", allow_pickle=True)
         feature_data = data.item().get("features")

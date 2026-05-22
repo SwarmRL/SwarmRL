@@ -15,6 +15,20 @@ class Agent:
 
     _killed = False
 
+    def persist_trajectory(self, trajectory) -> None:
+        """
+        Persist trajectory data if a storage backend is attached.
+        """
+        storage = getattr(self, "trajectory_storage", None)
+        if storage is not None:
+            storage.write(trajectory)
+
+    def finalize(self) -> None:
+        """Finalize trajectory storage if a backend is attached."""
+        storage = getattr(self, "trajectory_storage", None)
+        if storage is not None:
+            storage.finalize()
+
     @property
     def kill_switch(self):
         """
