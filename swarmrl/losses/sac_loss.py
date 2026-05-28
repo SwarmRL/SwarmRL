@@ -17,6 +17,16 @@ from swarmrl.networks.multi_flax_networks import MultiFlaxModel
 from swarmrl.value_functions.td_return_sac import TDReturnsSAC
 
 
+def _extract_log_alpha(log_alpha_params: Any) -> jax.Array:
+    """Return the scalar temperature leaf from scalar or dict-style params."""
+    if isinstance(log_alpha_params, dict):
+        if "params" in log_alpha_params and len(log_alpha_params) == 1:
+            return log_alpha_params["params"]
+        if "log_alpha" in log_alpha_params and len(log_alpha_params) == 1:
+            return log_alpha_params["log_alpha"]
+    return log_alpha_params
+
+
 def calculate_critic_loss(
     q1_pred: jax.Array, q2_pred: jax.Array, target_q: jax.Array
 ) -> jax.Array:
@@ -159,7 +169,7 @@ def sac_loss_fn(
 
     actor_p = trainable_params["actor"]
     critic_p = trainable_params["critic"]
-    log_alpha_p = trainable_params["log_alpha"]
+    log_alpha_p = _extract_log_alpha(trainable_params["log_alpha"])
 
     alpha_val = jnp.exp(log_alpha_p)
     alpha_detached = jax.lax.stop_gradient(alpha_val)

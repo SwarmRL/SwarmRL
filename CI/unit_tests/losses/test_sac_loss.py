@@ -49,7 +49,7 @@ class ScalarState:
         return ScalarState(step=self.step + 1, params=self.params - 0.01 * grads)
 
 
-def build_sac_network(batch_size=4, seed=0):
+def build_sac_network(batch_size=4, seed=0, alpha_params_style="scalar"):
     model = MultiFlaxModel(seed=seed)
     actor = TinyActor()
     critic = TinyCritic()
@@ -65,10 +65,20 @@ def build_sac_network(batch_size=4, seed=0):
     model.add_network(
         "critic", critic, critic_params, optax.adam(1e-3), has_target=True
     )
-    model.networks["log_alpha"] = DummyAlphaModule()
-    model.states["log_alpha"] = ScalarState(
-        step=0, params=jnp.array(0.0, dtype=jnp.float32)
-    )
+    if alpha_params_style == "scalar":
+        model.networks["log_alpha"] = DummyAlphaModule()
+        model.states["log_alpha"] = ScalarState(
+            step=0, params=jnp.array(0.0, dtype=jnp.float32)
+        )
+    elif alpha_params_style == "dict":
+        model.add_network(
+            "log_alpha",
+            DummyAlphaModule(),
+            {"params": jnp.array(0.0, dtype=jnp.float32)},
+            optax.adam(1e-3),
+        )
+    else:
+        raise ValueError(f"Unknown alpha_params_style: {alpha_params_style}")
     return model
 
 
@@ -197,3 +207,16 @@ def test_sac_loss_updates_multiflax_states_with_rng_subkeys():
         "q1_mean",
     }
     assert all(bool(jnp.all(jnp.isfinite(value))) for value in metrics.values())
+
+
+def test_sac_loss_accepts_dict_style_log_alpha_params():
+    network = build_sac_network(batch_size=4, seed=13, alpha_params_style="dict")
+    loss_fn = SoftActorCriticLoss(target_entropy=-2.0)
+    batch = build_episode_data(4, seed=31)
+
+    metrics = loss_fn.compute_loss(network, batch)
+
+    assert network.states["log_alpha"].step == 1
+    assert isinstance(network.states["log_alpha"].params, dict)
+    assert jnp.shape(network.states["log_alpha"].params["params"]) == ()
+    assert bool(jnp.isfinite(metrics["alpha"]))
