@@ -8,9 +8,11 @@ def test_td_return_sac_uses_done_mask():
     rewards = jnp.array([[1.0], [2.0]])
     q_next = jnp.array([[10.0], [20.0]])
     logp = jnp.array([[0.0], [0.0]])
-    done = jnp.array([[0.0], [1.0]])
+    terminated = jnp.array([[0.0], [1.0]])
 
-    target = value_fn(rewards, q_next, temperature=0.5, next_log_probs=logp, dones=done)
+    target = value_fn(
+        rewards, q_next, temperature=0.5, next_log_probs=logp, terminated=terminated
+    )
 
     assert float(target[0, 0]) == 1.0 + 0.9 * 10.0
     assert float(target[1, 0]) == 2.0

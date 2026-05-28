@@ -2,6 +2,7 @@
 Module for the EpisodicTrainer
 """
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -18,12 +19,25 @@ from loguru import logger
 class EpisodicTrainer(Trainer):
     """
     Class for the simple MLP RL implementation.
+    Deprecated: Use UniversalTrainer instead.
 
     Attributes
     ----------
     rl_protocols : list(protocol)
             A list of RL protocols to use in the simulation.
     """
+
+    def __init__(self, *args, **kwargs):
+        # Discussable. If we want to go for the universal trainer,
+        # we don't need this class anymore. Then, we can also rename the
+        # UniversalTrainer to Trainer, removing the Parent class?
+        warnings.warn(
+            "EpisodicTrainer is deprecated and might be removed in future versions."
+            "Please use the UniversalTrainer instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
 
     def perform_rl_training(
         self,
@@ -42,7 +56,7 @@ class EpisodicTrainer(Trainer):
         ----------
         get_engine : callable
                 Function to get the engine for the simulation.
-        system_runner : espressomd.System
+        system : espressomd.System
                 Engine used to perform steps for each agent.
         n_episodes : int
                 Number of episodes to use in the training.

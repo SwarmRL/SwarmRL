@@ -63,5 +63,7 @@ def test_sac_agent_updates_multiflax_container_via_loss_bridge():
         "reward",
         "next_observation",
         "terminated",
+        "actor_rng",
+        "next_actor_rng",
     }
     assert all(set(call[1]) == expected_keys for call in loss.calls)
