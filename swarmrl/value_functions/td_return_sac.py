@@ -67,10 +67,10 @@ class TDReturnsSAC:
         q_next_min: jax.Array,
         temperature: Union[float, jax.Array],
         next_log_probs: jax.Array,
-        dones: jax.Array,
+        terminated: jax.Array,
     ) -> jax.Array:
         """
-        Computes the 1-step entropy-regularized Bellman target for SAC.
+        Actual computation of the 1-step entropy-regularized Bellman target.
 
         Parameters
         ----------
@@ -86,7 +86,7 @@ class TDReturnsSAC:
         next_log_probs : jax.Array
             Log-probabilities of the action chosen in the next state s_{t+1}.
             Expected shape: Matches `rewards`.
-        dones : jax.Array
+        terminated : jax.Array
             Terminal flags (1.0 for terminal transition, 0.0 otherwise).
             Expected shape: Matches `rewards`. Must be float type for math operations.
 
@@ -100,8 +100,8 @@ class TDReturnsSAC:
         soft_value_next = q_next_min - temperature * next_log_probs
 
         # Calculate the TD target: y_t = R_t + gamma * (1 - d_t) * V(s_{t+1})
-        # If dones is 1.0 (terminal state), the future soft value is masked to 0.0.
-        targets = rewards + (1.0 - dones) * self.gamma * soft_value_next
+        # If terminated is 1.0 (terminal state), the future soft value is masked to 0.0.
+        targets = rewards + (1.0 - terminated) * self.gamma * soft_value_next
         if self.standardize:
             # We use keepdims=True to preserve the dimensions of the original array.
             # This ensures robust broadcasting regardless of which axes are selected

@@ -29,7 +29,10 @@ class DiscreteExplorationPolicy(ExplorationPolicy, ABC):
 
     @abstractmethod
     def __call__(
-        self, model_actions: np.ndarray, action_space_length: int, seed: Any
+        self,
+        model_actions: np.ndarray,
+        action_space_length: int,
+        rng_key: jax.random.PRNGKey,
     ) -> np.ndarray:
         """
         Return an index associated with the chosen action.
@@ -41,6 +44,8 @@ class DiscreteExplorationPolicy(ExplorationPolicy, ABC):
         action_space_length : int
                 Number of possible actions. Should be 1 higher than the actual highest
                 index, i.e if I have actions [0, 1, 2, 3] this number should be 4.
+        rng_key : jax.random.PRNGKey
+                Key for jax.random module.
 
         Returns
         -------

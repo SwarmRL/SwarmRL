@@ -150,7 +150,7 @@ def sac_loss_fn(
     next_state_inputs = {"feature_data": jnp.array(episode_data["next_observation"])}
     actions = jnp.array(episode_data["action"])
     rewards = jnp.array(episode_data["reward"]).reshape(-1, 1)
-    dones = jnp.array(episode_data["done"]).reshape(-1, 1)
+    terminated = jnp.array(episode_data["terminated"]).reshape(-1, 1)
 
     actor_rng = episode_data["actor_rng"]
     next_actor_rng = episode_data["next_actor_rng"]
@@ -198,7 +198,7 @@ def sac_loss_fn(
         q_next_min=q_next_min,
         temperature=alpha_detached,
         next_log_probs=next_log_probs,
-        dones=dones,
+        terminated=terminated,
     )
     target_q = jax.lax.stop_gradient(target_q)
 
