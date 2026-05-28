@@ -1,33 +1,199 @@
+from dataclasses import dataclass
+
+import flax.linen as nn
+import jax
 import jax.numpy as jnp
+import optax
+import pytest
 
-from swarmrl.losses.sac_loss import SoftActorCriticLoss
+from swarmrl.losses.sac_loss import SoftActorCriticLoss, get_sac_grads
+from swarmrl.networks.multi_flax_networks import MultiFlaxModel
+from swarmrl.value_functions.td_return_sac import TDReturnsSAC
 
 
-def test_sac_loss_outputs_finite_scalars():
-    loss_fn = SoftActorCriticLoss(target_entropy=-1.0)
+class TinyActor(nn.Module):
+    action_dim: int = 2
 
-    rewards = jnp.ones((8, 1), dtype=jnp.float32)
-    dones = jnp.zeros((8, 1), dtype=jnp.float32)
-    q1_pred = jnp.full((8, 1), 2.0, dtype=jnp.float32)
-    q2_pred = jnp.full((8, 1), 1.5, dtype=jnp.float32)
-    q1_next = jnp.full((8, 1), 1.0, dtype=jnp.float32)
-    q2_next = jnp.full((8, 1), 0.8, dtype=jnp.float32)
-    next_log_probs = jnp.full((8, 1), -0.4, dtype=jnp.float32)
-    log_probs = jnp.full((8, 1), -0.3, dtype=jnp.float32)
+    @nn.compact
+    def __call__(self, feature_data, rng_key):
+        mean = nn.Dense(self.action_dim, kernel_init=nn.initializers.zeros)(
+            feature_data
+        )
+        raw_action = mean + 0.1 * jax.random.normal(rng_key, mean.shape)
+        action = jnp.tanh(raw_action)
+        log_prob = -0.5 * jnp.sum(raw_action**2 + jnp.log(2.0 * jnp.pi), axis=-1)
+        return action, log_prob
 
-    losses = loss_fn.compute_losses(
-        rewards=rewards,
-        dones=dones,
-        q1_pred=q1_pred,
-        q2_pred=q2_pred,
-        q1_next=q1_next,
-        q2_next=q2_next,
-        next_log_probs=next_log_probs,
-        log_probs=log_probs,
-        alpha=0.2,
+
+class TinyCritic(nn.Module):
+    @nn.compact
+    def __call__(self, feature_data, actions):
+        x = jnp.concatenate([feature_data, actions], axis=-1)
+        hidden = nn.tanh(nn.Dense(8)(x))
+        q1 = nn.Dense(1)(hidden)
+        q2 = nn.Dense(1)(hidden)
+        return q1, q2
+
+
+class DummyAlphaModule:
+    def apply(self, *args, **kwargs):
+        return None
+
+
+@dataclass(frozen=True)
+class ScalarState:
+    step: int
+    params: jax.Array
+
+    def apply_gradients(self, *, grads):
+        return ScalarState(step=self.step + 1, params=self.params - 0.01 * grads)
+
+
+def build_sac_network(batch_size=4, seed=0):
+    model = MultiFlaxModel(seed=seed)
+    actor = TinyActor()
+    critic = TinyCritic()
+    obs = jnp.ones((batch_size, 3), dtype=jnp.float32)
+    action = jnp.ones((batch_size, 2), dtype=jnp.float32)
+
+    actor_params = actor.init(jax.random.PRNGKey(1), obs, jax.random.PRNGKey(2))[
+        "params"
+    ]
+    critic_params = critic.init(jax.random.PRNGKey(3), obs, action)["params"]
+
+    model.add_network("actor", actor, actor_params, optax.adam(1e-3))
+    model.add_network(
+        "critic", critic, critic_params, optax.adam(1e-3), has_target=True
+    )
+    model.networks["log_alpha"] = DummyAlphaModule()
+    model.states["log_alpha"] = ScalarState(
+        step=0, params=jnp.array(0.0, dtype=jnp.float32)
+    )
+    return model
+
+
+def build_episode_data(batch_size, seed=0):
+    return {
+        "observation": jnp.ones((batch_size, 3), dtype=jnp.float32),
+        "action": jnp.zeros((batch_size, 2), dtype=jnp.float32),
+        "reward": jnp.ones((batch_size, 1), dtype=jnp.float32),
+        "next_observation": 2.0 * jnp.ones((batch_size, 3), dtype=jnp.float32),
+        "terminated": jnp.zeros((batch_size, 1), dtype=jnp.float32),
+        "actor_rng": jax.random.PRNGKey(seed + 1),
+        "next_actor_rng": jax.random.PRNGKey(seed + 2),
+    }
+
+
+@pytest.mark.parametrize("batch_size", [1, 4, 7])
+def test_loss_jit_compilation(batch_size):
+    network = build_sac_network(batch_size=batch_size, seed=11)
+    loss_fn = SoftActorCriticLoss(target_entropy=-2.0)
+    batch = build_episode_data(batch_size, seed=21)
+
+    trainable_params = {
+        "actor": network.states["actor"].params,
+        "critic": network.states["critic"].params,
+        "log_alpha": network.states["log_alpha"].params,
+    }
+
+    (total_loss, metrics), grads = get_sac_grads(
+        trainable_params,
+        network.networks["actor"],
+        network.networks["critic"],
+        network.target_params["critic"],
+        loss_fn.value_function.__call__,
+        loss_fn.target_entropy,
+        batch,
     )
 
-    assert jnp.isfinite(losses["critic_loss"])
-    assert jnp.isfinite(losses["actor_loss"])
-    assert jnp.isfinite(losses["alpha_loss"])
-    assert losses["target_q"].shape == (8, 1)
+    assert bool(jnp.isfinite(total_loss))
+    assert set(metrics) == {
+        "critic_loss",
+        "actor_loss",
+        "temperature_loss",
+        "alpha",
+        "q1_mean",
+    }
+    assert all(bool(jnp.all(jnp.isfinite(value))) for value in metrics.values())
+    assert jax.tree_util.tree_structure(grads) == jax.tree_util.tree_structure(
+        trainable_params
+    )
+
+
+@pytest.mark.parametrize("batch_size", [2, 5])
+def test_gradient_shapes(batch_size):
+    network = build_sac_network(batch_size=batch_size, seed=17)
+    loss_fn = SoftActorCriticLoss(target_entropy=-2.0)
+    batch = build_episode_data(batch_size, seed=33)
+
+    trainable_params = {
+        "actor": network.states["actor"].params,
+        "critic": network.states["critic"].params,
+        "log_alpha": network.states["log_alpha"].params,
+    }
+
+    (_, _), grads = get_sac_grads(
+        trainable_params,
+        network.networks["actor"],
+        network.networks["critic"],
+        network.target_params["critic"],
+        loss_fn.value_function.__call__,
+        loss_fn.target_entropy,
+        batch,
+    )
+
+    assert jax.tree_util.tree_structure(grads) == jax.tree_util.tree_structure(
+        trainable_params
+    )
+    assert jax.tree_util.tree_map(lambda x: x.shape, grads) == jax.tree_util.tree_map(
+        lambda x: x.shape, trainable_params
+    )
+
+
+@pytest.mark.parametrize("batch_size", [1, 4])
+def test_target_q_computation(batch_size):
+    value_fn = TDReturnsSAC(gamma=0.99, standardize=False)
+    rewards = jnp.full((batch_size, 1), 1.0, dtype=jnp.float32)
+    q_next_min = jnp.full((batch_size, 1), 2.0, dtype=jnp.float32)
+    temperature = jnp.array(0.5, dtype=jnp.float32)
+    next_log_probs = jnp.full((batch_size, 1), 1.0, dtype=jnp.float32)
+    terminated = jnp.zeros((batch_size, 1), dtype=jnp.float32)
+
+    targets = value_fn(rewards, q_next_min, temperature, next_log_probs, terminated)
+    expected = jnp.full((batch_size, 1), 1.0 + 0.99 * (2.0 - 0.5), dtype=jnp.float32)
+
+    assert jnp.allclose(targets, expected)
+
+
+def test_sac_loss_updates_multiflax_states_with_rng_subkeys():
+    network = build_sac_network(batch_size=4, seed=11)
+    loss_fn = SoftActorCriticLoss(target_entropy=-2.0)
+    batch = build_episode_data(4, seed=21)
+
+    old_actor_step = network.states["actor"].step
+    old_critic_step = network.states["critic"].step
+    old_alpha_step = network.states["log_alpha"].step
+    old_target_critic = jax.tree_util.tree_map(
+        lambda x: x.copy(), network.target_params["critic"]
+    )
+
+    metrics = loss_fn.compute_loss(network, batch)
+
+    assert network.states["actor"].step == old_actor_step + 1
+    assert network.states["critic"].step == old_critic_step + 1
+    assert network.states["log_alpha"].step == old_alpha_step + 1
+    assert not jax.tree_util.tree_all(
+        jax.tree_util.tree_map(
+            lambda new, old: jnp.array_equal(new, old),
+            network.target_params["critic"],
+            old_target_critic,
+        )
+    )
+    assert set(metrics) == {
+        "critic_loss",
+        "actor_loss",
+        "temperature_loss",
+        "alpha",
+        "q1_mean",
+    }
+    assert all(bool(jnp.all(jnp.isfinite(value))) for value in metrics.values())
