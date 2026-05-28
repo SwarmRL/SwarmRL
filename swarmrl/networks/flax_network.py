@@ -17,9 +17,7 @@ from loguru import logger
 from optax._src.base import GradientTransformation
 
 from swarmrl.action_selection.action_selector import ActionSelector
-from swarmrl.exploration_policies.exploration_policy import (
-    ExplorationPolicy,
-)
+from swarmrl.exploration_policies.exploration_policy import ExplorationPolicy
 from swarmrl.exploration_policies.random_exploration import RandomExploration
 from swarmrl.networks.network import Network
 from swarmrl.sampling_strategies.gumbel_distribution import GumbelDistribution
@@ -63,13 +61,7 @@ class FlaxModel(Network, ABC):
                 (discrete/discrete or continuous/continuous).
         sampling_strategy : SamplingStrategy
                 Strategy that samples actions from network outputs.
-        exploration_policy : ExplorationPolicy
-                Exploration module. Must match the sampling strategy mode
-                (discrete/discrete or continuous/continuous).
-        sampling_strategy : SamplingStrategy
-                Strategy that samples actions from network outputs.
         rng_key : int
-                Integer seed used to initialize the model's internal JAX PRNG key.
                 Integer seed used to initialize the model's internal JAX PRNG key.
         deployment_mode : bool
                 If true, the model is a shell for the network and nothing else. No
@@ -99,8 +91,6 @@ class FlaxModel(Network, ABC):
             self.optimizer = optimizer
 
             # initialize the model state
-            self._rng_key, init_subkey = jax.random.split(self._rng_key)
-            self.model_state = self._create_train_state(init_subkey)
             self._rng_key, init_subkey = jax.random.split(self._rng_key)
             self.model_state = self._create_train_state(init_subkey)
 
@@ -145,7 +135,6 @@ class FlaxModel(Network, ABC):
         Initialize the neural network.
         """
         subkey = self._next_rng_key()
-        subkey = self._next_rng_key()
         self.model_state = self._create_train_state(subkey)
 
     def update_model(self, grads):
@@ -172,7 +161,6 @@ class FlaxModel(Network, ABC):
     def compute_action(self, observables: List):
         """
         Compute an action from the action space.
-        Compute an action from the action space.
 
         This method computes an action on all colloids of the relevant type.
 
@@ -183,19 +171,6 @@ class FlaxModel(Network, ABC):
 
         Returns
         -------
-        tuple : (np.ndarray, Optional[np.ndarray])
-                Discrete mode:
-                    ``(indices, chosen_log_probs)``, where chosen log-probs
-                    (softmaxed network output) are gathered from ``log softmax(logits)``
-                    at the selected indices that correspond to the action taken by the
-                    agent. The value is bounded between 0 and  the number of output
-                    neurons.
-
-                Continuous mode:
-                    ``(actions, log_probs)``, where ``log_probs`` are returned
-                    by the continuous sampling strategy. In deployment mode,
-                    these can be ``None``.
-
         tuple : (np.ndarray, Optional[np.ndarray])
                 Discrete mode:
                     ``(indices, chosen_log_probs)``, where chosen log-probs
