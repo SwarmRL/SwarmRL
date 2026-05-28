@@ -49,6 +49,38 @@ class FakeAgent:
         self.update_agent_calls += 1
         return self.reward, self.kill_switch
 
+    def finalize(self):
+        pass
+
+
+@dataclass
+class FakePendingTransitionAgent:
+    particle_type: int
+    replay_buffer: object = field(default_factory=object)
+    reset_calls: int = 0
+    calc_action_calls: int = 0
+    stored_transitions: int = 0
+    _pending_observation: object = None
+    _last_reward: float = 1.0
+    kill_switch: bool = False
+
+    def reset_agent(self, colloids):
+        self.reset_calls += 1
+        self._pending_observation = None
+
+    def calc_action(self, colloids):
+        self.calc_action_calls += 1
+        if self._pending_observation is not None:
+            self.stored_transitions += 1
+        self._pending_observation = object()
+        return [object() for _ in colloids if str(_.type) == str(self.particle_type)]
+
+    def update_agent(self):
+        return self._last_reward, self.kill_switch
+
+    def finalize(self):
+        pass
+
 
 def test_universal_trainer_helper_methods_follow_duck_typing():
     trainer = UniversalTrainer([])
@@ -93,20 +125,39 @@ def test_universal_trainer_continuous_loop_handles_on_and_off_policy_agents():
     assert np.array_equal(rewards, np.array([12.0, 12.0]))
     assert engine.finalized is True
     assert engine.integrate_calls == [1, 1, 1, 1, 1, 1]
-    assert on_policy_agent.reset_calls == 2
-    assert off_policy_agent.reset_calls == 2
+    assert on_policy_agent.reset_calls == 1
+    assert off_policy_agent.reset_calls == 1
     assert on_policy_agent.calc_action_calls == 6
     assert off_policy_agent.calc_action_calls == 6
     assert off_policy_agent.update_agent_calls == 6
     assert on_policy_agent.update_agent_calls == 2
 
 
+def test_universal_trainer_continuous_mode_keeps_pending_transitions_between_episodes():
+    agent = FakePendingTransitionAgent(particle_type=1)
+    engine = FakeEngine(colloids=[FakeColloid(id=1, type=1)])
+    trainer = UniversalTrainer([agent])
+
+    trainer.perform_rl_training(
+        n_episodes=2,
+        episode_length=3,
+        load_bar=False,
+        system_runner=engine,
+    )
+
+    assert agent.reset_calls == 1
+    assert agent.calc_action_calls == 6
+    assert agent.stored_transitions == 5
+
+
 def test_universal_trainer_episodic_reset_uses_cycle_tags_and_finalizes_engines():
     agent = FakeAgent(particle_type=1, reward=3.0, trajectory=object())
     agent.trajectory = type("Trajectory", (), {"rewards": [3.0]})()
     created_engines = []
+    engine_states_before_creation = []
 
     def get_engine(system, cycle_tag=None):
+        engine_states_before_creation.append(trainer.engine)
         engine = FakeEngine([FakeColloid(id=1, type=1)])
         engine.cycle_tag = cycle_tag
         created_engines.append(engine)
@@ -126,6 +177,7 @@ def test_universal_trainer_episodic_reset_uses_cycle_tags_and_finalizes_engines(
 
     assert np.array_equal(rewards, np.array([3.0, 3.0]))
     assert [engine.cycle_tag for engine in created_engines] == ["0", "1"]
+    assert engine_states_before_creation == [None, None]
     assert all(engine.finalized for engine in created_engines)
     assert agent.reset_calls == 2
     assert agent.update_agent_calls == 2

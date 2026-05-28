@@ -94,6 +94,9 @@ class UniversalTrainer(Trainer):
             )
 
         force_fn = self.initialize_training()
+        if not is_episodic:
+            for agent in self.agents.values():
+                agent.reset_agent(self.engine.colloids)
         rewards_history = []
         cycle_index = 0
         killed = False
@@ -120,9 +123,10 @@ class UniversalTrainer(Trainer):
                 # 1. Environment reset logic
                 # In episode 0, episode % reset_frequency == 0 -> Builds first engine.
                 if is_episodic and (episode % reset_frequency == 0 or killed):
-                    logger.debug(f"Resetting system at episode {episode}")
+                    logger.info(f"Resetting system at episode {episode}")
                     if self.engine is not None:
                         self.engine.finalize()
+                    self.engine = None
 
                     if save_episodic_data:
                         try:
@@ -131,21 +135,25 @@ class UniversalTrainer(Trainer):
                         except TypeError:
                             raise ValueError(
                                 "The system runner does not support episodic data "
-                                "saving. Your get_engine function should take a system"
-                                " and a str(cycle_index) as arguments."
+                                "saving. Your get_engine function should take a system "
+                                "and a str(cycle_index) as arguments. The cycle_index "
+                                "is passed to the EspressoMD engine as "
+                                "'h5_group_tag'."
                             )
                     else:
                         self.engine = get_engine(system)
 
-                # Reset agents after environment was initialized/reset
-                for agent in self.agents.values():
-                    agent.reset_agent(self.engine.colloids)
+                    # Reset agents after environment was initialized/reset
+                    for agent in self.agents.values():
+                        agent.reset_agent(self.engine.colloids)
 
                 current_reward = 0.0
                 killed = False
 
                 # 2. Integrate time_slice-wise
                 for time_slice in range(episode_length):
+                    # TODO: Can we improve this performance-wise,  (less steps)
+                    # if we add an if statement checking for is_episodic?
                     # Integrate until the next time_slice
                     self.engine.integrate(1, force_fn)
 
@@ -187,11 +195,23 @@ class UniversalTrainer(Trainer):
                 )
 
                 # Check early stopping
-                break_training, _ = self.check_for_stop_criterion()
+                break_training, stop_after_episode = self.check_for_stop_criterion()
                 if break_training:
+                    if episode < stop_after_episode:
+                        logger.info(
+                            "Stopping criterion reached, but running out training"
+                            f" until {stop_after_episode}"
+                        )
+                    else:
+                        logger.info(
+                            f"Stopping training after episode {stop_after_episode}"
+                        )
+                        break
                     break
 
             if self.engine is not None:
                 self.engine.finalize()
+
+            self.finalize_agents()
 
         return np.array(rewards_history)

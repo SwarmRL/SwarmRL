@@ -11,6 +11,7 @@ from swarmrl.utils.colloid_utils import TrajectoryInformation
 from swarmrl.utils.storage_utils import (
     AgentTrajectoryStorage,
     SimulationTrajectoryStorage,
+    TransitionTrajectoryStorage,
 )
 
 
@@ -63,6 +64,21 @@ def _make_sim_timestep(n_colloids: int, time_value: float) -> dict:
         "Unwrapped_Positions": np.full((n_colloids, 3), time_value, dtype=float),
         "Velocities": np.full((n_colloids, 3), time_value + 1.0, dtype=float),
         "Directors": np.full((n_colloids, 3), time_value + 2.0, dtype=float),
+    }
+
+
+def _make_transition(
+    obs_value: float,
+    act_value: float,
+    reward_value: float,
+    terminated_value: float,
+) -> dict:
+    return {
+        "observation": np.full((3,), obs_value, dtype=np.float32),
+        "action": np.full((2,), act_value, dtype=np.float32),
+        "reward": float(reward_value),
+        "next_observation": np.full((3,), obs_value + 1.0, dtype=np.float32),
+        "terminated": float(terminated_value),
     }
 
 
@@ -357,6 +373,31 @@ class TestStorageWriters:
             group = h5_file["Agent_4"]
             assert group["killed"].shape == (1, 1)
             assert bool(group["killed"][0, 0]) is True
+
+    def test_transition_storage_writes_transitions(self, tmp_path: Path):
+        storage = TransitionTrajectoryStorage(
+            particle_type=9,
+            out_folder=str(tmp_path),
+            preset="verbose",
+        )
+        first = _make_transition(1.0, 0.5, 2.0, 0.0)
+        second = _make_transition(2.0, -0.5, 3.0, 1.0)
+
+        storage.write(type("TransitionLike", (), first)())
+        storage.write(type("TransitionLike", (), second)())
+        storage.finalize()
+
+        file_path = tmp_path / "sac_transition_data_9.hdf5"
+        with h5py.File(file_path.as_posix(), "r") as h5_file:
+            group = h5_file["SAC_9"]
+            assert group["observation"].shape == (2, 3)
+            assert group["action"].shape == (2, 2)
+            assert group["reward"].shape == (2, 1)
+            assert group["next_observation"].shape == (2, 3)
+            assert group["terminated"].shape == (2, 1)
+            npt.assert_allclose(group["observation"][0], first["observation"])
+            npt.assert_allclose(group["action"][1], second["action"])
+            npt.assert_allclose(group["reward"][1], np.array([3.0]))
 
     def test_sim_storage_batch_write_appends(self, tmp_path: Path):
         storage = SimulationTrajectoryStorage(

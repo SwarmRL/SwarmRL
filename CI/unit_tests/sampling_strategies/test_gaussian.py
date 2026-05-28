@@ -17,7 +17,7 @@ class TestContinuousGaussianDistribution:
         bad_logits = jnp.zeros((2, 5), dtype=jnp.float32)
 
         with pytest.raises(ValueError):
-            sampler(bad_logits, subkey=jax.random.PRNGKey(0))
+            sampler(bad_logits, rng_key=jax.random.PRNGKey(0))
 
     def test_returns_actions_and_log_probs_in_training_mode(self):
         sampler = ContinuousGaussianDistribution(action_dimension=3)
@@ -25,7 +25,7 @@ class TestContinuousGaussianDistribution:
 
         actions, log_probs = sampler(
             logits,
-            subkey=jax.random.PRNGKey(1),
+            rng_key=jax.random.PRNGKey(1),
             calculate_log_probs=True,
             deployment_mode=False,
         )
@@ -40,7 +40,7 @@ class TestContinuousGaussianDistribution:
 
         actions, log_probs = sampler(
             logits,
-            subkey=jax.random.PRNGKey(2),
+            rng_key=jax.random.PRNGKey(2),
             calculate_log_probs=True,
             deployment_mode=True,
         )
@@ -57,7 +57,7 @@ class TestContinuousGaussianDistribution:
 
         actions, _ = sampler(
             logits,
-            subkey=jax.random.PRNGKey(3),
+            rng_key=jax.random.PRNGKey(3),
             calculate_log_probs=False,
             deployment_mode=False,
         )
@@ -73,7 +73,7 @@ class TestContinuousGaussianDistribution:
 
         actions, log_probs = sampler(
             logits,
-            subkey=key,
+            rng_key=key,
             calculate_log_probs=True,
             deployment_mode=False,
         )

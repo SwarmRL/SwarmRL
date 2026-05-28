@@ -5,6 +5,8 @@ from swarmrl.utils.storage_utils.trajectory_storage import (
     AgentStorageConfig,
     AgentTrajectoryStorage,
     SimulationTrajectoryStorage,
+    TransitionStorageConfig,
+    TransitionTrajectoryStorage,
 )
 
 __all__ = [
@@ -12,4 +14,6 @@ __all__ = [
     "AgentStorageConfig",
     "AgentTrajectoryStorage",
     "SimulationTrajectoryStorage",
+    "TransitionStorageConfig",
+    "TransitionTrajectoryStorage",
 ]

@@ -119,7 +119,7 @@ class EpisodicTrainer(Trainer):
                                 "The system runner does not support episodic data"
                                 " saving. Your get_engine function should take a system"
                                 " and a str(cycle_index) as arguments. The cycle_index"
-                                " is passed to the EsperessoMD engine as"
+                                " is passed to the EspressoMD engine as"
                                 " 'h5_group_tag'."
                             )
                     else:

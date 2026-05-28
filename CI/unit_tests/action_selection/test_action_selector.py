@@ -38,11 +38,11 @@ class _DummyContinuousSampling(ContinuousSamplingStrategy):
     def __call__(
         self,
         logits,
-        subkey=None,
+        rng_key=None,
         calculate_log_probs=True,
         deployment_mode=False,
     ):
-        del subkey, deployment_mode
+        del rng_key, deployment_mode
         actions = logits[:, :2]
         if calculate_log_probs:
             return actions, np.zeros((logits.shape[0],), dtype=logits.dtype)

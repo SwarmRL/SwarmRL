@@ -145,8 +145,9 @@ def sac_loss_fn(
     target_entropy : float | None,
 
     episode_data : dict[str, Any],
-        TODO: Decide if Trajectory Object or dict?
-        TODO: Maybe expanded by rng_keys?
+        Sampled transition batch returned by ``ReplayBuffer.sample()``.
+        Expected keys are ``observation``, ``next_observation``, ``action``,
+        ``reward``, ``terminated``, ``actor_rng`` and ``next_actor_rng``.
 
     Returns
     -------
@@ -156,14 +157,15 @@ def sac_loss_fn(
         Contains the scalar loss tensors: 'critic_loss', 'actor_loss',
         'temperature_loss', 'alpha' and 'q1_mean'.
     """
-    state_inputs = {"feature_data": jnp.array(episode_data["observation"])}
-    next_state_inputs = {"feature_data": jnp.array(episode_data["next_observation"])}
-    actions = jnp.array(episode_data["action"])
-    rewards = jnp.array(episode_data["reward"]).reshape(-1, 1)
-    terminated = jnp.array(episode_data["terminated"]).reshape(-1, 1)
+    batch_data = episode_data
+    state_inputs = {"feature_data": jnp.array(batch_data["observation"])}
+    next_state_inputs = {"feature_data": jnp.array(batch_data["next_observation"])}
+    actions = jnp.array(batch_data["action"])
+    rewards = jnp.array(batch_data["reward"]).reshape(-1, 1)
+    terminated = jnp.array(batch_data["terminated"]).reshape(-1, 1)
 
-    actor_rng = episode_data["actor_rng"]
-    next_actor_rng = episode_data["next_actor_rng"]
+    actor_rng = batch_data["actor_rng"]
+    next_actor_rng = batch_data["next_actor_rng"]
 
     batch_size = actions.shape[0]
 
@@ -318,8 +320,7 @@ class SoftActorCriticLoss(Loss):
             A container holding multi-component states
             (actor_state, critic_state, etc.).
         episode_data : dict
-            TODO: Maybe we'll use a modified dict here?
-            TODO: The dictionary returned by ReplayBuffer.sample().
+            Sampled transition batch returned by ReplayBuffer.sample().
         """
         # Package active weights
         trainable_params = {

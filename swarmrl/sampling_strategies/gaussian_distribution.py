@@ -12,7 +12,7 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
     """
     Sample continuous actions from a Gaussian policy parameterization.
 
-    Expected logits shape is ``(batch_size, 2 * action_dimension)`` where the
+    Expected logits trailing dimension is ``2 * action_dimension`` where the
     first half encodes mean and the second half encodes log-std. Sampled actions
     are optionally tanh-squashed to ``action_limits``, if provided.
     In deployment mode, actions are deterministic (mean action) and
@@ -29,7 +29,7 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
         if action_limits is not None:
             if action_limits.shape != (action_dimension, 2):
                 raise ValueError(
-                    f"action_limits shape is {action_limits.shape}"
+                    f"action_limits shape is {action_limits.shape} "
                     f"but should be {(action_dimension, 2)}"
                 )
         self.action_limits = (
@@ -50,7 +50,6 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
     def __call__(
         self,
         logits: jnp.ndarray,
-        subkey: Optional[jax.Array] = None,
         rng_key: Optional[jax.Array] = None,
         calculate_log_probs: bool = True,
         deployment_mode: bool = False,
@@ -61,11 +60,8 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
         ----------
         logits : jnp.ndarray
             Tensor with shape ``(batch_size, 2 * action_dimension)``.
-        subkey : Optional[jax.Array]
-            PRNG subkey for sampling. Preferred key argument.
         rng_key : Optional[jax.Array]
-            Alias for ``subkey`` for caller compatibility. Used only when
-            ``subkey`` is ``None``.
+            PRNG key for sampling.
         calculate_log_probs : bool
             If true, compute tanh-corrected Gaussian log-probabilities.
         deployment_mode : bool
@@ -78,50 +74,50 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
             ``calculate_log_probs`` is false or ``deployment_mode`` is true.
         """
         logits = jnp.asarray(logits, dtype=self.float_precision)
-        if logits.shape[1] != 2 * self.action_dimension:
+
+        # Flexibly check trailing dimension to support arbitrary batching/vmap
+        if logits.shape[-1] != 2 * self.action_dimension:
             raise ValueError(
-                "Logits must have shape (batch_size, 2 * action_dimension). "
-                f"Got {logits.shape} for action_dimension={self.action_dimension}."
+                f"Logits trailing dimension must be 2 * {self.action_dimension}. "
+                f"Got shape {logits.shape}."
             )
 
-        mean = logits[:, : self.action_dimension]
+        mean = logits[..., : self.action_dimension]
+
         if deployment_mode:
             pre_squash_action = mean
             log_probs = None
         else:
-            if subkey is None:
-                subkey = rng_key
-            if subkey is None:
-                # TODO: PRNGKey Managing
-                # subkey = jax.random.PRNGKey(onp.random.randint(0, 1236534623))
+            if rng_key is None:
                 raise ValueError(
-                    "rng_key (or subkey) is strictly required in training mode! JAX "
-                    "cannot generate random numbers safely without an explicit PRNGKey."
+                    "A valid JAX PRNGKey ('rng_key') "
+                    "is strictly required during training mode."
                 )
+
             log_std = jnp.clip(
-                logits[:, self.action_dimension :],
-                self.float_precision(-20.0),
-                self.float_precision(1.0),
+                logits[..., self.action_dimension :],
+                jnp.array(-20.0, dtype=self.float_precision),
+                jnp.array(1.0, dtype=self.float_precision),
             )
             std = jnp.exp(log_std)
-            pre_squash_action = (
-                jax.random.normal(subkey, shape=mean.shape, dtype=self.float_precision)
-                * std
-                + mean
+
+            noise = jax.random.normal(
+                rng_key, shape=mean.shape, dtype=self.float_precision
             )
+            pre_squash_action = noise * std + mean
 
             if calculate_log_probs:
                 log_probs = -0.5 * (
                     ((pre_squash_action - mean) / std) ** 2
-                    + 2.0 * jnp.log(std)
-                    + jnp.log(2.0 * jnp.pi)
+                    + 2.0 * log_std
+                    + jnp.log(2.0 * jnp.pi).astype(self.float_precision)
                 )
                 log_probs = log_probs.sum(axis=-1)
 
                 correction = (
                     2.0
                     * (
-                        jnp.log(2.0)
+                        jnp.log(2.0).astype(self.float_precision)
                         - pre_squash_action
                         - jax.nn.softplus(-2.0 * pre_squash_action)
                     )

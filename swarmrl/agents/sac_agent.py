@@ -16,6 +16,10 @@ from swarmrl.observables.observable import Observable
 from swarmrl.replay_buffer.replay_buffer import ReplayBuffer
 from swarmrl.replay_buffer.transition import Transition
 from swarmrl.tasks.task import Task
+from swarmrl.utils.storage_utils import (
+    TransitionStorageConfig,
+    TransitionTrajectoryStorage,
+)
 
 
 class SACAgent(Agent):
@@ -38,6 +42,7 @@ class SACAgent(Agent):
         gradient_steps: int = 1,
         train: bool = True,
         seed: int = 42,
+        transition_storage_config: TransitionStorageConfig | None = None,
     ):
         # SwarmRL Core
         self.particle_type = particle_type
@@ -53,6 +58,18 @@ class SACAgent(Agent):
         self.learning_starts = learning_starts
         self.gradient_steps = gradient_steps
         self.train = train
+
+        self.transition_storage_config = transition_storage_config
+        self.trajectory_storage = None
+        if self.transition_storage_config is not None:
+            self.trajectory_storage = TransitionTrajectoryStorage(
+                particle_type=self.particle_type,
+                out_folder=self.transition_storage_config.out_folder,
+                preset=self.transition_storage_config.storage_preset,
+                stored_attributes=self.transition_storage_config.stored_attributes,
+                allow_existing_file=self.transition_storage_config.allow_existing_file,
+                write_chunk_size=self.transition_storage_config.write_chunk_size,
+            )
 
         # Master JAX PRNG Key for this agent
         self.rng = jax.random.PRNGKey(seed)
@@ -94,6 +111,7 @@ class SACAgent(Agent):
                 terminated=terminated,
             )
             self.replay_buffer.add(transition)
+            self.persist_trajectory(transition)
 
         # 3. Sample new action (a_t)
         self.rng, sample_key = jax.random.split(self.rng)
