@@ -15,6 +15,7 @@ from swarmrl.networks.multi_flax_networks import MultiFlaxModel
 from swarmrl.observables.observable import Observable
 from swarmrl.replay_buffer.replay_buffer import ReplayBuffer
 from swarmrl.replay_buffer.transition import Transition
+from swarmrl.sampling_strategies.sampling_strategy import ContinuousSamplingStrategy
 from swarmrl.tasks.task import Task
 from swarmrl.utils.storage_utils import (
     TransitionStorageConfig,
@@ -34,9 +35,10 @@ class SACAgent(Agent):
         network: MultiFlaxModel,
         task: Task,
         observable: Observable,
-        action_mapper: typing.Callable[[np.ndarray], typing.List[Action]],
+        action_mapper: typing.Callable[[np.ndarray], list[Action]],
         loss: SoftActorCriticLoss,
         replay_buffer: ReplayBuffer,
+        sampling_strategy: ContinuousSamplingStrategy,
         batch_size: int = 256,
         learning_starts: int = 1000,
         gradient_steps: int = 1,
@@ -49,6 +51,7 @@ class SACAgent(Agent):
         self.task = task
         self.observable = observable
         self.action_mapper = action_mapper
+        self.sampling_strategy = sampling_strategy
 
         # SAC / JAX Core
         self.network = network
@@ -83,7 +86,7 @@ class SACAgent(Agent):
     def __name__(self) -> str:
         return "SACAgent"
 
-    def reset_agent(self, colloids: typing.List[Colloid]):
+    def reset_agent(self, colloids: list[Colloid]):
         """Resets the observable, tasks, and clears the pending step memory."""
         self.observable.initialize(colloids)
         self.task.initialize(colloids)
@@ -91,7 +94,7 @@ class SACAgent(Agent):
         self._pending_action = None
         self.kill_switch = False
 
-    def calc_action(self, colloids: typing.List[Colloid]) -> typing.List[Action]:
+    def calc_action(self, colloids: list[Colloid]) -> list[Action]:
         """
         Computes the state, stores the previous transition, and samples a new action.
         """
@@ -114,22 +117,31 @@ class SACAgent(Agent):
             self.persist_trajectory(transition)
 
         # 3. Sample new action (a_t)
-        self.rng, sample_key = jax.random.split(self.rng)
+        self.rng, network_key, sample_key = jax.random.split(self.rng, num=3)
         # Create 2D array for jax, dummy batch size of 1
         state_inputs = {"feature_data": jnp.expand_dims(current_obs, axis=0)}
 
         if self._step_count < self.learning_starts:
-            # Optional: Random sampling for the first X steps for better exploration.
-            # You could call your sampling strategy directly here with a completely
-            # uniform logits array, or let the uninitialized network act randomly.
+            # Optional/TODO: Random sampling for the first X steps for better
+            # exploration. You could call your sampling strategy directly here
+            # with a completely uniform logits array, or let the uninitialized
+            # network act randomly.
             pass
 
         actor_params = self.network.states["actor"].params
 
-        actions_jax, _ = self.network.networks["actor"].apply(
+        logits_jax = self.network.networks["actor"].apply(
             {"params": actor_params},
-            rng_key=sample_key,
+            rng_key=network_key,
             **state_inputs,
+        )
+
+        # Sample new actions
+        actions_jax, _ = self.sampling_strategy(
+            logits=logits_jax,
+            rng_key=sample_key,
+            calculate_log_probs=False,
+            deployment_mode=not self.train,
         )
 
         action_np = np.asarray(jax.device_get(actions_jax))[0]
@@ -162,9 +174,9 @@ class SACAgent(Agent):
             batch["next_actor_rng"] = next_actor_rng
 
             # 3. Compute loss and immediately apply updates
-            #   (encapsulated in SACLoss)
             metrics = self.loss.compute_loss(self.network, batch)
             logger.debug(metrics)
+
         return self._last_reward, killed
 
     def initalize_network(self):

@@ -8,6 +8,7 @@ import pytest
 
 from swarmrl.losses.sac_loss import SoftActorCriticLoss, get_sac_grads
 from swarmrl.networks.multi_flax_networks import MultiFlaxModel
+from swarmrl.sampling_strategies import ContinuousGaussianDistribution
 from swarmrl.value_functions.td_return_sac import TDReturnsSAC
 
 
@@ -16,13 +17,10 @@ class TinyActor(nn.Module):
 
     @nn.compact
     def __call__(self, feature_data, rng_key):
-        mean = nn.Dense(self.action_dim, kernel_init=nn.initializers.zeros)(
+        logits = nn.Dense(self.action_dim * 2, kernel_init=nn.initializers.zeros)(
             feature_data
         )
-        raw_action = mean + 0.1 * jax.random.normal(rng_key, mean.shape)
-        action = jnp.tanh(raw_action)
-        log_prob = -0.5 * jnp.sum(raw_action**2 + jnp.log(2.0 * jnp.pi), axis=-1)
-        return action, log_prob
+        return logits
 
 
 class TinyCritic(nn.Module):
@@ -97,7 +95,12 @@ def build_episode_data(batch_size, seed=0):
 @pytest.mark.parametrize("batch_size", [1, 4, 7])
 def test_loss_jit_compilation(batch_size):
     network = build_sac_network(batch_size=batch_size, seed=11)
-    loss_fn = SoftActorCriticLoss(target_entropy=-2.0)
+
+    # 2. FIXED: Instantiate the strategy via .create()
+    loss_fn = SoftActorCriticLoss(
+        target_entropy=-2.0,
+        sampling_strategy=ContinuousGaussianDistribution.create(action_dimension=2),
+    )
     batch = build_episode_data(batch_size, seed=21)
 
     trainable_params = {
@@ -112,6 +115,7 @@ def test_loss_jit_compilation(batch_size):
         network.networks["critic"],
         network.target_params["critic"],
         loss_fn.value_function.__call__,
+        loss_fn.sampling_strategy.__call__,
         loss_fn.target_entropy,
         batch,
     )
@@ -133,7 +137,10 @@ def test_loss_jit_compilation(batch_size):
 @pytest.mark.parametrize("batch_size", [2, 5])
 def test_gradient_shapes(batch_size):
     network = build_sac_network(batch_size=batch_size, seed=17)
-    loss_fn = SoftActorCriticLoss(target_entropy=-2.0)
+    loss_fn = SoftActorCriticLoss(
+        target_entropy=-2.0,
+        sampling_strategy=ContinuousGaussianDistribution.create(action_dimension=2),
+    )
     batch = build_episode_data(batch_size, seed=33)
 
     trainable_params = {
@@ -148,6 +155,7 @@ def test_gradient_shapes(batch_size):
         network.networks["critic"],
         network.target_params["critic"],
         loss_fn.value_function.__call__,
+        loss_fn.sampling_strategy.__call__,
         loss_fn.target_entropy,
         batch,
     )
@@ -177,7 +185,10 @@ def test_target_q_computation(batch_size):
 
 def test_sac_loss_updates_multiflax_states_with_rng_subkeys():
     network = build_sac_network(batch_size=4, seed=11)
-    loss_fn = SoftActorCriticLoss(target_entropy=-2.0)
+    loss_fn = SoftActorCriticLoss(
+        target_entropy=-2.0,
+        sampling_strategy=ContinuousGaussianDistribution.create(action_dimension=2),
+    )
     batch = build_episode_data(4, seed=21)
 
     old_actor_step = network.states["actor"].step
@@ -211,7 +222,10 @@ def test_sac_loss_updates_multiflax_states_with_rng_subkeys():
 
 def test_sac_loss_accepts_dict_style_log_alpha_params():
     network = build_sac_network(batch_size=4, seed=13, alpha_params_style="dict")
-    loss_fn = SoftActorCriticLoss(target_entropy=-2.0)
+    loss_fn = SoftActorCriticLoss(
+        target_entropy=-2.0,
+        sampling_strategy=ContinuousGaussianDistribution.create(action_dimension=2),
+    )
     batch = build_episode_data(4, seed=31)
 
     metrics = loss_fn.compute_loss(network, batch)

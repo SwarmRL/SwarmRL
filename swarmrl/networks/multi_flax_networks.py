@@ -1,3 +1,7 @@
+"""
+Unified manager for multi-network configurations in JAX/Flax.
+"""
+
 import os
 import pickle
 from abc import ABC
@@ -23,7 +27,7 @@ class MultiFlaxModel(Network, ABC):
         self.deployment_mode = deployment_mode
         self.epoch_count = 0
 
-        self.networks: dict[str, Any] = {}
+        self.networks: dict[str, nn.Module] = {}
         self.states: dict[str, TrainState] = {}
         self.target_params: dict[str, Any] = {}
 
@@ -32,28 +36,28 @@ class MultiFlaxModel(Network, ABC):
         name: str,
         flax_module: nn.Module,
         init_params: Any,
-        optimizer: Any = None,
+        optimizer: optax.GradientTransformation | None = None,
         has_target: bool = False,
     ) -> None:
         """
-        Registers a network module, instantiates its TrainState, and
-        handles target clones.
+        Registers a pure network module (outputs logits), instantiates its
+        TrainState, and handles target assignments.
         """
         self.networks[name] = flax_module
 
-        # Every registered state receives its own distinct optimizer instance track
-        if not self.deployment_mode and optimizer is not None:
-            self.states[name] = TrainState.create(
-                apply_fn=flax_module.apply, params=init_params, tx=optimizer
-            )
-        else:
-            self.states[name] = TrainState.create(
-                apply_fn=flax_module.apply, params=init_params, tx=optax.identity()
-            )
+        # In deployment mode, or if no optimizer is provided, freeze updates
+        tx = (
+            optax.identity()
+            if (self.deployment_mode or optimizer is None)
+            else optimizer
+        )
+
+        self.states[name] = TrainState.create(
+            apply_fn=flax_module.apply, params=init_params, tx=tx
+        )
 
         if has_target:
-            # Create an independent structural deep copy of parameters for target tasks
-            self.target_params[name] = jax.tree.map(lambda x: x, init_params)
+            self.target_params[name] = jax.tree_util.tree_map(lambda x: x, init_params)
 
     def export_model(self, filename: str = "multi_model", directory: str = "Models"):
         """Exports all parameter maps, optimizer states, and steps simultaneously."""
@@ -90,4 +94,5 @@ class MultiFlaxModel(Network, ABC):
 
         self.target_params = payload["target_params"]
         self.epoch_count = payload["epoch_count"]
+
         logger.info("Restored all structural networks from tracking save state.")

@@ -14,6 +14,7 @@ import jax.numpy as jnp
 
 from swarmrl.losses.loss import Loss
 from swarmrl.networks.multi_flax_networks import MultiFlaxModel
+from swarmrl.sampling_strategies.sampling_strategy import ContinuousSamplingStrategy
 from swarmrl.value_functions.td_return_sac import TDReturnsSAC
 
 
@@ -122,6 +123,7 @@ def sac_loss_fn(
     critic_module: Any,
     target_critic_params: Any,
     value_function_call: Any,
+    sampling_strategy: Any,
     target_entropy: float | None,
     episode_data: dict[str, Any],
 ) -> tuple[jax.Array, dict[str, jax.Array]]:
@@ -139,7 +141,9 @@ def sac_loss_fn(
     critic_module : Any,
         Critic network template
     target_critic_params : Any,
-        ???
+        The frozen weights of the slow-moving target critic network.
+        Used to calculate stable 1-step TD targets (the Bellman backup)
+        without the moving-target instability of the live critic.
     value_function_call : Any,
         __call__ method of the value function
     target_entropy : float | None,
@@ -167,6 +171,9 @@ def sac_loss_fn(
     actor_rng = batch_data["actor_rng"]
     next_actor_rng = batch_data["next_actor_rng"]
 
+    next_network_key, next_sample_key = jax.random.split(next_actor_rng)
+    live_network_key, live_sample_key = jax.random.split(actor_rng)
+
     batch_size = actions.shape[0]
 
     actor_p = trainable_params["actor"]
@@ -176,14 +183,29 @@ def sac_loss_fn(
     alpha_val = jnp.exp(log_alpha_p)
     alpha_detached = jax.lax.stop_gradient(alpha_val)
 
-    # Sample Actor Predictions
-    next_actions, next_log_probs = actor_module.apply(
-        {"params": actor_p}, rng_key=next_actor_rng, **next_state_inputs
+    # Split Network Pass and Sampling
+
+    # 1. Target Actor: Pure Forward Pass -> Sample
+    next_logits = actor_module.apply(
+        {"params": actor_p}, rng_key=next_network_key, **next_state_inputs
+    )
+    next_actions, next_log_probs = sampling_strategy(
+        logits=next_logits,
+        rng_key=next_sample_key,
+        calculate_log_probs=True,
+        deployment_mode=False,
     )
     next_log_probs = next_log_probs[..., None]
 
-    new_actions, log_probs = actor_module.apply(
-        {"params": actor_p}, rng_key=actor_rng, **state_inputs
+    # 2. Live Actor: Pure Forward Pass -> Sample
+    new_logits = actor_module.apply(
+        {"params": actor_p}, rng_key=live_network_key, **state_inputs
+    )
+    new_actions, log_probs = sampling_strategy(
+        logits=new_logits,
+        rng_key=live_sample_key,
+        calculate_log_probs=True,
+        deployment_mode=False,
     )
     log_probs = log_probs[..., None]
 
@@ -239,13 +261,14 @@ def sac_loss_fn(
     }
 
 
-@partial(jax.jit, static_argnums=(1, 2, 4, 5))
+@partial(jax.jit, static_argnums=(1, 2, 4, 6))
 def get_sac_grads(
     trainable_params: dict[str, jax.Array],
     actor_module: Any,
     critic_module: Any,
     target_critic_params: Any,
     value_function_call: Any,
+    sampling_strategy: Any,
     target_entropy: float | None,
     episode_data: dict[str, Any],
 ) -> tuple[tuple[jax.Array, dict[str, jax.Array]], dict[str, Any]]:
@@ -257,6 +280,7 @@ def get_sac_grads(
         critic_module,
         target_critic_params,
         value_function_call,
+        sampling_strategy,
         target_entropy,
         episode_data,
     )
@@ -287,6 +311,7 @@ class SoftActorCriticLoss(Loss):
 
     def __init__(
         self,
+        sampling_strategy: ContinuousSamplingStrategy,
         value_function: TDReturnsSAC = TDReturnsSAC(),
         target_entropy: float | None = None,
         polyak_tau: float = 0.005,
@@ -304,6 +329,7 @@ class SoftActorCriticLoss(Loss):
             An SAC hyperparameter for setting the poylak averaging.
         """
         super().__init__()
+        self.sampling_strategy = sampling_strategy
         self.value_function = value_function or TDReturnsSAC()
         self.target_entropy = target_entropy
         self.polyak_tau = float(polyak_tau)
@@ -336,6 +362,7 @@ class SoftActorCriticLoss(Loss):
             network.networks["critic"],
             network.target_params["critic"],
             self.value_function.__call__,
+            self.sampling_strategy,
             self.target_entropy,
             episode_data,
         )
@@ -352,13 +379,11 @@ class SoftActorCriticLoss(Loss):
                 grads=grads["log_alpha"]
             )
 
-        # 4. apply polyak target update
+        # Apply polyak target update
         network.target_params["critic"] = _apply_polyak_update(
             network.states["critic"].params,
             network.target_params["critic"],
             self.polyak_tau,
         )
-        # REMOVED, as the Loss class should not mutate the state!
-        # network.epoch_count += 1
 
         return metrics

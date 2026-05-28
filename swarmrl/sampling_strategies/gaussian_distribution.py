@@ -4,10 +4,13 @@ from typing import Optional
 
 import jax
 import jax.numpy as jnp
+from flax import struct
 
 from swarmrl.sampling_strategies.sampling_strategy import ContinuousSamplingStrategy
 
 
+# Register the class as a JAX PyTree so it can cross JIT boundaries safely
+@struct.dataclass
 class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
     """
     Sample continuous actions from a Gaussian policy parameterization.
@@ -19,25 +22,32 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
     no log-probabilities are produced.
     """
 
-    def __init__(
-        self,
+    # struct.field tells JAX what is a traced array vs what is static metadata
+    action_dimension: int = struct.field(pytree_node=False)
+    action_limits: Optional[jnp.ndarray] = struct.field(pytree_node=True, default=None)
+    float_precision: jnp.dtype = struct.field(pytree_node=False, default=jnp.float32)
+
+    @classmethod
+    def create(
+        cls,
         action_dimension: int,
         action_limits: Optional[jnp.ndarray] = None,
         float_precision: jnp.dtype = jnp.float32,
-    ):
-        self.action_dimension = int(action_dimension)
+    ) -> "ContinuousGaussianDistribution":
+        """Factory method to handle the initialization validation safely."""
         if action_limits is not None:
             if action_limits.shape != (action_dimension, 2):
                 raise ValueError(
                     f"action_limits shape is {action_limits.shape} "
                     f"but should be {(action_dimension, 2)}"
                 )
-        self.action_limits = (
-            None
-            if action_limits is None
-            else jnp.asarray(action_limits, dtype=float_precision)
+            action_limits = jnp.asarray(action_limits, dtype=float_precision)
+
+        return cls(
+            action_dimension=int(action_dimension),
+            action_limits=action_limits,
+            float_precision=float_precision,
         )
-        self.float_precision = float_precision
 
     def squash_action(self, action: jnp.ndarray) -> jnp.ndarray:
         """Squash actions to configured limits via tanh-affine transform."""
@@ -54,7 +64,8 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
         calculate_log_probs: bool = True,
         deployment_mode: bool = False,
     ) -> tuple[jnp.ndarray, Optional[jnp.ndarray]]:
-        """Return sampled continuous actions and optional per-sample log-probs.
+        """
+        Return sampled continuous actions and optional per-sample log-probs.
 
         Parameters
         ----------
@@ -73,6 +84,7 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
             ``(actions, log_probs)`` where ``log_probs`` is ``None`` when
             ``calculate_log_probs`` is false or ``deployment_mode`` is true.
         """
+
         logits = jnp.asarray(logits, dtype=self.float_precision)
 
         # Flexibly check trailing dimension to support arbitrary batching/vmap
@@ -84,20 +96,18 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
 
         mean = logits[..., : self.action_dimension]
 
+        # Note: deployment_mode MUST be passed as a static boolean if this is jitted!
         if deployment_mode:
             pre_squash_action = mean
             log_probs = None
         else:
             if rng_key is None:
-                raise ValueError(
-                    "A valid JAX PRNGKey ('rng_key') "
-                    "is strictly required during training mode."
-                )
+                raise ValueError("A valid JAX PRNGKey is required during training.")
 
             log_std = jnp.clip(
                 logits[..., self.action_dimension :],
-                jnp.array(-20.0, dtype=self.float_precision),
-                jnp.array(1.0, dtype=self.float_precision),
+                -20.0,
+                1.0,
             )
             std = jnp.exp(log_std)
 
@@ -110,18 +120,19 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
                 log_probs = -0.5 * (
                     ((pre_squash_action - mean) / std) ** 2
                     + 2.0 * log_std
-                    + jnp.log(2.0 * jnp.pi).astype(self.float_precision)
+                    + jnp.log(2.0 * jnp.pi)
                 )
                 log_probs = log_probs.sum(axis=-1)
 
                 correction = (
                     2.0
                     * (
-                        jnp.log(2.0).astype(self.float_precision)
+                        jnp.log(2.0)
                         - pre_squash_action
                         - jax.nn.softplus(-2.0 * pre_squash_action)
                     )
                 ).sum(axis=-1)
+
                 log_probs = log_probs - correction
             else:
                 log_probs = None
