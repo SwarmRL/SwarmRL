@@ -27,7 +27,7 @@ class RandomExploration(DiscreteExplorationPolicy):
         """
         self.probability = probability
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnums=(0, 2))
     def __call__(
         self,
         model_actions: np.ndarray,
@@ -53,24 +53,22 @@ class RandomExploration(DiscreteExplorationPolicy):
                 Action chosen after the exploration module has operated for
                 each colloid.
         """
-        sample = jax.random.uniform(rng_key, shape=model_actions.shape)
+        sample_key, action_key = jax.random.split(rng_key, num=2)
 
-        to_be_changed = np.clip(sample - self.probability, min=0, max=1)
-        to_be_changed = np.clip(to_be_changed * 1e6, min=0, max=1)
-        not_to_be_changed = np.clip(to_be_changed * -10 + 1, 0, 1)
+        sample = jax.random.uniform(sample_key, shape=model_actions.shape)
+
+        # True means "explore randomly"
+        explore_mask = sample < self.probability
 
         # Choose random actions
-        _, subkey = jax.random.split(rng_key)
         exploration_actions = jax.random.randint(
-            subkey,
-            shape=(model_actions.shape[0],),
+            action_key,
+            shape=model_actions.shape,
             minval=0,
             maxval=action_space_length,
         )
 
         # Put the new actions in.
-        model_actions = (
-            model_actions * to_be_changed + exploration_actions * not_to_be_changed
-        ).astype(np.int16)
+        model_actions = np.where(explore_mask, exploration_actions, model_actions)
 
         return model_actions

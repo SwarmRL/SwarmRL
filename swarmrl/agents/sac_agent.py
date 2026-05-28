@@ -89,7 +89,6 @@ class SACAgent(Agent):
             transition = Transition(
                 observation=self._pending_observation,
                 action=self._pending_action,
-                # TODO: _last_reward???!
                 reward=float(reward),
                 next_observation=current_obs,
                 terminated=terminated,
