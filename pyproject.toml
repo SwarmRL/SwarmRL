@@ -22,7 +22,6 @@ dependencies = [
     "rich>=13.7.1",
     "tqdm>=4.66.4",
     "loguru>=0.7.3",
-    "pytest>=9.0.2",
 ]
 
 # Development dependencies separated from core library
