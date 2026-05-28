@@ -1,15 +1,17 @@
 """SAC agent with replay-buffer based off-policy updates."""
 
-from __future__ import annotations
-
 import typing
 
+import jax
+import jax.numpy as jnp
 import numpy as np
+from loguru import logger
 
 from swarmrl.actions.actions import Action
 from swarmrl.agents.agent import Agent
 from swarmrl.components.colloid import Colloid
 from swarmrl.losses.sac_loss import SoftActorCriticLoss
+from swarmrl.networks.multi_flax_networks import MultiFlaxModel
 from swarmrl.observables.observable import Observable
 from swarmrl.replay_buffer.replay_buffer import ReplayBuffer
 from swarmrl.replay_buffer.transition import Transition
@@ -17,36 +19,45 @@ from swarmrl.tasks.task import Task
 
 
 class SACAgent(Agent):
-    """Continuous-control SAC agent skeleton compatible with SwarmRL trainers."""
+    """
+    Continuous-control SAC agent with a MultiFlaxModel container.
+    Handles Off-Policy Transition storage and JAX-native RNG splitting.
+    """
 
     def __init__(
         self,
         particle_type: int,
-        actor_network,
-        critic_network,
+        network: MultiFlaxModel,
         task: Task,
         observable: Observable,
-        action_mapper: typing.Callable[[np.ndarray], Action],
-        loss: SoftActorCriticLoss | None = None,
-        replay_buffer: ReplayBuffer | None = None,
+        action_mapper: typing.Callable[[np.ndarray], typing.List[Action]],
+        loss: SoftActorCriticLoss,
+        replay_buffer: ReplayBuffer,
         batch_size: int = 256,
         learning_starts: int = 1000,
         gradient_steps: int = 1,
         train: bool = True,
+        seed: int = 42,
     ):
+        # SwarmRL Core
         self.particle_type = particle_type
-        self.actor_network = actor_network
-        self.critic_network = critic_network
         self.task = task
         self.observable = observable
         self.action_mapper = action_mapper
-        self.loss = loss or SoftActorCriticLoss()
-        self.replay_buffer = replay_buffer or ReplayBuffer(capacity=100_000)
-        self.batch_size = int(batch_size)
-        self.learning_starts = int(learning_starts)
-        self.gradient_steps = int(gradient_steps)
+
+        # SAC / JAX Core
+        self.network = network
+        self.loss = loss
+        self.replay_buffer = replay_buffer
+        self.batch_size = batch_size
+        self.learning_starts = learning_starts
+        self.gradient_steps = gradient_steps
         self.train = train
 
+        # Master JAX PRNG Key for this agent
+        self.rng = jax.random.PRNGKey(seed)
+
+        # Off-Policy State Tracking
         self._step_count = 0
         self._pending_observation = None
         self._pending_action = None
@@ -56,89 +67,101 @@ class SACAgent(Agent):
         return "SACAgent"
 
     def reset_agent(self, colloids: typing.List[Colloid]):
+        """Resets the observable, tasks, and clears the pending step memory."""
         self.observable.initialize(colloids)
         self.task.initialize(colloids)
         self._pending_observation = None
         self._pending_action = None
+        self.kill_switch = False
 
     def calc_action(self, colloids: typing.List[Colloid]) -> typing.List[Action]:
-        observation = np.asarray(self.observable.compute_observable(colloids))
-        policy_action, _ = self.actor_network.compute_action(observables=observation)
+        """
+        Computes the state, stores the previous transition, and samples a new action.
+        """
+        # 1. Get current state (s_t) and environment feedback
+        current_obs = self.observable.compute_observable(colloids)
         reward = self.task(colloids)
-
-        # Finalize transition once next observation is available.
-        if self.train and self._pending_observation is not None:
-            self.replay_buffer.add(
-                Transition(
-                    observation=np.asarray(self._pending_observation),
-                    action=np.asarray(self._pending_action),
-                    reward=float(np.mean(reward)),
-                    next_observation=np.asarray(observation),
-                    done=bool(self.task.kill_switch),
-                )
-            )
-
-        self._pending_observation = observation
-        self._pending_action = policy_action
-        self._last_reward = float(np.mean(reward))
-
-        action_vectors = np.asarray(policy_action)
-        if action_vectors.ndim == 1:
-            action_vectors = action_vectors.reshape(1, -1)
-        chosen_actions = [self.action_mapper(vec) for vec in action_vectors]
-
+        terminated = float(self.task.kill_switch)
         self.kill_switch = self.task.kill_switch
+
+        # 2. Store full Transition (s_{t-1}, a_{t-1}, r_t, s_t, terminated)
+        if self.train and self._pending_observation is not None:
+            transition = Transition(
+                observation=self._pending_observation,
+                action=self._pending_action,
+                # TODO: _last_reward???!
+                reward=float(reward),
+                next_observation=current_obs,
+                terminated=terminated,
+            )
+            self.replay_buffer.add(transition)
+
+        # 3. Sample new action (a_t)
+        self.rng, sample_key = jax.random.split(self.rng)
+        # Create 2D array for jax, dummy batch size of 1
+        state_inputs = {"feature_data": jnp.expand_dims(current_obs, axis=0)}
+
+        if self._step_count < self.learning_starts:
+            # Optional: Random sampling for the first X steps for better exploration.
+            # You could call your sampling strategy directly here with a completely
+            # uniform logits array, or let the uninitialized network act randomly.
+            pass
+
+        actor_params = self.network.states["actor"].params
+
+        actions_jax, _ = self.network.networks["actor"].apply(
+            {"params": actor_params},
+            rng_key=sample_key,
+            **state_inputs,
+        )
+
+        action_np = np.asarray(jax.device_get(actions_jax))[0]
+
+        # 4. Update pending state for the next step
+        self._pending_observation = current_obs
+        self._pending_action = action_np
+        self._last_reward = reward
         self._step_count += 1
+
+        chosen_actions = self.action_mapper(action_np)
         return chosen_actions
 
     def update_agent(self) -> tuple[float, bool]:
-        if not self.train:
-            return self._last_reward, self.task.kill_switch
+        """
+        Samples from the ReplayBuffer and triggers the compiled Loss/Update step.
+        """
+        killed = self.kill_switch
 
-        if self._step_count < self.learning_starts:
-            return self._last_reward, self.task.kill_switch
-
-        if not self.replay_buffer.can_sample(self.batch_size):
-            return self._last_reward, self.task.kill_switch
+        if not self.train or not self.replay_buffer.can_sample(self.batch_size):
+            return self._last_reward, killed
 
         for _ in range(self.gradient_steps):
+            # 1. Sample Replay buffer
             batch = self.replay_buffer.sample(self.batch_size)
-            if hasattr(self.critic_network, "sac_train_step"):
-                self.critic_network.sac_train_step(
-                    actor_network=self.actor_network,
-                    loss=self.loss,
-                    batch=batch,
-                )
-            else:
-                raise NotImplementedError(
-                    "critic_network must implement "
-                    "sac_train_step(actor_network, loss, batch)."
-                )
 
-        return self._last_reward, self.task.kill_switch
+            # 2. Inject fresh RNG keys into batch payload
+            self.rng, actor_rng, next_actor_rng = jax.random.split(self.rng, num=3)
+            batch["actor_rng"] = actor_rng
+            batch["next_actor_rng"] = next_actor_rng
 
-    def initialize_network(self):
-        if hasattr(self.actor_network, "reinitialize_network"):
-            self.actor_network.reinitialize_network()
-        if hasattr(self.critic_network, "reinitialize_network"):
-            self.critic_network.reinitialize_network()
+            # 3. Compute loss and immediately apply updates
+            #   (encapsulated in SACLoss)
+            metrics = self.loss.compute_loss(self.network, batch)
+            logger.debug(metrics)
+        return self._last_reward, killed
+
+    def initalize_network(self):
+        if hasattr(self.network, "reinitialize_network"):
+            self.network.reinitialize_network()
 
     def save_agent(self, directory: str):
-        self.actor_network.export_model(
-            filename=f"{self.__name__()}_actor_{self.particle_type}",
-            directory=directory,
-        )
-        self.critic_network.export_model(
-            filename=f"{self.__name__()}_critic_{self.particle_type}",
+        self.network.export_model(
+            filename=f"{self.__name__()}_{self.particle_type}",
             directory=directory,
         )
 
     def restore_agent(self, directory: str):
-        self.actor_network.restore_model_state(
-            filename=f"{self.__name__()}_actor_{self.particle_type}",
-            directory=directory,
-        )
-        self.critic_network.restore_model_state(
-            filename=f"{self.__name__()}_critic_{self.particle_type}",
+        self.network.restore_model_state(
+            filename=f"{self.__name__()}_{self.particle_type}",
             directory=directory,
         )
