@@ -13,7 +13,7 @@ def test_replay_buffer_add_and_sample_shapes():
                 action=np.array([0.1 * i], dtype=np.float32),
                 reward=float(i),
                 next_observation=np.array([i + 1, i + 2], dtype=np.float32),
-                done=bool(i % 2),
+                terminated=float(bool(i % 2)),
             )
         )
 
@@ -22,7 +22,7 @@ def test_replay_buffer_add_and_sample_shapes():
     assert batch["action"].shape == (4, 1)
     assert batch["reward"].shape == (4, 1)
     assert batch["next_observation"].shape == (4, 2)
-    assert batch["done"].shape == (4, 1)
+    assert batch["terminated"].shape == (4, 1)
 
 
 def test_replay_buffer_capacity_is_enforced():
@@ -34,7 +34,7 @@ def test_replay_buffer_capacity_is_enforced():
                 action=np.array([i], dtype=np.float32),
                 reward=float(i),
                 next_observation=np.array([i + 1], dtype=np.float32),
-                done=False,
+                terminated=0.0,
             )
         )
 

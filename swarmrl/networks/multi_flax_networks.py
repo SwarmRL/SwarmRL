@@ -1,10 +1,11 @@
 import os
 import pickle
 from abc import ABC
-from typing import Any, Dict
+from typing import Any
 
 import jax
 import optax
+from flax import linen as nn
 from flax.training.train_state import TrainState
 from loguru import logger
 
@@ -22,14 +23,14 @@ class MultiFlaxModel(Network, ABC):
         self.deployment_mode = deployment_mode
         self.epoch_count = 0
 
-        self.networks: Dict[str, Any] = {}
-        self.states: Dict[str, TrainState] = {}
-        self.target_params: Dict[str, Any] = {}
+        self.networks: dict[str, Any] = {}
+        self.states: dict[str, TrainState] = {}
+        self.target_params: dict[str, Any] = {}
 
     def add_network(
         self,
         name: str,
-        flax_module: jax.nn.Module,
+        flax_module: nn.Module,
         init_params: Any,
         optimizer: Any = None,
         has_target: bool = False,

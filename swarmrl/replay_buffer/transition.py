@@ -7,16 +7,21 @@ import numpy as np
 
 @dataclass(slots=True)
 class Transition:
-    """Single transition tuple for off-policy RL."""
+    """
+    Single transition tuple for off-policy RL.
+    Distinguishes between terminated and truncated endings for
+    correct state value computation.
+    # Target = r + gamma * (1 - terminated) * max_a Q(s', a)
 
-    observation: np.ndarray  # Batch of s_t
-    action: np.ndarray  # Batch of a_t
-    reward: float  # Batch of r_t
-    next_observation: np.ndarray  # Batch of s_{t+1}
-    done: bool  # Batch of terminal flags
+    """
+
+    observation: np.ndarray  # s_t
+    action: np.ndarray  # a_t
+    reward: float  # r_t
+    next_observation: np.ndarray  # s_{t+1}
+    terminated: float  # 1.0 if real end (killed, goal reached), else 0.0
 
 
-# TODO: split done in terminated and truncated for correct state value computation.
+# split done in terminated and truncated for correct state value computation.
 # terminated -> value = 0
 # truncated -> value = as is...
-# $$\text{Target} = r + \gamma \cdot (1 - \text{terminated}) \cdot \max_a Q(s', a)$$

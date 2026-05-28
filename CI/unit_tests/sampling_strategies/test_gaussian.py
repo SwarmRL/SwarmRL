@@ -65,3 +65,26 @@ class TestContinuousGaussianDistribution:
         assert jnp.all(actions[:, 0] >= -0.3) and jnp.all(actions[:, 0] <= 0.3)
         assert jnp.all(actions[:, 1] >= -0.2) and jnp.all(actions[:, 1] <= 0.2)
         assert jnp.all(actions[:, 2] >= -1.0) and jnp.all(actions[:, 2] <= 1.0)
+
+    def test_log_probs_include_tanh_squash_correction(self):
+        sampler = ContinuousGaussianDistribution(action_dimension=2)
+        logits = jnp.zeros((3, 4), dtype=jnp.float32)
+        key = jax.random.PRNGKey(5)
+
+        actions, log_probs = sampler(
+            logits,
+            subkey=key,
+            calculate_log_probs=True,
+            deployment_mode=False,
+        )
+
+        raw_actions = jax.random.normal(key, shape=(3, 2), dtype=jnp.float32)
+        gaussian_log_probs = (-0.5 * (raw_actions**2 + jnp.log(2.0 * jnp.pi))).sum(
+            axis=-1
+        )
+        squash_correction = jnp.log(1.0 - jnp.tanh(raw_actions) ** 2 + 1e-6).sum(
+            axis=-1
+        )
+
+        assert jnp.allclose(actions, raw_actions)
+        assert jnp.allclose(log_probs, gaussian_log_probs - squash_correction)

@@ -1,15 +1,11 @@
 """Continuous Gaussian sampling strategy."""
 
-import logging
 from typing import Optional
 
 import jax
 import jax.numpy as jnp
-import numpy as onp
 
 from swarmrl.sampling_strategies.sampling_strategy import ContinuousSamplingStrategy
-
-logger = logging.getLogger(__name__)
 
 
 class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
@@ -96,7 +92,12 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
             if subkey is None:
                 subkey = rng_key
             if subkey is None:
-                subkey = jax.random.PRNGKey(onp.random.randint(0, 1236534623))
+                # TODO: PRNGKey Managing
+                # subkey = jax.random.PRNGKey(onp.random.randint(0, 1236534623))
+                raise ValueError(
+                    "rng_key (or subkey) is strictly required in training mode! JAX "
+                    "cannot generate random numbers safely without an explicit PRNGKey."
+                )
             log_std = jnp.clip(
                 logits[:, self.action_dimension :],
                 self.float_precision(-20.0),
@@ -134,6 +135,5 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
             if self.action_limits is not None
             else pre_squash_action
         )
-        logger.debug(f"{actions=}, {log_probs=}, shape={actions.shape}")
 
         return actions, log_probs

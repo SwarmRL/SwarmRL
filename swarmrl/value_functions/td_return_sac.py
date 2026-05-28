@@ -7,7 +7,7 @@ Applications" by Haarnoja et al. (arXiv:1812.05905, 2018/2019).
 """
 
 from functools import partial
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import jax
 import jax.numpy as np
@@ -37,7 +37,7 @@ class TDReturnsSAC:
         self,
         gamma: float = 0.99,
         standardize: bool = False,
-        standardize_axis: Optional[Union[int, Tuple[int, ...]]] = 0,
+        standardize_axis: Optional[Union[int, tuple[int, ...]]] = 0,
     ):
         """
         Constructor for the SAC TD returns class.

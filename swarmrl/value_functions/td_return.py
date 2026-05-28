@@ -3,7 +3,7 @@ Module for the TD returns value function.
 """
 
 from functools import partial
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import jax
 import jax.numpy as np
@@ -18,7 +18,7 @@ class TDReturns:
         self,
         gamma: float = 0.99,
         standardize: bool = True,
-        standardize_axis: Optional[Union[int, Tuple[int, ...]]] = 0,
+        standardize_axis: Optional[Union[int, tuple[int, ...]]] = 0,
     ):
         """
         Constructor for the TD returns class

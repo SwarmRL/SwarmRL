@@ -24,7 +24,7 @@ class Network:
 
     def _next_rng_key(self):
         """Split and advance internal RNG state, returning a fresh subkey."""
-        self._rng_key, subkey = jax.random.splot(self._rng_key)
+        self._rng_key, subkey = jax.random.split(self._rng_key)
         return subkey
 
     def compute_action(self, observables: List[Colloid], explore_mode: bool = False):
