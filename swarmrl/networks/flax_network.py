@@ -18,8 +18,6 @@ from optax._src.base import GradientTransformation
 
 from swarmrl.action_selection.action_selector import ActionSelector
 from swarmrl.exploration_policies.exploration_policy import (
-    ContinuousExplorationPolicy,
-    DiscreteExplorationPolicy,
     ExplorationPolicy,
 )
 from swarmrl.exploration_policies.random_exploration import RandomExploration
@@ -78,8 +76,6 @@ class FlaxModel(Network, ABC):
                 training can be performed, this is only used in deployment.
         """
         if rng_key is None:
-            rng_key = int(onp.random.randint(0, 2**31 - 1))
-        self._rng_key = jax.random.PRNGKey(int(rng_key))
             rng_key = int(onp.random.randint(0, 2**31 - 1))
         self._rng_key = jax.random.PRNGKey(int(rng_key))
         self.sampling_strategy = sampling_strategy
