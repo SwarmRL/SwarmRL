@@ -101,7 +101,6 @@ def build_episode_data(batch_size, seed=0):
 def test_loss_jit_compilation(batch_size):
     network = build_sac_network(batch_size=batch_size, seed=11)
 
-    # 2. FIXED: Instantiate the strategy via .create()
     loss_fn = SoftActorCriticLoss(
         target_entropy=-2.0,
         sampling_strategy=ContinuousGaussianDistribution.create(action_dimension=2),

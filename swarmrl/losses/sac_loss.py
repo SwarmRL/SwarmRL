@@ -292,7 +292,7 @@ def get_sac_grads(
 
 @partial(jax.jit, static_argnums=(2,))
 def _apply_polyak_update(live_params, target_params, tau: float):
-    """JIT-compiled Polyak averaging for maximum speed."""
+    """JIT-compiled Polyak averaging."""
     return jax.tree_util.tree_map(
         lambda live, target: tau * live + (1.0 - tau) * target,
         live_params,

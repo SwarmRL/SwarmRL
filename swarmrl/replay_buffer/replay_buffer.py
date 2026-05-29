@@ -49,7 +49,7 @@ class ReplayBuffer:
             val = getattr(transition, key)
             val_arr = np.asarray(val)
 
-            # accept incoming type with 64 Bit protection for performance
+            # Downcast common 64-bit inputs to reduce buffer memory use.
             dtype = val_arr.dtype
             if dtype == np.float64:
                 dtype = np.float32
@@ -72,7 +72,7 @@ class ReplayBuffer:
         if not self._initialized:
             self._init_buffers(transition)
 
-        # Writing directly into pre-allocated memory slices (extremely fast)
+        # Write directly into pre-allocated buffer slots.
         for key in self._buffers:
             val = getattr(transition, key)
             self._buffers[key][self._position] = val

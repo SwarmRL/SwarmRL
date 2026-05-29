@@ -20,8 +20,3 @@ class Transition:
     reward: float  # r_t
     next_observation: np.ndarray  # s_{t+1}
     terminated: float  # 1.0 if real end (killed, goal reached), else 0.0
-
-
-# split done in terminated and truncated for correct state value computation.
-# terminated -> value = 0
-# truncated -> value = as is...
