@@ -9,8 +9,8 @@ import numpy as np
 class Transition:
     """
     Single transition tuple for off-policy RL.
-    Distinguishes between terminated and truncated endings for
-    correct state value computation.
+    `terminated` marks true terminal states where bootstrapped target values
+    should be masked.
     """
 
     observation: np.ndarray  # s_t

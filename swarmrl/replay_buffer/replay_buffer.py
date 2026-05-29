@@ -10,8 +10,7 @@ from swarmrl.replay_buffer.transition import Transition
 class ReplayBuffer:
     """
     Fixed-size replay buffer with random minibatch sampling, using lazy-allocated
-    NumPy buffers for high-performance vectorized sampling, bypassing slow Python
-    loops and dataclass conversions.
+    NumPy buffers for with lazy-allocated NumPy arrays for vectorized sampling.
     """
 
     def __init__(self, capacity: int, seed: int | None = None):

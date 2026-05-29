@@ -46,14 +46,12 @@ class SACAgent(Agent):
         seed: int = 42,
         transition_storage_config: TransitionStorageConfig | None = None,
     ):
-        # SwarmRL Core
         self.particle_type = particle_type
         self.task = task
         self.observable = observable
         self.action_mapper = action_mapper
         self.sampling_strategy = sampling_strategy
 
-        # SAC / JAX Core
         self.network = network
         self.loss = loss
         self.replay_buffer = replay_buffer
