@@ -11,7 +11,7 @@ from swarmrl.trainers.trainer import Trainer
 class UniversalTrainer(Trainer):
     """
     Universal SwarmRL Trainer.
-    Seamlessly supports On- and Off-policy agents, as well as
+    Supports On- and Off-policy agents, as well as
     episodic and continuous training routines.
     """
 

@@ -81,10 +81,8 @@ def test_full_sac_pipeline_dataflow():
     obs_dim = 3
     act_dim = 2
 
-    # init the buffer
     buffer = ReplayBuffer(capacity=100, seed=42)
 
-    # fill the buffer
     for i in range(10):
         trans = Transition(
             observation=np.random.randn(obs_dim).astype(np.float32),
@@ -97,10 +95,8 @@ def test_full_sac_pipeline_dataflow():
 
     assert len(buffer) == 10, "Buffer hasn't stored transition."
 
-    # 3. sample a batch
     batch = buffer.sample(batch_size=batch_size)
 
-    # check buffer preparation
     assert batch["observation"].shape == (batch_size, obs_dim)
     assert batch["reward"].shape == (batch_size, 1), "Reward Broadcasting failed!"
     assert batch["terminated"].shape == (
@@ -108,13 +104,11 @@ def test_full_sac_pipeline_dataflow():
         1,
     ), "Terminated Broadcasting failed!"
 
-    # inject rng_keys as happening in the agent
     master_key = jax.random.PRNGKey(99)
     _, actor_rng, next_actor_rng = jax.random.split(master_key, num=3)
     batch["actor_rng"] = actor_rng
     batch["next_actor_rng"] = next_actor_rng
 
-    # init network and loss fn
     network = build_sac_network(batch_size=batch_size, seed=0)
     sampling_strategy = ContinuousGaussianDistribution.create(action_dimension=act_dim)
     loss_fn = SoftActorCriticLoss(
@@ -128,7 +122,6 @@ def test_full_sac_pipeline_dataflow():
         "log_alpha": network.states["log_alpha"].params,
     }
 
-    # run jit compiled loss
     try:
         (total_loss, metrics), grads = get_sac_grads(
             trainable_params,
@@ -143,12 +136,10 @@ def test_full_sac_pipeline_dataflow():
     except Exception as e:
         pytest.fail(f"get_sac_grads failed during compilation/execution: {e}")
 
-    # validate results
     assert jnp.isfinite(total_loss), "Loss is NaN or Inf!"
     assert "critic_loss" in metrics
     assert "actor_loss" in metrics
 
-    # Check if gradients exists for all trainable networks
     assert "actor" in grads
     assert "critic" in grads
     assert "log_alpha" in grads

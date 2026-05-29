@@ -10,10 +10,8 @@ class NoExplorationPolicy(ContinuousExplorationPolicy):
     """
     An identity exploration policy that returns actions exactly as sampled.
 
-    This is required for algorithms like Soft Actor-Critic (SAC), where
-    exploration is handled intrinsically by the stochastic policy
-    (e.g., sampling from a Gaussian distribution) and adding external
-    noise would invalidate the calculated log-probabilities.
+    Useful for stochastic-policy algorithms where extra exploration noise
+    should not be applied.
     """
 
     def __init__(self, *args, **kwargs) -> None:

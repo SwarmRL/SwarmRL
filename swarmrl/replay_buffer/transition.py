@@ -11,8 +11,6 @@ class Transition:
     Single transition tuple for off-policy RL.
     Distinguishes between terminated and truncated endings for
     correct state value computation.
-    # Target = r + gamma * (1 - terminated) * max_a Q(s', a)
-
     """
 
     observation: np.ndarray  # s_t

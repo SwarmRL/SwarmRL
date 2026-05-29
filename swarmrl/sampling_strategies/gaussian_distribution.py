@@ -22,7 +22,7 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
     no log-probabilities are produced.
     """
 
-    # struct.field tells JAX what is a traced array vs what is static metadata
+    # Static metadata fields are excluded from PyTree leaves.
     action_dimension: int = struct.field(pytree_node=False)
     action_limits: Optional[jnp.ndarray] = struct.field(pytree_node=True, default=None)
     float_precision: jnp.dtype = struct.field(pytree_node=False, default=jnp.float32)
@@ -96,7 +96,6 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
 
         mean = logits[..., : self.action_dimension]
 
-        # Note: deployment_mode MUST be passed as a static boolean if this is jitted!
         if deployment_mode:
             pre_squash_action = mean
             log_probs = None

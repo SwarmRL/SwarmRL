@@ -128,7 +128,6 @@ def sac_loss_fn(
     episode_data: dict[str, Any],
 ) -> tuple[jax.Array, dict[str, jax.Array]]:
     """
-    Pure JAX math function.
     Computes critic, actor, and temperature losses using a unified dictionary
     interface. Fully compatible with MultiFlaxModel registries.
 
@@ -188,7 +187,7 @@ def sac_loss_fn(
 
     # Split Network Pass and Sampling
 
-    # 1. Target Actor: Pure Forward Pass -> Sample
+    # 1. Target Actor: Forward Pass
     next_logits = actor_module.apply(
         {"params": actor_p}, rng_key=next_network_key, **next_state_inputs
     )
@@ -200,7 +199,7 @@ def sac_loss_fn(
     )
     next_log_probs = next_log_probs[..., None]
 
-    # 2. Live Actor: Pure Forward Pass -> Sample
+    # 2. Live Actor: Forward Pass
     new_logits = actor_module.apply(
         {"params": actor_p}, rng_key=live_network_key, **state_inputs
     )
@@ -305,12 +304,6 @@ class SoftActorCriticLoss(Loss):
     Implements the loss function for the Soft Actor-Critic (SAC) algorithm.
     Based on the paper "Soft Actor-Critic Algorithms and Applications"
     by Haarnoja et al. (2018).
-
-    Concept:
-    Math Blocks: calculate_X_loss
-    Pure Math Engine: sac_loss_fn
-    Compiled Gradients: get_sac_grads
-    Parameter Update: compute_loss()
     """
 
     def __init__(

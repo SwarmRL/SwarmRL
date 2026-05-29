@@ -73,11 +73,8 @@ class SACAgent(Agent):
                 allow_existing_file=self.transition_storage_config.allow_existing_file,
                 write_chunk_size=self.transition_storage_config.write_chunk_size,
             )
-
-        # Master JAX PRNG Key for this agent
         self.rng = jax.random.PRNGKey(seed)
 
-        # Off-Policy State Tracking
         self._step_count = 0
         self._pending_observation = None
         self._pending_action = None
@@ -128,8 +125,7 @@ class SACAgent(Agent):
             state_inputs = {"feature_data": jnp.expand_dims(current_obs, axis=0)}
 
         if self._step_count < self.learning_starts:
-            # Pure uniform random sampling for the first X steps for better
-            # exploration.
+            # Use uniform random actions during the learning_starts warm-up.
             action_dim = self.sampling_strategy.action_dimension
             actions_jax = jax.random.uniform(
                 warmup_key,
