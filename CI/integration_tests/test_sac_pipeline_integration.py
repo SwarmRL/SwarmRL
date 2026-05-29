@@ -11,6 +11,7 @@ from swarmrl.losses.sac_loss import SoftActorCriticLoss, get_sac_grads
 from swarmrl.networks.multi_flax_networks import MultiFlaxModel
 from swarmrl.replay_buffer.replay_buffer import ReplayBuffer
 from swarmrl.replay_buffer.transition import Transition
+from swarmrl.sampling_strategies import ContinuousGaussianDistribution
 
 
 class TinyActor(nn.Module):
@@ -18,13 +19,10 @@ class TinyActor(nn.Module):
 
     @nn.compact
     def __call__(self, feature_data, rng_key):
-        mean = nn.Dense(self.action_dim, kernel_init=nn.initializers.zeros)(
+        del rng_key
+        return nn.Dense(self.action_dim * 2, kernel_init=nn.initializers.zeros)(
             feature_data
         )
-        raw_action = mean + 0.1 * jax.random.normal(rng_key, mean.shape)
-        action = jnp.tanh(raw_action)
-        log_prob = -0.5 * jnp.sum(raw_action**2 + jnp.log(2.0 * jnp.pi), axis=-1)
-        return action, log_prob
 
 
 class TinyCritic(nn.Module):
@@ -118,7 +116,11 @@ def test_full_sac_pipeline_dataflow():
 
     # init network and loss fn
     network = build_sac_network(batch_size=batch_size, seed=0)
-    loss_fn = SoftActorCriticLoss(target_entropy=-float(act_dim))
+    sampling_strategy = ContinuousGaussianDistribution.create(action_dimension=act_dim)
+    loss_fn = SoftActorCriticLoss(
+        sampling_strategy=sampling_strategy,
+        target_entropy=-float(act_dim),
+    )
 
     trainable_params = {
         "actor": network.states["actor"].params,
@@ -134,6 +136,7 @@ def test_full_sac_pipeline_dataflow():
             network.networks["critic"],
             network.target_params["critic"],
             loss_fn.value_function.__call__,
+            loss_fn.sampling_strategy,
             loss_fn.target_entropy,
             batch,
         )

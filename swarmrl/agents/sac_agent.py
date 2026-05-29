@@ -117,32 +117,42 @@ class SACAgent(Agent):
             self.persist_trajectory(transition)
 
         # 3. Sample new action (a_t)
-        self.rng, network_key, sample_key = jax.random.split(self.rng, num=3)
-        # Create 2D array for jax, dummy batch size of 1
-        state_inputs = {"feature_data": jnp.expand_dims(current_obs, axis=0)}
+        self.rng, network_key, sample_key, warmup_key = jax.random.split(
+            self.rng, num=4
+        )
+        if isinstance(current_obs, dict):
+            state_inputs = jax.tree_util.tree_map(
+                lambda x: jnp.expand_dims(x, axis=0), current_obs
+            )
+        else:
+            state_inputs = {"feature_data": jnp.expand_dims(current_obs, axis=0)}
 
         if self._step_count < self.learning_starts:
-            # Optional/TODO: Random sampling for the first X steps for better
-            # exploration. You could call your sampling strategy directly here
-            # with a completely uniform logits array, or let the uninitialized
-            # network act randomly.
-            pass
+            # Pure uniform random sampling for the first X steps for better
+            # exploration.
+            action_dim = self.sampling_strategy.action_dimension
+            actions_jax = jax.random.uniform(
+                warmup_key,
+                shape=(1, action_dim),
+                minval=-1.0,
+                maxval=1.0,
+            )
+        else:
+            actor_params = self.network.states["actor"].params
 
-        actor_params = self.network.states["actor"].params
+            logits_jax = self.network.networks["actor"].apply(
+                {"params": actor_params},
+                rng_key=network_key,
+                **state_inputs,
+            )
 
-        logits_jax = self.network.networks["actor"].apply(
-            {"params": actor_params},
-            rng_key=network_key,
-            **state_inputs,
-        )
-
-        # Sample new actions
-        actions_jax, _ = self.sampling_strategy(
-            logits=logits_jax,
-            rng_key=sample_key,
-            calculate_log_probs=False,
-            deployment_mode=not self.train,
-        )
+            # Sample new actions
+            actions_jax, _ = self.sampling_strategy(
+                logits=logits_jax,
+                rng_key=sample_key,
+                calculate_log_probs=False,
+                deployment_mode=not self.train,
+            )
 
         action_np = np.asarray(jax.device_get(actions_jax))[0]
 
@@ -161,7 +171,11 @@ class SACAgent(Agent):
         """
         killed = self.kill_switch
 
-        if not self.train or not self.replay_buffer.can_sample(self.batch_size):
+        if (
+            not self.train
+            or self._step_count < self.learning_starts
+            or not self.replay_buffer.can_sample(self.batch_size)
+        ):
             return self._last_reward, killed
 
         for _ in range(self.gradient_steps):

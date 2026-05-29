@@ -6,7 +6,12 @@ import jax.numpy as jnp
 import optax
 import pytest
 
-from swarmrl.losses.sac_loss import SoftActorCriticLoss, get_sac_grads
+from swarmrl.losses.sac_loss import (
+    SoftActorCriticLoss,
+    calculate_critic_loss,
+    get_sac_grads,
+    sac_loss_fn,
+)
 from swarmrl.networks.multi_flax_networks import MultiFlaxModel
 from swarmrl.sampling_strategies import ContinuousGaussianDistribution
 from swarmrl.value_functions.td_return_sac import TDReturnsSAC
@@ -115,7 +120,7 @@ def test_loss_jit_compilation(batch_size):
         network.networks["critic"],
         network.target_params["critic"],
         loss_fn.value_function.__call__,
-        loss_fn.sampling_strategy.__call__,
+        loss_fn.sampling_strategy,
         loss_fn.target_entropy,
         batch,
     )
@@ -155,7 +160,7 @@ def test_gradient_shapes(batch_size):
         network.networks["critic"],
         network.target_params["critic"],
         loss_fn.value_function.__call__,
-        loss_fn.sampling_strategy.__call__,
+        loss_fn.sampling_strategy,
         loss_fn.target_entropy,
         batch,
     )
@@ -165,6 +170,113 @@ def test_gradient_shapes(batch_size):
     )
     assert jax.tree_util.tree_map(lambda x: x.shape, grads) == jax.tree_util.tree_map(
         lambda x: x.shape, trainable_params
+    )
+
+
+def test_sac_critic_grads_do_not_include_actor_loss():
+    network = build_sac_network(batch_size=4, seed=19)
+    loss_fn = SoftActorCriticLoss(
+        target_entropy=-2.0,
+        sampling_strategy=ContinuousGaussianDistribution.create(action_dimension=2),
+    )
+    batch = build_episode_data(4, seed=41)
+    trainable_params = {
+        "actor": network.states["actor"].params,
+        "critic": network.states["critic"].params,
+        "log_alpha": network.states["log_alpha"].params,
+    }
+
+    (_, _), sac_grads = get_sac_grads(
+        trainable_params,
+        network.networks["actor"],
+        network.networks["critic"],
+        network.target_params["critic"],
+        loss_fn.value_function.__call__,
+        loss_fn.sampling_strategy,
+        loss_fn.target_entropy,
+        batch,
+    )
+
+    def critic_only_loss(critic_params):
+        state_inputs = {"feature_data": jnp.array(batch["observation"])}
+        next_state_inputs = {"feature_data": jnp.array(batch["next_observation"])}
+        actions = jnp.array(batch["action"])
+        rewards = jnp.array(batch["reward"]).reshape(-1, 1)
+        terminated = jnp.array(batch["terminated"]).reshape(-1, 1)
+        next_network_key, next_sample_key = jax.random.split(batch["next_actor_rng"])
+
+        next_logits = network.networks["actor"].apply(
+            {"params": trainable_params["actor"]},
+            rng_key=next_network_key,
+            **next_state_inputs,
+        )
+        next_actions, next_log_probs = loss_fn.sampling_strategy(
+            logits=next_logits,
+            rng_key=next_sample_key,
+            calculate_log_probs=True,
+            deployment_mode=False,
+        )
+        q1_next, q2_next = network.networks["critic"].apply(
+            {"params": network.target_params["critic"]},
+            actions=next_actions,
+            **next_state_inputs,
+        )
+        target_q = loss_fn.value_function(
+            rewards=rewards,
+            q_next_min=jnp.minimum(q1_next, q2_next),
+            temperature=jax.lax.stop_gradient(jnp.exp(trainable_params["log_alpha"])),
+            next_log_probs=next_log_probs[..., None],
+            terminated=terminated,
+        )
+        target_q = jax.lax.stop_gradient(target_q)
+        q1_pred, q2_pred = network.networks["critic"].apply(
+            {"params": critic_params}, actions=actions, **state_inputs
+        )
+        return calculate_critic_loss(q1_pred, q2_pred, target_q)
+
+    critic_only_grads = jax.grad(critic_only_loss)(trainable_params["critic"])
+    assert jax.tree_util.tree_all(
+        jax.tree_util.tree_map(
+            lambda combined, critic_only: jnp.allclose(combined, critic_only),
+            sac_grads["critic"],
+            critic_only_grads,
+        )
+    )
+
+
+def test_sac_actor_loss_has_zero_gradient_wrt_critic_params():
+    network = build_sac_network(batch_size=4, seed=23)
+    loss_fn = SoftActorCriticLoss(
+        target_entropy=-2.0,
+        sampling_strategy=ContinuousGaussianDistribution.create(action_dimension=2),
+    )
+    batch = build_episode_data(4, seed=43)
+    trainable_params = {
+        "actor": network.states["actor"].params,
+        "critic": network.states["critic"].params,
+        "log_alpha": network.states["log_alpha"].params,
+    }
+
+    def actor_only_loss_view(critic_params):
+        _, metrics = sac_loss_fn(
+            {**trainable_params, "critic": critic_params},
+            network.networks["actor"],
+            network.networks["critic"],
+            network.target_params["critic"],
+            loss_fn.value_function.__call__,
+            loss_fn.sampling_strategy,
+            loss_fn.target_entropy,
+            batch,
+        )
+        return metrics["actor_loss"]
+
+    actor_grad_wrt_critic = jax.grad(actor_only_loss_view)(trainable_params["critic"])
+
+    assert jax.tree_util.tree_all(
+        jax.tree_util.tree_map(
+            lambda grad: jnp.allclose(grad, 0.0),
+            actor_grad_wrt_critic,
+        )
     )
 
 

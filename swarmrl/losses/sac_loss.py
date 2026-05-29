@@ -162,8 +162,13 @@ def sac_loss_fn(
         'temperature_loss', 'alpha' and 'q1_mean'.
     """
     batch_data = episode_data
-    state_inputs = {"feature_data": jnp.array(batch_data["observation"])}
-    next_state_inputs = {"feature_data": jnp.array(batch_data["next_observation"])}
+    if isinstance(batch_data["observation"], dict):
+        state_inputs = batch_data["observation"]
+        next_state_inputs = batch_data["next_observation"]
+    else:
+        state_inputs = {"feature_data": jnp.array(batch_data["observation"])}
+        next_state_inputs = {"feature_data": jnp.array(batch_data["next_observation"])}
+
     actions = jnp.array(batch_data["action"])
     rewards = jnp.array(batch_data["reward"]).reshape(-1, 1)
     terminated = jnp.array(batch_data["terminated"]).reshape(-1, 1)
@@ -173,8 +178,6 @@ def sac_loss_fn(
 
     next_network_key, next_sample_key = jax.random.split(next_actor_rng)
     live_network_key, live_sample_key = jax.random.split(actor_rng)
-
-    batch_size = actions.shape[0]
 
     actor_p = trainable_params["actor"]
     critic_p = trainable_params["critic"]
@@ -210,15 +213,11 @@ def sac_loss_fn(
     log_probs = log_probs[..., None]
 
     # Optimized Batch Critic Evaluation
-    concatenated_actions = jnp.concatenate([actions, new_actions], axis=0)
-    concatenated_states = jax.tree_util.tree_map(
-        lambda x: jnp.concatenate([x, x], axis=0), state_inputs
+    q1_pred, q2_pred = critic_module.apply(
+        {"params": critic_p},
+        actions=actions,
+        **state_inputs,
     )
-    q1_concat, q2_concat = critic_module.apply(
-        {"params": critic_p}, actions=concatenated_actions, **concatenated_states
-    )
-    q1_pred, q1_action = q1_concat[:batch_size], q1_concat[batch_size:]
-    q2_pred, q2_action = q2_concat[:batch_size], q2_concat[batch_size:]
 
     # Target Critic Evaluation
     q1_next, q2_next = critic_module.apply(
@@ -239,7 +238,12 @@ def sac_loss_fn(
     # MSBE Critic Loss
     critic_loss = calculate_critic_loss(q1_pred, q2_pred, target_q)
 
-    # Actor Policy Loss
+    # Actor Policy Loss. Critic params are frozen here so actor-loss gradients
+    # update the actor through ``new_actions`` without also updating the critic.
+    critic_p_detached = jax.tree_util.tree_map(jax.lax.stop_gradient, critic_p)
+    q1_action, q2_action = critic_module.apply(
+        {"params": critic_p_detached}, actions=new_actions, **state_inputs
+    )
     actor_loss = calculate_actor_loss(q1_action, q2_action, log_probs, alpha_detached)
 
     # Total sum for JAX to differentiate

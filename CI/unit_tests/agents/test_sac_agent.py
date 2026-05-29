@@ -7,6 +7,7 @@ import numpy as np
 from swarmrl.agents.sac_agent import SACAgent
 from swarmrl.replay_buffer.replay_buffer import ReplayBuffer
 from swarmrl.replay_buffer.transition import Transition
+from swarmrl.sampling_strategies import ContinuousGaussianDistribution
 from swarmrl.utils.storage_utils import TransitionStorageConfig
 
 
@@ -26,8 +27,8 @@ class DummyNetwork:
 class DummyActor:
     def apply(self, params, rng_key, feature_data):
         batch_size = feature_data.shape[0]
-        action = jnp.zeros((batch_size, 2), dtype=jnp.float32)
-        return action, None
+        logits = jnp.zeros((batch_size, 4), dtype=jnp.float32)
+        return logits
 
 
 class DummyObservable:
@@ -75,6 +76,7 @@ def test_sac_agent_updates_multiflax_container_via_loss_bridge():
         action_mapper=lambda action: action,
         loss=loss,
         replay_buffer=filled_buffer(),
+        sampling_strategy=ContinuousGaussianDistribution.create(action_dimension=2),
         batch_size=2,
         learning_starts=0,
         gradient_steps=2,
@@ -114,6 +116,7 @@ def test_sac_agent_can_dump_transition_debug_data(tmp_path):
         action_mapper=lambda action: [action],
         loss=loss,
         replay_buffer=ReplayBuffer(capacity=4, seed=0),
+        sampling_strategy=ContinuousGaussianDistribution.create(action_dimension=2),
         batch_size=2,
         learning_starts=0,
         gradient_steps=1,
