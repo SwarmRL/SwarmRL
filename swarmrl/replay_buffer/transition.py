@@ -9,6 +9,7 @@ import numpy as np
 class Transition:
     """
     Single transition tuple for off-policy RL.
+
     `terminated` marks true terminal states where bootstrapped target values
     should be masked.
     """
