@@ -103,11 +103,17 @@ class ProximalPolicyLoss(Loss, ABC):
         log_jax_runtime_value("predicted_values", predicted_values)
 
         # compute the advantages and returns
+        rewards = rewards[1:]
         advantages, returns = self.value_function(
             rewards=rewards, values=predicted_values
         )
         log_jax_runtime_value("advantages", advantages)
         log_jax_runtime_value("returns", returns)
+
+        new_logits = new_logits[:-1]
+        action_indices = action_indices[:-1]
+        old_log_probs = old_log_probs[:-1]
+        predicted_values = predicted_values[:-1]
 
         # compute the probabilities of the old actions under the new policy
         new_probabilities = jax.nn.softmax(new_logits, axis=-1)
