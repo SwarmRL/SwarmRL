@@ -56,9 +56,7 @@ def compute_forces(r: jnp.ndarray, director: jnp.ndarray) -> jnp.ndarray:
     """
 
     def _sub_compute(r):
-        return (
-            1e-8 + 1 / (jnp.linalg.norm(r) + 1e-8) ** 12
-        )  # Add epsilon numbers to avoid the gradient to be NaN
+        return 1 / (jnp.linalg.norm(r) + 1e-8) ** 12  # avoid gradient becoming NaN
 
     force_fn = jax.grad(_sub_compute)
 
@@ -122,7 +120,6 @@ def compute_torque_partition_on_rod(
     """
     # (n_colloids, rod_particles, 3)
     distance_matrix = compute_distance_matrix(colloid_positions, rod_positions)
-    # distance_matrix = distance_matrix[:, :, :2]
 
     # Force on the rod
     rod_map_fn = jax.vmap(compute_forces, in_axes=(0, None))  # map over rod particles

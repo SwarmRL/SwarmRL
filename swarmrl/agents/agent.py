@@ -4,6 +4,8 @@ Parent class for all agents
 
 import typing
 
+from loguru import logger
+
 from swarmrl.actions.actions import Action
 from swarmrl.components.colloid import Colloid
 
@@ -73,4 +75,6 @@ class Agent:
                 External reward from the environment.
 
         """
-        raise NotImplementedError("Implemented in Child class.")
+        logger.info(
+            f"{self.__class__.__name__} does not implement calc_reward, skipping."
+        )

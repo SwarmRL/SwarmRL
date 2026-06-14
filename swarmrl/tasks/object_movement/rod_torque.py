@@ -111,9 +111,9 @@ class RodTorque(Task):
         torques : np.ndarray (n_colloids, )
                 Torques on the rod for each colloid.
         """
-        torques = self.decomp_fn(rod_positions, colloid_directors, colloid_positions)[
-            :, 2
-        ]
+        torques = self.decomp_fn(
+            rod_positions, colloid_directors, colloid_positions
+        )[:, 2]
         return torques
 
     def _compute_angular_velocity(self, new_director: np.ndarray):
@@ -148,9 +148,9 @@ class RodTorque(Task):
 
         # Return the clipped average velocity.
         if self.angular_velocity_scale > 0.0:
-            return np.clip(np.nanmean(self._velocity_history_list), 0.0, None)
+            return np.clip(np.mean(self._velocity_history_list), 0.0, None)
         else:
-            return np.clip(np.nanmean(self._velocity_history_list), None, 0.0)
+            return np.clip(np.mean(self._velocity_history_list), None, 0.0)
 
     def _torque_partition(
         self,
@@ -169,18 +169,9 @@ class RodTorque(Task):
         torques_in_direction : np.ndarray (n_colloids, )
                 Torques on the rod for each colloid with wrong directions set to 0.
         """
-        if self.angular_velocity_scale > 0.0:
-            torques_in_direction = colloid_torques_on_rod.at[
-                colloid_torques_on_rod > 0.0
-            ].set(0.0)
-        else:
-            torques_in_direction = colloid_torques_on_rod.at[
-                colloid_torques_on_rod < 0.0
-            ].set(0.0)
-
-        return (
-            torques_in_direction * -1
-        )  # Sign of the torques has to be inverted to avoid negativ rewards
+        # Sign of the torques has to be inverted to avoid negative rewards.
+        sign = np.sign(self.angular_velocity_scale)
+        return np.clip(-sign * colloid_torques_on_rod, 0.0, None) * sign
 
     def _compute_torque_and_velocity_reward(
         self,
@@ -232,15 +223,13 @@ class RodTorque(Task):
                 Rewards for each colloid.
         """
         # Collect the important data.
-        rod = [colloid for colloid in colloids if colloid.type == self.rod_type]
-        rod_positions = np.array([colloid.pos for colloid in rod])
-        rod_directors = np.array([colloid.director for colloid in rod])
+        rod_data = [(c.pos, c.director) for c in colloids if c.type == self.rod_type]
+        rod_positions, rod_directors = map(np.array, zip(*rod_data))
 
-        chosen_colloids = [
-            colloid for colloid in colloids if colloid.type == self.particle_type
+        colloid_data = [
+            (c.pos, c.director) for c in colloids if c.type == self.particle_type
         ]
-        colloid_positions = np.array([colloid.pos for colloid in chosen_colloids])
-        colloid_directors = np.array([colloid.director for colloid in chosen_colloids])
+        colloid_positions, colloid_directors = map(np.array, zip(*colloid_data))
 
         rewards = self._compute_torque_and_velocity_reward(
             rod_directors, rod_positions, colloid_directors, colloid_positions

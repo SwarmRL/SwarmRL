@@ -107,10 +107,12 @@ class RotateRod(Task):
 
         # Update the historical rod director and velocity.
         self._historic_rod_director = new_director
-        
-        # If velocity history is uninitialized (all zeros), fill it with current velocity
+
+        # If velocity history is uninitialized (all zeros), fill with current value.
         if np.all(self._velocity_history == 0):
-            self._velocity_history = np.full_like(self._velocity_history, angular_velocity)
+            self._velocity_history = np.full_like(
+                self._velocity_history, angular_velocity
+            )
         else:
             self._velocity_history = np.roll(self._velocity_history, -1)
             self._velocity_history = self._velocity_history.at[self._append_index].set(

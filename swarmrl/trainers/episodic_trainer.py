@@ -128,6 +128,18 @@ class EpisodicTrainer(Trainer):
                 rewards[episode] = current_reward
                 self.maybe_save_checkpoint(rewards, episode, current_reward)
 
+                window_start = max(0, episode + 1 - 10)
+                running_reward = np.round(
+                    np.mean(rewards[window_start : episode + 1]), 4
+                )
+
+                if (
+                    save_best_network is not None
+                    and running_reward > best_running_reward
+                ):
+                    best_running_reward = running_reward
+                    self.export_models(directory=f"{save_best_network}/best_network")
+
                 logger.debug(f"{episode=}")
                 logger.debug(f"{current_reward=}")
 
