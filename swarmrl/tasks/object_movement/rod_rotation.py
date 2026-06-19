@@ -10,7 +10,7 @@ import numpy as onp
 
 from swarmrl.components.colloid import Colloid
 from swarmrl.tasks.task import Task
-from swarmrl.utils.colloid_utils import compute_torque_partition_on_rod
+from swarmrl.utils.colloid_utils import compute_torque_on_rod
 
 
 class RotateRod(Task):
@@ -25,10 +25,10 @@ class RotateRod(Task):
         particle_type: int = 0,
         direction: str = "CCW",
         angular_velocity_scale: int = 1,
-        velocity_history: int = 100,
+        velocity_history_size: int = 100,
     ):
         """
-        Constructor for the find origin task.
+        Constructor for the rod rotation task.
 
         Parameters
         ----------
@@ -43,29 +43,28 @@ class RotateRod(Task):
                 rotate arbitrarily.
         particle_type : int (default=0)
                 Type of particle receiving the reward.
-        velocity_history : int (default=100)
+        velocity_history_size : int (default=100)
                 Number of steps to average the velocity over.
         """
         super().__init__(particle_type=particle_type)
         self.partition = partition
         self.rod_type = rod_type
-        self.velocity_history = velocity_history
+        self.velocity_history_size = velocity_history_size
 
         if direction == "CW":
             angular_velocity_scale *= -1  # CW is negative
 
         self.angular_velocity_scale = angular_velocity_scale
-        self._velocity_history = np.zeros(velocity_history)
-        self._append_index = int(velocity_history - 1)
+        self._velocity_history = np.full(velocity_history_size, np.nan)
 
-        self.decomp_fn = jax.jit(compute_torque_partition_on_rod)
+        self.decomp_fn = jax.jit(compute_torque_on_rod)
 
     def initialize(self, colloids: List[Colloid]):
         """
         Prepare the task for running.
 
         In this case, as all rod directors are the same, we
-        only need to take on for the historical value.
+        only need to take one for the historical value.
 
         Parameters
         ----------
@@ -76,8 +75,7 @@ class RotateRod(Task):
         -------
         Updates the class state.
         """
-        self._velocity_history = np.zeros(self.velocity_history)
-        self._append_index = int(self.velocity_history - 1)
+        self._velocity_history = np.full(self.velocity_history_size, np.nan)
         for item in colloids:
             if item.type == self.rod_type:
                 self._historic_rod_director = onp.copy(item.director)
@@ -108,18 +106,11 @@ class RotateRod(Task):
         # Update the historical rod director and velocity.
         self._historic_rod_director = new_director
 
-        # If velocity history is uninitialized (all zeros), fill with current value.
-        if np.all(self._velocity_history == 0):
-            self._velocity_history = np.full_like(
-                self._velocity_history, angular_velocity
-            )
-        else:
-            self._velocity_history = np.roll(self._velocity_history, -1)
-            self._velocity_history = self._velocity_history.at[self._append_index].set(
-                angular_velocity
-            )
+        self._velocity_history = np.roll(self._velocity_history, -1)
+        self._velocity_history = self._velocity_history.at[-1].set(angular_velocity)
 
-        # Return the scaled average velocity.
+        # Return the scaled average velocity. nanmean ignores the not-yet-filled
+        # entries so the mean is unbiased before the history buffer is full.
         return self.angular_velocity_scale * np.nanmean(self._velocity_history)
 
     def partition_reward(

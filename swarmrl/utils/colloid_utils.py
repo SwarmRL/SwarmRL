@@ -101,11 +101,12 @@ def compute_torque(force, direction):
 
 
 @jax.jit
-def compute_torque_partition_on_rod(
+def compute_torque_on_rod(
     colloid_positions, colloid_directors, rod_positions, rod_directions
 ):
     """
-    Compute the torque partition on a rod using a WCA potential.
+    Compute the net torque magnitude each colloid exerts on a rod using a
+    WCA potential.
 
     Parameters
     ----------
@@ -160,17 +161,19 @@ def compute_rod_particle_distances(rod_positions):
 
 
 @jax.jit
-def compute_torque_on_rod(rod_positions, colloid_directors, colloid_positions):
+def compute_torque_partition_on_rod(
+    rod_positions, colloid_directors, colloid_positions
+):
     """
-    Compute the torque on a rod using a WCA potential.
+    Compute the normalized torque partition on a rod using a WCA potential.
 
     Parameters
     ----------
-    rod_positions : jnp.ndarray (n_colloids, 3)
+    rod_positions : jnp.ndarray (n_rod, 3)
         Positions of the rod particles.
     colloid_directors : jnp.ndarray (n_colloids, 3)
         Directors of the colloids.
-    colloid_positions : jnp.ndarray (rod_particles, 3)
+    colloid_positions : jnp.ndarray (n_colloids, 3)
         Positions of the colloids.
     """
     # (n_colloids, rod_particles, 3)

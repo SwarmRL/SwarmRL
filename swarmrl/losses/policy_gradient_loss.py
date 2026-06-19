@@ -115,11 +115,12 @@ class PolicyGradientLoss(Loss):
         -------
 
         """
-        # Restructure the data to shift the rewards to after the action
-        # is taken.
-        feature_data = jnp.array(episode_data.features)[:-1]
-        action_data = jnp.array(episode_data.actions)[:-1]
-        reward_data = jnp.array(episode_data.rewards)[1:]
+        # Rewards are computed after the action is taken (in calc_reward, called
+        # after the integrator step), so index i already holds the matching
+        # (state_i, action_i, reward_i+1) tuple. No shifting is needed here.
+        feature_data = jnp.array(episode_data.features)
+        action_data = jnp.array(episode_data.actions)
+        reward_data = jnp.array(episode_data.rewards)
 
         self.n_particles = jnp.shape(feature_data)[1]
         self.n_time_steps = jnp.shape(feature_data)[0]

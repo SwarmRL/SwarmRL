@@ -34,7 +34,6 @@ class EpisodicTrainer(Trainer):
         reset_frequency: int = 1,
         load_bar: bool = True,
         save_episodic_data: bool = True,
-        save_best_network: str = None,
     ):
         """
         Perform the RL training.
@@ -61,9 +60,6 @@ class EpisodicTrainer(Trainer):
                 cycle_index is passed to the EsperessoMD engine as 'h5_group_tag'. See
                 the implementation in the test_semi_episodic_data_writing function in
                 CI/espresso_tests/integration_tests/test_rl_trainers.py
-        save_best_network : str
-                Saves the network with the best achieved reward at the given directory.
-                This is measured by an average over 10 episodes.
 
         Notes
         -----
@@ -75,8 +71,6 @@ class EpisodicTrainer(Trainer):
         current_reward = 0.0
         force_fn = self.initialize_training()
         cycle_index = 0
-        best_running_reward = 0.0
-        running_reward = 0.0
         progress = Progress(
             "Episode: {task.fields[Episode]}",
             BarColumn(),
@@ -128,27 +122,22 @@ class EpisodicTrainer(Trainer):
                 rewards[episode] = current_reward
                 self.maybe_save_checkpoint(rewards, episode, current_reward)
 
-                window_start = max(0, episode + 1 - 10)
-                running_reward = np.round(
-                    np.mean(rewards[window_start : episode + 1]), 4
-                )
-
-                if (
-                    save_best_network is not None
-                    and running_reward > best_running_reward
-                ):
-                    best_running_reward = running_reward
-                    self.export_models(directory=f"{save_best_network}/best_network")
-
                 logger.debug(f"{episode=}")
                 logger.debug(f"{current_reward=}")
 
-                episode += 1
+                display_episode = episode + 1
+                if display_episode < 10:
+                    running_reward = np.round(np.mean(rewards[:display_episode]), 2)
+                else:
+                    running_reward = np.round(
+                        np.mean(rewards[display_episode - 10 : display_episode]), 2
+                    )
+
                 progress.update(
                     task,
                     advance=1,
-                    Episode=episode,
-                    current_reward=np.round(current_reward, 4),
+                    Episode=episode + 1,
+                    current_reward=np.round(current_reward, 2),
                     running_reward=running_reward,
                 )
                 self.engine.finalize()

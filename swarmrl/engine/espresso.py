@@ -802,10 +802,6 @@ class EspressoMD(Engine):
             virtual_partcl.vs_auto_relate_to(center_part)
             self.colloids.append(virtual_partcl)
 
-        self.colloid_radius_register.update(
-            {cross_particle_type: {"radius": partcl_radius, "aspect_ratio": 1.0}}
-        )
-
         director = create_orthonormal_vector(director)
         for k in range(n_particles - 1):
             dist_to_center = (-1) ** k * (k // 2 + 1) * point_dist
@@ -816,9 +812,9 @@ class EspressoMD(Engine):
             virtual_partcl.vs_auto_relate_to(center_part)
             self.colloids.append(virtual_partcl)
 
-        self.colloid_radius_register.update(
-            {cross_particle_type: {"radius": partcl_radius, "aspect_ratio": 1.0}}
-        )
+        self.colloid_radius_register.update({
+            cross_particle_type: {"radius": partcl_radius, "aspect_ratio": 1.0}
+        })
         return center_part
 
     def add_confining_walls(self, wall_type: int):
@@ -1438,7 +1434,15 @@ class EspressoMD(Engine):
             self.system.integrator.run(
                 steps_to_next, reuse_forces=True, recalc_forces=False
             )
-            force_model.calc_reward(self.colloids)
+            # Compute the reward once per slice, right after the slice has been
+            # integrated, so that it stays in sync with the action selection in
+            # manage_forces. Computing it every sub-step would desync the
+            # (state, action, reward) trajectory.
+            if (
+                force_model is not None
+                and self.step_idx == self.params.steps_per_slice * (self.slice_idx - 1)
+            ):
+                force_model.calc_reward(self.colloids)
             self.step_idx += steps_to_next
 
     def finalize(self):
