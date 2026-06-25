@@ -55,7 +55,7 @@ class DummyTask(srl.tasks.Task):
         """
         Dummy call method.
         """
-        return [1.0 for item in data if item.type == 1]
+        return np.array([1.0 for item in data if item.type == 1])
 
 
 class SecondDummyTask(srl.tasks.Task):
@@ -67,7 +67,7 @@ class SecondDummyTask(srl.tasks.Task):
         """
         Dummy call method.
         """
-        return [5.0 for item in data if item.type == 1]
+        return np.array([5.0 for item in data if item.type == 1])
 
 
 class TestForceFunction:
@@ -168,6 +168,9 @@ class TestForceFunction:
         # Check that the second action is correct
         actions[1].force == 0.0
         assert actions[0].torque is None
+
+        # Rewards are computed after the new state is reached.
+        self.multi_interaction.calc_reward([colloid_1, colloid_2, colloid_3])
 
         # Check reward data
         loaded_data_0 = self.multi_interaction.agents["0"].trajectory
