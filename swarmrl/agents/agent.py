@@ -4,6 +4,8 @@ Parent class for all agents
 
 import typing
 
+from loguru import logger
+
 from swarmrl.actions.actions import Action
 from swarmrl.components.colloid import Colloid
 
@@ -58,3 +60,21 @@ class Agent:
                 Flag capable of ending simulation.
         """
         raise NotImplementedError("Implemented in Child class.")
+
+    def calc_reward(
+        self, colloids: typing.List[Colloid], external_reward: float = 0.0
+    ) -> None:
+        """
+        Compute the reward for the agent based on the current state.
+
+        Parameters
+        ----------
+        colloids: typing.List[Colloid]
+                List of colloids in the simulation.
+        external_reward: float
+                External reward from the environment.
+
+        """
+        logger.info(
+            f"{self.__class__.__name__} does not implement calc_reward, skipping."
+        )
