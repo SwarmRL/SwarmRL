@@ -132,7 +132,7 @@ class ContinuousTrainer(Trainer):
                         did_finalize = True
                         break
 
-            if not did_finalize:
-                system_runner.finalize()
+        if not did_finalize:
+            system_runner.finalize()
         self.finalize_agents()
         return np.array(rewards[:completed_episodes])

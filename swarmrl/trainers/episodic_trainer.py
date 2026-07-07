@@ -108,6 +108,9 @@ class EpisodicTrainer(Trainer):
             for episode in range(n_episodes):
                 # Check if the system should be reset.
                 if episode % reset_frequency == 0 or killed:
+                    if self.engine is not None:
+                        self.engine.finalize()
+
                     logger.info(f"Resetting the system at episode {episode}")
                     self.engine = None
                     if save_episodic_data:
@@ -154,7 +157,6 @@ class EpisodicTrainer(Trainer):
                     current_reward=np.round(current_reward, 2),
                     running_reward=running_reward,
                 )
-                self.engine.finalize()
 
                 if not break_training:
                     break_training, stop_after_episode = self.check_for_stop_criterion()
@@ -171,5 +173,7 @@ class EpisodicTrainer(Trainer):
                         )
                         break
 
+        if self.engine is not None:
+            self.engine.finalize()
         self.finalize_agents()
         return np.array(rewards)
