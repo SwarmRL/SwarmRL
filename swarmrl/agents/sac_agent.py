@@ -118,27 +118,12 @@ class SACAgent(Agent):
 
     def calc_action(self, colloids: list[Colloid]) -> list[Action]:
         """
-        Computes the state, stores the previous transition, and samples a new action.
+        Computes the current state, samples a new action, and stages the transition.
         """
-        # 1. Get current state (s_t) and environment feedback
+        # 1. Get current state (s_t)
         current_obs = self.observable.compute_observable(colloids)
-        reward = self.task(colloids)
-        terminated = float(self.task.kill_switch)
-        self.kill_switch = self.task.kill_switch
 
-        # 2. Store full Transition (s_{t-1}, a_{t-1}, r_t, s_t, terminated)
-        if self.train and self._pending_observation is not None:
-            transition = Transition(
-                observation=self._pending_observation,
-                action=self._pending_action,
-                reward=float(reward),
-                next_observation=current_obs,
-                terminated=terminated,
-            )
-            self.replay_buffer.add(transition)
-            self.persist_trajectory(transition)
-
-        # 3. Sample new action (a_t)
+        # 2. Sample new action (a_t)
         self.rng, network_key, sample_key, warmup_key = jax.random.split(
             self.rng, num=4
         )
@@ -176,14 +161,44 @@ class SACAgent(Agent):
 
         action_np = np.asarray(jax.device_get(actions_jax))[0]
 
-        # 4. Update pending state for the next step
+        # 3. Stage (s_t, a_t); reward and next state are attached in calc_reward().
         self._pending_observation = current_obs
         self._pending_action = action_np
-        self._last_reward = reward
         self._step_count += 1
 
         chosen_actions = self.action_mapper(action_np)
         return chosen_actions
+
+    def calc_reward(
+        self, colloids: list[Colloid], external_reward: float = 0.0
+    ) -> float:
+        """
+        Computes the post-step reward and closes the staged replay transition.
+        """
+        reward = float(self.task(colloids) + external_reward)
+        terminated = float(self.task.kill_switch)
+        self.kill_switch = self.task.kill_switch
+
+        # We might cache the next observation as well to reuse for next calc_action
+        next_observation = self.observable.compute_observable(colloids)
+
+        if (
+            self.train
+            and self._pending_observation is not None
+            and self._pending_action is not None
+        ):
+            transition = Transition(
+                observation=self._pending_observation,
+                action=self._pending_action,
+                reward=reward,
+                next_observation=next_observation,
+                terminated=terminated,
+            )
+            self.replay_buffer.add(transition)
+            self.persist_trajectory(transition)
+
+        self._last_reward = reward
+        return reward
 
     def update_agent(self) -> tuple[float, bool]:
         """
