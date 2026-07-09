@@ -27,6 +27,11 @@ class SACAgent(Agent):
     """
     Continuous-control SAC agent using a single FlaxModel-managed module.
     Handles off-policy transition storage and JAX-native RNG splitting.
+
+    The provided FlaxModel must wrap a user-defined Flax module that exposes
+    explicit `actor(...)`, `critic(...)`, and `alpha()` methods, because SAC
+    invokes these subpaths separately during action selection, critic updates,
+    and temperature updates.
     """
 
     def __init__(
