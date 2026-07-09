@@ -11,7 +11,7 @@ from swarmrl.actions.actions import Action
 from swarmrl.agents.agent import Agent
 from swarmrl.components.colloid import Colloid
 from swarmrl.losses.sac_loss import SoftActorCriticLoss
-from swarmrl.networks.multi_flax_networks import MultiFlaxModel
+from swarmrl.networks.flax_network import FlaxModel
 from swarmrl.observables.observable import Observable
 from swarmrl.replay_buffer.replay_buffer import ReplayBuffer
 from swarmrl.replay_buffer.transition import Transition
@@ -25,14 +25,14 @@ from swarmrl.utils.storage_utils import (
 
 class SACAgent(Agent):
     """
-    Continuous-control SAC agent with a MultiFlaxModel container.
-    Handles Off-Policy Transition storage and JAX-native RNG splitting.
+    Continuous-control SAC agent using a single FlaxModel-managed module.
+    Handles off-policy transition storage and JAX-native RNG splitting.
     """
 
     def __init__(
         self,
         particle_type: int,
-        network: MultiFlaxModel,
+        network: FlaxModel,
         task: Task,
         observable: Observable,
         action_mapper: typing.Callable[[np.ndarray], list[Action]],
@@ -78,8 +78,30 @@ class SACAgent(Agent):
         self._pending_action = None
         self._last_reward = 0.0
 
+        self._validate_sac_network_contract()
+        if "critic" not in self.network.target_params:
+            self.network.target_params["critic"] = jax.tree_util.tree_map(
+                lambda x: x, self.network.model_state.params
+            )
+
     def __name__(self) -> str:
         return "SACAgent"
+
+    def _validate_sac_network_contract(self):
+        """
+        Validate that the wrapped Flax module exposes the SAC method contract.
+        SAC does not use a single __call__ path. It must be able to invoke the
+        policy, twin critic, and temperature separately from one shared module.
+        """
+        if not isinstance(self.network, FlaxModel):
+            raise TypeError("SACAgent requires a FlaxModel network.")
+
+        required_methods = ("actor", "critic", "alpha")
+        for method_name in required_methods:
+            if not hasattr(self.network.model, method_name):
+                raise ValueError(
+                    f"SAC requires the Flax module to define '{method_name}(...)'."
+                )
 
     def reset_agent(self, colloids: list[Colloid]):
         """Resets the observable, tasks, and clears the pending step memory."""
@@ -132,11 +154,10 @@ class SACAgent(Agent):
                 maxval=1.0,
             )
         else:
-            actor_params = self.network.states["actor"].params
-
-            logits_jax = self.network.networks["actor"].apply(
-                {"params": actor_params},
+            logits_jax = self.network.model.apply(
+                {"params": self.network.model_state.params},
                 rng_key=network_key,
+                method=self.network.model.actor,
                 **state_inputs,
             )
 

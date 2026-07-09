@@ -5,7 +5,7 @@ Jax model for reinforcement learning.
 import os
 import pickle
 from abc import ABC
-from typing import List
+from typing import Any, List
 
 import jax
 import jax.numpy as np
@@ -78,6 +78,7 @@ class FlaxModel(Network, ABC):
         self.batch_apply_fn = jax.jit(jax.vmap(self.apply_fn, in_axes=(None, 0)))
         self.input_shape = input_shape
         self.model_state = None
+        self.target_params: dict[str, Any] = {}
 
         self.deployment_mode = deployment_mode
 
@@ -228,8 +229,15 @@ class FlaxModel(Network, ABC):
 
         os.makedirs(directory, exist_ok=True)
 
+        payload = {
+            "model_params": model_params,
+            "opt_state": opt_state,
+            "opt_step": opt_step,
+            "epoch": epoch,
+            "target_params": self.target_params,
+        }
         with open(directory + "/" + filename + ".pkl", "wb") as f:
-            pickle.dump((model_params, opt_state, opt_step, epoch), f)
+            pickle.dump(payload, f)
 
     def restore_model_state(self, filename, directory):
         """
@@ -248,12 +256,24 @@ class FlaxModel(Network, ABC):
         """
 
         with open(directory + "/" + filename + ".pkl", "rb") as f:
-            model_params, opt_state, opt_step, epoch = pickle.load(f)
+            payload = pickle.load(f)
+
+        # Backward compatibility
+        if isinstance(payload, tuple):
+            model_params, opt_state, opt_step, epoch = payload
+            target_params = {}
+        else:
+            model_params = payload["model_params"]
+            opt_state = payload["opt_state"]
+            opt_step = payload["opt_step"]
+            epoch = payload["epoch"]
+            target_params = payload.get("target_params", {})
 
         self.model_state = self.model_state.replace(
             params=model_params, opt_state=opt_state, step=opt_step
         )
         self.epoch_count = epoch
+        self.target_params = target_params
 
     def __call__(self, params: FrozenDict, episode_features):
         """

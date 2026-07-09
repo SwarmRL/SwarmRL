@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
@@ -8,66 +6,60 @@ import optax
 import pytest
 
 from swarmrl.losses.sac_loss import SoftActorCriticLoss, get_sac_grads
-from swarmrl.networks.multi_flax_networks import MultiFlaxModel
+from swarmrl.networks import FlaxModel
 from swarmrl.replay_buffer.replay_buffer import ReplayBuffer
 from swarmrl.replay_buffer.transition import Transition
 from swarmrl.sampling_strategies import ContinuousGaussianDistribution
 
 
-class TinyActor(nn.Module):
+class TinySacModule(nn.Module):
     action_dim: int = 2
 
-    @nn.compact
-    def __call__(self, feature_data, rng_key):
-        del rng_key
-        return nn.Dense(self.action_dim * 2, kernel_init=nn.initializers.zeros)(
-            feature_data
+    def setup(self):
+        self.actor_hidden = nn.Dense(8)
+        self.actor_out = nn.Dense(self.action_dim * 2)
+        self.critic_hidden = nn.Dense(8)
+        self.critic_q1 = nn.Dense(1)
+        self.critic_q2 = nn.Dense(1)
+
+    def __call__(self, feature_data):
+        if feature_data.ndim == 1:
+            feature_data = feature_data[None, :]
+        logits = self.actor(feature_data, rng_key=None)
+        dummy_actions = jnp.zeros(
+            (feature_data.shape[0], self.action_dim), dtype=feature_data.dtype
         )
+        q1, _ = self.critic(feature_data, dummy_actions)
+        _ = self.alpha()
+        return logits, q1
 
+    def actor(self, feature_data, rng_key=None):
+        del rng_key
+        hidden = nn.tanh(self.actor_hidden(feature_data))
+        return self.actor_out(hidden)
 
-class TinyCritic(nn.Module):
-    @nn.compact
-    def __call__(self, feature_data, actions):
+    def critic(self, feature_data, actions):
         x = jnp.concatenate([feature_data, actions], axis=-1)
-        hidden = nn.tanh(nn.Dense(8)(x))
-        q1 = nn.Dense(1)(hidden)
-        q2 = nn.Dense(1)(hidden)
+        hidden = nn.tanh(self.critic_hidden(x))
+        q1 = self.critic_q1(hidden)
+        q2 = self.critic_q2(hidden)
         return q1, q2
 
-
-class DummyAlphaModule:
-    def apply(self, *args, **kwargs):
-        return None
-
-
-@dataclass(frozen=True)
-class ScalarState:
-    step: int
-    params: jax.Array
-
-    def apply_gradients(self, *, grads):
-        return ScalarState(step=self.step + 1, params=self.params - 0.01 * grads)
+    @nn.compact
+    def alpha(self):
+        log_alpha = self.param("log_alpha", nn.initializers.zeros, ())
+        return jnp.exp(log_alpha)
 
 
-def build_sac_network(batch_size=4, seed=0):
-    model = MultiFlaxModel(seed=seed)
-    actor = TinyActor()
-    critic = TinyCritic()
-    obs = jnp.ones((batch_size, 3), dtype=jnp.float32)
-    action = jnp.ones((batch_size, 2), dtype=jnp.float32)
-
-    actor_params = actor.init(jax.random.PRNGKey(1), obs, jax.random.PRNGKey(2))[
-        "params"
-    ]
-    critic_params = critic.init(jax.random.PRNGKey(3), obs, action)["params"]
-
-    model.add_network("actor", actor, actor_params, optax.adam(1e-3))
-    model.add_network(
-        "critic", critic, critic_params, optax.adam(1e-3), has_target=True
+def build_sac_network(seed=0):
+    model = FlaxModel(
+        flax_model=TinySacModule(),
+        optimizer=optax.adam(1e-3),
+        input_shape=(3,),
     )
-    model.networks["log_alpha"] = DummyAlphaModule()
-    model.states["log_alpha"] = ScalarState(
-        step=0, params=jnp.array(0.0, dtype=jnp.float32)
+    model.target_params["critic"] = jax.tree_util.tree_map(
+        lambda x: x,
+        model.model_state.params,
     )
     return model
 
@@ -109,24 +101,17 @@ def test_full_sac_pipeline_dataflow():
     batch["actor_rng"] = actor_rng
     batch["next_actor_rng"] = next_actor_rng
 
-    network = build_sac_network(batch_size=batch_size, seed=0)
+    network = build_sac_network(seed=0)
     sampling_strategy = ContinuousGaussianDistribution.create(action_dimension=act_dim)
     loss_fn = SoftActorCriticLoss(
         sampling_strategy=sampling_strategy,
         target_entropy=-float(act_dim),
     )
 
-    trainable_params = {
-        "actor": network.states["actor"].params,
-        "critic": network.states["critic"].params,
-        "log_alpha": network.states["log_alpha"].params,
-    }
-
     try:
         (total_loss, metrics), grads = get_sac_grads(
-            trainable_params,
-            network.networks["actor"],
-            network.networks["critic"],
+            network.model_state.params,
+            network.model,
             network.target_params["critic"],
             loss_fn.value_function.__call__,
             loss_fn.sampling_strategy,
@@ -139,7 +124,6 @@ def test_full_sac_pipeline_dataflow():
     assert jnp.isfinite(total_loss), "Loss is NaN or Inf!"
     assert "critic_loss" in metrics
     assert "actor_loss" in metrics
-
-    assert "actor" in grads
-    assert "critic" in grads
-    assert "log_alpha" in grads
+    assert jax.tree_util.tree_structure(grads) == jax.tree_util.tree_structure(
+        network.model_state.params
+    )

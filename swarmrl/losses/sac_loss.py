@@ -13,19 +13,9 @@ import jax
 import jax.numpy as jnp
 
 from swarmrl.losses.loss import Loss
-from swarmrl.networks.multi_flax_networks import MultiFlaxModel
+from swarmrl.networks.flax_network import FlaxModel
 from swarmrl.sampling_strategies.sampling_strategy import ContinuousSamplingStrategy
 from swarmrl.value_functions.td_return_sac import TDReturnsSAC
-
-
-def _extract_log_alpha(log_alpha_params: Any) -> jax.Array:
-    """Return the scalar temperature leaf from scalar or dict-style params."""
-    if isinstance(log_alpha_params, dict):
-        if "params" in log_alpha_params and len(log_alpha_params) == 1:
-            return log_alpha_params["params"]
-        if "log_alpha" in log_alpha_params and len(log_alpha_params) == 1:
-            return log_alpha_params["log_alpha"]
-    return log_alpha_params
 
 
 def calculate_critic_loss(
@@ -118,9 +108,8 @@ def calculate_temperature_loss(
 
 
 def sac_loss_fn(
-    trainable_params: dict[str, jax.Array],
-    actor_module: Any,
-    critic_module: Any,
+    trainable_params: Any,
+    model: Any,
     target_critic_params: Any,
     value_function_call: Any,
     sampling_strategy: Any,
@@ -178,18 +167,16 @@ def sac_loss_fn(
     next_network_key, next_sample_key = jax.random.split(next_actor_rng)
     live_network_key, live_sample_key = jax.random.split(actor_rng)
 
-    actor_p = trainable_params["actor"]
-    critic_p = trainable_params["critic"]
-    log_alpha_p = _extract_log_alpha(trainable_params["log_alpha"])
-
-    alpha_val = jnp.exp(log_alpha_p)
+    alpha_val = model.apply({"params": trainable_params}, method=model.alpha)
     alpha_detached = jax.lax.stop_gradient(alpha_val)
 
-    # Split Network Pass and Sampling
+    detached_params = jax.tree_util.tree_map(jax.lax.stop_gradient, trainable_params)
 
-    # 1. Target Actor: Forward Pass
-    next_logits = actor_module.apply(
-        {"params": actor_p}, rng_key=next_network_key, **next_state_inputs
+    next_logits = model.apply(
+        {"params": detached_params},
+        rng_key=next_network_key,
+        method=model.actor,
+        **next_state_inputs,
     )
     next_actions, next_log_probs = sampling_strategy(
         logits=next_logits,
@@ -199,9 +186,11 @@ def sac_loss_fn(
     )
     next_log_probs = next_log_probs[..., None]
 
-    # 2. Live Actor: Forward Pass
-    new_logits = actor_module.apply(
-        {"params": actor_p}, rng_key=live_network_key, **state_inputs
+    new_logits = model.apply(
+        {"params": trainable_params},
+        rng_key=live_network_key,
+        method=model.actor,
+        **state_inputs,
     )
     new_actions, log_probs = sampling_strategy(
         logits=new_logits,
@@ -211,20 +200,21 @@ def sac_loss_fn(
     )
     log_probs = log_probs[..., None]
 
-    # Optimized Batch Critic Evaluation
-    q1_pred, q2_pred = critic_module.apply(
-        {"params": critic_p},
+    q1_pred, q2_pred = model.apply(
+        {"params": trainable_params},
         actions=actions,
+        method=model.critic,
         **state_inputs,
     )
 
-    # Target Critic Evaluation
-    q1_next, q2_next = critic_module.apply(
-        {"params": target_critic_params}, actions=next_actions, **next_state_inputs
+    q1_next, q2_next = model.apply(
+        {"params": target_critic_params},
+        actions=next_actions,
+        method=model.critic,
+        **next_state_inputs,
     )
     q_next_min = jnp.minimum(q1_next, q2_next)
 
-    # Calculate Soft TD Target
     target_q = value_function_call(
         rewards=rewards,
         q_next_min=q_next_min,
@@ -234,18 +224,16 @@ def sac_loss_fn(
     )
     target_q = jax.lax.stop_gradient(target_q)
 
-    # MSBE Critic Loss
     critic_loss = calculate_critic_loss(q1_pred, q2_pred, target_q)
 
-    # Actor Policy Loss. Critic params are frozen here so actor-loss gradients
-    # update the actor through ``new_actions`` without also updating the critic.
-    critic_p_detached = jax.tree_util.tree_map(jax.lax.stop_gradient, critic_p)
-    q1_action, q2_action = critic_module.apply(
-        {"params": critic_p_detached}, actions=new_actions, **state_inputs
+    q1_action, q2_action = model.apply(
+        {"params": detached_params},
+        actions=new_actions,
+        method=model.critic,
+        **state_inputs,
     )
     actor_loss = calculate_actor_loss(q1_action, q2_action, log_probs, alpha_detached)
 
-    # Total sum for JAX to differentiate
     total_loss = critic_loss + actor_loss
 
     temperature_loss = 0.0
@@ -264,23 +252,21 @@ def sac_loss_fn(
     }
 
 
-@partial(jax.jit, static_argnums=(1, 2, 4, 6))
+@partial(jax.jit, static_argnums=(1, 3, 4, 5))
 def get_sac_grads(
-    trainable_params: dict[str, jax.Array],
-    actor_module: Any,
-    critic_module: Any,
+    trainable_params: Any,
+    model: Any,
     target_critic_params: Any,
     value_function_call: Any,
     sampling_strategy: Any,
     target_entropy: float | None,
     episode_data: dict[str, Any],
-) -> tuple[tuple[jax.Array, dict[str, jax.Array]], dict[str, Any]]:
-    """JIT-compiled wrapper that calculates the gradients"""
+) -> tuple[tuple[jax.Array, dict[str, jax.Array]], Any]:
+    """JIT-compiled wrapper that calculates gradients for a single module."""
     loss_grad_fn = jax.value_and_grad(sac_loss_fn, argnums=0, has_aux=True)
     return loss_grad_fn(
         trainable_params,
-        actor_module,
-        critic_module,
+        model,
         target_critic_params,
         value_function_call,
         sampling_strategy,
@@ -332,31 +318,21 @@ class SoftActorCriticLoss(Loss):
         self.polyak_tau = float(polyak_tau)
 
     def compute_loss(
-        self, network: MultiFlaxModel, episode_data: dict[str, Any]
+        self, network: FlaxModel, episode_data: dict[str, Any]
     ) -> dict[str, jax.Array]:
         """
-        Calculates gradients and directly applies updates to the network registries.
-        Returns the logging metrics.
+        Calculate gradients and apply updates to the FlaxModel state.
+        Returns logging metrics.
         Parameters
         ----------
         network : Network
-            A container holding multi-component states
-            (actor_state, critic_state, etc.).
+            FlaxModel Network holding actor, critic and alpha
         episode_data : dict
             Sampled transition batch returned by ReplayBuffer.sample().
         """
-        # Package active weights
-        trainable_params = {
-            "actor": network.states["actor"].params,
-            "critic": network.states["critic"].params,
-            "log_alpha": network.states["log_alpha"].params,
-        }
-
-        # Get gradients
         (total_loss, metrics), grads = get_sac_grads(
-            trainable_params,
-            network.networks["actor"],
-            network.networks["critic"],
+            network.model_state.params,
+            network.model,
             network.target_params["critic"],
             self.value_function.__call__,
             self.sampling_strategy,
@@ -364,21 +340,9 @@ class SoftActorCriticLoss(Loss):
             episode_data,
         )
 
-        # Apply gradients
-        network.states["critic"] = network.states["critic"].apply_gradients(
-            grads=grads["critic"]
-        )
-        network.states["actor"] = network.states["actor"].apply_gradients(
-            grads=grads["actor"]
-        )
-        if self.target_entropy is not None:
-            network.states["log_alpha"] = network.states["log_alpha"].apply_gradients(
-                grads=grads["log_alpha"]
-            )
-
-        # Apply polyak target update
+        network.model_state = network.model_state.apply_gradients(grads=grads)
         network.target_params["critic"] = _apply_polyak_update(
-            network.states["critic"].params,
+            network.model_state.params,
             network.target_params["critic"],
             self.polyak_tau,
         )

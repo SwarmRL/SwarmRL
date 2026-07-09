@@ -1,10 +1,13 @@
-from types import SimpleNamespace
-
+import flax.linen as nn
 import h5py
 import jax.numpy as jnp
 import numpy as np
+import optax
+import pytest
 
+import swarmrl as srl
 from swarmrl.agents.sac_agent import SACAgent
+from swarmrl.networks import FlaxModel
 from swarmrl.replay_buffer.replay_buffer import ReplayBuffer
 from swarmrl.replay_buffer.transition import Transition
 from swarmrl.sampling_strategies import ContinuousGaussianDistribution
@@ -20,15 +23,47 @@ class LossSpy:
         return {"critic_loss": 0.0}
 
 
-class DummyNetwork:
-    pass
+class SacActorModule(nn.Module):
+    @nn.compact
+    def __call__(self, feature_data):
+        logits = nn.Dense(4, kernel_init=nn.initializers.zeros)(feature_data)
+        value = nn.Dense(1, kernel_init=nn.initializers.zeros)(feature_data)
+        return logits, value
+
+    @nn.compact
+    def actor(self, feature_data, rng_key):
+        del rng_key
+        return nn.Dense(4, kernel_init=nn.initializers.zeros)(feature_data)
+
+    @nn.compact
+    def critic(self, feature_data, actions):
+        x = jnp.concatenate([feature_data, actions], axis=-1)
+        hidden = nn.Dense(8)(x)
+        q1 = nn.Dense(1)(hidden)
+        q2 = nn.Dense(1)(hidden)
+        return q1, q2
+
+    @nn.compact
+    def alpha(self):
+        return self.param("log_alpha", nn.initializers.zeros, ())
 
 
-class DummyActor:
-    def apply(self, params, rng_key, feature_data):
-        batch_size = feature_data.shape[0]
-        logits = jnp.zeros((batch_size, 4), dtype=jnp.float32)
-        return logits
+class MissingAlphaModule(nn.Module):
+    @nn.compact
+    def __call__(self, feature_data):
+        return nn.Dense(4)(feature_data), nn.Dense(1)(feature_data)
+
+    @nn.compact
+    def actor(self, feature_data, rng_key):
+        del rng_key
+        return nn.Dense(4)(feature_data)
+
+    @nn.compact
+    def critic(self, feature_data, actions):
+        x = jnp.concatenate([feature_data, actions], axis=-1)
+        hidden = nn.Dense(8)(x)
+        q = nn.Dense(1)(hidden)
+        return q, q
 
 
 class DummyObservable:
@@ -50,39 +85,94 @@ class DummyTask:
         return 1.0
 
 
+def build_sac_network(module=None):
+    return FlaxModel(
+        flax_model=module or SacActorModule(),
+        optimizer=optax.adam(learning_rate=0.001),
+        input_shape=(3,),
+        sampling_strategy=ContinuousGaussianDistribution.create(action_dimension=2),
+        exploration_policy=srl.exploration_policies.GlobalOUExploration(
+            action_dimension=2,
+            action_limits=np.array([[-1.0, 1.0], [-1.0, 1.0]], dtype=np.float32),
+            epsilon=1.0,
+        ),
+    )
+
+
 def filled_buffer(size=4):
     buffer = ReplayBuffer(capacity=size, seed=0)
     for i in range(size):
         buffer.add(
             Transition(
-                observation=np.array([i, i + 1], dtype=np.float32),
+                observation=np.array([i, i + 1, i + 2], dtype=np.float32),
                 action=np.array([0.1, -0.1], dtype=np.float32),
                 reward=1.0,
-                next_observation=np.array([i + 1, i + 2], dtype=np.float32),
+                next_observation=np.array([i + 1, i + 2, i + 3], dtype=np.float32),
                 terminated=0.0,
             )
         )
     return buffer
 
 
-def test_sac_agent_updates_multiflax_container_via_loss_bridge():
-    network = DummyNetwork()
-    loss = LossSpy()
-    agent = SACAgent(
-        particle_type=0,
+def make_agent(network, loss=None, replay_buffer=None, **kwargs):
+    return SACAgent(
+        particle_type=kwargs.pop("particle_type", 0),
         network=network,
-        task=None,
-        observable=None,
-        action_mapper=lambda action: action,
+        task=kwargs.pop("task", DummyTask()),
+        observable=kwargs.pop("observable", DummyObservable()),
+        action_mapper=kwargs.pop("action_mapper", lambda action: action),
+        loss=loss or LossSpy(),
+        replay_buffer=replay_buffer or filled_buffer(),
+        sampling_strategy=kwargs.pop(
+            "sampling_strategy",
+            ContinuousGaussianDistribution.create(action_dimension=2),
+        ),
+        batch_size=kwargs.pop("batch_size", 2),
+        learning_starts=kwargs.pop("learning_starts", 0),
+        gradient_steps=kwargs.pop("gradient_steps", 1),
+        train=kwargs.pop("train", True),
+        transition_storage_config=kwargs.pop("transition_storage_config", None),
+        **kwargs,
+    )
+
+
+def test_sac_agent_rejects_non_flax_network():
+    with pytest.raises(TypeError, match="FlaxModel"):
+        make_agent(network=object())
+
+
+def test_sac_agent_rejects_missing_sac_method():
+    network = build_sac_network(module=MissingAlphaModule())
+
+    with pytest.raises(ValueError, match="alpha"):
+        make_agent(network=network)
+
+
+def test_sac_agent_initializes_target_critic_params():
+    network = build_sac_network()
+
+    assert network.target_params == {}
+
+    make_agent(network=network)
+
+    assert "critic" in network.target_params
+    assert jnp.array_equal(
+        network.target_params["critic"]["Dense_0"]["kernel"],
+        network.model_state.params["Dense_0"]["kernel"],
+    )
+
+
+def test_sac_agent_updates_loss_bridge_with_replay_batch_rng_keys():
+    network = build_sac_network()
+    loss = LossSpy()
+    agent = make_agent(
+        network=network,
         loss=loss,
         replay_buffer=filled_buffer(),
-        sampling_strategy=ContinuousGaussianDistribution.create(action_dimension=2),
-        batch_size=2,
-        learning_starts=0,
         gradient_steps=2,
-        train=True,
     )
     agent._step_count = 1
+    agent.kill_switch = False
 
     reward, killed = agent.update_agent()
 
@@ -102,13 +192,11 @@ def test_sac_agent_updates_multiflax_container_via_loss_bridge():
     assert all(set(call[1]) == expected_keys for call in loss.calls)
 
 
-def test_sac_agent_can_dump_transition_debug_data(tmp_path):
-    network = SimpleNamespace(
-        networks={"actor": DummyActor()},
-        states={"actor": SimpleNamespace(params=object())},
-    )
+def test_sac_agent_can_dump_transition_debug_data_with_flax_model(tmp_path):
+    network = build_sac_network()
+
     loss = LossSpy()
-    agent = SACAgent(
+    agent = make_agent(
         particle_type=1,
         network=network,
         task=DummyTask(),
@@ -116,7 +204,6 @@ def test_sac_agent_can_dump_transition_debug_data(tmp_path):
         action_mapper=lambda action: [action],
         loss=loss,
         replay_buffer=ReplayBuffer(capacity=4, seed=0),
-        sampling_strategy=ContinuousGaussianDistribution.create(action_dimension=2),
         batch_size=2,
         learning_starts=0,
         gradient_steps=1,
@@ -129,9 +216,12 @@ def test_sac_agent_can_dump_transition_debug_data(tmp_path):
     colloids = [object()]
 
     agent.reset_agent(colloids)
-    agent.calc_action(colloids)
-    agent.calc_action(colloids)
+    first_actions = agent.calc_action(colloids)
+    second_actions = agent.calc_action(colloids)
     agent.finalize()
+
+    assert len(first_actions) == 1
+    assert len(second_actions) == 1
 
     file_path = tmp_path / "sac_transition_data_1.hdf5"
     with h5py.File(file_path.as_posix(), "r") as h5_file:

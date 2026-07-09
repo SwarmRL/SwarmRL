@@ -275,3 +275,45 @@ class TestFlaxNetwork:
         deploy_actions, deploy_log_probs = deploy_model.compute_action(input_data)
         assert deploy_actions.shape == (2, 3)
         assert deploy_log_probs is None
+
+
+def test_export_and_restore_preserves_target_params():
+    class TargetParamsPersistenceModule(nn.Module):
+        @nn.compact
+        def __call__(self, x):
+            x = nn.Dense(features=8)(x)
+            y = nn.Dense(features=1)(x)
+            x = nn.Dense(features=4)(x)
+            return x, y
+
+    model = FlaxModel(
+        flax_model=TargetParamsPersistenceModule(),
+        optimizer=optax.adam(learning_rate=0.001),
+        input_shape=(3,),
+    )
+    model.target_params = {
+        "dummy": {
+            "weights": np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32),
+            "bias": np.array([5.0, 6.0], dtype=np.float32),
+        }
+    }
+
+    with TemporaryDirectory() as temp_directory:
+        model.export_model(filename="target_params_model", directory=temp_directory)
+
+        restored_model = FlaxModel(
+            flax_model=TargetParamsPersistenceModule(),
+            optimizer=optax.adam(learning_rate=0.001),
+            input_shape=(3,),
+        )
+        restored_model.restore_model_state(
+            filename="target_params_model", directory=temp_directory
+        )
+
+        assert jax.tree_util.tree_all(
+            jax.tree_util.tree_map(
+                lambda a, b: np.array_equal(a, b),
+                restored_model.target_params,
+                model.target_params,
+            )
+        )
