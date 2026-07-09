@@ -252,7 +252,7 @@ def sac_loss_fn(
     }
 
 
-@partial(jax.jit, static_argnums=(1, 3, 4, 5))
+@partial(jax.jit, static_argnums=(1, 3, 5))
 def get_sac_grads(
     trainable_params: Any,
     model: Any,
