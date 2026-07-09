@@ -25,6 +25,8 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
     # Static metadata fields are excluded from PyTree leaves.
     action_dimension: int = struct.field(pytree_node=False)
     action_limits: Optional[jnp.ndarray] = struct.field(pytree_node=True, default=None)
+    log_std_min: float = struct.field(pytree_node=False, default=-20.0)
+    log_std_max: float = struct.field(pytree_node=False, default=1.0)
     float_precision: jnp.dtype = struct.field(pytree_node=False, default=jnp.float32)
 
     @classmethod
@@ -32,6 +34,8 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
         cls,
         action_dimension: int,
         action_limits: Optional[jnp.ndarray] = None,
+        log_std_min: float = -20.0,
+        log_std_max: float = 1.0,
         float_precision: jnp.dtype = jnp.float32,
     ) -> "ContinuousGaussianDistribution":
         """Factory method to handle the initialization validation safely."""
@@ -46,6 +50,8 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
         return cls(
             action_dimension=int(action_dimension),
             action_limits=action_limits,
+            log_std_min=float(log_std_min),
+            log_std_max=float(log_std_max),
             float_precision=float_precision,
         )
 
@@ -105,8 +111,8 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
 
             log_std = jnp.clip(
                 logits[..., self.action_dimension :],
-                -20.0,
-                1.0,
+                self.log_std_min,
+                self.log_std_max,
             )
             std = jnp.exp(log_std)
 
