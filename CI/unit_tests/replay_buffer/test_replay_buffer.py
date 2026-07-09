@@ -14,6 +14,7 @@ def test_replay_buffer_add_and_sample_shapes():
                 reward=float(i),
                 next_observation=np.array([i + 1, i + 2], dtype=np.float32),
                 terminated=float(bool(i % 2)),
+                truncated=float(bool((i + 1) % 2)),
             )
         )
 
@@ -23,6 +24,7 @@ def test_replay_buffer_add_and_sample_shapes():
     assert batch["reward"].shape == (4, 1)
     assert batch["next_observation"].shape == (4, 2)
     assert batch["terminated"].shape == (4, 1)
+    assert batch["truncated"].shape == (4, 1)
 
 
 def test_replay_buffer_capacity_is_enforced():
@@ -35,6 +37,7 @@ def test_replay_buffer_capacity_is_enforced():
                 reward=float(i),
                 next_observation=np.array([i + 1], dtype=np.float32),
                 terminated=0.0,
+                truncated=0.0,
             )
         )
 

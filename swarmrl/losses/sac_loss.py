@@ -117,37 +117,34 @@ def sac_loss_fn(
     episode_data: dict[str, Any],
 ) -> tuple[jax.Array, dict[str, jax.Array]]:
     """
-    Computes critic, actor, and temperature losses using a unified dictionary
-    interface. Fully compatible with MultiFlaxModel registries.
+    Computes critic, actor, and temperature losses for a single Flax module.
 
     Parameters
     ----------
-    trainable_params: dict[str, jax.Array],
-        network weights dictionary
-    actor_module : Any,
-        Actor network template
-    critic_module : Any,
-        Critic network template
-    target_critic_params : Any,
-        The frozen weights of the slow-moving target critic network.
-        Used to calculate stable 1-step TD targets (the Bellman backup)
-        without the moving-target instability of the live critic.
-    value_function_call : Any,
-        __call__ method of the value function
-    target_entropy : float | None,
-
-    episode_data : dict[str, Any],
+    trainable_params : Any
+        Trainable parameter pytree of the live SAC module.
+    model : Any
+        Flax module exposing ``actor(...)``, ``critic(...)``, and ``alpha()``.
+    target_critic_params : Any
+        Frozen target-critic parameter pytree used for stable TD targets.
+    value_function_call : Any
+        ``__call__`` method of the SAC value function.
+    sampling_strategy : Any
+        Continuous action sampling strategy used for policy evaluation.
+    target_entropy : float | None
+        Target entropy used for adaptive temperature updates.
+    episode_data : dict[str, Any]
         Sampled transition batch returned by ``ReplayBuffer.sample()``.
         Expected keys are ``observation``, ``next_observation``, ``action``,
-        ``reward``, ``terminated``, ``actor_rng`` and ``next_actor_rng``.
+        ``reward``, ``terminated``, ``truncated``, ``actor_rng`` and
+        ``next_actor_rng``. Observations are expected to be array batches.
 
     Returns
     -------
     total_loss : Any
-        The total loss.
+        The summed SAC loss.
     loss_dict : dict[str, Any]
-        Contains the scalar loss tensors: 'critic_loss', 'actor_loss',
-        'temperature_loss', 'alpha' and 'q1_mean'.
+        Scalar metrics including critic, actor, and temperature losses.
     """
     batch_data = episode_data
     state_inputs = {"feature_data": jnp.array(batch_data["observation"])}
@@ -156,6 +153,7 @@ def sac_loss_fn(
     actions = jnp.array(batch_data["action"])
     rewards = jnp.array(batch_data["reward"]).reshape(-1, 1)
     terminated = jnp.array(batch_data["terminated"]).reshape(-1, 1)
+    _truncated = jnp.array(batch_data["truncated"]).reshape(-1, 1)
 
     actor_rng = batch_data["actor_rng"]
     next_actor_rng = batch_data["next_actor_rng"]

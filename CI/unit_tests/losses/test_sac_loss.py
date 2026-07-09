@@ -81,6 +81,7 @@ def build_episode_data(batch_size, seed=0):
         "reward": jnp.ones((batch_size, 1), dtype=jnp.float32),
         "next_observation": 2.0 * jnp.ones((batch_size, 3), dtype=jnp.float32),
         "terminated": jnp.zeros((batch_size, 1), dtype=jnp.float32),
+        "truncated": jnp.zeros((batch_size, 1), dtype=jnp.float32),
         "actor_rng": jax.random.PRNGKey(seed + 1),
         "next_actor_rng": jax.random.PRNGKey(seed + 2),
     }
@@ -329,3 +330,19 @@ def test_sac_loss_updates_flax_model_state_and_target_params():
         "q1_mean",
     }
     assert all(bool(jnp.all(jnp.isfinite(value))) for value in metrics.values())
+
+
+def test_target_q_ignores_truncated_when_terminated_is_zero():
+    value_fn = TDReturnsSAC(gamma=0.99, standardize=False)
+    rewards = jnp.array([[1.0]], dtype=jnp.float32)
+    q_next_min = jnp.array([[2.0]], dtype=jnp.float32)
+    temperature = jnp.array(0.5, dtype=jnp.float32)
+    next_log_probs = jnp.array([[1.0]], dtype=jnp.float32)
+    terminated = jnp.array([[0.0]], dtype=jnp.float32)
+    truncated = jnp.array([[1.0]], dtype=jnp.float32)
+
+    del truncated  # truncation is carried in the batch but must not mask SAC targets
+    targets = value_fn(rewards, q_next_min, temperature, next_log_probs, terminated)
+    expected = jnp.array([[1.0 + 0.99 * (2.0 - 0.5)]], dtype=jnp.float32)
+
+    assert jnp.allclose(targets, expected)

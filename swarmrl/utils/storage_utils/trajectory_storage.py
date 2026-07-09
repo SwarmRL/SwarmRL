@@ -169,19 +169,28 @@ class TransitionTrajectoryStorage(ConfigurableTrajectoryStorage):
         "reward",
         "next_observation",
         "terminated",
+        "truncated",
     }
     PRESETS = {
         "minimal": (
             "action",
             "reward",
         ),
-        "all": ("observation", "action", "reward", "next_observation", "terminated"),
+        "all": (
+            "observation",
+            "action",
+            "reward",
+            "next_observation",
+            "terminated",
+            "truncated",
+        ),
         "verbose": (
             "observation",
             "action",
             "reward",
             "next_observation",
             "terminated",
+            "truncated",
         ),
     }
 
@@ -211,7 +220,7 @@ class TransitionTrajectoryStorage(ConfigurableTrajectoryStorage):
             return None
         val = getattr(transition, field_name)
         # Scalars need to be wrapped in an array for HDF5 concatenation
-        if field_name in {"reward", "terminated"}:
+        if field_name in {"reward", "terminated", "truncated"}:
             return np.asarray([val])
         return np.asarray(val)
 

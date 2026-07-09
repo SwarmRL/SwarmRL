@@ -79,6 +79,7 @@ class DummyObservable:
 class DummyTask:
     def __init__(self):
         self.kill_switch = False
+        self.truncated = False
 
     def initialize(self, colloids):
         self.colloids = colloids
@@ -111,6 +112,7 @@ def filled_buffer(size=4):
                 reward=1.0,
                 next_observation=np.array([i + 1, i + 2, i + 3], dtype=np.float32),
                 terminated=0.0,
+                truncated=0.0,
             )
         )
     return buffer
@@ -188,6 +190,7 @@ def test_sac_agent_updates_loss_bridge_with_replay_batch_rng_keys():
         "reward",
         "next_observation",
         "terminated",
+        "truncated",
         "actor_rng",
         "next_actor_rng",
     }
@@ -260,3 +263,30 @@ def test_sac_agent_can_dump_transition_debug_data_with_flax_model(tmp_path):
         assert group["reward"].shape[0] == 4
         assert group["next_observation"].shape[0] == 4
         assert group["terminated"].shape[0] == 4
+        assert group["truncated"].shape[0] == 4
+
+
+def test_sac_agent_records_truncated_separately_from_terminated():
+    network = build_sac_network()
+    buffer = ReplayBuffer(capacity=4, seed=0)
+    task = DummyTask()
+    task.truncated = True
+    agent = make_agent(
+        network=network,
+        replay_buffer=buffer,
+        batch_size=2,
+        learning_starts=0,
+        gradient_steps=1,
+        train=True,
+        task=task,
+    )
+    colloids = [object(), object()]
+
+    agent.reset_agent(colloids)
+    agent.calc_action(colloids)
+    agent.calc_reward(colloids)
+
+    batch = buffer.sample(2)
+    assert np.all(batch["terminated"] == 0.0)
+    assert np.all(batch["truncated"] == 1.0)
+    assert agent.kill_switch is True

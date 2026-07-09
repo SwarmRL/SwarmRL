@@ -26,7 +26,8 @@ class TDReturnsSAC:
     Where:
         - r(s_t, a_t) is the immediate reward.
         - gamma is the discount factor.
-        - d_t is the terminal flag (1.0 if state is terminal, 0.0 otherwise).
+        - d_t is the true terminal flag (1.0 if state is terminal, 0.0 otherwise).
+          Episode truncation should not set this mask.
         - q_next_min is the minimum of target twin Q-networks at s_{t+1}
           (clipped double-Q).
         - alpha is the temperature parameter (entropy scaling factor).
@@ -87,8 +88,9 @@ class TDReturnsSAC:
             Log-probabilities of the action chosen in the next state s_{t+1}.
             Expected shape: Matches `rewards`.
         terminated : jax.Array
-            Terminal flags (1.0 for terminal transition, 0.0 otherwise).
-            Expected shape: Matches `rewards`. Must be float type for math operations.
+            True terminal flags (1.0 for terminal transition, 0.0 otherwise).
+            Expected shape: Matches `rewards`. Episode truncation should remain 0.0
+            here so SAC continues to bootstrap from the final observation.
 
         Returns
         -------

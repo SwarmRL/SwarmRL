@@ -42,7 +42,7 @@ class SACAgent(Agent):
         network: FlaxModel,
         task: Task,
         observable: Observable,
-        action_mapper: typing.Callable[[np.ndarray], list[Action]],
+        action_mapper: typing.Callable[[np.ndarray], Action | list[Action]],
         loss: SoftActorCriticLoss,
         replay_buffer: ReplayBuffer,
         sampling_strategy: ContinuousSamplingStrategy,
@@ -186,12 +186,17 @@ class SACAgent(Agent):
     ) -> float:
         """
         Computes post-step rewards and closes one replay transition per particle.
+
+        Returns the mean reward across particles as a reporting summary only.
+        SAC training uses the per-transition rewards written into the replay
+        buffer below, not this aggregated return value.
         """
         rewards = np.asarray(self.task(colloids) + external_reward)
         if rewards.ndim == 0:
             rewards = rewards[None]
         terminated = float(self.task.kill_switch)
-        self.kill_switch = self.task.kill_switch
+        truncated = float(getattr(self.task, "truncated", False))
+        self.kill_switch = bool(self.task.kill_switch or truncated)
 
         # We might cache the next observation as well to reuse for next calc_action
         next_observation = np.asarray(self.observable.compute_observable(colloids))
@@ -232,6 +237,7 @@ class SACAgent(Agent):
                     reward=float(rewards[particle_idx]),
                     next_observation=next_observation[particle_idx],
                     terminated=terminated,
+                    truncated=truncated,
                 )
                 self.replay_buffer.add(transition)
                 self.persist_trajectory(transition)

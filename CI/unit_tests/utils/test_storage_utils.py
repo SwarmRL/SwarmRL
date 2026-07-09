@@ -72,6 +72,7 @@ def _make_transition(
     act_value: float,
     reward_value: float,
     terminated_value: float,
+    truncated_value: float = 0.0,
 ) -> dict:
     return {
         "observation": np.full((3,), obs_value, dtype=np.float32),
@@ -79,6 +80,7 @@ def _make_transition(
         "reward": float(reward_value),
         "next_observation": np.full((3,), obs_value + 1.0, dtype=np.float32),
         "terminated": float(terminated_value),
+        "truncated": float(truncated_value),
     }
 
 
@@ -395,6 +397,7 @@ class TestStorageWriters:
             assert group["reward"].shape == (2, 1)
             assert group["next_observation"].shape == (2, 3)
             assert group["terminated"].shape == (2, 1)
+            assert group["truncated"].shape == (2, 1)
             npt.assert_allclose(group["observation"][0], first["observation"])
             npt.assert_allclose(group["action"][1], second["action"])
             npt.assert_allclose(group["reward"][1], np.array([3.0]))
