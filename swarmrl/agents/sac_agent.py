@@ -28,6 +28,8 @@ class SACAgent(Agent):
     Continuous-control SAC agent using a single FlaxModel-managed module.
     Handles off-policy transition storage and JAX-native RNG splitting.
 
+    Each particle experience is stored as an individual replay-buffer transition.
+
     The provided FlaxModel must wrap a user-defined Flax module that exposes
     explicit `actor(...)`, `critic(...)`, and `alpha()` methods, because SAC
     invokes these subpaths separately during action selection, critic updates,
@@ -118,28 +120,32 @@ class SACAgent(Agent):
 
     def calc_action(self, colloids: list[Colloid]) -> list[Action]:
         """
-        Computes the current state, samples a new action, and stages the transition.
+        Computes the current state, samples new per-particle actions, and stages
+        the transition batch.
         """
         # 1. Get current state (s_t)
-        current_obs = self.observable.compute_observable(colloids)
+        current_obs = np.asarray(self.observable.compute_observable(colloids))
+        if current_obs.ndim == 1:
+            current_obs = current_obs[None, :]
+        elif current_obs.ndim != 2:
+            raise ValueError(
+                "SACAgent expects observable arrays with "
+                "shape (n_particles, n_features)."
+            )
 
         # 2. Sample new action (a_t)
         self.rng, network_key, sample_key, warmup_key = jax.random.split(
             self.rng, num=4
         )
-        if isinstance(current_obs, dict):
-            state_inputs = jax.tree_util.tree_map(
-                lambda x: jnp.expand_dims(x, axis=0), current_obs
-            )
-        else:
-            state_inputs = {"feature_data": jnp.expand_dims(current_obs, axis=0)}
+        state_inputs = {"feature_data": jnp.asarray(current_obs)}
+        n_particles = int(current_obs.shape[0])
 
         if self._step_count < self.learning_starts:
             # Use uniform random actions during the learning_starts warm-up.
             action_dim = self.sampling_strategy.action_dimension
             actions_jax = jax.random.uniform(
                 warmup_key,
-                shape=(1, action_dim),
+                shape=(n_particles, action_dim),
                 minval=-1.0,
                 maxval=1.0,
             )
@@ -150,8 +156,6 @@ class SACAgent(Agent):
                 method=self.network.model.actor,
                 **state_inputs,
             )
-
-            # Sample new actions
             actions_jax, _ = self.sampling_strategy(
                 logits=logits_jax,
                 rng_key=sample_key,
@@ -159,46 +163,82 @@ class SACAgent(Agent):
                 deployment_mode=not self.train,
             )
 
-        action_np = np.asarray(jax.device_get(actions_jax))[0]
+        action_np = np.asarray(jax.device_get(actions_jax))
+        if action_np.ndim == 1:
+            action_np = action_np[None, :]
 
         # 3. Stage (s_t, a_t); reward and next state are attached in calc_reward().
         self._pending_observation = current_obs
         self._pending_action = action_np
         self._step_count += 1
 
-        chosen_actions = self.action_mapper(action_np)
+        chosen_actions = []
+        for particle_action in action_np:
+            mapped_action = self.action_mapper(particle_action)
+            if isinstance(mapped_action, list):
+                chosen_actions.extend(mapped_action)
+            else:
+                chosen_actions.append(mapped_action)
         return chosen_actions
 
     def calc_reward(
         self, colloids: list[Colloid], external_reward: float = 0.0
     ) -> float:
         """
-        Computes the post-step reward and closes the staged replay transition.
+        Computes post-step rewards and closes one replay transition per particle.
         """
-        reward = float(self.task(colloids) + external_reward)
+        rewards = np.asarray(self.task(colloids) + external_reward)
+        if rewards.ndim == 0:
+            rewards = rewards[None]
         terminated = float(self.task.kill_switch)
         self.kill_switch = self.task.kill_switch
 
         # We might cache the next observation as well to reuse for next calc_action
-        next_observation = self.observable.compute_observable(colloids)
+        next_observation = np.asarray(self.observable.compute_observable(colloids))
+        if next_observation.ndim == 1:
+            next_observation = next_observation[None, :]
+        elif next_observation.ndim != 2:
+            raise ValueError(
+                "SACAgent expects observable arrays with "
+                "shape (n_particles, n_features)."
+            )
 
         if (
             self.train
             and self._pending_observation is not None
             and self._pending_action is not None
         ):
-            transition = Transition(
-                observation=self._pending_observation,
-                action=self._pending_action,
-                reward=reward,
-                next_observation=next_observation,
-                terminated=terminated,
-            )
-            self.replay_buffer.add(transition)
-            self.persist_trajectory(transition)
+            n_particles = int(self._pending_observation.shape[0])
+            if rewards.shape[0] != n_particles:
+                raise ValueError(
+                    "Reward array length must match the number of "
+                    "staged particle observations."
+                )
+            if next_observation.shape[0] != n_particles:
+                raise ValueError(
+                    "Next-observation batch size must match the number of "
+                    "staged particle observations."
+                )
+            if self._pending_action.shape[0] != n_particles:
+                raise ValueError(
+                    "Pending action batch size must match the number of "
+                    "staged particle observations."
+                )
 
-        self._last_reward = reward
-        return reward
+            for particle_idx in range(n_particles):
+                transition = Transition(
+                    observation=self._pending_observation[particle_idx],
+                    action=self._pending_action[particle_idx],
+                    reward=float(rewards[particle_idx]),
+                    next_observation=next_observation[particle_idx],
+                    terminated=terminated,
+                )
+                self.replay_buffer.add(transition)
+                self.persist_trajectory(transition)
+
+        # For logging purposes
+        self._last_reward = float(np.mean(rewards))
+        return self._last_reward
 
     def update_agent(self) -> tuple[float, bool]:
         """

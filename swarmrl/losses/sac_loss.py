@@ -150,12 +150,8 @@ def sac_loss_fn(
         'temperature_loss', 'alpha' and 'q1_mean'.
     """
     batch_data = episode_data
-    if isinstance(batch_data["observation"], dict):
-        state_inputs = batch_data["observation"]
-        next_state_inputs = batch_data["next_observation"]
-    else:
-        state_inputs = {"feature_data": jnp.array(batch_data["observation"])}
-        next_state_inputs = {"feature_data": jnp.array(batch_data["next_observation"])}
+    state_inputs = {"feature_data": jnp.array(batch_data["observation"])}
+    next_state_inputs = {"feature_data": jnp.array(batch_data["next_observation"])}
 
     actions = jnp.array(batch_data["action"])
     rewards = jnp.array(batch_data["reward"]).reshape(-1, 1)

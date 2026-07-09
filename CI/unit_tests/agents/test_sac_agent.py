@@ -71,7 +71,9 @@ class DummyObservable:
         self.colloids = colloids
 
     def compute_observable(self, colloids):
-        return np.array([1.0, 2.0, 3.0], dtype=np.float32)
+        n = len(colloids)
+        base = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+        return np.tile(base, (n, 1))
 
 
 class DummyTask:
@@ -82,7 +84,7 @@ class DummyTask:
         self.colloids = colloids
 
     def __call__(self, colloids):
-        return 1.0
+        return np.ones(len(colloids), dtype=np.float32)
 
 
 def build_sac_network(module=None):
@@ -121,8 +123,8 @@ def make_agent(network, loss=None, replay_buffer=None, **kwargs):
         task=kwargs.pop("task", DummyTask()),
         observable=kwargs.pop("observable", DummyObservable()),
         action_mapper=kwargs.pop("action_mapper", lambda action: action),
-        loss=loss or LossSpy(),
-        replay_buffer=replay_buffer or filled_buffer(),
+        loss=loss if loss is not None else LossSpy(),
+        replay_buffer=replay_buffer if replay_buffer is not None else filled_buffer(),
         sampling_strategy=kwargs.pop(
             "sampling_strategy",
             ContinuousGaussianDistribution.create(action_dimension=2),
@@ -203,17 +205,18 @@ def test_sac_agent_closes_transition_in_calc_reward():
         gradient_steps=1,
         train=True,
     )
-    colloids = [object()]
+    colloids = [object(), object(), object()]
 
     agent.reset_agent(colloids)
-    agent.calc_action(colloids)
+    actions = agent.calc_action(colloids)
 
     assert len(buffer) == 0
+    assert len(actions) == 3
 
     reward = agent.calc_reward(colloids)
 
     assert reward == 1.0
-    assert len(buffer) == 1
+    assert len(buffer) == 3
 
 
 def test_sac_agent_can_dump_transition_debug_data_with_flax_model(tmp_path):
@@ -225,7 +228,7 @@ def test_sac_agent_can_dump_transition_debug_data_with_flax_model(tmp_path):
         network=network,
         task=DummyTask(),
         observable=DummyObservable(),
-        action_mapper=lambda action: [action],
+        action_mapper=lambda action: action,
         loss=loss,
         replay_buffer=ReplayBuffer(capacity=4, seed=0),
         batch_size=2,
@@ -237,7 +240,7 @@ def test_sac_agent_can_dump_transition_debug_data_with_flax_model(tmp_path):
             storage_preset="verbose",
         ),
     )
-    colloids = [object()]
+    colloids = [object(), object()]
 
     agent.reset_agent(colloids)
     first_actions = agent.calc_action(colloids)
@@ -246,14 +249,14 @@ def test_sac_agent_can_dump_transition_debug_data_with_flax_model(tmp_path):
     agent.calc_reward(colloids)
     agent.finalize()
 
-    assert len(first_actions) == 1
-    assert len(second_actions) == 1
+    assert len(first_actions) == 2
+    assert len(second_actions) == 2
 
     file_path = tmp_path / "sac_transition_data_1.hdf5"
     with h5py.File(file_path.as_posix(), "r") as h5_file:
         group = h5_file["SAC_1"]
-        assert group["observation"].shape[0] == 2
-        assert group["action"].shape[0] == 2
-        assert group["reward"].shape[0] == 2
-        assert group["next_observation"].shape[0] == 2
-        assert group["terminated"].shape[0] == 2
+        assert group["observation"].shape[0] == 4
+        assert group["action"].shape[0] == 4
+        assert group["reward"].shape[0] == 4
+        assert group["next_observation"].shape[0] == 4
+        assert group["terminated"].shape[0] == 4
