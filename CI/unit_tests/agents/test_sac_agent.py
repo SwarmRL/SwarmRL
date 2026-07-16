@@ -6,6 +6,7 @@ import optax
 import pytest
 
 import swarmrl as srl
+import swarmrl.agents.sac_agent as sac_agent_module
 from swarmrl.agents.sac_agent import SACAgent
 from swarmrl.networks import FlaxModel
 from swarmrl.replay_buffer.replay_buffer import ReplayBuffer
@@ -250,6 +251,40 @@ def test_sac_agent_warmup_uses_sampling_strategy_action_limits(monkeypatch):
     action_array = np.asarray(actions)
     assert np.all(action_array >= 0.0)
     assert np.all(action_array <= 1.0)
+
+
+def test_sac_agent_logs_when_learning_starts():
+    network = build_sac_network()
+    agent = make_agent(
+        network=network,
+        replay_buffer=filled_buffer(),
+        learning_starts=1,
+        batch_size=2,
+        train=True,
+    )
+    colloids = [object(), object(), object()]
+    messages = []
+    original_info = sac_agent_module.logger.info
+
+    def capture_info(message, *args, **kwargs):
+        messages.append(message)
+        return original_info(message, *args, **kwargs)
+
+    sac_agent_module.logger.info = capture_info
+    try:
+        agent.reset_agent(colloids)
+        agent.calc_action(colloids)
+        agent.calc_reward(colloids)
+        agent.update_agent()
+        agent.update_agent()
+    finally:
+        sac_agent_module.logger.info = original_info
+
+    matching_messages = [
+        message for message in messages if "learning starts" in message.lower()
+    ]
+
+    assert len(matching_messages) == 1
 
 
 def test_sac_agent_can_dump_transition_debug_data_with_flax_model(tmp_path):

@@ -18,6 +18,8 @@ from swarmrl.replay_buffer.transition import Transition
 from swarmrl.sampling_strategies.sampling_strategy import ContinuousSamplingStrategy
 from swarmrl.tasks.task import Task
 from swarmrl.utils.storage_utils import (
+    AgentStorageConfig,
+    AgentTrajectoryStorage,
     TransitionStorageConfig,
     TransitionTrajectoryStorage,
 )
@@ -51,8 +53,45 @@ class SACAgent(Agent):
         gradient_steps: int = 1,
         train: bool = True,
         seed: int = 42,
+        storage_config: AgentStorageConfig | None = None,
         transition_storage_config: TransitionStorageConfig | None = None,
     ):
+        """
+        Constructor for the soft-actor-critic protocol.
+
+        Parameters
+        ----------
+        particle_type : int
+                Particle ID this RL protocol applies to.
+        observable : Observable
+                Observable for this particle type and network input
+        task : Task
+                Task for this particle type to perform.
+        action_mapper : Callable
+                Maps actions into the needed format.
+        loss : Loss (default=SoftActorCriticLoss)
+                Loss function to use to update the networks.
+        replay_buffer : ReplayBuffer
+                Stores the sampled (s,a,r,s') sets for sampling.
+        sampling_strategy : ContinuousSamplingStrategy
+                Samples actions from the policy output
+        batch_size : int
+                Number of samples per network update step
+        learning_starts : int
+                Number of samples to collect before the first update
+        gradient_steps : int
+                Number of batches drawn per network update call
+        train : bool (default=True)
+                Flag to indicate if the agent is training.
+        seed : int
+        storage_config : AgentStorageConfig | None (default=None)
+                Optional storage configuration for agent data (log_probs, features...)
+                If None, no trajectory data is persisted to file.
+        transition_storage_config : TransitionStorageConfig | None (default=None)
+                Optional storage configuration for transitions (s,a,r,s') stored in
+                the ReplayBuffer. If None, no trajectory data is persisted to file.
+
+        """
         self.particle_type = particle_type
         self.task = task
         self.observable = observable
@@ -78,12 +117,25 @@ class SACAgent(Agent):
                 allow_existing_file=self.transition_storage_config.allow_existing_file,
                 write_chunk_size=self.transition_storage_config.write_chunk_size,
             )
+
+        self.storage_config = storage_config
+        self.trajectory_storage = None
+        if self.storage_config is not None:
+            self.trajectory_storage = AgentTrajectoryStorage(
+                particle_type=self.particle_type,
+                out_folder=self.storage_config.out_folder,
+                preset=self.storage_config.storage_preset,
+                stored_attributes=self.storage_config.stored_attributes,
+                allow_existing_file=self.storage_config.allow_existing_file,
+                write_chunk_size=self.storage_config.write_chunk_size,
+            )
         self.rng = jax.random.PRNGKey(seed)
 
         self._step_count = 0
         self._pending_observation = None
         self._pending_action = None
         self._last_reward = 0.0
+        self._learning_starts_logged = False
 
         self._validate_sac_network_contract()
         if "critic" not in self.network.target_params:
@@ -266,6 +318,13 @@ class SACAgent(Agent):
             or not self.replay_buffer.can_sample(self.batch_size)
         ):
             return self._last_reward, killed
+
+        if not self._learning_starts_logged:
+            logger.info(
+                f"Learning starts at step {self._step_count} "
+                f"(learning_starts={self.learning_starts}).",
+            )
+            self._learning_starts_logged = True
 
         for _ in range(self.gradient_steps):
             # 1. Sample Replay buffer
