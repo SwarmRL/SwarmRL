@@ -6,6 +6,7 @@ import pytest
 
 from swarmrl.sampling_strategies.gaussian_distribution import (
     ContinuousGaussianDistribution,
+    action_limits_from_bounds,
 )
 
 
@@ -65,6 +66,28 @@ class TestContinuousGaussianDistribution:
         assert jnp.all(actions[:, 0] >= -0.3) and jnp.all(actions[:, 0] <= 0.3)
         assert jnp.all(actions[:, 1] >= -0.2) and jnp.all(actions[:, 1] <= 0.2)
         assert jnp.all(actions[:, 2] >= -1.0) and jnp.all(actions[:, 2] <= 1.0)
+
+    def test_create_defaults_to_minus_one_to_one_action_limits(self):
+        sampler = ContinuousGaussianDistribution.create(action_dimension=3)
+
+        expected_limits = jnp.array(
+            [[-1.0, 1.0], [-1.0, 1.0], [-1.0, 1.0]], dtype=jnp.float32
+        )
+
+        assert sampler.action_limits is not None
+        assert sampler.action_limits.shape == (3, 2)
+        assert jnp.allclose(sampler.action_limits, expected_limits)
+
+    def test_action_limits_from_bounds_builds_per_dimension_limits(self):
+        limits = action_limits_from_bounds(4, 0.0, 1.0)
+
+        expected_limits = jnp.array(
+            [[0.0, 1.0], [0.0, 1.0], [0.0, 1.0], [0.0, 1.0]],
+            dtype=jnp.float32,
+        )
+
+        assert limits.shape == (4, 2)
+        assert jnp.allclose(limits, expected_limits)
 
     def test_log_probs_include_tanh_squash_correction(self):
         sampler = ContinuousGaussianDistribution(action_dimension=2)

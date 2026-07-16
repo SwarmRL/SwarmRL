@@ -143,11 +143,19 @@ class SACAgent(Agent):
         if self._step_count < self.learning_starts:
             # Use uniform random actions during the learning_starts warm-up.
             action_dim = self.sampling_strategy.action_dimension
+            action_limits = getattr(self.sampling_strategy, "action_limits", None)
+            if action_limits is None:
+                minval = -1.0
+                maxval = 1.0
+            else:
+                action_limits = jnp.asarray(action_limits)
+                minval = action_limits[:, 0]
+                maxval = action_limits[:, 1]
             actions_jax = jax.random.uniform(
                 warmup_key,
                 shape=(n_particles, action_dim),
-                minval=-1.0,
-                maxval=1.0,
+                minval=minval,
+                maxval=maxval,
             )
         else:
             logits_jax = self.network.model.apply(

@@ -9,6 +9,21 @@ from flax import struct
 from swarmrl.sampling_strategies.sampling_strategy import ContinuousSamplingStrategy
 
 
+def action_limits_from_bounds(
+    action_dimension: int,
+    low: float,
+    high: float,
+    float_precision: jnp.dtype = jnp.float32,
+) -> jnp.ndarray:
+    """Build per-dimension action limits from scalar bounds."""
+    if action_dimension < 1:
+        raise ValueError("action_dimension must be at least 1")
+    if high < low:
+        raise ValueError("high must be greater than or equal to low")
+    limits = jnp.array([[low, high]] * action_dimension, dtype=float_precision)
+    return limits
+
+
 # Register the class as a JAX PyTree so it can cross JIT boundaries safely
 @struct.dataclass
 class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
@@ -39,7 +54,11 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
         float_precision: jnp.dtype = jnp.float32,
     ) -> "ContinuousGaussianDistribution":
         """Factory method to handle the initialization validation safely."""
-        if action_limits is not None:
+        if action_limits is None:
+            action_limits = action_limits_from_bounds(
+                action_dimension, -1.0, 1.0, float_precision
+            )
+        else:
             if action_limits.shape != (action_dimension, 2):
                 raise ValueError(
                     f"action_limits shape is {action_limits.shape} "

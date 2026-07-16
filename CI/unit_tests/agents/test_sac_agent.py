@@ -222,6 +222,36 @@ def test_sac_agent_closes_transition_in_calc_reward():
     assert len(buffer) == 3
 
 
+def test_sac_agent_warmup_uses_sampling_strategy_action_limits(monkeypatch):
+    network = build_sac_network()
+    limits = np.array([[0.0, 1.0], [0.0, 1.0]], dtype=np.float32)
+    strategy = ContinuousGaussianDistribution.create(
+        action_dimension=2, action_limits=limits
+    )
+    agent = make_agent(
+        network=network,
+        sampling_strategy=strategy,
+        replay_buffer=ReplayBuffer(capacity=4, seed=0),
+        learning_starts=5,
+        batch_size=2,
+        train=True,
+    )
+    colloids = [object(), object(), object()]
+
+    def fail_actor(*args, **kwargs):
+        raise AssertionError("warmup must not call the policy actor")
+
+    monkeypatch.setattr(network.model, "actor", fail_actor)
+
+    agent.reset_agent(colloids)
+    actions = agent.calc_action(colloids)
+
+    assert len(actions) == 3
+    action_array = np.asarray(actions)
+    assert np.all(action_array >= 0.0)
+    assert np.all(action_array <= 1.0)
+
+
 def test_sac_agent_can_dump_transition_debug_data_with_flax_model(tmp_path):
     network = build_sac_network()
 
