@@ -107,9 +107,9 @@ class SACAgent(Agent):
         self.train = train
 
         self.transition_storage_config = transition_storage_config
-        self.trajectory_storage = None
+        self.transition_trajectory_storage = None
         if self.transition_storage_config is not None:
-            self.trajectory_storage = TransitionTrajectoryStorage(
+            self.transition_trajectory_storage = TransitionTrajectoryStorage(
                 particle_type=self.particle_type,
                 out_folder=self.transition_storage_config.out_folder,
                 preset=self.transition_storage_config.storage_preset,
@@ -300,7 +300,8 @@ class SACAgent(Agent):
                     truncated=truncated,
                 )
                 self.replay_buffer.add(transition)
-                self.persist_trajectory(transition)
+                if self.transition_trajectory_storage is not None:
+                    self.transition_trajectory_storage.write(transition)
 
         # For logging purposes
         self._last_reward = float(np.mean(rewards))
@@ -340,6 +341,12 @@ class SACAgent(Agent):
             logger.debug(metrics)
 
         return self._last_reward, killed
+
+    def finalize(self) -> None:
+        """Finalize any configured agent and transition trajectory storages."""
+        super().finalize()
+        if self.transition_trajectory_storage is not None:
+            self.transition_trajectory_storage.finalize()
 
     def initalize_network(self):
         if hasattr(self.network, "reinitialize_network"):
