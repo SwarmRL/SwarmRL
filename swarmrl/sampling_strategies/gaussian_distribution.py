@@ -18,8 +18,8 @@ def action_limits_from_bounds(
     """Build per-dimension action limits from scalar bounds."""
     if action_dimension < 1:
         raise ValueError("action_dimension must be at least 1")
-    if high < low:
-        raise ValueError("high must be greater than or equal to low")
+    if high <= low:
+        raise ValueError("high must be strictly greater than low")
     limits = jnp.array([[low, high]] * action_dimension, dtype=float_precision)
     return limits
 
@@ -66,6 +66,11 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
                     f"but should be {(action_dimension, 2)}"
                 )
             action_limits = jnp.asarray(action_limits, dtype=float_precision)
+            if not bool(jnp.all(action_limits[:, 1] > action_limits[:, 0])):
+                raise ValueError(
+                    "Each action upper bound must be strictly greater "
+                    "than its lower bound."
+                )
 
         scale = (action_limits[:, 1] - action_limits[:, 0]) / 2.0
         log_scale = jnp.log(scale)

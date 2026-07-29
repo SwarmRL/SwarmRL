@@ -144,3 +144,10 @@ class TestContinuousGaussianDistribution:
             unit_interval_log_probs,
             symmetric_log_probs + expected_offset,
         )
+
+    def test_zero_width_action_bounds_are_rejected(self):
+        with pytest.raises(ValueError, match="strictly greater"):
+            ContinuousGaussianDistribution.create(
+                action_dimension=1,
+                action_limits=jnp.array([[2.0, 2.0]], dtype=jnp.float32),
+            )
