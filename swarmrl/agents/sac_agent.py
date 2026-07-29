@@ -303,6 +303,9 @@ class SACAgent(Agent):
                 if self.transition_trajectory_storage is not None:
                     self.transition_trajectory_storage.write(transition)
 
+        self._pending_observation = None
+        self._pending_action = None
+
         # For logging purposes
         self._last_reward = float(np.mean(rewards))
         return self._last_reward

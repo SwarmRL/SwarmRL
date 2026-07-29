@@ -223,6 +223,25 @@ def test_sac_agent_closes_transition_in_calc_reward():
     assert len(buffer) == 3
 
 
+def test_sac_agent_closes_each_pending_transition_only_once():
+    network = build_sac_network()
+    buffer = ReplayBuffer(capacity=4, seed=0)
+    agent = make_agent(
+        network=network,
+        replay_buffer=buffer,
+        learning_starts=0,
+        train=True,
+    )
+    colloids = [object()]
+    agent.reset_agent(colloids)
+    agent.calc_action(colloids)
+
+    agent.calc_reward(colloids)
+    agent.calc_reward(colloids)
+
+    assert len(buffer) == 1
+
+
 def test_sac_agent_warmup_uses_sampling_strategy_action_limits(monkeypatch):
     network = build_sac_network()
     limits = np.array([[0.0, 1.0], [0.0, 1.0]], dtype=np.float32)
