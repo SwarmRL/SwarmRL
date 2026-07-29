@@ -346,3 +346,12 @@ def test_target_q_ignores_truncated_when_terminated_is_zero():
     expected = jnp.array([[1.0 + 0.99 * (2.0 - 0.5)]], dtype=jnp.float32)
 
     assert jnp.allclose(targets, expected)
+
+
+def test_critic_loss_rejects_cross_broadcasting_shapes():
+    q1 = jnp.array([1.0, 2.0, 3.0])
+    q2 = jnp.array([1.5, 2.5, 3.5])
+    target = jnp.array([[1.0], [2.0], [3.0]])
+
+    with pytest.raises(ValueError, match="matching shapes"):
+        calculate_critic_loss(q1, q2, target)

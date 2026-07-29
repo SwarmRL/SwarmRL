@@ -44,6 +44,11 @@ def calculate_critic_loss(
     critic_loss : jax.Array
         A scalar tensor representing the combined loss for both Q-networks.
     """
+    if q1_pred.shape != q2_pred.shape or q1_pred.shape != target_q.shape:
+        raise ValueError(
+            "SAC critic predictions and targets must have matching shapes; "
+            f"got q1={q1_pred.shape}, q2={q2_pred.shape}, target={target_q.shape}."
+        )
     return 0.5 * jnp.mean((q1_pred - target_q) ** 2 + (q2_pred - target_q) ** 2)
 
 
