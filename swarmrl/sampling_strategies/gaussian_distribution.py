@@ -40,6 +40,7 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
     # Static metadata fields are excluded from PyTree leaves.
     action_dimension: int = struct.field(pytree_node=False)
     action_limits: Optional[jnp.ndarray] = struct.field(pytree_node=True, default=None)
+    log_scale: Optional[jnp.ndarray] = struct.field(pytree_node=True, default=None)
     log_std_min: float = struct.field(pytree_node=False, default=-20.0)
     log_std_max: float = struct.field(pytree_node=False, default=1.0)
     float_precision: jnp.dtype = struct.field(pytree_node=False, default=jnp.float32)
@@ -66,9 +67,13 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
                 )
             action_limits = jnp.asarray(action_limits, dtype=float_precision)
 
+        scale = (action_limits[:, 1] - action_limits[:, 0]) / 2.0
+        log_scale = jnp.log(scale)
+
         return cls(
             action_dimension=int(action_dimension),
             action_limits=action_limits,
+            log_scale=log_scale,
             log_std_min=float(log_std_min),
             log_std_max=float(log_std_max),
             float_precision=float_precision,
@@ -148,6 +153,8 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
                 )
                 log_probs = log_probs.sum(axis=-1)
 
+                log_scale_term = self.log_scale if self.log_scale is not None else 0.0
+
                 correction = (
                     2.0
                     * (
@@ -155,6 +162,7 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
                         - pre_squash_action
                         - jax.nn.softplus(-2.0 * pre_squash_action)
                     )
+                    + log_scale_term
                 ).sum(axis=-1)
 
                 log_probs = log_probs - correction

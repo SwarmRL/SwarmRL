@@ -215,13 +215,12 @@ class TestFlaxNetwork:
                 return x, y
 
         with pytest.raises(ValueError):
+            sampling_strategy = srl.sampling_strategies.ContinuousGaussianDistribution
             FlaxModel(
                 flax_model=ContinuousNetwork(),
                 optimizer=optax.adam(learning_rate=0.001),
                 input_shape=(2,),
-                sampling_strategy=srl.sampling_strategies.ContinuousGaussianDistribution(
-                    action_dimension=3
-                ),
+                sampling_strategy=sampling_strategy.create(action_dimension=3),
                 exploration_policy=srl.exploration_policies.RandomExploration(
                     probability=0.1
                 ),
@@ -240,11 +239,12 @@ class TestFlaxNetwork:
         limits = np.array([[-1.0, 1.0], [-0.5, 0.5], [-2.0, 2.0]], dtype=np.float32)
 
         # Training mode: compute log-probs.
+        sampling_strategy = srl.sampling_strategies.ContinuousGaussianDistribution
         train_model = FlaxModel(
             flax_model=ContinuousNetwork(),
             optimizer=optax.adam(learning_rate=0.001),
             input_shape=(2,),
-            sampling_strategy=srl.sampling_strategies.ContinuousGaussianDistribution(
+            sampling_strategy=sampling_strategy.create(
                 action_dimension=3, action_limits=limits
             ),
             exploration_policy=srl.exploration_policies.GlobalOUExploration(
@@ -259,11 +259,12 @@ class TestFlaxNetwork:
         assert log_probs.shape == (2,)
 
         # Deployment mode: deterministic Gaussian output, no log-probs.
+        sampling_strategy = srl.sampling_strategies.ContinuousGaussianDistribution
         deploy_model = FlaxModel(
             flax_model=ContinuousNetwork(),
             optimizer=optax.adam(learning_rate=0.001),
             input_shape=(2,),
-            sampling_strategy=srl.sampling_strategies.ContinuousGaussianDistribution(
+            sampling_strategy=sampling_strategy.create(
                 action_dimension=3, action_limits=limits
             ),
             exploration_policy=srl.exploration_policies.GlobalOUExploration(

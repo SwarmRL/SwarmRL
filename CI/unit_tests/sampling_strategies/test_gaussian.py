@@ -14,14 +14,14 @@ class TestContinuousGaussianDistribution:
     """Unit tests for ContinuousGaussianDistribution."""
 
     def test_logits_shape_validation(self):
-        sampler = ContinuousGaussianDistribution(action_dimension=3)
+        sampler = ContinuousGaussianDistribution.create(action_dimension=3)
         bad_logits = jnp.zeros((2, 5), dtype=jnp.float32)
 
         with pytest.raises(ValueError):
             sampler(bad_logits, rng_key=jax.random.PRNGKey(0))
 
     def test_returns_actions_and_log_probs_in_training_mode(self):
-        sampler = ContinuousGaussianDistribution(action_dimension=3)
+        sampler = ContinuousGaussianDistribution.create(action_dimension=3)
         logits = jnp.zeros((4, 6), dtype=jnp.float32)
 
         actions, log_probs = sampler(
@@ -36,7 +36,7 @@ class TestContinuousGaussianDistribution:
         assert log_probs.shape == (4,)
 
     def test_returns_none_log_probs_in_deployment_mode(self):
-        sampler = ContinuousGaussianDistribution(action_dimension=3)
+        sampler = ContinuousGaussianDistribution.create(action_dimension=3)
         logits = jnp.zeros((3, 6), dtype=jnp.float32)
 
         actions, log_probs = sampler(
@@ -51,7 +51,7 @@ class TestContinuousGaussianDistribution:
 
     def test_action_limits_are_respected(self):
         limits = jnp.array([[-0.3, 0.3], [-0.2, 0.2], [-1.0, 1.0]], dtype=jnp.float32)
-        sampler = ContinuousGaussianDistribution(
+        sampler = ContinuousGaussianDistribution.create(
             action_dimension=3, action_limits=limits
         )
         logits = jnp.zeros((16, 6), dtype=jnp.float32)
@@ -111,3 +111,36 @@ class TestContinuousGaussianDistribution:
 
         assert jnp.allclose(actions, raw_actions)
         assert jnp.allclose(log_probs, gaussian_log_probs - squash_correction)
+
+    def test_log_probs_include_affine_action_scale_correction(self):
+        action_dimension = 4
+        logits = jnp.zeros((3, 2 * action_dimension), dtype=jnp.float32)
+        key = jax.random.PRNGKey(6)
+
+        unit_interval_sampler = ContinuousGaussianDistribution.create(
+            action_dimension=action_dimension,
+            action_limits=action_limits_from_bounds(action_dimension, 0.0, 1.0),
+        )
+        symmetric_sampler = ContinuousGaussianDistribution.create(
+            action_dimension=action_dimension,
+            action_limits=action_limits_from_bounds(action_dimension, -1.0, 1.0),
+        )
+
+        _, unit_interval_log_probs = unit_interval_sampler(
+            logits,
+            rng_key=key,
+            calculate_log_probs=True,
+            deployment_mode=False,
+        )
+        _, symmetric_log_probs = symmetric_sampler(
+            logits,
+            rng_key=key,
+            calculate_log_probs=True,
+            deployment_mode=False,
+        )
+
+        expected_offset = action_dimension * jnp.log(2.0)
+        assert jnp.allclose(
+            unit_interval_log_probs,
+            symmetric_log_probs + expected_offset,
+        )
