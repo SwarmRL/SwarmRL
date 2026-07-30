@@ -27,8 +27,11 @@ class _DummyDiscreteSampling(DiscreteSamplingStrategy):
 class _DummyDiscreteExploration(DiscreteExplorationPolicy):
     """Discrete exploration that shifts indices by +1 modulo action space."""
 
-    def __call__(self, model_action, action_space_length, seed=12345):
-        del seed
+    def __init__(self):
+        self.rng_key = None
+
+    def __call__(self, model_action, action_space_length, rng_key):
+        self.rng_key = rng_key
         return (model_action + 1) % action_space_length
 
 
@@ -91,6 +94,25 @@ class TestActionSelector:
 
         onp.testing.assert_array_equal(indices, expected_indices)
         onp.testing.assert_allclose(chosen_log_probs, expected_log_probs)
+
+    def test_discrete_training_forwards_exploration_key(self):
+        exploration_policy = _DummyDiscreteExploration()
+        selector = ActionSelector(
+            sampling_strategy=_DummyDiscreteSampling(),
+            exploration_policy=exploration_policy,
+        )
+
+        logits = np.array([[1.0, 3.0, 2.0], [4.0, 1.0, 0.0]], dtype=np.float32)
+        exploration_key = jax.random.PRNGKey(1)
+
+        selector.select(
+            logits=logits,
+            deployment_mode=False,
+            sampling_key=jax.random.PRNGKey(0),
+            exploration_key=exploration_key,
+        )
+
+        onp.testing.assert_array_equal(exploration_policy.rng_key, exploration_key)
 
     def test_discrete_deployment_skips_exploration(self):
         selector = ActionSelector(
