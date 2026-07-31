@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 import jax
-import jax.numpy as np
+import jax.numpy as jnp
 
 
 class ExplorationPolicy(ABC):
@@ -15,7 +15,7 @@ class ExplorationPolicy(ABC):
     """
 
     @abstractmethod
-    def __call__(self, *args: Any, **kwargs: Any) -> np.ndarray:
+    def __call__(self, *args: Any, **kwargs: Any) -> jnp.ndarray:
         """
         Apply exploration to model actions.
         """
@@ -29,14 +29,14 @@ class DiscreteExplorationPolicy(ExplorationPolicy, ABC):
 
     @abstractmethod
     def __call__(
-        self, model_actions: np.ndarray, action_space_length: int, seed: Any
-    ) -> np.ndarray:
+        self, model_actions: jnp.ndarray, action_space_length: int, seed: Any
+    ) -> jnp.ndarray:
         """
         Return an index associated with the chosen action.
 
         Parameters
         ----------
-        model_actions : np.ndarray (n_colloids,)
+        model_actions : jnp.ndarray (n_colloids,)
                 Action chosen by the model for each colloid.
         action_space_length : int
                 Number of possible actions. Should be 1 higher than the actual highest
@@ -44,7 +44,7 @@ class DiscreteExplorationPolicy(ExplorationPolicy, ABC):
 
         Returns
         -------
-        action : np.ndarray
+        action : jnp.ndarray
                 Action chosen after the exploration module has operated for
                 each colloid.
         """
@@ -58,21 +58,21 @@ class ContinuousExplorationPolicy(ExplorationPolicy, ABC):
 
     @abstractmethod
     def __call__(
-        self, model_actions: np.ndarray, rng_key: jax.random.PRNGKey
-    ) -> np.ndarray:
+        self, model_actions: jnp.ndarray, rng_key: jax.random.PRNGKey
+    ) -> jnp.ndarray:
         """
         Return an action value
 
         Parameters
         ----------
-        model_actions : np.ndarray (n_colloids,)
+        model_actions : jnp.ndarray (n_colloids,)
                 Action chosen by the model for each colloid.
         rng_key : jax.random.PRNGKey
                 Key for jax.random module
 
         Returns
         -------
-        action : np.ndarray
+        action : jnp.ndarray
                 Action chosen after the exploration module has operated.
         """
         raise NotImplementedError

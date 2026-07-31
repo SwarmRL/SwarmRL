@@ -201,6 +201,8 @@ class RealExperiment(swarmrl.engine.engine.Engine):
             if reward_is_pending and force_model is not None:
                 force_model.calc_reward(colloids)
                 reward_is_pending = False
+                if force_model.kill_switch:
+                    break
 
             actions = self.get_actions(colloids, force_model)
             self.send_actions(actions)

@@ -40,6 +40,11 @@ class ContinuousTrainer(Trainer):
                 Number of time steps in one episode.
         load_bar : bool (default=True)
                 If true, show a progress bar.
+
+        Notes
+        -----
+        If a task terminates the environment, the current rollout ends immediately and
+        continuous training stops rather than resetting the environment.
         """
         self.engine = system_runner
         rewards = np.zeros(n_episodes)
@@ -74,7 +79,9 @@ class ContinuousTrainer(Trainer):
             stop_after_episode = -1
             for episode in range(n_episodes):
                 self.engine.integrate(episode_length, force_fn)
-                force_fn, current_reward, killed = self.update_rl()
+                force_fn, current_reward, killed = self.update_rl(
+                    terminated=force_fn.kill_switch
+                )
                 rewards[episode] = current_reward
                 completed_episodes = episode + 1
 

@@ -2,7 +2,7 @@
 Test the Gumbel distribution.
 """
 
-import jax.numpy as np
+import jax.numpy as jnp
 import numpy as onp
 from numpy.testing import assert_array_almost_equal
 
@@ -20,11 +20,11 @@ class TestCategorical:
         Set some initial attributes.
         """
         cls.sampler = GumbelDistribution()
-        cls.even_logits = np.array([6.0, 6.0, 6.0, 6.0])
-        cls.even_probabilities = np.array([0.25, 0.25, 0.25, 0.25])
+        cls.even_logits = jnp.array([6.0, 6.0, 6.0, 6.0])
+        cls.even_probabilities = jnp.array([0.25, 0.25, 0.25, 0.25])
 
-        cls.definite_logits = np.array([10.0, 0.0])
-        cls.definite_probabilities = np.array([1.0, 0.0])
+        cls.definite_logits = jnp.array([10.0, 0.0])
+        cls.definite_probabilities = jnp.array([1.0, 0.0])
 
     def test_even_logits(self):
         """
@@ -40,8 +40,8 @@ class TestCategorical:
         """
         Ensure the sampler works for many colloids.
         """
-        logits = np.array([[3.0, 3.0, 3.0, 3.0], [100.0, 0.0, 0.0, 0.0]])
-        probabilities = np.array([[0.25, 0.25, 0.25, 0.25], [1.0, 0.0, 0.0, 0.0]])
+        logits = jnp.array([[3.0, 3.0, 3.0, 3.0], [100.0, 0.0, 0.0, 0.0]])
+        probabilities = jnp.array([[0.25, 0.25, 0.25, 0.25], [1.0, 0.0, 0.0, 0.0]])
 
         # Collect points for different cases.
         single_outcomes_0 = onp.array([0.0, 0.0, 0.0, 0.0])

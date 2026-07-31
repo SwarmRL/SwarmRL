@@ -14,6 +14,7 @@ import unittest as ut
 import numpy as np
 
 import swarmrl.engine.real_experiment
+from swarmrl.actions import Action
 from swarmrl.agents.dummy_models import ConstForce
 from swarmrl.force_functions import ForceFunction
 
@@ -42,6 +43,7 @@ class MockConnection:
 
         # the first message of the experiment will always be the data size
         self.next_message = MessageType.DATA_SIZE
+        self.send_calls = 0
 
     def recv(self, data_size: int) -> bytes:
         """
@@ -74,6 +76,7 @@ class MockConnection:
         """
         Receive data from the engine and check that the values are sensible
         """
+        self.send_calls += 1
         # experiment expects data to be F-Style flattened
         data_unpacked = np.array(struct.unpack(str(len(data) // 8) + "d", data))
         data_matrix = data_unpacked.reshape((-1, 2), order="F")
@@ -95,6 +98,32 @@ class TestRealExperiment(ut.TestCase):
         force_fn = ForceFunction({"0": agent})
         runner.integrate(10, force_fn)
         runner.finalize()
+
+    def test_termination_does_not_send_an_extra_action(self):
+        class TerminatingForceFunction:
+            kill_switch = False
+
+            def __init__(self):
+                self.action_calls = 0
+                self.reward_calls = 0
+
+            def calc_action(self, colloids):
+                self.action_calls += 1
+                return [Action() for _ in colloids]
+
+            def calc_reward(self, colloids):
+                self.reward_calls += 1
+                self.kill_switch = True
+
+        connection = MockConnection(n_partcl=2, box_l=1.0)
+        runner = swarmrl.engine.real_experiment.RealExperiment(connection)
+        force_fn = TerminatingForceFunction()
+
+        runner.integrate(10, force_fn)
+
+        assert force_fn.reward_calls == 1
+        assert force_fn.action_calls == 1
+        assert connection.send_calls == 1
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ from typing import List, Tuple
 import numpy as np
 from loguru import logger
 
-from swarmrl.agents.actor_critic import ActorCriticAgent
+from swarmrl.agents.agent import Agent
 from swarmrl.checkpointers.base_checkpointer import BaseCheckpointer
 from swarmrl.checkpointers.checkpoint_manager import CheckpointManager
 from swarmrl.force_functions.force_fn import ForceFunction
@@ -43,7 +43,7 @@ class Trainer:
 
     def __init__(
         self,
-        agents: List[ActorCriticAgent],
+        agents: List[Agent],
         checkpointers: List[BaseCheckpointer] | None = None,
     ):
         """
@@ -108,9 +108,19 @@ class Trainer:
             agents=self.agents,
         )
 
-    def update_rl(self) -> Tuple[ForceFunction, np.ndarray]:
+    def update_rl(
+        self, terminated: bool = False, truncated: bool = False
+    ) -> Tuple[ForceFunction, np.ndarray, bool]:
         """
         Update the RL algorithm.
+
+        Parameters
+        ----------
+        truncated : bool
+                Whether the environment will be reset after this rollout (trainer
+                episode).
+        terminated : bool
+                Whether a task ended the shared environment during this rollout.
 
         Returns
         -------
@@ -120,20 +130,29 @@ class Trainer:
                 Current mean episode reward. This is returned for nice progress bars.
         killed : bool
                 Whether or not the task has ended the training.
+
+        Notes
+        -----
+        A rollout is one SwarmRL trainer episode between network updates. A truncated
+        rollout ends because the environment will be reset; a terminated rollout ends
+        because a task has ended the shared environment. Termination takes precedence
+        when both occur at the same rollout boundary. Because all agents share that
+        environment, termination is applied to every agent's final transition.
         """
         reward = 0.0  # TODO: Separate between species and optimize visualization.
-        switches = []
-
+        truncated = truncated and not terminated
         for agent in self.agents.values():
-            if isinstance(agent, ActorCriticAgent):
-                ag_reward, ag_killed = agent.update_agent()
-                logger.debug(f"{ag_reward=}")
-                reward += np.mean(ag_reward)
-                switches.append(ag_killed)
+            agent_rewards = agent.on_rollout_end(
+                terminated=terminated,
+                truncated=truncated,
+            )
+            if agent_rewards is not None:
+                logger.debug(f"agent rewards={agent_rewards}")
+                reward += np.mean(agent_rewards)
 
         # Create a new interaction model.
         interaction_model = ForceFunction(agents=self.agents)
-        return interaction_model, np.array(reward), any(switches)
+        return interaction_model, np.array(reward), terminated
 
     def finalize_agents(self):
         """Finalize agent-side resources after training."""

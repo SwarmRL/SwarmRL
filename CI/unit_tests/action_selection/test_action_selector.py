@@ -1,7 +1,7 @@
 """Unit tests for ActionSelector orchestration."""
 
 import jax
-import jax.numpy as np
+import jax.numpy as jnp
 import numpy as onp
 import pytest
 
@@ -21,7 +21,7 @@ class _DummyDiscreteSampling(DiscreteSamplingStrategy):
 
     def __call__(self, logits, rng_key=None):
         del rng_key
-        return np.argmax(logits, axis=-1)
+        return jnp.argmax(logits, axis=-1)
 
 
 class _DummyDiscreteExploration(DiscreteExplorationPolicy):
@@ -45,7 +45,7 @@ class _DummyContinuousSampling(ContinuousSamplingStrategy):
         del subkey, deployment_mode
         actions = logits[:, :2]
         if calculate_log_probs:
-            return actions, np.zeros((logits.shape[0],), dtype=logits.dtype)
+            return actions, jnp.zeros((logits.shape[0],), dtype=logits.dtype)
         return actions, None
 
 
@@ -73,7 +73,7 @@ class TestActionSelector:
             exploration_policy=_DummyDiscreteExploration(),
         )
 
-        logits = np.array([[1.0, 3.0, 2.0], [4.0, 1.0, 0.0]], dtype=np.float32)
+        logits = jnp.array([[1.0, 3.0, 2.0], [4.0, 1.0, 0.0]], dtype=jnp.float32)
         sampling_key = jax.random.PRNGKey(0)
         exploration_key = jax.random.PRNGKey(1)
 
@@ -84,8 +84,8 @@ class TestActionSelector:
             exploration_key=exploration_key,
         )
 
-        expected_indices = np.array([2, 1])
-        expected_log_probs = np.take_along_axis(
+        expected_indices = jnp.array([2, 1])
+        expected_log_probs = jnp.take_along_axis(
             jax.nn.log_softmax(logits), expected_indices.reshape(-1, 1), axis=-1
         ).reshape(-1)
 
@@ -98,7 +98,7 @@ class TestActionSelector:
             exploration_policy=_DummyDiscreteExploration(),
         )
 
-        logits = np.array([[1.0, 3.0, 2.0], [4.0, 1.0, 0.0]], dtype=np.float32)
+        logits = jnp.array([[1.0, 3.0, 2.0], [4.0, 1.0, 0.0]], dtype=jnp.float32)
         sampling_key = jax.random.PRNGKey(2)
         exploration_key = jax.random.PRNGKey(3)
 
@@ -109,8 +109,8 @@ class TestActionSelector:
             exploration_key=exploration_key,
         )
 
-        expected_indices = np.array([1, 0])
-        expected_log_probs = np.take_along_axis(
+        expected_indices = jnp.array([1, 0])
+        expected_log_probs = jnp.take_along_axis(
             jax.nn.log_softmax(logits), expected_indices.reshape(-1, 1), axis=-1
         ).reshape(-1)
 
@@ -123,8 +123,8 @@ class TestActionSelector:
             exploration_policy=_DummyContinuousExploration(),
         )
 
-        logits = np.array(
-            [[0.1, 0.2, 0.3, 0.4], [0.5, -0.1, 0.6, -0.2]], dtype=np.float32
+        logits = jnp.array(
+            [[0.1, 0.2, 0.3, 0.4], [0.5, -0.1, 0.6, -0.2]], dtype=jnp.float32
         )
         sampling_key = jax.random.PRNGKey(4)
         exploration_key = jax.random.PRNGKey(5)
@@ -137,7 +137,7 @@ class TestActionSelector:
         )
 
         expected_actions = logits[:, :2] + 1.0
-        expected_log_probs = np.zeros((2,), dtype=np.float32)
+        expected_log_probs = jnp.zeros((2,), dtype=jnp.float32)
 
         onp.testing.assert_allclose(actions, expected_actions)
         onp.testing.assert_allclose(log_probs, expected_log_probs)
@@ -148,8 +148,8 @@ class TestActionSelector:
             exploration_policy=_DummyContinuousExploration(),
         )
 
-        logits = np.array(
-            [[0.1, 0.2, 0.3, 0.4], [0.5, -0.1, 0.6, -0.2]], dtype=np.float32
+        logits = jnp.array(
+            [[0.1, 0.2, 0.3, 0.4], [0.5, -0.1, 0.6, -0.2]], dtype=jnp.float32
         )
         sampling_key = jax.random.PRNGKey(6)
         exploration_key = jax.random.PRNGKey(7)

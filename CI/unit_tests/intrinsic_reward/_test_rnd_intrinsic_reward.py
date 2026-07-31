@@ -1,7 +1,7 @@
 import unittest as ut
 from dataclasses import dataclass
 
-import jax.numpy as np
+import jax.numpy as jnp
 from flax import linen as nn
 from jax import random
 
@@ -22,7 +22,7 @@ class RNDNet(nn.Module):
 
 @dataclass
 class EpisodeDataDummy:
-    features: np.ndarray
+    features: jnp.ndarray
 
 
 class RNDTest(ut.TestCase):

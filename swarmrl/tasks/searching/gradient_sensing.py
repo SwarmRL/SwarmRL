@@ -11,7 +11,7 @@ Requires a warm up step.
 from abc import ABC
 from typing import List
 
-import jax.numpy as np
+import jax.numpy as jnp
 import numpy as onp
 
 from swarmrl.components.colloid import Colloid
@@ -25,9 +25,9 @@ class GradientSensing(Task, ABC):
 
     def __init__(
         self,
-        source: np.ndarray = np.array([0, 0, 0]),
+        source: jnp.ndarray = jnp.array([0, 0, 0]),
         decay_function: callable = None,
-        box_length: np.ndarray = np.array([1.0, 1.0, 0.0]),
+        box_length: jnp.ndarray = jnp.array([1.0, 1.0, 0.0]),
         reward_scale_factor: int = 10,
         particle_type: int = 0,
     ):
@@ -36,13 +36,13 @@ class GradientSensing(Task, ABC):
 
         Parameters
         ----------
-        source : np.ndarray (default = (0, 0 0))
+        source : jnp.ndarray (default = (0, 0 0))
                 Source of the gradient.
         decay_function : callable (required=True)
                 A function that describes the decay of the field along one dimension.
                 This cannot be left None. The function should take a distance from the
                 source and return the magnitude of the field at this point.
-        box_length : np.ndarray
+        box_length : jnp.ndarray
                 Side length of the box.
         reward_scale_factor : int (default=10)
                 The amount the field is scaled by to get the reward.
@@ -78,13 +78,13 @@ class GradientSensing(Task, ABC):
                 position = onp.copy(item.pos) / self.box_length
                 self._historic_positions[str(index)] = position
 
-    def change_source(self, new_source: np.ndarray):
+    def change_source(self, new_source: jnp.ndarray):
         """
         Changes the concentration field source.
 
         Parameters
         ----------
-        new_source : np.ndarray
+        new_source : jnp.ndarray
                 Coordinates of the new source.
         """
         self.source = new_source
@@ -111,14 +111,14 @@ class GradientSensing(Task, ABC):
         old_position = self._historic_positions[str(colloid_id)]
 
         # Compute the distance from the source
-        current_distance = np.linalg.norm(current_position - self.source)
-        old_distance = np.linalg.norm(old_position - self.source)
+        current_distance = jnp.linalg.norm(current_position - self.source)
+        old_distance = jnp.linalg.norm(old_position - self.source)
 
         # Compute difference in scaled_distances
         delta = self.decay_fn(current_distance) - self.decay_fn(old_distance)
 
         # Compute the reward
-        reward = np.clip(self.reward_scale_factor * delta, 0.0, None)
+        reward = jnp.clip(self.reward_scale_factor * delta, 0.0, None)
 
         # Update the historic position
         self._historic_positions[str(colloid_id)] = current_position
@@ -145,6 +145,6 @@ class GradientSensing(Task, ABC):
         """
         colloid_indices = self.get_colloid_indices(colloids)
 
-        return np.array([
+        return jnp.array([
             self.compute_colloid_reward(index, colloids) for index in colloid_indices
         ])

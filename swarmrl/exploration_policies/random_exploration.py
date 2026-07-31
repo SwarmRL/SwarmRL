@@ -5,7 +5,7 @@ Random exploration module.
 from functools import partial
 
 import jax
-import jax.numpy as np
+import jax.numpy as jnp
 
 from swarmrl.exploration_policies.exploration_policy import DiscreteExplorationPolicy
 
@@ -29,14 +29,14 @@ class RandomExploration(DiscreteExplorationPolicy):
 
     @partial(jax.jit, static_argnums=(0,))
     def __call__(
-        self, model_actions: np.ndarray, action_space_length: int, seed
-    ) -> np.ndarray:
+        self, model_actions: jnp.ndarray, action_space_length: int, seed
+    ) -> jnp.ndarray:
         """
         Return an index associated with the chosen action.
 
         Parameters
         ----------
-        model_actions : np.ndarray (n_colloids,)
+        model_actions : jnp.ndarray (n_colloids,)
                 Action chosen by the model for each colloid.
         action_space_length : int
                 Number of possible actions. Should be 1 higher than the actual highest
@@ -44,16 +44,16 @@ class RandomExploration(DiscreteExplorationPolicy):
 
         Returns
         -------
-        action : np.ndarray
+        action : jnp.ndarray
                 Action chosen after the exploration module has operated for
                 each colloid.
         """
         key = jax.random.PRNGKey(seed)
         sample = jax.random.uniform(key, shape=model_actions.shape)
 
-        to_be_changed = np.clip(sample - self.probability, min=0, max=1)
-        to_be_changed = np.clip(to_be_changed * 1e6, min=0, max=1)
-        not_to_be_changed = np.clip(to_be_changed * -10 + 1, 0, 1)
+        to_be_changed = jnp.clip(sample - self.probability, min=0, max=1)
+        to_be_changed = jnp.clip(to_be_changed * 1e6, min=0, max=1)
+        not_to_be_changed = jnp.clip(to_be_changed * -10 + 1, 0, 1)
 
         # Choose random actions
         key, subkey = jax.random.split(key)
@@ -67,6 +67,6 @@ class RandomExploration(DiscreteExplorationPolicy):
         # Put the new actions in.
         model_actions = (
             model_actions * to_be_changed + exploration_actions * not_to_be_changed
-        ).astype(np.int16)
+        ).astype(jnp.int16)
 
         return model_actions

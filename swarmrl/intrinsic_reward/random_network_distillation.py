@@ -6,7 +6,7 @@ Notes
 https://arxiv.org/abs/1810.12894
 """
 
-import jax.numpy as np
+import jax.numpy as jnp
 from znnl.models.flax_model import FlaxModel
 from znnl.models.jax_model import JaxModel
 
@@ -55,7 +55,7 @@ class RNDReward(IntrinsicReward):
         self.training_strategy.set_model(self.predictor_network)
 
     @staticmethod
-    def _reshape_data(x: np.ndarray) -> np.ndarray:
+    def _reshape_data(x: jnp.ndarray) -> jnp.ndarray:
         """
         Reshape the data for an equal treatment of time and ensemble.
 
@@ -66,28 +66,28 @@ class RNDReward(IntrinsicReward):
 
         Parameters
         ----------
-        data : np.ndarray of shape (n_steps, num_colloids, num_features)
+        data : jnp.ndarray of shape (n_steps, num_colloids, num_features)
                 Data to be reshaped.
 
         Returns
         -------
-        reshaped_data : np.ndarray of shape (n_steps * num_colloids, num_features)
+        reshaped_data : jnp.ndarray of shape (n_steps * num_colloids, num_features)
                 Reshaped data.
         """
-        return np.reshape(x, (-1, *np.shape(x)[2:]))
+        return jnp.reshape(x, (-1, *jnp.shape(x)[2:]))
 
-    def compute_distance(self, points: np.ndarray) -> np.ndarray:
+    def compute_distance(self, points: jnp.ndarray) -> jnp.ndarray:
         """
         Compute the distance between neural network representations.
 
         Parameters
         ----------
-        points : np.ndarray of shape (1, num_points, num_features)
+        points : jnp.ndarray of shape (1, num_points, num_features)
                 Points on which distances should be computed.
 
         Returns
         -------
-        distances : np.ndarray
+        distances : jnp.ndarray
                 A tensor of distances computed using the attached metric.
         """
         x = self._reshape_data(points)
@@ -97,7 +97,7 @@ class RNDReward(IntrinsicReward):
         self.metric_results = self.distance_metric(
             target_predictions, predictor_predictions
         )
-        return np.mean(self.metric_results)
+        return jnp.mean(self.metric_results)
 
     def update(self, episode_data: TrajectoryInformation):
         """
@@ -122,7 +122,7 @@ class RNDReward(IntrinsicReward):
             **self.training_kwargs,
         )
 
-    def compute_reward(self, episode_data: TrajectoryInformation) -> np.ndarray:
+    def compute_reward(self, episode_data: TrajectoryInformation) -> jnp.ndarray:
         """
         Compute the intrinsic reward of the last state of the episode using RND.
 
@@ -133,11 +133,11 @@ class RNDReward(IntrinsicReward):
 
         Returns
         -------
-        Reward : np.ndarray of shape (num_colloids, )
+        Reward : jnp.ndarray of shape (num_colloids, )
                 Reward for the current state.
         """
         points = episode_data.features[-1:]
         metric_results = self.compute_distance(points=points)
         if self.clip_rewards is not None:
-            metric_results = np.clip(metric_results, *self.clip_rewards)
+            metric_results = jnp.clip(metric_results, *self.clip_rewards)
         return metric_results

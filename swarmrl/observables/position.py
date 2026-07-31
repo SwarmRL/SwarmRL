@@ -5,7 +5,7 @@ Position observable computer.
 from abc import ABC
 from typing import List
 
-import jax.numpy as np
+import jax.numpy as jnp
 import numpy as onp
 
 from swarmrl.components.colloid import Colloid
@@ -17,13 +17,13 @@ class PositionObservable(Observable, ABC):
     Position in box observable.
     """
 
-    def __init__(self, box_length: np.ndarray, particle_type: int = 0):
+    def __init__(self, box_length: jnp.ndarray, particle_type: int = 0):
         """
         Constructor for the observable.
 
         Parameters
         ----------
-        box_length : np.ndarray
+        box_length : jnp.ndarray
                 Length of the box with which to normalize.
         """
         super().__init__(particle_type=particle_type)
@@ -44,7 +44,7 @@ class PositionObservable(Observable, ABC):
 
         data = onp.copy(colloid.pos)
 
-        return np.array(data) / self.box_length
+        return jnp.array(data) / self.box_length
 
     def compute_observable(self, colloids: List[Colloid]):
         """

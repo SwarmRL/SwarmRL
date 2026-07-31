@@ -5,7 +5,7 @@ Global Ornstein-Uhlenbeck (OU) exploration for continuous actions.
 from typing import Any
 
 import jax
-import jax.numpy as np
+import jax.numpy as jnp
 
 from swarmrl.exploration_policies.exploration_policy import ContinuousExplorationPolicy
 
@@ -46,7 +46,7 @@ class GlobalOUExploration(ContinuousExplorationPolicy):
         long_term_mean: float = 0.0,
         action_dimension: int = 3,
         epsilon: float = 1.0,
-        float_precision: np.dtype = np.float32,
+        float_precision: jnp.dtype = jnp.float32,
     ) -> None:
         """
         Initialize the OU exploration process.
@@ -65,21 +65,23 @@ class GlobalOUExploration(ContinuousExplorationPolicy):
             Number of continuous action dimensions.
         epsilon : float
             Probability of applying OU noise in a step. Must be > 0.
-        float_precision : np.dtype
+        float_precision : jnp.dtype
             Float precision to use for computations.
         """
         self.drift: float = float(drift)
         self.volatility: float = float(volatility)
-        self.long_term_mean: np.ndarray = np.asarray(
+        self.long_term_mean: jnp.ndarray = jnp.asarray(
             long_term_mean, dtype=float_precision
         )
         self.action_dimension: int = int(action_dimension)
-        self.action_limits: np.ndarray = np.asarray(
+        self.action_limits: jnp.ndarray = jnp.asarray(
             action_limits, dtype=float_precision
         )
-        self.noise: np.ndarray = np.zeros(self.action_dimension, dtype=float_precision)
-        self.epsilon: np.ndarray = np.asarray(epsilon, dtype=float_precision)
-        self.float_precision: np.dtype = float_precision
+        self.noise: jnp.ndarray = jnp.zeros(
+            self.action_dimension, dtype=float_precision
+        )
+        self.epsilon: jnp.ndarray = jnp.asarray(epsilon, dtype=float_precision)
+        self.float_precision: jnp.dtype = float_precision
 
         if self.drift <= 0:
             raise ValueError("drift needs to be greater than 0")
@@ -96,13 +98,13 @@ class GlobalOUExploration(ContinuousExplorationPolicy):
         """
         Reduce OU state magnitude and epsilon (called every 10 episodes by trainer).
         """
-        decay = np.asarray(decay, dtype=self.float_precision)
+        decay = jnp.asarray(decay, dtype=self.float_precision)
         self.noise = self.noise * decay
-        self.epsilon = np.maximum(self.epsilon * decay, self.float_precision(0.01))
+        self.epsilon = jnp.maximum(self.epsilon * decay, self.float_precision(0.01))
 
     def __call__(
-        self, model_actions: np.ndarray, rng_key: jax.random.PRNGKey
-    ) -> np.ndarray:
+        self, model_actions: jnp.ndarray, rng_key: jax.random.PRNGKey
+    ) -> jnp.ndarray:
         """
         Add OU noise to model actions.
 
@@ -110,7 +112,7 @@ class GlobalOUExploration(ContinuousExplorationPolicy):
         to the current action output. Gating is dimension-wise (independent per
         action component), not one shared gate for the whole action vector.
         """
-        model_actions = np.asarray(model_actions, dtype=self.float_precision)
+        model_actions = jnp.asarray(model_actions, dtype=self.float_precision)
         key_normal, key_uniform = jax.random.split(rng_key)
 
         value_range = self.action_limits[:, 1] - self.action_limits[:, 0]
@@ -140,5 +142,5 @@ class GlobalOUExploration(ContinuousExplorationPolicy):
             noise_to_apply = noise_to_apply.reshape(1, -1)
 
         actions = model_actions + noise_to_apply
-        actions = np.clip(actions, self.action_limits[:, 0], self.action_limits[:, 1])
+        actions = jnp.clip(actions, self.action_limits[:, 0], self.action_limits[:, 1])
         return actions

@@ -2,7 +2,7 @@
 Test the random exploration module.
 """
 
-import jax.numpy as np
+import jax.numpy as jnp
 from numpy.testing import assert_array_equal, assert_raises
 
 from swarmrl.exploration_policies.random_exploration import RandomExploration
@@ -20,7 +20,7 @@ class TestRandomExploration:
         """
         cls.explorer = RandomExploration(probability=0.8)
 
-        cls.chosen_actions = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
+        cls.chosen_actions = jnp.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
 
     def test_definite_action(self):
         """

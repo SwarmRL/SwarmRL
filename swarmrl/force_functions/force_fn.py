@@ -89,7 +89,10 @@ class ForceFunction:
         self, colloids: typing.List[Colloid], external_reward: float = 0.0
     ) -> None:
         """
-        Compute the reward for the agent based on the current state.
+        Compute rewards and immediately aggregate task termination signals.
+
+        Immediate propagation ensures that the engine stops before selecting a
+        post-terminal action.
 
         Parameters
         ----------
@@ -100,7 +103,13 @@ class ForceFunction:
 
         """
 
+        switches = []
         for agent in self.agents:
             self.agents[agent].calc_reward(
                 colloids=colloids, external_reward=external_reward
             )
+            switches.append(self.agents[agent].kill_switch)
+
+        # Tasks can terminate the environment while computing rewards. Propagate the
+        # agent status immediately so the engine stops before selecting another action.
+        self.kill_switch = any(switches)

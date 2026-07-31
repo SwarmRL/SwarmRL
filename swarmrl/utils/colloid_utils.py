@@ -16,6 +16,10 @@ if TYPE_CHECKING:
 class TrajectoryInformation:
     """
     Helper dataclass for training RL models.
+
+    Features, actions, rewards, and boundary flags contain one entry per transition.
+    ``final_observation`` is the observation reached after the final transition. It
+    has no corresponding action or reward and is used only for value bootstrapping.
     """
 
     particle_type: int
@@ -23,7 +27,9 @@ class TrajectoryInformation:
     actions: list = field(default_factory=list)
     log_probs: list = field(default_factory=list)
     rewards: list = field(default_factory=list)
-    killed: bool = False
+    terminated: list = field(default_factory=list)
+    truncated: list = field(default_factory=list)
+    final_observation: object | None = None
 
 
 @jax.jit

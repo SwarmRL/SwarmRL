@@ -1,5 +1,5 @@
 import jax
-import jax.numpy as np
+import jax.numpy as jnp
 import numpy.testing as tst
 import optax
 
@@ -10,20 +10,20 @@ from swarmrl.utils.utils import gather_n_dim_indices
 
 class DummyNetwork:
     def apply_fn(self, params, features):
-        out_shape = np.shape(features)
-        log_probs = 2.0 * np.ones((out_shape[0], out_shape[1], 4))
-        values = np.array([np.ones((out_shape[0], out_shape[1]))])
+        out_shape = jnp.shape(features)
+        log_probs = 2.0 * jnp.ones((out_shape[0], out_shape[1], 4))
+        values = jnp.ones((out_shape[0], out_shape[1], 1))
         return log_probs, values
 
     def __call__(self, params, features):
         return self.apply_fn(params, features)
 
 
-def dummy_value_function(rewards, values):
-    advantages = np.ones_like(rewards)
-    sign = np.sign(rewards)
+def dummy_value_function(rewards, values, terminated, truncated):
+    advantages = jnp.ones_like(rewards)
+    sign = jnp.sign(rewards)
 
-    returns = 2 * np.array([np.ones_like(rewards)])
+    returns = 2 * jnp.ones_like(rewards)
     return advantages * sign, returns
 
 
@@ -59,21 +59,24 @@ class TestProximalPolicyLoss:
         network = DummyNetwork()
         network_params = 10
 
-        features = np.ones((n_time_steps, n_particles, observable_dimension))
+        features = jnp.ones((n_time_steps, n_particles, observable_dimension))
+        final_observation = jnp.ones((n_particles, observable_dimension))
+        terminated = jnp.zeros(n_time_steps, dtype=bool)
+        truncated = jnp.zeros(n_time_steps, dtype=bool)
 
-        actions = np.ones((n_time_steps, n_particles), dtype=int)
+        actions = jnp.ones((n_time_steps, n_particles), dtype=int)
 
         # all log_probs are 2 such that the ratio is 1
-        old_log_probs_0 = 2 * np.ones((n_time_steps, n_particles))
+        old_log_probs_0 = 2 * jnp.ones((n_time_steps, n_particles))
         # all log_probs are 0 such that the ratio is e^2 > 1 + epsilon
-        old_log_probs_1 = 0 * np.ones((n_time_steps, n_particles))
+        old_log_probs_1 = 0 * jnp.ones((n_time_steps, n_particles))
         # all log_probs are 3 such that the ratio is e^-2 < 1 - epsilon
-        old_log_probs_2 = 3 * np.ones((n_time_steps, n_particles))
+        old_log_probs_2 = 3 * jnp.ones((n_time_steps, n_particles))
 
         # all advantages are 1
-        rewards = np.ones((n_time_steps, n_particles))
+        rewards = jnp.ones((n_time_steps, n_particles))
         # all advantages are -1
-        rewards2 = np.ones((n_time_steps, n_particles))
+        rewards2 = jnp.ones((n_time_steps, n_particles))
 
         old_log_probs_list = [old_log_probs_0, old_log_probs_1, old_log_probs_2]
         rewards_list = [rewards, rewards2]
@@ -91,37 +94,78 @@ class TestProximalPolicyLoss:
                         action_indices=actions,
                         old_log_probs=probs,
                         rewards=rewards,
+                        final_observation=final_observation,
+                        terminated=terminated,
+                        truncated=truncated,
                     )
                 )
 
         # now compute the loss by hand.
         def ratio(new_log_props, old_log_probs):
-            return np.exp(new_log_props - old_log_probs)
+            return jnp.exp(new_log_props - old_log_probs)
 
         new_logits, new_predicted_values = network.apply_fn(network_params, features)
+        new_predicted_values = new_predicted_values.squeeze(axis=-1)
         # the dummy_actor will return just 2
-        new_log_probs_all = np.log(jax.nn.softmax(new_logits, axis=-1) + 1e-8)
+        new_log_probs_all = jnp.log(jax.nn.softmax(new_logits, axis=-1) + 1e-8)
         new_log_probs = gather_n_dim_indices(new_log_probs_all, actions)
         # calculate the entropy of the new_log_probs
-        entropy = np.sum(sampling_strategy.compute_entropy(np.exp(new_log_probs_all)))
+        entropy = jnp.sum(sampling_strategy.compute_entropy(jnp.exp(new_log_probs_all)))
 
         # These results will be compared to the results of the PPO loss function
         true_results = []
         for probs in old_log_probs_list:
             for rewards in rewards_list:
                 ratios = ratio(new_log_probs, probs)
-                advantages, returns = value_function(rewards, None)
-                clipped_loss = -1 * np.minimum(
-                    ratios * advantages,
-                    np.clip(ratios, 1 - epsilon, 1 + epsilon) * advantages,
+                advantages, returns = value_function(
+                    rewards, None, terminated, truncated
                 )
-                loss = np.sum(clipped_loss, 0)
+                clipped_loss = -1 * jnp.minimum(
+                    ratios * advantages,
+                    jnp.clip(ratios, 1 - epsilon, 1 + epsilon) * advantages,
+                )
+                loss = jnp.sum(clipped_loss, 0)
 
                 critic_loss = optax.huber_loss(new_predicted_values, returns)
-                critic_loss = np.sum(critic_loss)
-                loss = np.sum(loss) - entropy_coefficient * entropy + 0.5 * critic_loss
+                critic_loss = jnp.sum(critic_loss)
+                loss = jnp.sum(loss) - entropy_coefficient * entropy + 0.5 * critic_loss
                 true_results.append(loss)
 
         # compare the results of the PPO loss function with the results computed by hand
         for i, ppo_loss in enumerate(results):
             tst.assert_almost_equal(ppo_loss, true_results[i], decimal=3)
+
+    def test_bootstrapped_return_is_a_detached_critic_target(self):
+        class ParameterizedNetwork:
+            def __call__(self, params, features):
+                shape = features.shape[:2]
+                logits = jnp.zeros((*shape, 2))
+                values = params * jnp.ones((*shape, 1))
+                return logits, values
+
+        def value_function(rewards, values, terminated, truncated):
+            advantages = jnp.zeros_like(rewards)
+            returns = 2.0 * values[1:]
+            return advantages, returns
+
+        loss = ProximalPolicyLoss(
+            value_function=value_function,
+            entropy_coefficient=0.0,
+            n_epochs=1,
+        )
+        features = jnp.ones((2, 1, 1))
+        final_observation = jnp.ones((1, 1))
+
+        gradient = jax.grad(loss._calculate_loss)(
+            jnp.array(1.0),
+            network=ParameterizedNetwork(),
+            feature_data=features,
+            action_indices=jnp.zeros((2, 1), dtype=int),
+            rewards=jnp.zeros((2, 1)),
+            old_log_probs=jnp.full((2, 1), -jnp.log(2.0)),
+            final_observation=final_observation,
+            terminated=jnp.zeros(2, dtype=bool),
+            truncated=jnp.zeros(2, dtype=bool),
+        )
+
+        assert gradient < 0.0

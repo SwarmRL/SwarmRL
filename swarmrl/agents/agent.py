@@ -17,6 +17,15 @@ class Agent:
 
     _killed = False
 
+    def on_rollout_end(self, *, terminated: bool, truncated: bool) -> typing.Any | None:
+        """
+        Handle the end of a rollout (trainer episode).
+
+        Agents that learn from rollout data can override this hook to apply boundary
+        semantics and update themselves. Non-learning agents return ``None``.
+        """
+        return None
+
     def persist_trajectory(self, trajectory) -> None:
         """
         Persist trajectory data if a storage backend is attached.
