@@ -29,7 +29,7 @@ class RandomExploration(DiscreteExplorationPolicy):
 
     @partial(jax.jit, static_argnums=(0,))
     def __call__(
-        self, model_actions: np.ndarray, action_space_length: int, seed
+        self, model_actions: np.ndarray, action_space_length: int, rng_key: jax.Array
     ) -> np.ndarray:
         """
         Return an index associated with the chosen action.
@@ -41,6 +41,8 @@ class RandomExploration(DiscreteExplorationPolicy):
         action_space_length : int
                 Number of possible actions. Should be 1 higher than the actual highest
                 index, i.e if I have actions [0, 1, 2, 3] this number should be 4.
+        rng_key : jax.Array
+                Key for JAX random number generation.
 
         Returns
         -------
@@ -48,8 +50,7 @@ class RandomExploration(DiscreteExplorationPolicy):
                 Action chosen after the exploration module has operated for
                 each colloid.
         """
-        key = jax.random.PRNGKey(seed)
-        sample_key, action_key = jax.random.split(key)
+        sample_key, action_key = jax.random.split(rng_key)
 
         replace_mask = (
             jax.random.uniform(sample_key, shape=model_actions.shape) < self.probability

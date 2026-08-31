@@ -2,6 +2,7 @@
 Test the random exploration module.
 """
 
+import jax
 import jax.numpy as np
 from numpy.testing import assert_array_equal, assert_raises
 
@@ -29,7 +30,9 @@ class TestRandomExploration:
         # Force a new point
         self.explorer.probability = 1.0
         chosen_actions = self.explorer(
-            model_actions=self.chosen_actions, action_space_length=4, seed=0
+            model_actions=self.chosen_actions,
+            action_space_length=4,
+            rng_key=jax.random.PRNGKey(0),
         )
         assert_raises(
             AssertionError, assert_array_equal, chosen_actions, self.chosen_actions
@@ -43,6 +46,8 @@ class TestRandomExploration:
 
         for i in range(100):
             chosen_actions = explorer(
-                model_actions=self.chosen_actions, action_space_length=4, seed=i
+                model_actions=self.chosen_actions,
+                action_space_length=4,
+                rng_key=jax.random.PRNGKey(i),
             )
             assert_array_equal(chosen_actions, self.chosen_actions)

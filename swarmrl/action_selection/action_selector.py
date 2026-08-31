@@ -64,11 +64,8 @@ class ActionSelector:
             log_probs = jax.nn.log_softmax(logits)
 
             if not deployment_mode:
-                exploration_seed = int(
-                    jax.random.randint(exploration_key, (), 0, 2**31 - 1)
-                )
                 indices = self.exploration_policy(
-                    indices, logits.shape[-1], exploration_seed
+                    indices, logits.shape[-1], exploration_key
                 )
             expanded_indices = np.expand_dims(indices, axis=-1)
             chosen_log_probs = np.take_along_axis(log_probs, expanded_indices, axis=-1)
