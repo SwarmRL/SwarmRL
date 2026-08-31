@@ -30,6 +30,16 @@ class TestExpectedReturns:
 
         assert_array_equal(expected_returns, true_values)
 
+    def test_unstandardized_returns_discount_consecutive_rewards(self):
+        """Discount rewards by their distance from the current transition."""
+        rewards = jnp.array([[1.0, 4.0], [2.0, 5.0], [3.0, 6.0]])
+        true_values = jnp.array([[2.75, 8.0], [3.5, 8.0], [3.0, 6.0]])
+        value_function = ExpectedReturns(gamma=0.5, standardize=False)
+
+        expected_returns = value_function(rewards)
+
+        assert_array_equal(expected_returns, true_values)
+
     def test_standardized_returns(self):
         """
         Test that the standardization of the return is correct.
