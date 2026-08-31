@@ -5,7 +5,7 @@ Observable for particle sensing.
 from typing import List
 
 import jax
-import jax.numpy as np
+import jax.numpy as jnp
 import numpy as onp
 
 from swarmrl.components.colloid import Colloid
@@ -20,7 +20,7 @@ class ParticleSensing(Observable):
     def __init__(
         self,
         decay_fn: callable,
-        box_length: np.ndarray,
+        box_length: jnp.ndarray,
         sensing_type: int = 0,
         scale_factor: int = 100,
         particle_type: int = 0,
@@ -33,7 +33,7 @@ class ParticleSensing(Observable):
         ----------
         decay_fn : callable
                 Decay function of the field.
-        box_size : np.ndarray
+        box_size : jnp.ndarray
                 Array for scaling of the distances.
         sensing_type : int (default=0)
                 Type of particle to sense.
@@ -75,7 +75,7 @@ class ParticleSensing(Observable):
         Updates the class state.
         """
         reference_ids = self.get_colloid_indices(colloids)
-        historic_values = np.zeros(len(reference_ids))
+        historic_values = jnp.zeros(len(reference_ids))
 
         positions = []
         indices = []
@@ -83,12 +83,12 @@ class ParticleSensing(Observable):
             indices.append(colloids[index].id)
             positions.append(colloids[index].pos)
 
-        sensed_colloids = np.array([
+        sensed_colloids = jnp.array([
             colloid.pos for colloid in colloids if colloid.type == self.sensing_type
         ])
 
         out_indices, _, field_values = self.observable_fn(
-            np.array(indices), np.array(positions), sensed_colloids, historic_values
+            jnp.array(indices), jnp.array(positions), sensed_colloids, historic_values
         )
 
         for index, value in zip(out_indices, onp.array(field_values)):
@@ -97,8 +97,8 @@ class ParticleSensing(Observable):
     def compute_single_observable(
         self,
         index: int,
-        reference_position: np.ndarray,
-        test_positions: np.ndarray,
+        reference_position: jnp.ndarray,
+        test_positions: jnp.ndarray,
         historic_value: float,
     ) -> tuple:
         """
@@ -108,9 +108,9 @@ class ParticleSensing(Observable):
         ----------
         index : int
                 Index of the colloid to compute the observable for.
-        reference_position : np.ndarray (3,)
+        reference_position : jnp.ndarray (3,)
                 Position of the reference colloid.
-        test_positions : np.ndarray (n_colloids, 3)
+        test_positions : jnp.ndarray (n_colloids, 3)
                 Positions of the test colloids.
         historic_value : float
                 Historic value of the observable.
@@ -123,11 +123,11 @@ class ParticleSensing(Observable):
         observable_value : float
                 Value of the observable.
         """
-        distances = np.linalg.norm(
+        distances = jnp.linalg.norm(
             (test_positions - reference_position) / self.box_length, axis=-1
         )
-        indices = np.asarray(np.nonzero(distances, size=distances.shape[0] - 1))
-        distances = np.take(distances, indices, axis=0)
+        indices = jnp.asarray(jnp.nonzero(distances, size=distances.shape[0] - 1))
+        distances = jnp.take(distances, indices, axis=0)
         # Compute field value
         field_value = self.decay_fn(distances).sum()
         observable_value = self.transform_value(
@@ -168,15 +168,15 @@ class ParticleSensing(Observable):
             positions.append(colloids[index].pos)
             historic_values.append(self.historical_field[str(colloids[index].id)])
 
-        test_points = np.array([
+        test_points = jnp.array([
             colloid.pos for colloid in colloids if colloid.type == self.sensing_type
         ])
 
         out_indices, observable_values, field_values = self.observable_fn(
-            np.array(indices),
-            np.array(positions),
+            jnp.array(indices),
+            jnp.array(positions),
             test_points,
-            np.array(historic_values),
+            jnp.array(historic_values),
         )
 
         for index, value in zip(out_indices, onp.array(field_values)):

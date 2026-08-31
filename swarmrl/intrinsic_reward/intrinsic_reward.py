@@ -4,7 +4,7 @@ Module for the intrinsic reward parent class.
 
 from abc import ABC
 
-import jax.numpy as np
+import jax.numpy as jnp
 
 from swarmrl.utils.colloid_utils import TrajectoryInformation
 
@@ -25,7 +25,7 @@ class IntrinsicReward(ABC):
         """
         raise NotImplementedError("Implemented in child class.")
 
-    def compute_reward(self, episode_data: TrajectoryInformation) -> np.ndarray:
+    def compute_reward(self, episode_data: TrajectoryInformation) -> jnp.ndarray:
         """
         Compute the intrinsic reward.
 

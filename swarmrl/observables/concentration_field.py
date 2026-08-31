@@ -9,7 +9,7 @@ Observable for sensing changes in some field value, or, the gradient.
 from abc import ABC
 from typing import List
 
-import jax.numpy as np
+import jax.numpy as jnp
 import numpy as onp
 
 from swarmrl.components.colloid import Colloid
@@ -29,9 +29,9 @@ class ConcentrationField(Observable, ABC):
 
     def __init__(
         self,
-        source: np.ndarray,
+        source: jnp.ndarray,
         decay_fn: callable,
-        box_length: np.ndarray,
+        box_length: jnp.ndarray,
         scale_factor: int = 100,
         particle_type: int = 0,
         return_absolute: bool = False,
@@ -41,11 +41,11 @@ class ConcentrationField(Observable, ABC):
 
         Parameters
         ----------
-        source : np.ndarray
+        source : jnp.ndarray
                 Source of the field.
         decay_fn : callable
                 Decay function of the field.
-        box_size : np.ndarray
+        box_size : jnp.ndarray
                 Array for scaling of the distances.
         scale_factor : int (default=100)
                 Scaling factor for the observable.
@@ -102,8 +102,8 @@ class ConcentrationField(Observable, ABC):
         # Update historic position.
         self._historic_positions[str(index)] = position
 
-        current_distance = np.linalg.norm(self.source - position)
-        historic_distance = np.linalg.norm(self.source - previous_position)
+        current_distance = jnp.linalg.norm(self.source - position)
+        historic_distance = jnp.linalg.norm(self.source - previous_position)
 
         current_value = self.decay_fn(current_distance)
         historic_value = self.decay_fn(historic_distance)
@@ -143,4 +143,4 @@ class ConcentrationField(Observable, ABC):
             self.compute_single_observable(index, colloids) for index in reference_ids
         ]
 
-        return np.array(observables).reshape(-1, 1)
+        return jnp.array(observables).reshape(-1, 1)

@@ -8,7 +8,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import List
 
-import jax.numpy as np
+import jax.numpy as jnp
 import numpy as onp
 from dask.distributed import Client, LocalCluster, wait
 from dask_jobqueue import JobQueueCluster
@@ -103,7 +103,7 @@ class GeneticTraining:
         # Decide on parent splits
         self.identifiers = range(population_size)
 
-        lazy_splits = np.array_split(np.ones(population_size), number_of_parents)
+        lazy_splits = jnp.array_split(jnp.ones(population_size), number_of_parents)
         self.split_lengths = [len(split) for split in lazy_splits]
 
         # set the select function
@@ -268,13 +268,13 @@ class GeneticTraining:
 
         return generation_outputs
 
-    def _select_parents(self, generation_outputs: np.ndarray) -> list:
+    def _select_parents(self, generation_outputs: jnp.ndarray) -> list:
         """
         Select the parents for the next generation.
 
         Parameters
         ----------
-        generation_outputs : np.ndarray (n_individuals, )
+        generation_outputs : jnp.ndarray (n_individuals, )
             The outputs of the generation.
 
         Returns
@@ -288,7 +288,7 @@ class GeneticTraining:
         ids = [item[1] for item in generation_outputs]
 
         # First get best parent
-        max_reward_index = np.argmax(np.array(rewards))
+        max_reward_index = jnp.argmax(jnp.array(rewards))
         chosen_id = ids[max_reward_index]
 
         # Pick mutations

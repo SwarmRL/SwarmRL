@@ -4,7 +4,7 @@ Class for multi-tasking.
 
 from typing import List
 
-import jax.numpy as np
+import jax.numpy as jnp
 
 from swarmrl.components import Colloid
 from swarmrl.tasks.task import Task
@@ -40,7 +40,7 @@ class MultiTasking(Task):
         for item in self.tasks:
             item.initialize(colloids)
 
-    def __call__(self, colloids: List[Colloid]) -> np.ndarray:
+    def __call__(self, colloids: List[Colloid]) -> jnp.ndarray:
         """
         Computes all observables and returns them in a concatenated list.
 
@@ -50,11 +50,11 @@ class MultiTasking(Task):
 
         Returns
         -------
-        rewards : np.ndarray of shape (num_colloids, )
+        rewards : jnp.ndarray of shape (num_colloids, )
                 Array of rewards for each colloid.
         """
         species_indices = self.get_colloid_indices(colloids)
-        rewards = np.zeros(len(species_indices))
+        rewards = jnp.zeros(len(species_indices))
         for task in self.tasks:
             ts = task(colloids)
             rewards += ts

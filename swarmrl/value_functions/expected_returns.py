@@ -5,7 +5,7 @@ Module for the expected returns value function.
 from functools import partial
 
 import jax
-import jax.numpy as np
+import jax.numpy as jnp
 
 from swarmrl.utils.logging_utils import log_jax_runtime_value
 
@@ -35,36 +35,36 @@ class ExpectedReturns:
         self.standardize = standardize
 
         # Set by us to stabilize division operations.
-        self.eps = np.finfo(np.float32).eps.item()
+        self.eps = jnp.finfo(jnp.float32).eps.item()
 
     @partial(jax.jit, static_argnums=(0,))
-    def __call__(self, rewards: np.ndarray):
+    def __call__(self, rewards: jnp.ndarray):
         """
         Call function for the expected returns.
         Parameters
         ----------
-        rewards : np.ndarray (n_time_steps, n_particles, dimension)
+        rewards : jnp.ndarray (n_time_steps, n_particles, dimension)
                 A numpy array of rewards to use in the calculation.
 
         Returns
         -------
-        expected_returns : np.ndarray (n_time_steps, n_particles)
+        expected_returns : jnp.ndarray (n_time_steps, n_particles)
                 Expected returns for the rewards.
         """
         log_jax_runtime_value("gamma", self.gamma)
 
-        expected_returns = np.zeros_like(rewards)
+        expected_returns = jnp.zeros_like(rewards)
         n_particles = rewards.shape[1]
 
         final_time = len(rewards) + 1
         log_jax_runtime_value("rewards", rewards)
 
         for t, reward in enumerate(rewards):
-            gamma_array = self.gamma ** np.linspace(
+            gamma_array = self.gamma ** jnp.linspace(
                 t + 1, final_time, int(final_time - (t + 1)), dtype=int
             )
-            gamma_array = np.transpose(
-                np.repeat(gamma_array[None, :], n_particles, axis=0)
+            gamma_array = jnp.transpose(
+                jnp.repeat(gamma_array[None, :], n_particles, axis=0)
             )
 
             proceeding_rewards = rewards[t:, :]
@@ -75,8 +75,8 @@ class ExpectedReturns:
         log_jax_runtime_value("expected_returns", expected_returns)
 
         if self.standardize:
-            mean_vector = np.mean(expected_returns, axis=0)
-            std_vector = np.std(expected_returns, axis=0) + self.eps
+            mean_vector = jnp.mean(expected_returns, axis=0)
+            std_vector = jnp.std(expected_returns, axis=0) + self.eps
 
             expected_returns = (expected_returns - mean_vector) / std_vector
 

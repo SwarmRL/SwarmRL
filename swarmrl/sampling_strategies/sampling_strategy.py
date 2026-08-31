@@ -5,7 +5,7 @@ Parent class for sampling strategies.
 from abc import ABC, abstractmethod
 from typing import Any
 
-import jax.numpy as np
+import jax.numpy as jnp
 
 
 class SamplingStrategy(ABC):
@@ -13,27 +13,27 @@ class SamplingStrategy(ABC):
     Parent class for sampling strategies.
     """
 
-    def compute_entropy(self, probabilities: np.ndarray) -> float:
+    def compute_entropy(self, probabilities: jnp.ndarray) -> float:
         """
         Compute the Shannon entropy of the probabilities.
 
         Parameters
         ----------
-        probabilities : np.ndarray (n_colloids, n_actions)
+        probabilities : jnp.ndarray (n_colloids, n_actions)
                 Probabilities for each colloid to take specific actions.
         """
         eps = 1e-8
         probabilities += eps
-        return -np.sum(probabilities * np.log(probabilities))
+        return -jnp.sum(probabilities * jnp.log(probabilities))
 
     @abstractmethod
-    def __call__(self, logits: np.ndarray) -> Any:
+    def __call__(self, logits: jnp.ndarray) -> Any:
         """
         Sample from the distribution.
 
         Parameters
         ----------
-        logits : np.ndarray (n_colloids, n_dimensions)
+        logits : jnp.ndarray (n_colloids, n_dimensions)
                 Logits from the model to use in the computation for each colloid.
 
         Returns

@@ -4,7 +4,7 @@ Parent class for the networks.
 
 from typing import List
 
-import jax.numpy as np
+import jax.numpy as jnp
 from flax.core.frozen_dict import FrozenDict
 
 from swarmrl.components.colloid import Colloid
@@ -36,7 +36,7 @@ class Network:
         """
         raise NotImplementedError("Implemented in child class.")
 
-    def __call__(self, params: FrozenDict, feature_vector: np.ndarray):
+    def __call__(self, params: FrozenDict, feature_vector: jnp.ndarray):
         """
         Perform the forward pass on the model. This method is
         used in the update. It uses a vmapped version of the
@@ -46,7 +46,7 @@ class Network:
         ----------
         params : FrozenDict
                 Parameters of the model.
-        feature_vector : np.ndarray
+        feature_vector : jnp.ndarray
                 Current state of the agent on which actions should be made.
 
         Returns

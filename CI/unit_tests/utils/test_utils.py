@@ -2,7 +2,7 @@
 Test the utils module.
 """
 
-import jax.numpy as np
+import jax.numpy as jnp
 import numpy.testing as npt
 import pytest
 
@@ -24,13 +24,13 @@ class TestUtils:
         Test the indices gathering function for even and odd numbers
         """
         # 5 particles, 3 time steps, 2 options
-        data = np.array([
+        data = jnp.array([
             [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]],
             [[10, 11], [12, 13], [14, 15], [16, 17], [18, 19]],
             [[20, 21], [22, 23], [24, 25], [26, 27], [28, 29]],
         ])
-        indices = np.array([[1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [0, 0, 1, 1, 0]])
-        true_selection = np.array([
+        indices = jnp.array([[1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [0, 0, 1, 1, 0]])
+        true_selection = jnp.array([
             [1, 3, 5, 7, 9],
             [10, 12, 14, 16, 18],
             [20, 22, 25, 27, 28],
@@ -40,33 +40,38 @@ class TestUtils:
         npt.assert_array_equal(test_selection, true_selection)
 
         # 2 particles, 3 time steps, 2 options
-        data = np.array([[[0, 1], [2, 3]], [[10, 11], [12, 13]], [[20, 21], [22, 23]]])
-        indices = np.array([[1, 1], [0, 0], [0, 0]])
-        true_selection = np.array([[1, 3], [10, 12], [20, 22]])
+        data = jnp.array([[[0, 1], [2, 3]], [[10, 11], [12, 13]], [[20, 21], [22, 23]]])
+        indices = jnp.array([[1, 1], [0, 0], [0, 0]])
+        true_selection = jnp.array([[1, 3], [10, 12], [20, 22]])
         test_selection = gather_n_dim_indices(data, indices)
         npt.assert_array_equal(test_selection, true_selection)
 
         # 3 particles, 4 time steps, 2 options
-        data = np.array([
+        data = jnp.array([
             [[0, 1], [2, 3], [4, 5]],
             [[10, 11], [12, 13], [14, 15]],
             [[20, 21], [22, 23], [24, 25]],
             [[30, 31], [32, 33], [34, 35]],
         ])
-        indices = np.array([[1, 1, 1], [0, 0, 0], [0, 0, 1], [1, 0, 1]])
-        true_selection = np.array([[1, 3, 5], [10, 12, 14], [20, 22, 25], [31, 32, 35]])
+        indices = jnp.array([[1, 1, 1], [0, 0, 0], [0, 0, 1], [1, 0, 1]])
+        true_selection = jnp.array([
+            [1, 3, 5],
+            [10, 12, 14],
+            [20, 22, 25],
+            [31, 32, 35],
+        ])
         test_selection = gather_n_dim_indices(data, indices)
         npt.assert_array_equal(test_selection, true_selection)
 
         # 4 particles, 4 time steps, 2 options
-        data = np.array([
+        data = jnp.array([
             [[0, 1], [2, 3], [4, 5], [6, 7]],
             [[10, 11], [12, 13], [14, 15], [16, 17]],
             [[20, 21], [22, 23], [24, 25], [26, 27]],
             [[30, 31], [32, 33], [34, 35], [36, 37]],
         ])
-        indices = np.array([[1, 1, 1, 0], [0, 0, 0, 1], [0, 0, 1, 1], [1, 0, 1, 1]])
-        true_selection = np.array([
+        indices = jnp.array([[1, 1, 1, 0], [0, 0, 0, 1], [0, 0, 1, 1], [1, 0, 1, 1]])
+        true_selection = jnp.array([
             [1, 3, 5, 6],
             [10, 12, 14, 17],
             [20, 22, 25, 27],
@@ -81,12 +86,12 @@ class TestUtils:
         for positiv and negativ angles in 2D
         """
 
-        my_director1 = np.array([1, 0, 0])
-        my_director2 = np.array([-1 / np.sqrt(2), -1 / np.sqrt(2), 0])
+        my_director1 = jnp.array([1, 0, 0])
+        my_director2 = jnp.array([-1 / jnp.sqrt(2), -1 / jnp.sqrt(2), 0])
 
-        other_director1 = np.array([1, 0, 0])
-        other_director2 = np.array([0, 1, 0])
-        other_director3 = np.array([1 / 2, np.sqrt(3) / 2, 0])
+        other_director1 = jnp.array([1, 0, 0])
+        other_director2 = jnp.array([0, 1, 0])
+        other_director3 = jnp.array([1 / 2, jnp.sqrt(3) / 2, 0])
 
         # test parallel and antiparallel case
         angle1 = calc_signed_angle_between_directors(my_director1, other_director1)
@@ -108,20 +113,20 @@ class TestUtils:
         )
 
         assert angle1 == 0
-        assert angle2 == pytest.approx(np.pi / 2)
-        assert angle3 == pytest.approx(np.pi / 3)
-        assert angle4 == pytest.approx(np.pi * 3 / 4)
-        assert angle5 == pytest.approx(-np.pi * 3 / 4)
-        assert abs(angle6 + np.pi * 11 / 12) < 10e-6
+        assert angle2 == pytest.approx(jnp.pi / 2)
+        assert angle3 == pytest.approx(jnp.pi / 3)
+        assert angle4 == pytest.approx(jnp.pi * 3 / 4)
+        assert angle5 == pytest.approx(-jnp.pi * 3 / 4)
+        assert abs(angle6 + jnp.pi * 11 / 12) < 10e-6
         assert abs(angle7 - angle3) < 10e-6
         assert abs(angle8 - angle6) < 10e-6
-        assert angle9 == pytest.approx(np.pi)
+        assert angle9 == pytest.approx(jnp.pi)
 
     def test_create_colloids(self):
         """
         Test the create_colloids function
         """
-        center = np.array([100, 100, 0])
+        center = jnp.array([100, 100, 0])
         dist = 300
         colloids_0 = create_colloids(
             n_cols=10,
@@ -133,8 +138,8 @@ class TestUtils:
         assert len(colloids_0) == 10
         for col in colloids_0:
             assert col.type == 0
-            npt.assert_almost_equal(np.linalg.norm(col.director), 1)
-            npt.assert_almost_equal(np.linalg.norm(col.pos - center), dist, decimal=3)
+            npt.assert_almost_equal(jnp.linalg.norm(col.director), 1)
+            npt.assert_almost_equal(jnp.linalg.norm(col.pos - center), dist, decimal=3)
 
         colloids_1 = create_colloids(
             n_cols=10,
@@ -147,9 +152,9 @@ class TestUtils:
         assert len(colloids_1) == 10
         for col in colloids_1:
             assert col.type == 1
-            npt.assert_almost_equal(np.linalg.norm(col.director), 1)
+            npt.assert_almost_equal(jnp.linalg.norm(col.director), 1)
             facing_dir = center - col.pos
-            facing_dir /= np.linalg.norm(facing_dir)
+            facing_dir /= jnp.linalg.norm(facing_dir)
             npt.assert_almost_equal(facing_dir, col.director, decimal=3)
 
     def test_ellipsoid_friction_factors(self):
