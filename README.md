@@ -25,6 +25,65 @@ cd SwarmRL
 python -m pip install .
 ```
 
+## Engines
+
+SwarmRL drives a simulation through an `Engine`. Two are shipped:
+
+* `swarmrl.engine.espresso` -- ESPResSo molecular dynamics, the reference backend.
+* `swarmrl.engine.mujoco_engine` -- MuJoCo rigid-body dynamics, for scenes with
+  contacts, walls, articulated agents or objects that have to be physically pushed.
+
+### MuJoCo
+
+MuJoCo is an optional dependency:
+
+```sh
+python -m pip install ".[mujoco]"
+```
+
+Bodies carrying a free joint are exposed to SwarmRL as `Colloid`s, and the `Action`s
+returned by the `ForceFunction` are applied as Cartesian force and torque through
+`xfrc_applied`, so the model needs no actuators:
+
+```python
+from swarmrl.engine.mujoco_engine import MujocoEngine, build_swarm_xml
+
+engine = MujocoEngine(
+    build_swarm_xml(n_agents=10),
+    particle_types=0,      # must match the particle_type of your agents
+    steps_per_slice=25,    # MuJoCo steps between two decisions
+    planar=True,           # keep a 2D system 2D
+)
+engine.integrate(n_slices=100, force_model=force_function)
+engine.render_trajectory("run.mp4")   # needs a GL backend
+```
+
+`build_swarm_xml` is a convenience arena of pucks in a box; pass your own MJCF string
+or `.xml` path for anything else. Subclasses can hook into a slice through
+`_pre_slice`, `_pre_step` and `_post_step` to advance environment state alongside the
+physics.
+
+Colloids in ESPResSo are thermal, so a bare MuJoCo model is not comparable to one.
+`swarmrl.engine.mujoco_thermostat` supplies the missing fluctuating half of the
+Langevin equation, at the amplitude the fluctuation-dissipation theorem demands, on
+every damped degree of freedom. Because a MuJoCo model is usually written in
+arbitrary units, the temperature is carried across by matching the dimensionless
+Peclet number rather than by copying a value:
+
+```python
+from swarmrl.engine.mujoco_thermostat import LangevinThermostat, peclet_matched_kT
+
+kT = peclet_matched_kT(drive_force=8.0, damping=3.0, radius=0.07, temperature=311.15)
+engine = MujocoEngine(xml, thermostat=LangevinThermostat(kT=kT, seed=0))
+```
+
+`kT` is linear in the temperature and vanishes at `T = 0`, so a temperature sweep
+behaves the way an ESPResSo one does.
+
+Two things to know when rendering: set `MUJOCO_GL=egl` on a headless machine, and an
+`EGLError` printed from `GLContext.__del__` at teardown is cosmetic -- the frames are
+still written.
+
 ## Looking for a Starting Point?
 
 Our documentation is a work in progress but can be found [here](swarmrl.github.io/SwarmRL.ai/).
