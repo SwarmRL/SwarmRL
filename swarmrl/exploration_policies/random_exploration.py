@@ -29,10 +29,7 @@ class RandomExploration(DiscreteExplorationPolicy):
 
     @partial(jax.jit, static_argnums=(0, 2))
     def __call__(
-        self,
-        model_actions: np.ndarray,
-        action_space_length: int,
-        rng_key,
+        self, model_actions: np.ndarray, action_space_length: int, rng_key: jax.Array
     ) -> np.ndarray:
         """
         Return an index associated with the chosen action.
@@ -44,8 +41,8 @@ class RandomExploration(DiscreteExplorationPolicy):
         action_space_length : int
                 Number of possible actions. Should be 1 higher than the actual highest
                 index, i.e if I have actions [0, 1, 2, 3] this number should be 4.
-        rng_key : jax.random.PRNGKey
-            Key for jax.random module.
+        rng_key : jax.Array
+                Key for JAX random number generation.
 
         Returns
         -------
@@ -53,22 +50,21 @@ class RandomExploration(DiscreteExplorationPolicy):
                 Action chosen after the exploration module has operated for
                 each colloid.
         """
-        sample_key, action_key = jax.random.split(rng_key, num=2)
+        sample_key, action_key = jax.random.split(rng_key)
 
-        sample = jax.random.uniform(sample_key, shape=model_actions.shape)
+        replace_mask = (
+            jax.random.uniform(sample_key, shape=model_actions.shape) < self.probability
+        )
 
-        # True means "explore randomly"
-        explore_mask = sample < self.probability
-
-        # Choose random actions
         exploration_actions = jax.random.randint(
             action_key,
-            shape=model_actions.shape,
+            shape=(model_actions.shape[0],),
             minval=0,
             maxval=action_space_length,
         )
 
-        # Put the new actions in.
-        model_actions = np.where(explore_mask, exploration_actions, model_actions)
-
-        return model_actions
+        return np.where(
+            replace_mask,
+            exploration_actions,
+            model_actions,
+        ).astype(np.int16)

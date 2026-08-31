@@ -32,7 +32,7 @@ class DiscreteExplorationPolicy(ExplorationPolicy, ABC):
         self,
         model_actions: np.ndarray,
         action_space_length: int,
-        rng_key: jax.random.PRNGKey,
+        rng_key: jax.Array,
     ) -> np.ndarray:
         """
         Return an index associated with the chosen action.
@@ -44,8 +44,8 @@ class DiscreteExplorationPolicy(ExplorationPolicy, ABC):
         action_space_length : int
                 Number of possible actions. Should be 1 higher than the actual highest
                 index, i.e if I have actions [0, 1, 2, 3] this number should be 4.
-        rng_key : jax.random.PRNGKey
-                Key for jax.random module.
+        rng_key : jax.Array
+                Key for JAX random number generation.
 
         Returns
         -------
@@ -62,9 +62,7 @@ class ContinuousExplorationPolicy(ExplorationPolicy, ABC):
     """
 
     @abstractmethod
-    def __call__(
-        self, model_actions: np.ndarray, rng_key: jax.random.PRNGKey
-    ) -> np.ndarray:
+    def __call__(self, model_actions: np.ndarray, rng_key: jax.Array) -> np.ndarray:
         """
         Return an action value
 
@@ -72,8 +70,8 @@ class ContinuousExplorationPolicy(ExplorationPolicy, ABC):
         ----------
         model_actions : np.ndarray (n_colloids,)
                 Action chosen by the model for each colloid.
-        rng_key : jax.random.PRNGKey
-                Key for jax.random module
+        rng_key : jax.Array
+                Key for JAX random number generation.
 
         Returns
         -------

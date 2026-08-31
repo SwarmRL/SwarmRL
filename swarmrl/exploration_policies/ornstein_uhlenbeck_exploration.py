@@ -100,9 +100,7 @@ class GlobalOUExploration(ContinuousExplorationPolicy):
         self.noise = self.noise * decay
         self.epsilon = np.maximum(self.epsilon * decay, self.float_precision(0.01))
 
-    def __call__(
-        self, model_actions: np.ndarray, rng_key: jax.random.PRNGKey
-    ) -> np.ndarray:
+    def __call__(self, model_actions: np.ndarray, rng_key: jax.Array) -> np.ndarray:
         """
         Add OU noise to model actions.
 
