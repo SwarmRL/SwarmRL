@@ -34,6 +34,13 @@ dev = [
     "ruff>=0.5.0",
 ]
 
+# MuJoCo engine. Optional: swarmrl imports without it, and the MuJoCo tests skip.
+# Rendering a trajectory additionally needs a GL backend (MUJOCO_GL=egl if headless).
+mujoco = [
+    "mujoco>=3.1",
+    "imageio>=2.34",
+]
+
 # Replaced black and isort entirely with ruff
 [tool.ruff]
 line-length = 88
