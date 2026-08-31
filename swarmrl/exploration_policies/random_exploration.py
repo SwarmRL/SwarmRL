@@ -50,8 +50,7 @@ class RandomExploration(DiscreteExplorationPolicy):
                 Action chosen after the exploration module has operated for
                 each colloid.
         """
-        key = jax.random.PRNGKey(rng_key)
-        sample_key, action_key = jax.random.split(key)
+        sample_key, action_key = jax.random.split(rng_key)
 
         replace_mask = (
             jax.random.uniform(sample_key, shape=model_actions.shape) < self.probability
