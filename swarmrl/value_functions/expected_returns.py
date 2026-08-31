@@ -53,24 +53,18 @@ class ExpectedReturns:
         """
         log_jax_runtime_value("gamma", self.gamma)
 
-        expected_returns = jnp.zeros_like(rewards)
-        n_particles = rewards.shape[1]
-
-        final_time = len(rewards) + 1
         log_jax_runtime_value("rewards", rewards)
 
-        for t, reward in enumerate(rewards):
-            gamma_array = self.gamma ** jnp.linspace(
-                t + 1, final_time, int(final_time - (t + 1)), dtype=int
-            )
-            gamma_array = jnp.transpose(
-                jnp.repeat(gamma_array[None, :], n_particles, axis=0)
-            )
+        def return_step(running_return, reward):
+            current_return = reward + self.gamma * running_return
+            return current_return, current_return
 
-            proceeding_rewards = rewards[t:, :]
-
-            returns = proceeding_rewards * gamma_array
-            expected_returns = expected_returns.at[t, :].set(returns.sum(axis=0))
+        _, expected_returns = jax.lax.scan(
+            return_step,
+            jnp.zeros_like(rewards[-1]),
+            rewards,
+            reverse=True,
+        )
 
         log_jax_runtime_value("expected_returns", expected_returns)
 
