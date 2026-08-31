@@ -30,8 +30,9 @@ class ConstAgent(ClassicalAgent):
     """
     Agent that hands the same Action to every colloid of its type.
 
-    ``dummy_models.ConstForce`` cannot be used here because the engine calls
-    ``calc_reward`` once per slice and the classical agents do not implement it.
+    ``dummy_models.ConstForce`` would cover the action side on its own. This one
+    also counts the ``calc_reward`` calls the engine makes, which is what
+    ``test_reward_is_computed_once_per_slice`` needs.
     """
 
     def __init__(self, particle_type: int, action: Action):
