@@ -7,6 +7,7 @@ import pytest
 from swarmrl.sampling_strategies.gaussian_distribution import (
     ContinuousGaussianDistribution,
     action_limits_from_bounds,
+    soft_clip,
 )
 
 
@@ -90,7 +91,10 @@ class TestContinuousGaussianDistribution:
         assert jnp.allclose(limits, expected_limits)
 
     def test_log_probs_include_tanh_squash_correction(self):
-        sampler = ContinuousGaussianDistribution(action_dimension=2)
+        sampler = ContinuousGaussianDistribution.create(
+            action_dimension=2,
+            soft_clip_log_std=False,
+        )
         logits = jnp.zeros((3, 4), dtype=jnp.float32)
         key = jax.random.PRNGKey(5)
 
@@ -101,16 +105,65 @@ class TestContinuousGaussianDistribution:
             deployment_mode=False,
         )
 
-        raw_actions = jax.random.normal(key, shape=(3, 2), dtype=jnp.float32)
-        gaussian_log_probs = (-0.5 * (raw_actions**2 + jnp.log(2.0 * jnp.pi))).sum(
-            axis=-1
-        )
-        squash_correction = jnp.log(1.0 - jnp.tanh(raw_actions) ** 2 + 1e-6).sum(
-            axis=-1
+        pre_squash_actions = jax.random.normal(key, shape=(3, 2), dtype=jnp.float32)
+        gaussian_log_probs = (
+            -0.5 * (pre_squash_actions**2 + jnp.log(2.0 * jnp.pi))
+        ).sum(axis=-1)
+        squash_correction = (
+            2.0
+            * (
+                jnp.log(2.0)
+                - pre_squash_actions
+                - jax.nn.softplus(-2.0 * pre_squash_actions)
+            )
+        ).sum(axis=-1)
+
+        assert jnp.allclose(actions, jnp.tanh(pre_squash_actions))
+        assert jnp.allclose(log_probs, gaussian_log_probs - squash_correction)
+
+    def test_soft_clips_log_std_by_default(self):
+        sampler = ContinuousGaussianDistribution.create(action_dimension=1)
+        logits = jnp.array([[0.0, 3.0]], dtype=jnp.float32)
+        key = jax.random.PRNGKey(7)
+
+        actions, _ = sampler(
+            logits,
+            rng_key=key,
+            calculate_log_probs=False,
+            deployment_mode=False,
         )
 
-        assert jnp.allclose(actions, raw_actions)
-        assert jnp.allclose(log_probs, gaussian_log_probs - squash_correction)
+        expected_log_std = soft_clip(
+            logits[:, 1:], sampler.log_std_min, sampler.log_std_max
+        )
+        noise = jax.random.normal(key, shape=(1, 1), dtype=jnp.float32)
+        expected_actions = jnp.tanh(noise * jnp.exp(expected_log_std))
+
+        assert sampler.soft_clip_log_std is True
+        assert jnp.allclose(actions, expected_actions)
+
+    def test_can_use_raw_log_std_without_soft_clipping(self):
+        sampler = ContinuousGaussianDistribution.create(
+            action_dimension=1,
+            log_std_min=-0.1,
+            log_std_max=0.1,
+            soft_clip_log_std=False,
+        )
+        logits = jnp.array([[0.0, 0.5]], dtype=jnp.float32)
+        key = jax.random.PRNGKey(8)
+
+        actions, _ = sampler(
+            logits,
+            rng_key=key,
+            calculate_log_probs=False,
+            deployment_mode=False,
+        )
+
+        noise = jax.random.normal(key, shape=(1, 1), dtype=jnp.float32)
+        expected_actions = jnp.tanh(noise * jnp.exp(0.5))
+
+        assert sampler.soft_clip_log_std is False
+        assert jnp.allclose(actions, expected_actions)
 
     def test_log_probs_include_affine_action_scale_correction(self):
         action_dimension = 4

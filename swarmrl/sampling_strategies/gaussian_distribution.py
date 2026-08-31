@@ -9,6 +9,25 @@ from flax import struct
 from swarmrl.sampling_strategies.sampling_strategy import ContinuousSamplingStrategy
 
 
+def soft_clip(x: jnp.ndarray, low: float, high: float) -> jnp.ndarray:
+    """
+    The first transform smoothly limits values from above (``high``), and the second
+    smoothly limits them from below (``low``). Unlike a hard clip, the transformation
+    has a positive mathematical gradient for every finite input, although
+    that gradient may become numerically zero for extreme values at finite
+    precision.
+
+    Note:
+    The sequential softplus construction is asymmetric. lower asymptote is
+    ``low``, while its upper asymptote exceeds ``high`` by
+    ``softplus(-(high - low))``. For the default log-standard-deviation
+    interval ``[-20, 2]``, this excess is negligible.
+    """
+    x = high - jax.nn.softplus(high - x)
+    x = low + jax.nn.softplus(x - low)
+    return x
+
+
 def action_limits_from_bounds(
     action_dimension: int,
     low: float,
@@ -30,11 +49,14 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
     """
     Sample continuous actions from a Gaussian policy parameterization.
 
-    Expected logits trailing dimension is ``2 * action_dimension`` where the
-    first half encodes mean and the second half encodes log-std. Sampled actions
-    are optionally tanh-squashed to ``action_limits``, if provided.
-    In deployment mode, actions are deterministic (mean action) and
-    no log-probabilities are produced.
+    The trailing logits dimension must be ``2 * action_dimension``. The first
+    half parameterizes the Gaussian mean and the second half parameterizes its
+    log standard deviation. By default, raw log-standard-deviation values are
+    smoothly bounded between ``log_std_min`` and ``log_std_max``.
+
+    Sampled Gaussian actions are transformed to ``action_limits`` using a
+    tanh-affine mapping. In deployment mode, the transformed mean is returned
+    deterministically and log-probabilities are not computed.
     """
 
     # Static metadata fields are excluded from PyTree leaves.
@@ -42,7 +64,8 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
     action_limits: Optional[jnp.ndarray] = struct.field(pytree_node=True, default=None)
     log_scale: Optional[jnp.ndarray] = struct.field(pytree_node=True, default=None)
     log_std_min: float = struct.field(pytree_node=False, default=-20.0)
-    log_std_max: float = struct.field(pytree_node=False, default=1.0)
+    log_std_max: float = struct.field(pytree_node=False, default=2.0)
+    soft_clip_log_std: bool = struct.field(pytree_node=False, default=True)
     float_precision: jnp.dtype = struct.field(pytree_node=False, default=jnp.float32)
 
     @classmethod
@@ -51,10 +74,39 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
         action_dimension: int,
         action_limits: Optional[jnp.ndarray] = None,
         log_std_min: float = -20.0,
-        log_std_max: float = 1.0,
+        log_std_max: float = 2.0,
+        soft_clip_log_std: bool = True,
         float_precision: jnp.dtype = jnp.float32,
     ) -> "ContinuousGaussianDistribution":
-        """Factory method to handle the initialization validation safely."""
+        """
+        Create a bounded continuous Gaussian sampling strategy.
+
+        Parameters
+        ----------
+        action_dimension : int
+            Number of continuous action dimensions.
+        action_limits : Optional[jnp.ndarray]
+            Per-dimension lower and upper action bounds with shape
+            ``(action_dimension, 2)``. Defaults to ``[-1, 1]`` for every
+            dimension.
+        log_std_min : float
+            Lower smooth bound for the policy's raw log standard deviation.
+            This value is ignored when ``soft_clip_log_std`` is false.
+        log_std_max : float
+            Upper smooth bound for the policy's raw log standard deviation.
+            Defaults to ``2.0``, a commonly used SAC value. This value is
+            ignored when ``soft_clip_log_std`` is false.
+        soft_clip_log_std : bool
+            If true, smoothly bound the raw policy log standard deviation using
+            ``log_std_min`` and ``log_std_max``. If false, use it unchanged.
+        float_precision : jnp.dtype
+            Floating-point dtype used for limits, sampling, and returned actions.
+
+        Returns
+        -------
+        ContinuousGaussianDistribution
+            Configured sampling strategy.
+        """
         if action_limits is None:
             action_limits = action_limits_from_bounds(
                 action_dimension, -1.0, 1.0, float_precision
@@ -81,6 +133,7 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
             log_scale=log_scale,
             log_std_min=float(log_std_min),
             log_std_max=float(log_std_max),
+            soft_clip_log_std=bool(soft_clip_log_std),
             float_precision=float_precision,
         )
 
@@ -138,11 +191,11 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
             if rng_key is None:
                 raise ValueError("A valid JAX PRNGKey is required during training.")
 
-            log_std = jnp.clip(
-                logits[..., self.action_dimension :],
-                self.log_std_min,
-                self.log_std_max,
-            )
+            log_std_raw = logits[..., self.action_dimension :]
+            if self.soft_clip_log_std:
+                log_std = soft_clip(log_std_raw, self.log_std_min, self.log_std_max)
+            else:
+                log_std = log_std_raw
             std = jnp.exp(log_std)
 
             noise = jax.random.normal(
