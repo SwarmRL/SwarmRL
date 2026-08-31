@@ -7,7 +7,7 @@ from __future__ import annotations
 import dataclasses
 from typing import List
 
-import jax.numpy as np
+import jax.numpy as jnp
 import numpy as onp
 from jax.tree_util import register_pytree_node_class
 
@@ -23,10 +23,10 @@ class Swarm:
     """
 
     # Colloid attributes
-    pos: np.ndarray
-    director: np.ndarray
+    pos: jnp.ndarray
+    director: jnp.ndarray
     id: int
-    velocity: np.ndarray = None
+    velocity: jnp.ndarray = None
     type: int = 0
 
     # Swarm attributes
@@ -75,11 +75,11 @@ class Swarm:
         """
         indices = self.type_indices[species]
         return Swarm(
-            pos=np.take(self.pos, indices, axis=0),
-            director=np.take(self.director, indices, axis=0),
-            id=np.take(self.id, indices, axis=0),
-            velocity=np.take(self.velocity, indices, axis=0),
-            type=np.take(self.type, indices, axis=0),
+            pos=jnp.take(self.pos, indices, axis=0),
+            director=jnp.take(self.director, indices, axis=0),
+            id=jnp.take(self.id, indices, axis=0),
+            velocity=jnp.take(self.velocity, indices, axis=0),
+            type=jnp.take(self.type, indices, axis=0),
             type_indices=None,
         )
 
@@ -115,20 +115,20 @@ def create_swarm(colloids: List[Colloid]) -> Swarm:
         Swarm object full of all colloids
     """
     # standard colloid attributes
-    pos = np.array([c.pos for c in colloids]).reshape(-1, colloids[0].pos.shape[0])
-    director = np.array([c.director for c in colloids]).reshape(
+    pos = jnp.array([c.pos for c in colloids]).reshape(-1, colloids[0].pos.shape[0])
+    director = jnp.array([c.director for c in colloids]).reshape(
         -1, colloids[0].director.shape[0]
     )
-    id = np.array([c.id for c in colloids]).reshape(-1, 1)
-    velocity = np.array([c.velocity for c in colloids]).reshape(
+    id = jnp.array([c.id for c in colloids]).reshape(-1, 1)
+    velocity = jnp.array([c.velocity for c in colloids]).reshape(
         -1, colloids[0].velocity.shape[0]
     )
-    type = np.array([c.type for c in colloids]).reshape(-1, 1)
+    type = jnp.array([c.type for c in colloids]).reshape(-1, 1)
 
     # add species indices to the colloid types.
     type_indices = {}
     types = onp.unique(type)
     for t in types:
-        type_indices[t] = np.array(get_colloid_indices(colloids, t))
+        type_indices[t] = jnp.array(get_colloid_indices(colloids, t))
 
     return Swarm(pos, director, id, velocity, type, type_indices)

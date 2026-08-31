@@ -2,7 +2,7 @@
 Test the SwarmRL agents
 """
 
-import jax.numpy as np
+import jax.numpy as jnp
 from numpy.testing import assert_array_equal
 
 from swarmrl.components.colloid import Colloid
@@ -19,10 +19,10 @@ class TestComponents:
         Test the colloid agent.
         """
         colloid = Colloid(
-            pos=np.array([0.0, 0.0, 0.0]),
-            director=np.array([0.0, 0.0, 1.0]),
+            pos=jnp.array([0.0, 0.0, 0.0]),
+            director=jnp.array([0.0, 0.0, 1.0]),
             id=0,
-            velocity=np.array([0.0, 0.0, 0.0]),
+            velocity=jnp.array([0.0, 0.0, 0.0]),
             type=0,
         )
 
@@ -37,10 +37,10 @@ class TestComponents:
         Test the pytree aspects of the colloid.
         """
         colloid = Colloid(
-            pos=np.array([0.0, 0.0, 0.0]),
-            director=np.array([0.0, 0.0, 1.0]),
+            pos=jnp.array([0.0, 0.0, 0.0]),
+            director=jnp.array([0.0, 0.0, 1.0]),
             id=0,
-            velocity=np.array([0.0, 0.0, 0.0]),
+            velocity=jnp.array([0.0, 0.0, 0.0]),
             type=0,
         )
 
@@ -54,26 +54,26 @@ class TestComponents:
         Test the swarm agent.
         """
         colloid_1 = Colloid(
-            pos=np.array([0.0, 0.0, 0.0]),
-            director=np.array([0.0, 0.0, 1.0]),
+            pos=jnp.array([0.0, 0.0, 0.0]),
+            director=jnp.array([0.0, 0.0, 1.0]),
             id=0,
-            velocity=np.array([0.0, 0.0, 0.0]),
+            velocity=jnp.array([0.0, 0.0, 0.0]),
             type=0,
         )
 
         colloid_2 = Colloid(
-            pos=np.array([0.0, 0.0, 0.0]),
-            director=np.array([0.0, 0.0, 1.0]),
+            pos=jnp.array([0.0, 0.0, 0.0]),
+            director=jnp.array([0.0, 0.0, 1.0]),
             id=1,
-            velocity=np.array([0.0, 0.0, 0.0]),
+            velocity=jnp.array([0.0, 0.0, 0.0]),
             type=0,
         )
 
         colloid_3 = Colloid(
-            pos=np.array([0.0, 0.0, 0.0]),
-            director=np.array([0.0, 0.0, 1.0]),
+            pos=jnp.array([0.0, 0.0, 0.0]),
+            director=jnp.array([0.0, 0.0, 1.0]),
             id=2,
-            velocity=np.array([0.0, 0.0, 0.0]),
+            velocity=jnp.array([0.0, 0.0, 0.0]),
             type=1,
         )
 
@@ -94,26 +94,26 @@ class TestComponents:
         Test the partial swarm extraction methods.
         """
         colloid_1 = Colloid(
-            pos=np.array([0.0, 0.0, 0.0]),
-            director=np.array([0.0, 0.0, 1.0]),
+            pos=jnp.array([0.0, 0.0, 0.0]),
+            director=jnp.array([0.0, 0.0, 1.0]),
             id=0,
-            velocity=np.array([0.0, 0.0, 0.0]),
+            velocity=jnp.array([0.0, 0.0, 0.0]),
             type=0,
         )
 
         colloid_2 = Colloid(
-            pos=np.array([0.0, 0.0, 0.0]),
-            director=np.array([0.0, 0.0, 1.0]),
+            pos=jnp.array([0.0, 0.0, 0.0]),
+            director=jnp.array([0.0, 0.0, 1.0]),
             id=1,
-            velocity=np.array([0.0, 0.0, 0.0]),
+            velocity=jnp.array([0.0, 0.0, 0.0]),
             type=0,
         )
 
         colloid_3 = Colloid(
-            pos=np.array([0.0, 0.0, 0.0]),
-            director=np.array([0.0, 0.0, 1.0]),
+            pos=jnp.array([0.0, 0.0, 0.0]),
+            director=jnp.array([0.0, 0.0, 1.0]),
             id=2,
-            velocity=np.array([0.0, 0.0, 0.0]),
+            velocity=jnp.array([0.0, 0.0, 0.0]),
             type=1,
         )
 

@@ -8,7 +8,7 @@ from abc import ABC
 from typing import List
 
 import jax
-import jax.numpy as np
+import jax.numpy as jnp
 import numpy as onp
 from flax import linen as nn
 from flax.core.frozen_dict import FrozenDict
@@ -122,7 +122,7 @@ class FlaxModel(Network, ABC):
                 initial state of model to then be trained.
                 If you have multiple optimizers, this will create a custom train state.
         """
-        params = self.model.init(init_rng, np.ones(list(self.input_shape)))["params"]
+        params = self.model.init(init_rng, jnp.ones(list(self.input_shape)))["params"]
 
         if isinstance(self.optimizer, dict):
             CustomTrainState = self._create_custom_train_state(self.optimizer)
@@ -176,7 +176,7 @@ class FlaxModel(Network, ABC):
 
         Returns
         -------
-        tuple : (np.ndarray, Optional[np.ndarray])
+        tuple : (jnp.ndarray, Optional[jnp.ndarray])
                 Discrete mode:
                     ``(indices, chosen_log_probs)``, where chosen log-probs
                     (softmaxed network output) are gathered from ``log softmax(logits)``
@@ -193,11 +193,11 @@ class FlaxModel(Network, ABC):
         # Compute state
         try:
             logits, _ = self.apply_fn(
-                {"params": self.model_state.params}, np.array(observables)
+                {"params": self.model_state.params}, jnp.array(observables)
             )
         except AttributeError:  # We need this for loaded models.
             logits, _ = self.apply_fn(
-                {"params": self.model_state["params"]}, np.array(observables)
+                {"params": self.model_state["params"]}, jnp.array(observables)
             )
         logger.debug(f"{logits=}")  # (n_colloids, n_actions)
         sampling_key = self._next_rng_key()
@@ -269,14 +269,14 @@ class FlaxModel(Network, ABC):
         ----------
         parmas : dict
                 Parameters of the model.
-        episode_features: np.ndarray (n_steps, n_agents, observable_dimension)
+        episode_features: jnp.ndarray (n_steps, n_agents, observable_dimension)
                 Features of the episode. This contains the features of all agents,
                 for all time steps in the episode.
 
 
         Returns
         -------
-        logits : np.ndarray
+        logits : jnp.ndarray
                 Output of the network.
         """
 

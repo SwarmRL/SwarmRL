@@ -5,7 +5,7 @@ Class for the species search task.
 from typing import List
 
 import jax
-import jax.numpy as np
+import jax.numpy as jnp
 import numpy as onp
 
 from swarmrl.components.colloid import Colloid
@@ -20,7 +20,7 @@ class SpeciesSearch(Task):
     def __init__(
         self,
         decay_fn: callable,
-        box_length: np.ndarray,
+        box_length: jnp.ndarray,
         sensing_type: int = 0,
         avoid: bool = False,
         scale_factor: int = 100,
@@ -34,7 +34,7 @@ class SpeciesSearch(Task):
         ----------
         decay_fn : callable
                 Decay function of the field.
-        box_size : np.ndarray
+        box_size : jnp.ndarray
                 Array for scaling of the distances.
         sensing_type : int (default=0)
                 Type of particle to sense.
@@ -77,7 +77,7 @@ class SpeciesSearch(Task):
         Updates the class state.
         """
         reference_ids = self.get_colloid_indices(colloids)
-        historic_values = np.zeros(len(reference_ids))
+        historic_values = jnp.zeros(len(reference_ids))
 
         positions = []
         indices = []
@@ -85,12 +85,12 @@ class SpeciesSearch(Task):
             indices.append(colloids[index].id)
             positions.append(colloids[index].pos)
 
-        test_points = np.array([
+        test_points = jnp.array([
             colloid.pos for colloid in colloids if colloid.type == self.sensing_type
         ])
 
         out_indices, _, field_values = self.task_fn(
-            np.array(indices), np.array(positions), test_points, historic_values
+            jnp.array(indices), jnp.array(positions), test_points, historic_values
         )
 
         for index, value in zip(out_indices, onp.array(field_values)):
@@ -99,8 +99,8 @@ class SpeciesSearch(Task):
     def compute_single_particle_task(
         self,
         index: int,
-        reference_position: np.ndarray,
-        test_positions: np.ndarray,
+        reference_position: jnp.ndarray,
+        test_positions: jnp.ndarray,
         historic_value: float,
     ) -> tuple:
         """
@@ -110,9 +110,9 @@ class SpeciesSearch(Task):
         ----------
         index : int
                 Index of the colloid to compute the observable for.
-        reference_position : np.ndarray (3,)
+        reference_position : jnp.ndarray (3,)
                 Position of the reference colloid.
-        test_positions : np.ndarray (n_colloids, 3)
+        test_positions : jnp.ndarray (n_colloids, 3)
                 Positions of the test colloids.
         historic_value : float
                 Historic value of the observable.
@@ -125,7 +125,7 @@ class SpeciesSearch(Task):
         task_value : float
                 Value of the task.
         """
-        distances = np.linalg.norm(
+        distances = jnp.linalg.norm(
             (test_positions - reference_position) / self.box_length, axis=-1
         )
 
@@ -133,7 +133,7 @@ class SpeciesSearch(Task):
         if self.sensing_type == self.particle_type:
             include_mask = distances > 0
         else:
-            include_mask = np.ones_like(distances, dtype=bool)
+            include_mask = jnp.ones_like(distances, dtype=bool)
 
         field_terms = self.decay_fn(distances) * include_mask.astype(distances.dtype)
         field_value = field_terms.sum()
@@ -175,23 +175,23 @@ class SpeciesSearch(Task):
             positions.append(colloids[index].pos)
             historic_values.append(self.historical_field[str(colloids[index].id)])
 
-        test_points = np.array([
+        test_points = jnp.array([
             colloid.pos for colloid in colloids if colloid.type == self.sensing_type
         ])
 
         out_indices, task_values, field_values = self.task_fn(
-            np.array(indices),
-            np.array(positions),
+            jnp.array(indices),
+            jnp.array(positions),
             test_points,
-            np.array(historic_values),
+            jnp.array(historic_values),
         )
 
         for index, value in zip(out_indices, onp.array(field_values)):
             self.historical_field[str(index)] = value
 
         if self.avoid:
-            rewards = np.clip(task_values, None, 0)
+            rewards = jnp.clip(task_values, None, 0)
         else:
-            rewards = np.clip(task_values, 0, None)
+            rewards = jnp.clip(task_values, 0, None)
 
         return self.scale_factor * rewards

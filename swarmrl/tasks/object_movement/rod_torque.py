@@ -5,7 +5,7 @@ Class for rod rotation task.
 from typing import List
 
 import jax
-import jax.numpy as np
+import jax.numpy as jnp
 import numpy as onp
 
 from swarmrl.components.colloid import Colloid
@@ -60,7 +60,7 @@ class RodTorque(Task):
             angular_velocity_scale *= -1  # CW is negative
 
         self.angular_velocity_scale = angular_velocity_scale
-        self._velocity_history_list = np.full(velocity_history_size, np.nan)
+        self._velocity_history_list = jnp.full(velocity_history_size, jnp.nan)
 
         self.decomp_fn = jax.jit(compute_torque_partition_on_rod)
 
@@ -80,7 +80,7 @@ class RodTorque(Task):
         -------
         Updates the class state.
         """
-        self._velocity_history_list = np.full(self.velocity_history_size, np.nan)
+        self._velocity_history_list = jnp.full(self.velocity_history_size, jnp.nan)
         for item in colloids:
             if item.type == self.rod_type:
                 self._historic_rod_director = onp.copy(item.director)
@@ -88,25 +88,25 @@ class RodTorque(Task):
 
     def _compute_torque_on_rod(
         self,
-        rod_positions: np.ndarray,
-        colloid_directors: np.ndarray,
-        colloid_positions: np.ndarray,
-    ) -> np.ndarray:
+        rod_positions: jnp.ndarray,
+        colloid_directors: jnp.ndarray,
+        colloid_positions: jnp.ndarray,
+    ) -> jnp.ndarray:
         """
         Compute the torques on the rod.
 
         Parameters
         ----------
-        rod_positions : np.ndarray (n_rod, 3)
+        rod_positions : jnp.ndarray (n_rod, 3)
                 Positions of the rod particles.
-        colloid_directors : np.ndarray (n_colloids, 3)
+        colloid_directors : jnp.ndarray (n_colloids, 3)
                 Directors of the colloids.
-        colloid_positions : np.ndarray (n_colloids, 3)
+        colloid_positions : jnp.ndarray (n_colloids, 3)
                 Positions of the colloids.
 
         Returns
         -------
-        torques : np.ndarray (n_colloids, )
+        torques : jnp.ndarray (n_colloids, )
                 Torques on the rod for each colloid.
         """
         torques = self.decomp_fn(rod_positions, colloid_directors, colloid_positions)[
@@ -114,14 +114,14 @@ class RodTorque(Task):
         ]
         return torques
 
-    def _compute_angular_velocity(self, new_director: np.ndarray):
+    def _compute_angular_velocity(self, new_director: jnp.ndarray):
         """
         Compute the average angular velocity of the rod. This gets clipped,
         so that negative values become 0.
 
         Parameters
         ----------
-        new_director : np.ndarray (3, )
+        new_director : jnp.ndarray (3, )
                 New rod director.
 
         Returns
@@ -129,17 +129,17 @@ class RodTorque(Task):
         angular_velocity : float
                 Angular velocity of the rod
         """
-        angular_velocity = np.arctan2(
-            np.cross(self._historic_rod_director[:2], new_director[:2]),
-            np.dot(self._historic_rod_director[:2], new_director[:2]),
+        angular_velocity = jnp.arctan2(
+            jnp.cross(self._historic_rod_director[:2], new_director[:2]),
+            jnp.dot(self._historic_rod_director[:2], new_director[:2]),
         )
 
         # Convert to degree for easier handling
-        angular_velocity = np.rad2deg(angular_velocity)
+        angular_velocity = jnp.rad2deg(angular_velocity)
 
         # Update the historical rod director and velocity.
         self._historic_rod_director = new_director
-        self._velocity_history_list = np.roll(self._velocity_history_list, -1)
+        self._velocity_history_list = jnp.roll(self._velocity_history_list, -1)
         self._velocity_history_list = self._velocity_history_list.at[-1].set(
             angular_velocity
         )
@@ -147,37 +147,37 @@ class RodTorque(Task):
         # Return the clipped average velocity. nanmean ignores the not-yet-filled
         # entries so the mean is unbiased before the history buffer is full.
         if self.angular_velocity_scale > 0.0:
-            return np.clip(np.nanmean(self._velocity_history_list), 0.0, None)
+            return jnp.clip(jnp.nanmean(self._velocity_history_list), 0.0, None)
         else:
-            return np.clip(np.nanmean(self._velocity_history_list), None, 0.0)
+            return jnp.clip(jnp.nanmean(self._velocity_history_list), None, 0.0)
 
     def sort_out_opposite_direction_torques(
         self,
-        colloid_torques_on_rod: np.ndarray,
-    ) -> np.ndarray:
+        colloid_torques_on_rod: jnp.ndarray,
+    ) -> jnp.ndarray:
         """
         Remove rewards for torque in the wrong direction.
 
         Parameters
         ----------
-        colloid_torque_on_rod : np.ndarray (n_colloids, )
+        colloid_torque_on_rod : jnp.ndarray (n_colloids, )
                 Torques of the colloids on the rod.
 
         Returns
         -------
-        torques_in_direction : np.ndarray (n_colloids, )
+        torques_in_direction : jnp.ndarray (n_colloids, )
                 Torques on the rod for each colloid with wrong directions set to 0.
         """
         # Sign of the torques has to be inverted to avoid negative rewards.
-        sign = np.sign(self.angular_velocity_scale)
-        return np.clip(-sign * colloid_torques_on_rod, 0.0, None) * sign
+        sign = jnp.sign(self.angular_velocity_scale)
+        return jnp.clip(-sign * colloid_torques_on_rod, 0.0, None) * sign
 
     def _compute_torque_and_velocity_reward(
         self,
-        rod_directors: np.ndarray,
-        rod_positions: np.ndarray,
-        colloid_directors: np.ndarray,
-        colloid_positions: np.ndarray,
+        rod_directors: jnp.ndarray,
+        rod_positions: jnp.ndarray,
+        colloid_directors: jnp.ndarray,
+        colloid_positions: jnp.ndarray,
     ):
         """
         Get the torques, the turning velocity and apply the scaling.
@@ -187,18 +187,18 @@ class RodTorque(Task):
 
         Parameters
         ----------
-        rod_directors : np.ndarray (n_rod, 3)
+        rod_directors : jnp.ndarray (n_rod, 3)
                 Directors of the rod.
-        rod_positions : np.ndarray (n_rod, 3)
+        rod_positions : jnp.ndarray (n_rod, 3)
                 Positions of the rod particles.
-        colloid_directors : np.ndarray (n_colloids, 3)
+        colloid_directors : jnp.ndarray (n_colloids, 3)
                 Directors of the colloids.
-        colloid_positions : np.ndarray (n_rod, 3)
+        colloid_positions : jnp.ndarray (n_rod, 3)
                 Positions of the colloids.
 
         Returns
         -------
-        rewards : np.ndarray (n_colloids, )
+        rewards : jnp.ndarray (n_colloids, )
                 Rewards for each colloid.
         """
 
@@ -226,12 +226,12 @@ class RodTorque(Task):
         """
         # Collect the important data.
         rod_data = [(c.pos, c.director) for c in colloids if c.type == self.rod_type]
-        rod_positions, rod_directors = map(np.array, zip(*rod_data))
+        rod_positions, rod_directors = map(jnp.array, zip(*rod_data))
 
         colloid_data = [
             (c.pos, c.director) for c in colloids if c.type == self.particle_type
         ]
-        colloid_positions, colloid_directors = map(np.array, zip(*colloid_data))
+        colloid_positions, colloid_directors = map(jnp.array, zip(*colloid_data))
 
         rewards = self._compute_torque_and_velocity_reward(
             rod_directors, rod_positions, colloid_directors, colloid_positions

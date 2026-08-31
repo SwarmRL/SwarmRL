@@ -1,7 +1,7 @@
 """Action selection orchestration for discrete and continuous stacks."""
 
 import jax
-import jax.numpy as np
+import jax.numpy as jnp
 
 from swarmrl.exploration_policies.exploration_policy import (
     ContinuousExplorationPolicy,
@@ -54,7 +54,7 @@ class ActionSelector:
 
     def select(
         self,
-        logits: np.ndarray,
+        logits: jnp.ndarray,
         deployment_mode: bool,
         sampling_key,
         exploration_key,
@@ -67,9 +67,9 @@ class ActionSelector:
                 indices = self.exploration_policy(
                     indices, logits.shape[-1], exploration_key
                 )
-            expanded_indices = np.expand_dims(indices, axis=-1)
-            chosen_log_probs = np.take_along_axis(log_probs, expanded_indices, axis=-1)
-            chosen_log_probs = np.squeeze(chosen_log_probs, axis=-1)
+            expanded_indices = jnp.expand_dims(indices, axis=-1)
+            chosen_log_probs = jnp.take_along_axis(log_probs, expanded_indices, axis=-1)
+            chosen_log_probs = jnp.squeeze(chosen_log_probs, axis=-1)
 
             return indices, chosen_log_probs
 
