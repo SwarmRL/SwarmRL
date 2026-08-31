@@ -2,6 +2,7 @@
 Various functions for operating on colloids.
 """
 
+import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List
 
@@ -16,6 +17,10 @@ if TYPE_CHECKING:
 class TrajectoryInformation:
     """
     Helper dataclass for training RL models.
+
+    Features, actions, rewards, and boundary flags contain one entry per transition.
+    ``final_observation`` is the observation reached after the final transition. It
+    has no corresponding action or reward and is used only for value bootstrapping.
     """
 
     particle_type: int
@@ -23,7 +28,22 @@ class TrajectoryInformation:
     actions: list = field(default_factory=list)
     log_probs: list = field(default_factory=list)
     rewards: list = field(default_factory=list)
-    killed: bool = False
+    terminated: list = field(default_factory=list)
+    truncated: list = field(default_factory=list)
+    final_observation: object | None = None
+
+    @property
+    def killed(self) -> bool:
+        """Return whether the trajectory contains a terminal transition.
+
+        Deprecated in favor of the per-transition ``terminated`` flags.
+        """
+        warnings.warn(
+            "TrajectoryInformation.killed is deprecated; use terminated instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return any(self.terminated)
 
 
 @jax.jit

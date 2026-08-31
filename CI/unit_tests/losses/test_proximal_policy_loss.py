@@ -12,18 +12,18 @@ class DummyNetwork:
     def apply_fn(self, params, features):
         out_shape = jnp.shape(features)
         log_probs = 2.0 * jnp.ones((out_shape[0], out_shape[1], 4))
-        values = jnp.array([jnp.ones((out_shape[0], out_shape[1]))])
+        values = jnp.ones((out_shape[0], out_shape[1], 1))
         return log_probs, values
 
     def __call__(self, params, features):
         return self.apply_fn(params, features)
 
 
-def dummy_value_function(rewards, values):
+def dummy_value_function(rewards, values, terminated, truncated):
     advantages = jnp.ones_like(rewards)
     sign = jnp.sign(rewards)
 
-    returns = 2 * jnp.array([jnp.ones_like(rewards)])
+    returns = 2 * jnp.ones_like(rewards)
     return advantages * sign, returns
 
 
@@ -60,6 +60,9 @@ class TestProximalPolicyLoss:
         network_params = 10
 
         features = jnp.ones((n_time_steps, n_particles, observable_dimension))
+        final_observation = jnp.ones((n_particles, observable_dimension))
+        terminated = jnp.zeros(n_time_steps, dtype=bool)
+        truncated = jnp.zeros(n_time_steps, dtype=bool)
 
         actions = jnp.ones((n_time_steps, n_particles), dtype=int)
 
@@ -91,6 +94,9 @@ class TestProximalPolicyLoss:
                         action_indices=actions,
                         old_log_probs=probs,
                         rewards=rewards,
+                        final_observation=final_observation,
+                        terminated=terminated,
+                        truncated=truncated,
                     )
                 )
 
@@ -99,6 +105,7 @@ class TestProximalPolicyLoss:
             return jnp.exp(new_log_props - old_log_probs)
 
         new_logits, new_predicted_values = network.apply_fn(network_params, features)
+        new_predicted_values = new_predicted_values.squeeze(axis=-1)
         # the dummy_actor will return just 2
         new_log_probs_all = jnp.log(jax.nn.softmax(new_logits, axis=-1) + 1e-8)
         new_log_probs = gather_n_dim_indices(new_log_probs_all, actions)
@@ -110,7 +117,9 @@ class TestProximalPolicyLoss:
         for probs in old_log_probs_list:
             for rewards in rewards_list:
                 ratios = ratio(new_log_probs, probs)
-                advantages, returns = value_function(rewards, None)
+                advantages, returns = value_function(
+                    rewards, None, terminated, truncated
+                )
                 clipped_loss = -1 * jnp.minimum(
                     ratios * advantages,
                     jnp.clip(ratios, 1 - epsilon, 1 + epsilon) * advantages,
@@ -125,3 +134,38 @@ class TestProximalPolicyLoss:
         # compare the results of the PPO loss function with the results computed by hand
         for i, ppo_loss in enumerate(results):
             tst.assert_almost_equal(ppo_loss, true_results[i], decimal=3)
+
+    def test_bootstrapped_return_is_a_detached_critic_target(self):
+        class ParameterizedNetwork:
+            def __call__(self, params, features):
+                shape = features.shape[:2]
+                logits = jnp.zeros((*shape, 2))
+                values = params * jnp.ones((*shape, 1))
+                return logits, values
+
+        def value_function(rewards, values, terminated, truncated):
+            advantages = jnp.zeros_like(rewards)
+            returns = 2.0 * values[1:]
+            return advantages, returns
+
+        loss = ProximalPolicyLoss(
+            value_function=value_function,
+            entropy_coefficient=0.0,
+            n_epochs=1,
+        )
+        features = jnp.ones((2, 1, 1))
+        final_observation = jnp.ones((1, 1))
+
+        gradient = jax.grad(loss._calculate_loss)(
+            jnp.array(1.0),
+            network=ParameterizedNetwork(),
+            feature_data=features,
+            action_indices=jnp.zeros((2, 1), dtype=int),
+            rewards=jnp.zeros((2, 1)),
+            old_log_probs=jnp.full((2, 1), -jnp.log(2.0)),
+            final_observation=final_observation,
+            terminated=jnp.zeros(2, dtype=bool),
+            truncated=jnp.zeros(2, dtype=bool),
+        )
+
+        assert gradient < 0.0

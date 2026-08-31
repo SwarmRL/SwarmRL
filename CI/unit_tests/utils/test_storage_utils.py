@@ -33,7 +33,12 @@ def _make_agent_trajectory(
     trajectory.rewards = np.full(
         (episode_length, n_colloids), base_value + 0.2, dtype=float
     )
-    trajectory.killed = bool(base_value > 5.0)
+    trajectory.terminated = np.zeros(episode_length, dtype=bool)
+    trajectory.truncated = np.zeros(episode_length, dtype=bool)
+    trajectory.terminated[-1] = bool(base_value > 5.0)
+    trajectory.final_observation = np.full(
+        (n_colloids, 1), base_value + 0.3, dtype=np.float32
+    )
     return trajectory
 
 
@@ -52,6 +57,9 @@ def _make_agent_trajectory_vector_features(
     )
     full_shape = (episode_length, n_colloids, *feature_shape)
     trajectory.features = np.full(full_shape, base_value, dtype=np.float32)
+    trajectory.final_observation = np.full(
+        (n_colloids, *feature_shape), base_value + 0.3, dtype=np.float32
+    )
     return trajectory
 
 
@@ -337,26 +345,50 @@ class TestStorageWriters:
             assert "log_probs" not in group
             assert "features" not in group
 
-    def test_agent_storage_persists_killed(self, tmp_path: Path):
+    def test_agent_storage_persists_transition_boundaries(self, tmp_path: Path):
         storage = AgentTrajectoryStorage(
-            particle_type=4,
+            particle_type=5,
             out_folder=str(tmp_path),
-            stored_attributes=["killed"],
+            stored_attributes=["terminated", "truncated", "final_observation"],
         )
         trajectory = _make_agent_trajectory(
-            4,
-            episode_length=3,
-            n_colloids=2,
-            base_value=6.0,
+            5, episode_length=3, n_colloids=2, base_value=6.0
         )
+        trajectory.truncated[:] = [False, True, False]
 
         storage.write(trajectory)
 
-        file_path = tmp_path / "agent_data_4.hdf5"
-        with h5py.File(file_path.as_posix(), "r") as h5_file:
-            group = h5_file["Agent_4"]
-            assert group["killed"].shape == (1, 1)
-            assert bool(group["killed"][0, 0]) is True
+        with h5py.File(tmp_path / "agent_data_5.hdf5", "r") as h5_file:
+            group = h5_file["Agent_5"]
+            npt.assert_array_equal(group["terminated"][0], trajectory.terminated)
+            npt.assert_array_equal(group["truncated"][0], trajectory.truncated)
+            npt.assert_allclose(
+                group["final_observation"][0], trajectory.final_observation
+            )
+
+    def test_agent_storage_pads_variable_length_trajectories(self, tmp_path: Path):
+        storage = AgentTrajectoryStorage(
+            particle_type=6,
+            out_folder=str(tmp_path),
+            preset="verbose",
+        )
+        full_rollout = _make_agent_trajectory(
+            6, episode_length=3, n_colloids=2, base_value=1.0
+        )
+        terminated_rollout = _make_agent_trajectory(
+            6, episode_length=1, n_colloids=2, base_value=7.0
+        )
+
+        storage.write(full_rollout)
+        storage.write(terminated_rollout)
+
+        with h5py.File(tmp_path / "agent_data_6.hdf5", "r") as h5_file:
+            group = h5_file["Agent_6"]
+            npt.assert_array_equal(group["trajectory_length"][:], [3, 1])
+            npt.assert_array_equal(group["terminated"][1], [True, False, False])
+            npt.assert_array_equal(
+                group["actions"][1, 0], terminated_rollout.actions[0]
+            )
 
     def test_sim_storage_batch_write_appends(self, tmp_path: Path):
         storage = SimulationTrajectoryStorage(
