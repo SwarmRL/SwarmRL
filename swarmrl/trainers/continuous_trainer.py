@@ -2,6 +2,8 @@
 Module to implement a simple multi-layer perceptron for the colloids.
 """
 
+import warnings
+
 import numpy as np
 from loguru import logger
 from rich.progress import BarColumn, Progress, TimeRemainingColumn
@@ -13,12 +15,25 @@ from swarmrl.trainers.trainer import Trainer
 class ContinuousTrainer(Trainer):
     """
     Class for the simple MLP RL implementation.
+    Deprecated: Use UniversalTrainer instead.
 
     Attributes
     ----------
     rl_protocols : list(protocol)
             A list of RL protocols to use in the simulation.
     """
+
+    def __init__(self, *args, **kwargs):
+        # Discussable. If we want to go for the universal trainer,
+        # we don't need this class anymore. Then, we can also rename the
+        # UniversalTrainer to Trainer, removing the Parent class?
+        warnings.warn(
+            "ContinuousTrainer is deprecated and might be removed in future versions."
+            "Please use the UniversalTrainer instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
 
     def perform_rl_training(
         self,

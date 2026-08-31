@@ -77,7 +77,7 @@ class ActionSelector:
             calculate_log_probs = not deployment_mode
             sampled_actions, log_probs = self.sampling_strategy(
                 logits=logits,
-                subkey=sampling_key,
+                rng_key=sampling_key,
                 calculate_log_probs=calculate_log_probs,
                 deployment_mode=deployment_mode,
             )

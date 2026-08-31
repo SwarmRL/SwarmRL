@@ -1,41 +1,27 @@
-"""Trajectory storages for agent and simulation data."""
+"""Trajectory storages for agent, transition, and simulation data."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 
 from swarmrl.utils.storage_utils.core_storage import HDF5TrajectoryStorage
 
 
-class AgentTrajectoryStorage(HDF5TrajectoryStorage):
-    """HDF5 storage for agent trajectory data with configurable fields."""
+class ConfigurableTrajectoryStorage(HDF5TrajectoryStorage):
+    """Intermediate base class to handle attribute validation and filtering."""
 
-    ALLOWED_FIELDS = {
-        "actions",
-        "log_probs",
-        "rewards",
-        "features",
-        "killed",
-    }
-    PRESETS = {
-        "minimal": ("actions", "rewards"),
-        "all": (
-            "actions",
-            "log_probs",
-            "rewards",
-            "features",
-            "killed",
-        ),
-    }
-    PRESETS["verbose"] = PRESETS["all"]
+    ALLOWED_FIELDS: set[str] = set()
+    PRESETS: dict[str, Sequence[str]] = {}
 
     def __init__(
         self,
-        particle_type: int,
-        out_folder: str = "./Agent_Data",
+        out_folder: str,
+        filename: str,
+        h5_group_tag: str,
         preset: str = "minimal",
-        stored_attributes: list = None,
+        stored_attributes: Sequence[str] | None = None,
         allow_existing_file: bool = False,
         write_chunk_size: int = 1,
     ):
@@ -44,14 +30,16 @@ class AgentTrajectoryStorage(HDF5TrajectoryStorage):
 
         Parameters
         ----------
-        particle_type : int
-            Particle type ID.
         out_folder : str (default="./Agent_Data")
             Output folder path.
+        filename : str
+            filename of the stored Agent file.
+        h5_group_tag : str
+            Tag for hdf5 storage structure
         preset : str (default="minimal")
             Preset for storage: "minimal" or "all".
             Ignored if stored_attributes is provided.
-        stored_attributes : list (default=None)
+        stored_attributes : Sequence[str] | None (default=None)
             Explicit whitelist of attributes to store
             (e.g., ["actions", "features"]).
             Overrides preset if provided.
@@ -82,14 +70,11 @@ class AgentTrajectoryStorage(HDF5TrajectoryStorage):
                 )
 
             unknown_attributes = [
-                attribute
-                for attribute in normalized_attributes
-                if attribute not in self.ALLOWED_FIELDS
+                att for att in normalized_attributes if att not in self.ALLOWED_FIELDS
             ]
             if unknown_attributes:
                 raise ValueError(
-                    "Unknown stored_attributes: "
-                    f"{unknown_attributes}. "
+                    f"Unknown stored_attributes: {unknown_attributes}. "
                     f"Allowed: {sorted(self.ALLOWED_FIELDS)}"
                 )
 
@@ -97,87 +82,185 @@ class AgentTrajectoryStorage(HDF5TrajectoryStorage):
 
         super().__init__(
             out_folder=out_folder,
-            filename=f"agent_data_{particle_type}.hdf5",
+            filename=filename,
             allow_existing_file=allow_existing_file,
             write_chunk_size=write_chunk_size,
         )
-        self._h5_group_tag = f"Agent_{particle_type}"
-        self.particle_type = particle_type
+        self._h5_group_tag = h5_group_tag
 
-    def _get_dataset_specs(self, trajectory) -> Dict[str, Dict[str, Any]]:
+
+class AgentTrajectoryStorage(ConfigurableTrajectoryStorage):
+    """HDF5 storage for agent trajectory data with configurable fields."""
+
+    ALLOWED_FIELDS = {"actions", "log_probs", "rewards", "features", "killed"}
+    PRESETS = {
+        "minimal": ("actions", "rewards"),
+        "all": ("actions", "log_probs", "rewards", "features", "killed"),
+        "verbose": ("actions", "log_probs", "rewards", "features", "killed"),
+    }
+
+    def __init__(
+        self,
+        particle_type: int,
+        out_folder: str = "./Agent_Data",
+        preset: str = "minimal",
+        stored_attributes: Sequence[str] | None = None,
+        allow_existing_file: bool = False,
+        write_chunk_size: int = 1,
+    ):
+        self.particle_type = particle_type
+        super().__init__(
+            out_folder=out_folder,
+            filename=f"agent_data_{particle_type}.hdf5",
+            h5_group_tag=f"Agent_{particle_type}",
+            preset=preset,
+            stored_attributes=stored_attributes,
+            allow_existing_file=allow_existing_file,
+            write_chunk_size=write_chunk_size,
+        )
+
+    def _format_field(self, field_name: str, trajectory: Any) -> np.ndarray | None:
+        """Helper to safely extract and format specific fields."""
+        if not hasattr(trajectory, field_name):
+            return None
+
+        val = getattr(trajectory, field_name)
+        if val is None:
+            return None
+
+        # Special casing for scalar/boolean values and optional features
+        if field_name == "killed":
+            return np.asarray([val], dtype=np.bool_)
+        if field_name == "features":
+            arr = np.asarray(val)
+            return arr if arr.size > 0 else None
+
+        return np.asarray(val)
+
+    def _get_dataset_specs(self, trajectory: Any) -> dict[str, dict[str, Any]]:
         specs = {}
 
-        if "actions" in self.stored_attributes:
-            actions = np.asarray(trajectory.actions)
-            specs["actions"] = {
-                "shape": (1, *actions.shape),
-                "maxshape": (None, *actions.shape),
-                "dtype": actions.dtype,
-            }
-        if "log_probs" in self.stored_attributes:
-            log_probs = np.asarray(trajectory.log_probs)
-            specs["log_probs"] = {
-                "shape": (1, *log_probs.shape),
-                "maxshape": (None, *log_probs.shape),
-                "dtype": log_probs.dtype,
-            }
-        if "rewards" in self.stored_attributes:
-            rewards = np.asarray(trajectory.rewards)
-            specs["rewards"] = {
-                "shape": (1, *rewards.shape),
-                "maxshape": (None, *rewards.shape),
-                "dtype": rewards.dtype,
-            }
-
-        if "features" in self.stored_attributes:
-            if getattr(trajectory, "features", None) is not None:
-                features = np.asarray(trajectory.features)
-                if features.size > 0:
-                    specs["features"] = {
-                        "shape": (1, *features.shape),
-                        "maxshape": (None, *features.shape),
-                        "dtype": features.dtype,
-                    }
-        if "killed" in self.stored_attributes:
-            killed = np.asarray([trajectory.killed], dtype=np.bool_)
-            specs["killed"] = {
-                "shape": (1, 1),
-                "maxshape": (None, 1),
-                "dtype": killed.dtype,
-            }
-
+        for attr in self.stored_attributes:
+            arr = self._format_field(attr, trajectory)
+            if arr is not None:
+                specs[attr] = {
+                    "shape": (1, *arr.shape),
+                    "maxshape": (None, *arr.shape),
+                    "dtype": arr.dtype,
+                }
         return specs
 
-    def _extract_sample(self, trajectory) -> Dict[str, Any]:
+    def _extract_sample(self, trajectory: Any) -> dict[str, Any]:
         sample = {}
 
-        if "actions" in self.stored_attributes:
-            sample["actions"] = trajectory.actions
-        if "log_probs" in self.stored_attributes:
-            sample["log_probs"] = trajectory.log_probs
-        if "rewards" in self.stored_attributes:
-            sample["rewards"] = trajectory.rewards
-        if "killed" in self.stored_attributes:
-            sample["killed"] = np.asarray([trajectory.killed], dtype=np.bool_)
-
-        if "features" in self.stored_attributes:
-            if getattr(trajectory, "features", None) is not None:
-                features = np.asarray(trajectory.features)
-                if features.size > 0:
-                    sample["features"] = trajectory.features
-
+        for attr in self.stored_attributes:
+            arr = self._format_field(attr, trajectory)
+            if arr is not None:
+                sample[attr] = arr
         return sample
 
 
-@dataclass
-class AgentStorageConfig:
-    """Configuration for optional agent trajectory storage."""
+class TransitionTrajectoryStorage(ConfigurableTrajectoryStorage):
+    """HDF5 storage for off-policy transition data."""
 
-    out_folder: str = "./agent_data"
+    ALLOWED_FIELDS = {
+        "observation",
+        "action",
+        "reward",
+        "next_observation",
+        "terminated",
+        "truncated",
+    }
+    PRESETS = {
+        "minimal": (
+            "action",
+            "reward",
+        ),
+        "all": (
+            "observation",
+            "action",
+            "reward",
+            "next_observation",
+            "terminated",
+            "truncated",
+        ),
+        "verbose": (
+            "observation",
+            "action",
+            "reward",
+            "next_observation",
+            "terminated",
+            "truncated",
+        ),
+    }
+
+    def __init__(
+        self,
+        particle_type: int,
+        out_folder: str = "./Transition_Data",
+        preset: str = "minimal",
+        stored_attributes: Sequence[str] | None = None,
+        allow_existing_file: bool = False,
+        write_chunk_size: int = 1,
+    ):
+        self.particle_type = particle_type
+        super().__init__(
+            out_folder=out_folder,
+            filename=f"sac_transition_data_{particle_type}.hdf5",
+            h5_group_tag=f"SAC_{particle_type}",
+            preset=preset,
+            stored_attributes=stored_attributes,
+            allow_existing_file=allow_existing_file,
+            write_chunk_size=write_chunk_size,
+        )
+
+    def _format_field(self, field_name: str, transition: Any) -> np.ndarray:
+        """Helper to safely extract and format specific fields."""
+        if not hasattr(transition, field_name):
+            return None
+        val = getattr(transition, field_name)
+        # Scalars need to be wrapped in an array for HDF5 concatenation
+        if field_name in {"reward", "terminated", "truncated"}:
+            return np.asarray([val])
+        return np.asarray(val)
+
+    def _get_dataset_specs(self, transition: Any) -> dict[str, dict[str, Any]]:
+        specs = {}
+        for attr in self.stored_attributes:
+            arr = self._format_field(attr, transition)
+            specs[attr] = {
+                "shape": (1, *arr.shape),
+                "maxshape": (None, *arr.shape),
+                "dtype": arr.dtype,
+            }
+        return specs
+
+    def _extract_sample(self, transition: Any) -> dict[str, Any]:
+        return {
+            attr: self._format_field(attr, transition)
+            for attr in self.stored_attributes
+        }
+
+
+@dataclass
+class StorageConfig:
+    """Base Configuration for trajectory storage."""
+
+    out_folder: str
     storage_preset: str = "minimal"
     stored_attributes: list[str] | None = None
     allow_existing_file: bool = False
     write_chunk_size: int = 1
+
+
+@dataclass
+class AgentStorageConfig(StorageConfig):
+    out_folder: str = "./agent_data"
+
+
+@dataclass
+class TransitionStorageConfig(StorageConfig):
+    out_folder: str = "./transition_data"
 
 
 class SimulationTrajectoryStorage(HDF5TrajectoryStorage):
@@ -196,8 +279,7 @@ class SimulationTrajectoryStorage(HDF5TrajectoryStorage):
         )
         self._h5_group_tag = h5_group_tag
 
-    @staticmethod
-    def _get_dataset_specs(timestep_data: Dict) -> Dict[str, Dict[str, Any]]:
+    def _get_dataset_specs(self, timestep_data: dict) -> dict[str, dict[str, Any]]:
         n_particles = len(timestep_data.get("Ids", []))
 
         return {
@@ -233,8 +315,7 @@ class SimulationTrajectoryStorage(HDF5TrajectoryStorage):
             },
         }
 
-    @staticmethod
-    def _extract_sample(timestep_data: Dict) -> Dict[str, Any]:
+    def _extract_sample(self, timestep_data: dict) -> dict[str, Any]:
         return {
             "Times": timestep_data["Times"],
             "Ids": timestep_data["Ids"],

@@ -4,7 +4,9 @@ Parent class for the networks.
 
 from typing import List
 
+import jax
 import jax.numpy as np
+import numpy as onp
 from flax.core.frozen_dict import FrozenDict
 
 from swarmrl.components.colloid import Colloid
@@ -14,6 +16,16 @@ class Network:
     """
     A parent class for the networks that will be used.
     """
+
+    def __init__(self, seed: int | None = None):
+        if seed is None:
+            seed = int(onp.random.randint(0, 2**31 - 1))
+        self._rng_key = jax.random.PRNGKey(int(seed))
+
+    def _next_rng_key(self):
+        """Split and advance internal RNG state, returning a fresh subkey."""
+        self._rng_key, subkey = jax.random.split(self._rng_key)
+        return subkey
 
     def compute_action(self, observables: List[Colloid], explore_mode: bool = False):
         """

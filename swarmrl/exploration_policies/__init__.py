@@ -7,6 +7,7 @@ from swarmrl.exploration_policies.exploration_policy import (
     DiscreteExplorationPolicy,
     ExplorationPolicy,
 )
+from swarmrl.exploration_policies.no_exploration_policy import NoExplorationPolicy
 from swarmrl.exploration_policies.ornstein_uhlenbeck_exploration import (
     GlobalOUExploration,
 )
@@ -18,4 +19,5 @@ __all__ = [
     ContinuousExplorationPolicy.__name__,
     RandomExploration.__name__,
     GlobalOUExploration.__name__,
+    NoExplorationPolicy.__name__,
 ]

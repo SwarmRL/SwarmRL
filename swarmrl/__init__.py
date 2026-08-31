@@ -14,6 +14,7 @@ from swarmrl import (
     losses,
     networks,
     observables,
+    replay_buffer,
     sampling_strategies,
     tasks,
     trainers,
@@ -45,4 +46,5 @@ __all__ = [
     agents.__name__,
     training_routines.__name__,
     intrinsic_reward.__name__,
+    replay_buffer.__name__,
 ]

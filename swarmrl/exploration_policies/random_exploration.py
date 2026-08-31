@@ -27,7 +27,7 @@ class RandomExploration(DiscreteExplorationPolicy):
         """
         self.probability = probability
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnums=(0, 2))
     def __call__(
         self, model_actions: np.ndarray, action_space_length: int, rng_key: jax.Array
     ) -> np.ndarray:

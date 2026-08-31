@@ -1,47 +1,141 @@
 """Continuous Gaussian sampling strategy."""
 
-import logging
 from typing import Optional
 
 import jax
 import jax.numpy as jnp
-import numpy as onp
+from flax import struct
 
 from swarmrl.sampling_strategies.sampling_strategy import ContinuousSamplingStrategy
 
-logger = logging.getLogger(__name__)
+
+def soft_clip(x: jnp.ndarray, low: float, high: float) -> jnp.ndarray:
+    """
+    The first transform smoothly limits values from above (``high``), and the second
+    smoothly limits them from below (``low``). Unlike a hard clip, the transformation
+    has a positive mathematical gradient for every finite input, although
+    that gradient may become numerically zero for extreme values at finite
+    precision.
+
+    Note:
+    The sequential softplus construction is asymmetric. lower asymptote is
+    ``low``, while its upper asymptote exceeds ``high`` by
+    ``softplus(-(high - low))``. For the default log-standard-deviation
+    interval ``[-20, 2]``, this excess is negligible.
+    """
+    x = high - jax.nn.softplus(high - x)
+    x = low + jax.nn.softplus(x - low)
+    return x
 
 
+def action_limits_from_bounds(
+    action_dimension: int,
+    low: float,
+    high: float,
+    float_precision: jnp.dtype = jnp.float32,
+) -> jnp.ndarray:
+    """Build per-dimension action limits from scalar bounds."""
+    if action_dimension < 1:
+        raise ValueError("action_dimension must be at least 1")
+    if high <= low:
+        raise ValueError("high must be strictly greater than low")
+    limits = jnp.array([[low, high]] * action_dimension, dtype=float_precision)
+    return limits
+
+
+# Register the class as a JAX PyTree so it can cross JIT boundaries safely
+@struct.dataclass
 class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
     """
     Sample continuous actions from a Gaussian policy parameterization.
 
-    Expected logits shape is ``(batch_size, 2 * action_dimension)`` where the
-    first half encodes mean and the second half encodes log-std. Sampled actions
-    are optionally tanh-squashed to ``action_limits``, if provided.
-    In deployment mode, actions are deterministic (mean action) and
-    no log-probabilities are produced.
+    The trailing logits dimension must be ``2 * action_dimension``. The first
+    half parameterizes the Gaussian mean and the second half parameterizes its
+    log standard deviation. By default, raw log-standard-deviation values are
+    smoothly bounded between ``log_std_min`` and ``log_std_max``.
+
+    Sampled Gaussian actions are transformed to ``action_limits`` using a
+    tanh-affine mapping. In deployment mode, the transformed mean is returned
+    deterministically and log-probabilities are not computed.
     """
 
-    def __init__(
-        self,
+    # Static metadata fields are excluded from PyTree leaves.
+    action_dimension: int = struct.field(pytree_node=False)
+    action_limits: Optional[jnp.ndarray] = struct.field(pytree_node=True, default=None)
+    log_scale: Optional[jnp.ndarray] = struct.field(pytree_node=True, default=None)
+    log_std_min: float = struct.field(pytree_node=False, default=-20.0)
+    log_std_max: float = struct.field(pytree_node=False, default=2.0)
+    soft_clip_log_std: bool = struct.field(pytree_node=False, default=True)
+    float_precision: jnp.dtype = struct.field(pytree_node=False, default=jnp.float32)
+
+    @classmethod
+    def create(
+        cls,
         action_dimension: int,
         action_limits: Optional[jnp.ndarray] = None,
+        log_std_min: float = -20.0,
+        log_std_max: float = 2.0,
+        soft_clip_log_std: bool = True,
         float_precision: jnp.dtype = jnp.float32,
-    ):
-        self.action_dimension = int(action_dimension)
-        if action_limits is not None:
+    ) -> "ContinuousGaussianDistribution":
+        """
+        Create a bounded continuous Gaussian sampling strategy.
+
+        Parameters
+        ----------
+        action_dimension : int
+            Number of continuous action dimensions.
+        action_limits : Optional[jnp.ndarray]
+            Per-dimension lower and upper action bounds with shape
+            ``(action_dimension, 2)``. Defaults to ``[-1, 1]`` for every
+            dimension.
+        log_std_min : float
+            Lower smooth bound for the policy's raw log standard deviation.
+            This value is ignored when ``soft_clip_log_std`` is false.
+        log_std_max : float
+            Upper smooth bound for the policy's raw log standard deviation.
+            Defaults to ``2.0``, a commonly used SAC value. This value is
+            ignored when ``soft_clip_log_std`` is false.
+        soft_clip_log_std : bool
+            If true, smoothly bound the raw policy log standard deviation using
+            ``log_std_min`` and ``log_std_max``. If false, use it unchanged.
+        float_precision : jnp.dtype
+            Floating-point dtype used for limits, sampling, and returned actions.
+
+        Returns
+        -------
+        ContinuousGaussianDistribution
+            Configured sampling strategy.
+        """
+        if action_limits is None:
+            action_limits = action_limits_from_bounds(
+                action_dimension, -1.0, 1.0, float_precision
+            )
+        else:
             if action_limits.shape != (action_dimension, 2):
                 raise ValueError(
-                    f"action_limits shape is {action_limits.shape}"
+                    f"action_limits shape is {action_limits.shape} "
                     f"but should be {(action_dimension, 2)}"
                 )
-        self.action_limits = (
-            None
-            if action_limits is None
-            else jnp.asarray(action_limits, dtype=float_precision)
+            action_limits = jnp.asarray(action_limits, dtype=float_precision)
+            if not bool(jnp.all(action_limits[:, 1] > action_limits[:, 0])):
+                raise ValueError(
+                    "Each action upper bound must be strictly greater "
+                    "than its lower bound."
+                )
+
+        scale = (action_limits[:, 1] - action_limits[:, 0]) / 2.0
+        log_scale = jnp.log(scale)
+
+        return cls(
+            action_dimension=int(action_dimension),
+            action_limits=action_limits,
+            log_scale=log_scale,
+            log_std_min=float(log_std_min),
+            log_std_max=float(log_std_max),
+            soft_clip_log_std=bool(soft_clip_log_std),
+            float_precision=float_precision,
         )
-        self.float_precision = float_precision
 
     def squash_action(self, action: jnp.ndarray) -> jnp.ndarray:
         """Squash actions to configured limits via tanh-affine transform."""
@@ -54,22 +148,19 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
     def __call__(
         self,
         logits: jnp.ndarray,
-        subkey: Optional[jax.Array] = None,
         rng_key: Optional[jax.Array] = None,
         calculate_log_probs: bool = True,
         deployment_mode: bool = False,
     ) -> tuple[jnp.ndarray, Optional[jnp.ndarray]]:
-        """Return sampled continuous actions and optional per-sample log-probs.
+        """
+        Return sampled continuous actions and optional per-sample log-probs.
 
         Parameters
         ----------
         logits : jnp.ndarray
             Tensor with shape ``(batch_size, 2 * action_dimension)``.
-        subkey : Optional[jax.Array]
-            PRNG subkey for sampling. Preferred key argument.
         rng_key : Optional[jax.Array]
-            Alias for ``subkey`` for caller compatibility. Used only when
-            ``subkey`` is ``None``.
+            PRNG key for sampling.
         calculate_log_probs : bool
             If true, compute tanh-corrected Gaussian log-probabilities.
         deployment_mode : bool
@@ -81,41 +172,46 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
             ``(actions, log_probs)`` where ``log_probs`` is ``None`` when
             ``calculate_log_probs`` is false or ``deployment_mode`` is true.
         """
+
         logits = jnp.asarray(logits, dtype=self.float_precision)
-        if logits.shape[1] != 2 * self.action_dimension:
+
+        # Flexibly check trailing dimension to support arbitrary batching/vmap
+        if logits.shape[-1] != 2 * self.action_dimension:
             raise ValueError(
-                "Logits must have shape (batch_size, 2 * action_dimension). "
-                f"Got {logits.shape} for action_dimension={self.action_dimension}."
+                f"Logits trailing dimension must be 2 * {self.action_dimension}. "
+                f"Got shape {logits.shape}."
             )
 
-        mean = logits[:, : self.action_dimension]
+        mean = logits[..., : self.action_dimension]
+
         if deployment_mode:
             pre_squash_action = mean
             log_probs = None
         else:
-            if subkey is None:
-                subkey = rng_key
-            if subkey is None:
-                subkey = jax.random.PRNGKey(onp.random.randint(0, 1236534623))
-            log_std = jnp.clip(
-                logits[:, self.action_dimension :],
-                self.float_precision(-20.0),
-                self.float_precision(1.0),
-            )
+            if rng_key is None:
+                raise ValueError("A valid JAX PRNGKey is required during training.")
+
+            log_std_raw = logits[..., self.action_dimension :]
+            if self.soft_clip_log_std:
+                log_std = soft_clip(log_std_raw, self.log_std_min, self.log_std_max)
+            else:
+                log_std = log_std_raw
             std = jnp.exp(log_std)
-            pre_squash_action = (
-                jax.random.normal(subkey, shape=mean.shape, dtype=self.float_precision)
-                * std
-                + mean
+
+            noise = jax.random.normal(
+                rng_key, shape=mean.shape, dtype=self.float_precision
             )
+            pre_squash_action = noise * std + mean
 
             if calculate_log_probs:
                 log_probs = -0.5 * (
                     ((pre_squash_action - mean) / std) ** 2
-                    + 2.0 * jnp.log(std)
+                    + 2.0 * log_std
                     + jnp.log(2.0 * jnp.pi)
                 )
                 log_probs = log_probs.sum(axis=-1)
+
+                log_scale_term = self.log_scale if self.log_scale is not None else 0.0
 
                 correction = (
                     2.0
@@ -124,7 +220,9 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
                         - pre_squash_action
                         - jax.nn.softplus(-2.0 * pre_squash_action)
                     )
+                    + log_scale_term
                 ).sum(axis=-1)
+
                 log_probs = log_probs - correction
             else:
                 log_probs = None
@@ -134,6 +232,5 @@ class ContinuousGaussianDistribution(ContinuousSamplingStrategy):
             if self.action_limits is not None
             else pre_squash_action
         )
-        logger.debug(f"{actions=}, {log_probs=}, shape={actions.shape}")
 
         return actions, log_probs

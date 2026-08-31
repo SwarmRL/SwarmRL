@@ -8,6 +8,7 @@ import numpy as np
 from loguru import logger
 
 from swarmrl.agents.actor_critic import ActorCriticAgent
+from swarmrl.agents.sac_agent import SACAgent
 from swarmrl.checkpointers.base_checkpointer import BaseCheckpointer
 from swarmrl.checkpointers.checkpoint_manager import CheckpointManager
 from swarmrl.force_functions.force_fn import ForceFunction
@@ -125,7 +126,7 @@ class Trainer:
         switches = []
 
         for agent in self.agents.values():
-            if isinstance(agent, ActorCriticAgent):
+            if isinstance(agent, (ActorCriticAgent, SACAgent)):
                 ag_reward, ag_killed = agent.update_agent()
                 logger.debug(f"{ag_reward=}")
                 reward += np.mean(ag_reward)
