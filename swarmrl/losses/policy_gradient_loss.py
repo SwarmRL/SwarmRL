@@ -46,10 +46,13 @@ class PolicyGradientLoss(Loss):
         self,
         network_params: FrozenDict,
         network: Network,
-        feature_data: jnp.ndarray,
-        action_indices: jnp.ndarray,
-        rewards: jnp.ndarray,
-    ) -> jnp.array:
+        feature_data: jax.Array,
+        action_indices: jax.Array,
+        rewards: jax.Array,
+        final_observation: jax.Array,
+        terminated: jax.Array,
+        truncated: jax.Array,
+    ) -> jax.Array:
         """
         Compute the loss of the shared actor-critic network.
 
@@ -59,13 +62,20 @@ class PolicyGradientLoss(Loss):
             The actor-critic network that approximates the policy.
         network_params : FrozenDict
             Parameters of the actor-critic model used.
-        feature_data : np.ndarray (n_time_steps, n_particles, feature_dimension)
+        feature_data : jax.Array (n_time_steps, n_particles, feature_dimension)
             Observable data for each time step and particle within the episode.
-        action_indices : np.ndarray (n_time_steps, n_particles)
+        action_indices : jax.Array (n_time_steps, n_particles)
             The actions taken by the policy for all time steps and particles during one
             episode.
-        rewards : np.ndarray (n_time_steps, n_particles)
+        rewards : jax.Array (n_time_steps, n_particles)
             The rewards received for all time steps and particles during one episode.
+        final_observation : jax.Array (n_particles, feature_dimension)
+            Observation reached after the final transition, used only to bootstrap
+            the critic and not associated with an action or reward.
+        terminated : jax.Array (n_time_steps,)
+            Per-transition task termination flags.
+        truncated : jax.Array (n_time_steps,)
+            Per-transition environment-reset or time-limit flags.
 
 
         Returns
@@ -74,15 +84,24 @@ class PolicyGradientLoss(Loss):
             The loss of the actor-critic network for the last episode.
         """
 
-        # (n_timesteps, n_particles, n_possibilities)
-        logits, predicted_values = network(network_params, feature_data)
-        predicted_values = predicted_values.squeeze()
-        probabilities = jax.nn.softmax(logits)  # get probabilities
+        # Include the resulting final state for critic bootstrapping.
+        # Shape: (n_timesteps + 1, n_particles, feature_dimension).
+        all_feature_data = jnp.concatenate(
+            (feature_data, final_observation[jnp.newaxis, ...]), axis=0
+        )
+        all_logits, all_values = network(network_params, all_feature_data)
+        logits = all_logits[:-1]
+        all_values = jnp.squeeze(all_values, axis=-1)
+        predicted_values = all_values[:-1]
+        probabilities = jax.nn.softmax(logits, axis=-1)  # get probabilities
         chosen_probabilities = gather_n_dim_indices(probabilities, action_indices)
         log_probs = jnp.log(chosen_probabilities + 1e-8)
         log_jax_runtime_value("log_probs", log_probs)
 
-        returns = self.value_function(rewards)
+        returns = self.value_function(rewards, all_values, terminated, truncated)
+        # Necessary because bootstrapped returns contain critic values; the targets
+        # must not receive gradients during the critic update.
+        returns = jax.lax.stop_gradient(returns)
         log_jax_runtime_value("returns", returns)
 
         log_jax_runtime_value("predicted_values", predicted_values)
@@ -109,7 +128,8 @@ class PolicyGradientLoss(Loss):
         network : Network
                 actor-critic model to use in the analysis.
         episode_data : np.ndarray (n_timesteps, n_particles, feature_dimension)
-                Observable data for each time step and particle within the episode.
+                Observable data for each action state. The final observation is stored
+                separately in ``episode_data.final_observation``.
 
         Returns
         -------
@@ -121,6 +141,9 @@ class PolicyGradientLoss(Loss):
         feature_data = jnp.array(episode_data.features)
         action_data = jnp.array(episode_data.actions)
         reward_data = jnp.array(episode_data.rewards)
+        final_observation = jnp.array(episode_data.final_observation)
+        terminated = jnp.array(episode_data.terminated, dtype=bool)
+        truncated = jnp.array(episode_data.truncated, dtype=bool)
 
         self.n_particles = jnp.shape(feature_data)[1]
         self.n_time_steps = jnp.shape(feature_data)[0]
@@ -132,6 +155,9 @@ class PolicyGradientLoss(Loss):
             feature_data=feature_data,
             action_indices=action_data,
             rewards=reward_data,
+            final_observation=final_observation,
+            terminated=terminated,
+            truncated=truncated,
         )
 
         network.update_model(network_grads)

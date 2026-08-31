@@ -63,8 +63,9 @@ class EpisodicTrainer(Trainer):
 
         Notes
         -----
-        If you are using semi-episodic training but your task kills the
-        simulation, the system will be reset.
+        If a task terminates the environment, the current rollout ends immediately and
+        the environment is reset before the next rollout. This also applies during
+        semi-episodic training.
         """
         killed = False
         rewards = np.zeros(n_episodes)
@@ -120,7 +121,11 @@ class EpisodicTrainer(Trainer):
 
                 self.engine.integrate(episode_length, force_fn)
 
-                force_fn, current_reward, killed = self.update_rl()
+                reset_after_rollout = (episode + 1) % reset_frequency == 0
+                terminated = force_fn.kill_switch
+                force_fn, current_reward, killed = self.update_rl(
+                    terminated=terminated, truncated=reset_after_rollout
+                )
 
                 rewards[episode] = current_reward
                 self.maybe_save_checkpoint(rewards, episode, current_reward)

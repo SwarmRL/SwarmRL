@@ -70,6 +70,7 @@ class ActorCriticAgent(Agent):
 
         # Trajectory to be updated.
         self.trajectory = TrajectoryInformation(particle_type=self.particle_type)
+        self._pending_observation = None
 
         self.storage_config = storage_config
         self.trajectory_storage = None
@@ -94,7 +95,7 @@ class ActorCriticAgent(Agent):
         """
         return "ActorCriticAgent"
 
-    def update_agent(self) -> tuple:
+    def update_agent(self):
         """
         Update the agents network.
 
@@ -102,13 +103,9 @@ class ActorCriticAgent(Agent):
         -------
         rewards : float
                 Net reward for the agent.
-        killed : bool
-                Whether or not this agent killed the
-                simulation.
         """
         # Collect data for returns.
         rewards = self.trajectory.rewards
-        killed = self.trajectory.killed
 
         # Compute loss for actor and critic.
         self.loss.compute_loss(
@@ -124,9 +121,20 @@ class ActorCriticAgent(Agent):
         self.persist_trajectory(self.trajectory)
 
         # Reset the trajectory storage.
-        self.reset_trajectory()
+        self.reset_trajectory(preserve_pending_observation=True)
 
-        return rewards, killed
+        return rewards
+
+    def on_rollout_end(self, *, terminated: bool, truncated: bool):
+        """Apply the shared-environment boundary and update the actor-critic model."""
+        if terminated or truncated:
+            if not self.trajectory.terminated:
+                raise ValueError("Cannot end an empty rollout.")
+
+            self.trajectory.terminated[-1] = terminated
+            self.trajectory.truncated[-1] = truncated and not terminated
+
+        return self.update_agent()
 
     def reset_agent(self, colloids: typing.List[Colloid]):
         """
@@ -139,15 +147,25 @@ class ActorCriticAgent(Agent):
         colloids : typing.List[Colloid]
                 Colloids to use in the initialization.
         """
+        self._pending_observation = None
         self.observable.initialize(colloids)
         self.task.initialize(colloids)
 
-    def reset_trajectory(self):
+    def reset_trajectory(self, preserve_pending_observation: bool = False):
         """
-        Set all trajectory data to None.
+        Clear the collected transition data.
+
+        Parameters
+        ----------
+        preserve_pending_observation : bool (default=False)
+            Preserve the final observation as the next rollout's (trainer episode's)
+            first observation when the environment continues across an optimizer
+            update.
         """
         self.task.kill_switch = False  # Reset here.
         self.trajectory = TrajectoryInformation(particle_type=self.particle_type)
+        if not preserve_pending_observation:
+            self._pending_observation = None
 
     def initialize_network(self):
         """
@@ -188,7 +206,11 @@ class ActorCriticAgent(Agent):
         colloids : List[Colloid]
                 List of colloids in the system.
         """
-        state_description = self.observable.compute_observable(colloids)
+        if self._pending_observation is None:
+            state_description = self.observable.compute_observable(colloids)
+        else:
+            state_description = self._pending_observation
+            self._pending_observation = None
         action_indices, log_probs = self.network.compute_action(
             observables=state_description
         )
@@ -201,7 +223,6 @@ class ActorCriticAgent(Agent):
             self.trajectory.features.append(state_description)
             self.trajectory.actions.append(action_indices)
             self.trajectory.log_probs.append(log_probs)
-            self.trajectory.killed = self.task.kill_switch
 
         self.kill_switch = self.task.kill_switch
 
@@ -236,5 +257,11 @@ class ActorCriticAgent(Agent):
         rewards += external_reward
         if self.train:
             self.trajectory.rewards.append(rewards)
+            terminated = bool(self.task.kill_switch)
+            self.trajectory.terminated.append(terminated)
+            self.trajectory.truncated.append(False)
+            final_observation = self.observable.compute_observable(colloids)
+            self.trajectory.final_observation = final_observation
+            self._pending_observation = final_observation
         self.kill_switch = self.task.kill_switch
         return rewards

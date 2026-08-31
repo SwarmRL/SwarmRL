@@ -33,14 +33,19 @@ class Task:
     @property
     def kill_switch(self):
         """
-        Kill switch property of the task
+        Hard environment-termination signal.
+
+        When a task sets this signal while computing a reward, the current time slice
+        is completed and its transition is recorded with ``terminated=True``. The
+        engine stops before selecting another action. Episodic training resets the
+        environment; continuous training ends.
         """
         return self._kill_switch
 
     @kill_switch.setter
     def kill_switch(self, value: bool):
         """
-        Set the kill switch property.
+        Set the hard environment-termination signal.
 
         Parameters
         ----------
