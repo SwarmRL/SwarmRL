@@ -7,6 +7,13 @@ from typing import Any, Dict, List
 import h5py
 import numpy as np
 
+# Target chunk payload size (HDF5's own sweet spot is roughly 256 KiB-1 MiB).
+_TARGET_CHUNK_BYTES = 1024 * 1024
+# Upper bound on the time-axis chunk length, so datasets with a tiny per-step
+# payload (e.g. a single scalar per timestep) don't get an absurdly long
+# chunk just to hit the target byte size.
+_MAX_TIME_CHUNK = 10_000
+
 
 class HDF5TrajectoryStorage(ABC):
     """
@@ -60,6 +67,29 @@ class HDF5TrajectoryStorage(ABC):
         for key in self._dataset_keys:
             self._data_holder[key].append(sample[key])
 
+    def _choose_chunk_shape(self, spec: Dict[str, Any]) -> tuple:
+        """
+        Pick an HDF5 chunk shape for one dataset spec.
+
+        Never splits the per-step (non-time) axes - HDF5 can't partially
+        decompress a chunk, so fragmenting e.g. a particle or coordinate axis
+        forces decompressing far more blocks than a read actually needs. Only
+        the time axis is chunked, with a length chosen so each chunk's
+        uncompressed payload lands near `_TARGET_CHUNK_BYTES` (capped at
+        `_MAX_TIME_CHUNK`), then floored at `self.write_chunk_size` - chunks
+        smaller than what's flushed per write add no benefit, and this floor
+        always takes precedence over the cap.
+        """
+        per_step_shape = spec["shape"][1:]
+        per_step_elements = int(np.prod(per_step_shape)) if per_step_shape else 1
+        bytes_per_step = per_step_elements * np.dtype(spec["dtype"]).itemsize
+
+        time_chunk = _TARGET_CHUNK_BYTES // max(bytes_per_step, 1)
+        time_chunk = min(time_chunk, _MAX_TIME_CHUNK)
+        time_chunk = max(time_chunk, self.write_chunk_size, 1)
+
+        return (time_chunk, *per_step_shape)
+
     def _init_h5_output(self, data_sample: Any) -> None:
         if not self.allow_existing_file and self.h5_filename.exists():
             raise FileExistsError(
@@ -74,7 +104,6 @@ class HDF5TrajectoryStorage(ABC):
 
         with h5py.File(self.h5_filename.as_posix(), "a", libver="latest") as h5_outfile:
             group = h5_outfile.require_group(self._h5_group_tag)
-            dataset_kwargs = dict(compression="gzip")
 
             for name, spec in dataset_specs.items():
                 if name in group:
@@ -86,7 +115,8 @@ class HDF5TrajectoryStorage(ABC):
                     shape=initial_shape,
                     maxshape=spec["maxshape"],
                     dtype=spec["dtype"],
-                    **dataset_kwargs,
+                    compression="gzip",
+                    chunks=self._choose_chunk_shape(spec),
                 )
 
         self._is_initialized = True

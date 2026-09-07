@@ -1241,6 +1241,7 @@ class EspressoMD(Engine):
             out_folder=str(self.out_folder),
             h5_group_tag=self.h5_group_tag,
             allow_existing_file=self.allow_existing_trajectory_file,
+            write_chunk_size=self.write_chunk_size,
         )
         self._trajectory_storage._init_h5_output(dummy_sample)
 

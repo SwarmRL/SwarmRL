@@ -403,6 +403,111 @@ class TestStorageWriters:
             assert np.isclose(times[1, 0, 0], 2.0)
             assert np.isclose(times[2, 0, 0], 3.0)
 
+    def test_sim_storage_chunks_span_full_particle_and_coordinate_axes(
+        self, tmp_path: Path
+    ):
+        n_colloids = 260
+        storage = SimulationTrajectoryStorage(out_folder=str(tmp_path))
+        storage.write(_make_sim_timestep(n_colloids=n_colloids, time_value=1.0))
+
+        file_path = tmp_path / "trajectory.hdf5"
+        with h5py.File(file_path.as_posix(), "r") as h5_file:
+            group = h5_file["colloids"]
+            for name in (
+                "Unwrapped_Positions",
+                "Velocities",
+                "Directors",
+                "Ids",
+                "Types",
+            ):
+                dataset = group[name]
+                # Non-time axes (particle axis, coordinate axis) must never
+                # be split across chunks.
+                assert dataset.chunks[1:] == dataset.shape[1:]
+                assert dataset.chunks[0] >= 1
+
+    def test_sim_storage_time_chunk_shrinks_for_large_particle_count(
+        self, tmp_path: Path
+    ):
+        small_storage = SimulationTrajectoryStorage(out_folder=str(tmp_path / "small"))
+        small_storage.write(_make_sim_timestep(n_colloids=10, time_value=1.0))
+
+        large_storage = SimulationTrajectoryStorage(out_folder=str(tmp_path / "large"))
+        large_storage.write(_make_sim_timestep(n_colloids=10_000, time_value=1.0))
+
+        with (
+            h5py.File(
+                (tmp_path / "small" / "trajectory.hdf5").as_posix(), "r"
+            ) as small_file,
+            h5py.File(
+                (tmp_path / "large" / "trajectory.hdf5").as_posix(), "r"
+            ) as large_file,
+        ):
+            small_chunks = small_file["colloids"]["Unwrapped_Positions"].chunks
+            large_chunks = large_file["colloids"]["Unwrapped_Positions"].chunks
+
+            # A dataset with many more particles per timestep should get a
+            # shorter time-axis chunk to keep the chunk byte size in check,
+            # not a fixed constant regardless of per-step size.
+            assert large_chunks[0] < small_chunks[0]
+            # Particle/coordinate axes are still never split.
+            assert large_chunks[1:] == (10_000, 3)
+            assert small_chunks[1:] == (10, 3)
+
+    def test_agent_storage_chunk_floor_respects_write_chunk_size(self, tmp_path: Path):
+        write_chunk_size = 50
+        storage = AgentTrajectoryStorage(
+            particle_type=0,
+            out_folder=str(tmp_path),
+            write_chunk_size=write_chunk_size,
+        )
+        trajectory = _make_agent_trajectory(
+            0, episode_length=2, n_colloids=2, base_value=1.0
+        )
+        for _ in range(write_chunk_size):
+            storage.write(trajectory)
+
+        file_path = tmp_path / "agent_data_0.hdf5"
+        with h5py.File(file_path.as_posix(), "r") as h5_file:
+            dataset = h5_file["Agent_0"]["actions"]
+            assert dataset.chunks[0] >= write_chunk_size
+            assert dataset.chunks[1:] == dataset.shape[1:]
+
+    def test_sim_storage_chunk_floor_respects_write_chunk_size(self, tmp_path: Path):
+        write_chunk_size = 50
+        storage = SimulationTrajectoryStorage(
+            out_folder=str(tmp_path),
+            write_chunk_size=write_chunk_size,
+        )
+        storage.write(_make_sim_timestep(n_colloids=260, time_value=1.0))
+
+        file_path = tmp_path / "trajectory.hdf5"
+        with h5py.File(file_path.as_posix(), "r") as h5_file:
+            dataset = h5_file["colloids"]["Unwrapped_Positions"]
+            assert dataset.chunks[0] >= write_chunk_size
+            assert dataset.chunks[1:] == dataset.shape[1:]
+
+    def test_agent_storage_write_chunk_size_floor_beats_max_time_chunk_cap(
+        self, tmp_path: Path
+    ):
+        # write_chunk_size deliberately exceeds the internal _MAX_TIME_CHUNK
+        # cap (10_000) to confirm the floor always wins over the cap.
+        write_chunk_size = 15_000
+        storage = AgentTrajectoryStorage(
+            particle_type=0,
+            out_folder=str(tmp_path),
+            write_chunk_size=write_chunk_size,
+        )
+        trajectory = _make_agent_trajectory(
+            0, episode_length=2, n_colloids=2, base_value=1.0
+        )
+        storage.write(trajectory)
+
+        file_path = tmp_path / "agent_data_0.hdf5"
+        with h5py.File(file_path.as_posix(), "r") as h5_file:
+            dataset = h5_file["Agent_0"]["actions"]
+            assert dataset.chunks[0] == write_chunk_size
+
     def test_empty_batch_is_noop(self, tmp_path: Path):
         storage = SimulationTrajectoryStorage(
             out_folder=str(tmp_path),

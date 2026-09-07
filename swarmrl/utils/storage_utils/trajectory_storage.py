@@ -188,11 +188,13 @@ class SimulationTrajectoryStorage(HDF5TrajectoryStorage):
         out_folder: str = "./trajectories",
         h5_group_tag: str = "colloids",
         allow_existing_file: bool = False,
+        write_chunk_size: int = 1,
     ):
         super().__init__(
             out_folder=out_folder,
             filename="trajectory.hdf5",
             allow_existing_file=allow_existing_file,
+            write_chunk_size=write_chunk_size,
         )
         self._h5_group_tag = h5_group_tag
 
